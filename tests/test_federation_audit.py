@@ -96,7 +96,7 @@ def test_parse_audit_log_skips_malformed_lines() -> None:
         # Write mixed valid and invalid lines
         with open(audit_path, "w") as f:
             f.write('{"valid": "entry"}\n')
-            f.write('this is not json\n')
+            f.write("this is not json\n")
             f.write('{"another": "valid"}\n')
 
         entries = parse_audit_log(str(audit_path))

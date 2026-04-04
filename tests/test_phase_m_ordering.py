@@ -88,10 +88,7 @@ def _misordered_diff(ids: list[str]) -> str:
             start = max(0, i - 2)
             end = min(len(ids), i + 3)
             segment = "\n".join(f"  [{j}] {ids[j]}  (num={nums[j]})" for j in range(start, end))
-            return (
-                f"First misordering at index {i}: "
-                f"{ids[i - 1]} ({nums[i - 1]}) > {ids[i]} ({nums[i]})\n{segment}"
-            )
+            return f"First misordering at index {i}: {ids[i - 1]} ({nums[i - 1]}) > {ids[i]} ({nums[i]})\n{segment}"
     return "(no misordering detected)"
 
 
@@ -148,14 +145,12 @@ def test_phase_m_story_id_ordering_under_parallel_writes(seed: int, tmp_path: Pa
 
     # AC2: Exactly 30 new stories (none lost, none rejected as false duplicates)
     assert len(new_stories) == 30, (
-        f"Expected 30 new stories (seed={seed}), got {len(new_stories)}. "
-        f"Present IDs: {new_ids}"
+        f"Expected 30 new stories (seed={seed}), got {len(new_stories)}. Present IDs: {new_ids}"
     )
 
     # AC2: No duplicate IDs
     assert len(new_ids) == len(set(new_ids)), (
-        f"Duplicate story IDs found (seed={seed}): "
-        f"{[sid for sid in new_ids if new_ids.count(sid) > 1]}"
+        f"Duplicate story IDs found (seed={seed}): {[sid for sid in new_ids if new_ids.count(sid) > 1]}"
     )
 
     # AC2+AC3: Stories appear in numerically ascending order (US-100..US-129)

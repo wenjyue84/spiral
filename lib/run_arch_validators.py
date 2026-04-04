@@ -47,11 +47,7 @@ def _get_diff_file_info(repo_root: str) -> list[dict[str, object]]:
                 text=True,
                 cwd=repo_root,
             )
-            return [
-                {"path": line.strip(), "is_new": False}
-                for line in ls.stdout.splitlines()
-                if line.strip()
-            ]
+            return [{"path": line.strip(), "is_new": False} for line in ls.stdout.splitlines() if line.strip()]
         files: list[dict[str, object]] = []
         for line in result.stdout.splitlines():
             parts = line.split("\t", 1)
@@ -149,11 +145,7 @@ def main() -> int:
     out = {
         "arch_validation_failed": failed,
         "violations": all_violations,
-        "message": (
-            f"{len(all_violations)} violation(s) found"
-            if failed
-            else "All validators passed"
-        ),
+        "message": (f"{len(all_violations)} violation(s) found" if failed else "All validators passed"),
     }
     print(json.dumps(out))
     return 1 if failed else 0

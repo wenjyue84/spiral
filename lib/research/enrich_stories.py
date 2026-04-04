@@ -96,6 +96,7 @@ def _get_episodic_memory() -> Any:
         if _lib_dir not in sys.path:
             sys.path.insert(0, _lib_dir)
         from episodic_memory import EpisodicMemory  # noqa: PLC0415
+
         mem_path = os.environ.get("SPIRAL_EPISODIC_MEMORY", ".spiral/episodic_memory.jsonl")
         return EpisodicMemory(mem_path)
     except Exception:

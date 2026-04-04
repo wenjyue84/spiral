@@ -1138,7 +1138,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   AI_SUGGEST_FILTERED="$SCRATCH_DIR/_ai_suggest_filtered.json"
   TEST_STORIES_FILTERED="$SCRATCH_DIR/_test_story_candidates_filtered.json"
   AI_QUALITY_LOG="$SCRATCH_DIR/_ai_suggest_quality_filter.log"
-  prd_stats  # ensure DONE/TOTAL are current
+  prd_stats # ensure DONE/TOTAL are current
   _ENDGAME_FLAG=""
   if [[ "${TOTAL:-0}" -gt 0 ]] && awk "BEGIN { exit !(${DONE:-0} / ${TOTAL:-1} > 0.90) }"; then
     _ENDGAME_FLAG="--endgame"

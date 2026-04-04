@@ -168,9 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point for standalone usage."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Validate federated prd.json schema (US-1057)"
-    )
+    parser = argparse.ArgumentParser(description="Validate federated prd.json schema (US-1057)")
     parser.add_argument("prd", help="Path to prd.json")
     parser.add_argument(
         "--namespace",

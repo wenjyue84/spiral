@@ -316,6 +316,7 @@ class TestRunPhaseG:
         cliff_toml.write_text("[changelog]")
 
         with patch("subprocess.run") as mock_run:
+
             def side_effect(*args, **kwargs):
                 if "git-cliff" in args[0]:
                     (tmp_path / "CHANGELOG.md").touch()
@@ -386,6 +387,7 @@ class TestRunPhaseG:
 
         with patch("gen_changelog.validate_git_cliff", return_value=True):
             with patch("subprocess.run") as mock_run:
+
                 def side_effect(*args, **kwargs):
                     if "git-cliff" in args[0]:
                         changelog.touch()
@@ -411,6 +413,7 @@ class TestRunPhaseG:
 
         with patch("gen_changelog.validate_git_cliff", return_value=True):
             with patch("subprocess.run") as mock_run:
+
                 def side_effect(*args, **kwargs):
                     if "git-cliff" in args[0]:
                         changelog.touch()

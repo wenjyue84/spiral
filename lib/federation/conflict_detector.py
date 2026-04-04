@@ -30,10 +30,7 @@ def _suggest_resolution(file_path: str, sub_projects: set[str]) -> str:
     first = ordered[0]
     rest = ", ".join(ordered[1:])
     if "test" in file_path or file_path.startswith("tests/"):
-        return (
-            f"Shared test file: extract shared fixtures into a common conftest; "
-            f"merge {first} first, then {rest}."
-        )
+        return f"Shared test file: extract shared fixtures into a common conftest; merge {first} first, then {rest}."
     if file_path.endswith(("__init__.py", ".cfg", ".toml", ".ini", ".yaml", ".yml", ".json")):
         return (
             f"Shared config/init file: coordinate edits to avoid semantic conflicts; "

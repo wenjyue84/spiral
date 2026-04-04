@@ -35,6 +35,7 @@ from lib.failure_categorizer import categorize_message
 
 # ── Lesson data model ────────────────────────────────────────────────────────
 
+
 def _make_lesson(
     error_category: str,
     pattern: str,
@@ -73,6 +74,7 @@ def _overlap(a: str, b: str) -> float:
 
 
 # ── JSONL store operations ───────────────────────────────────────────────────
+
 
 def load_lessons(path: Path) -> list[dict[str, Any]]:
     """Load all lessons from a JSONL file."""
@@ -114,9 +116,7 @@ def append_lesson(path: Path, lesson: dict[str, Any]) -> dict[str, Any]:
             and _overlap(existing.get("pattern", ""), lesson.get("pattern", "")) > 0.8
         ):
             existing["seen_count"] = existing.get("seen_count", 1) + 1
-            existing["confidence"] = min(
-                1.0, existing.get("confidence", 0.5) + 0.1
-            )
+            existing["confidence"] = min(1.0, existing.get("confidence", 0.5) + 0.1)
             existing["ts"] = lesson.get("ts", existing["ts"])
             _save_lessons(path, lessons)
             return existing
@@ -127,6 +127,7 @@ def append_lesson(path: Path, lesson: dict[str, Any]) -> dict[str, Any]:
 
 
 # ── Query: match lessons to a story ──────────────────────────────────────────
+
 
 def query_lessons(
     path: Path,
@@ -161,12 +162,14 @@ def query_lessons(
 
     scored: list[tuple[float, dict[str, Any]]] = []
     for lesson in lessons:
-        lesson_text = " ".join([
-            lesson.get("pattern", ""),
-            lesson.get("fix", ""),
-            lesson.get("story_title", ""),
-            lesson.get("error_category", ""),
-        ])
+        lesson_text = " ".join(
+            [
+                lesson.get("pattern", ""),
+                lesson.get("fix", ""),
+                lesson.get("story_title", ""),
+                lesson.get("error_category", ""),
+            ]
+        )
         sim = _overlap(story_text, lesson_text)
         if sim > 0.0:
             weight = lesson.get("seen_count", 1) * lesson.get("confidence", 0.5)
@@ -177,6 +180,7 @@ def query_lessons(
 
 
 # ── Promote: auto-generate skill files ───────────────────────────────────────
+
 
 def _slugify(text: str) -> str:
     """Convert text to a filesystem-safe slug."""
@@ -225,6 +229,7 @@ def promote_to_skill(
 
 
 # ── CLI: extract ─────────────────────────────────────────────────────────────
+
 
 def _cmd_extract(args: argparse.Namespace) -> None:
     """Extract lessons from results.tsv failures for a given iteration."""
@@ -309,6 +314,7 @@ def _cmd_extract(args: argparse.Namespace) -> None:
 
 # ── CLI: inject ──────────────────────────────────────────────────────────────
 
+
 def _cmd_inject(args: argparse.Namespace) -> None:
     """Inject relevant lessons into validated stories."""
     lessons_path = Path(args.lessons)
@@ -319,9 +325,7 @@ def _cmd_inject(args: argparse.Namespace) -> None:
     if not lessons_path.exists() or not validated_path.exists():
         # No lessons or no stories — pass through
         if validated_path.exists():
-            output_path.write_text(
-                validated_path.read_text(encoding="utf-8"), encoding="utf-8"
-            )
+            output_path.write_text(validated_path.read_text(encoding="utf-8"), encoding="utf-8")
         return
 
     validated = json.loads(validated_path.read_text(encoding="utf-8"))
@@ -344,20 +348,15 @@ def _cmd_inject(args: argparse.Namespace) -> None:
 
     validated["stories"] = stories
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(validated, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
-    print(
-        f"  [E] Injected lessons into {injected_count}/{len(stories)} stories"
-    )
+    output_path.write_text(json.dumps(validated, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"  [E] Injected lessons into {injected_count}/{len(stories)} stories")
 
 
 # ── CLI entry point ──────────────────────────────────────────────────────────
 
+
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(
-        description="Self-evolving lesson store for SPIRAL"
-    )
+    parser = argparse.ArgumentParser(description="Self-evolving lesson store for SPIRAL")
     sub = parser.add_subparsers(dest="command")
 
     # extract
@@ -365,25 +364,15 @@ def main(argv: list[str] | None = None) -> None:
     p_ext.add_argument("--results", required=True, help="Path to results.tsv")
     p_ext.add_argument("--prd", required=True, help="Path to prd.json")
     p_ext.add_argument("--lessons", required=True, help="Path to lessons JSONL")
-    p_ext.add_argument(
-        "--iteration", type=int, default=None, help="Filter to iteration N"
-    )
-    p_ext.add_argument(
-        "--skills-dir", default=None, help="Dir for auto-promoted skill files"
-    )
+    p_ext.add_argument("--iteration", type=int, default=None, help="Filter to iteration N")
+    p_ext.add_argument("--skills-dir", default=None, help="Dir for auto-promoted skill files")
 
     # inject
     p_inj = sub.add_parser("inject", help="Inject lessons into stories")
     p_inj.add_argument("--lessons", required=True, help="Path to lessons JSONL")
-    p_inj.add_argument(
-        "--validated-in", required=True, help="Input validated stories JSON"
-    )
-    p_inj.add_argument(
-        "--enriched-out", required=True, help="Output enriched stories JSON"
-    )
-    p_inj.add_argument(
-        "--top-k", type=int, default=3, help="Max lessons per story"
-    )
+    p_inj.add_argument("--validated-in", required=True, help="Input validated stories JSON")
+    p_inj.add_argument("--enriched-out", required=True, help="Output enriched stories JSON")
+    p_inj.add_argument("--top-k", type=int, default=3, help="Max lessons per story")
 
     args = parser.parse_args(argv)
     if args.command == "extract":

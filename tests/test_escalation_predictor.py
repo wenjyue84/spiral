@@ -160,9 +160,7 @@ class TestFiveStoryProgressionChain:
         assert matches, f"No prediction for {sid}"
         return matches[0]
 
-    def test_escalating_stories_predicted_with_high_confidence(
-        self, progression_tsv: Path
-    ) -> None:
+    def test_escalating_stories_predicted_with_high_confidence(self, progression_tsv: Path) -> None:
         """Each obviously escalating story should be predicted with >85% confidence."""
         preds = predict_all_stories(progression_tsv)
         assert len(preds) == 5
@@ -172,18 +170,14 @@ class TestFiveStoryProgressionChain:
             p = self._get_pred(preds, sid)
             assert p.current_model == "haiku", f"{sid}: expected haiku"
             assert p.predicted_model == "sonnet", f"{sid}: should escalate to sonnet"
-            assert p.confidence_pct > 85.0, (
-                f"{sid}: confidence {p.confidence_pct:.1f}% should be >85%"
-            )
+            assert p.confidence_pct > 85.0, f"{sid}: confidence {p.confidence_pct:.1f}% should be >85%"
 
         # US-P3 and US-P4: sonnet → opus
         for sid in ("US-P3", "US-P4"):
             p = self._get_pred(preds, sid)
             assert p.current_model == "sonnet", f"{sid}: expected sonnet"
             assert p.predicted_model == "opus", f"{sid}: should escalate to opus"
-            assert p.confidence_pct > 85.0, (
-                f"{sid}: confidence {p.confidence_pct:.1f}% should be >85%"
-            )
+            assert p.confidence_pct > 85.0, f"{sid}: confidence {p.confidence_pct:.1f}% should be >85%"
 
         # US-P5: already at opus — no escalation
         p5 = self._get_pred(preds, "US-P5")
@@ -200,9 +194,7 @@ class TestFiveStoryProgressionChain:
         if escalating and stable:
             last_escalating_idx = max(preds.index(p) for p in escalating)
             first_stable_idx = min(preds.index(p) for p in stable)
-            assert last_escalating_idx < first_stable_idx, (
-                "Escalating stories should be sorted before stable stories"
-            )
+            assert last_escalating_idx < first_stable_idx, "Escalating stories should be sorted before stable stories"
 
     def test_tokens_until_escalation_correct(self, progression_tsv: Path) -> None:
         """tokens_until_escalation should reflect distance from last recorded tokens."""

@@ -101,7 +101,7 @@ def _read_results_tsv(path: Path) -> list[dict[str, Any]]:
                 # Pad values to match headers length in case of missing columns
                 while len(values) < len(headers):
                     values.append("")
-                record = dict(zip(headers, values[:len(headers)]))
+                record = dict(zip(headers, values[: len(headers)]))
                 records.append(record)
     return records
 
@@ -336,9 +336,7 @@ class TestE2EFederatedConflicts:
         for i in range(1, 7):
             sub_project = "frontend" if i <= 3 else "backend"
             file_path = f"src/{sub_project}/file{i}.py"
-            stories.append(
-                _make_story(f"US-{i:03d}", sub_project=sub_project, files_to_touch=[file_path])
-            )
+            stories.append(_make_story(f"US-{i:03d}", sub_project=sub_project, files_to_touch=[file_path]))
 
         prd = _make_prd_federated(stories)
         prd_path = tmp_path / "prd.json"

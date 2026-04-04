@@ -2,6 +2,7 @@
 
 Tests transitive_closure() on a 4-subproject fixture with cross-project deps.
 """
+
 from __future__ import annotations
 
 import json
@@ -81,9 +82,7 @@ class TestTransitiveClosure:
     def test_affected_sub_projects_accuracy(self) -> None:
         """Three sub-projects are affected when auth-service changes."""
         result = transitive_closure("auth-service", FOUR_SUBPROJECT_STORIES)
-        assert result["affected_sub_projects"] == sorted(
-            ["api-gateway", "frontend", "user-service"]
-        )
+        assert result["affected_sub_projects"] == sorted(["api-gateway", "frontend", "user-service"])
 
     def test_source_sub_project_not_in_affected(self) -> None:
         """The source sub-project itself is not listed in affected_sub_projects."""

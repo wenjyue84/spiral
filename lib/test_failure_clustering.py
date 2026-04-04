@@ -85,13 +85,13 @@ def cluster_failures(stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     f"Multiple tests ({len(file_stories)}) are failing in {source_file}. "
                     f"Likely a single root cause affecting multiple test cases."
                 ),
-                "acceptanceCriteria": [
-                    f"All {len(file_stories)} tests from {source_file} pass without error."
-                ] + [f"  - `{tid}`" for tid in test_ids],
+                "acceptanceCriteria": [f"All {len(file_stories)} tests from {source_file} pass without error."]
+                + [f"  - `{tid}`" for tid in test_ids],
                 "technicalNotes": [
                     f"Clustered {len(file_stories)} individual test failures:",
                     f"  - {source_file}",
-                ] + [f"    - {tid}" for tid in test_ids],
+                ]
+                + [f"    - {tid}" for tid in test_ids],
                 "dependencies": [],
                 "estimatedComplexity": "small",
                 "_source": f"test-clustering:{source_file}",

@@ -144,8 +144,6 @@ def test_namespace_rules_inferred_from_subprojects() -> None:
     }
     result = validate(prd)
     assert result["pass"] is False
-    prefix_errors = [
-        e for e in result["errors"] if e["type"] == "namespace_prefix_violation"
-    ]
+    prefix_errors = [e for e in result["errors"] if e["type"] == "namespace_prefix_violation"]
     assert len(prefix_errors) == 1
     assert prefix_errors[0]["required_prefix"] == "PEL-"

@@ -55,11 +55,7 @@ def validate_changelog_stories(
     except (OSError, json.JSONDecodeError) as exc:
         return {"ok": False, "orphan_ids": [], "errors": [f"Cannot load prd.json: {exc}"]}
 
-    completed: set[str] = {
-        s["id"]
-        for s in prd_data.get("userStories", [])
-        if s.get("passes") is True
-    }
+    completed: set[str] = {s["id"] for s in prd_data.get("userStories", []) if s.get("passes") is True}
 
     orphans = [sid for sid in changelog_ids if sid not in completed]
     errors = [f"Story {sid} is not completed in prd.json" for sid in orphans]
@@ -77,11 +73,7 @@ def find_orphan_commits(prd_path: str) -> list[str]:
     except (OSError, json.JSONDecodeError):
         return []
 
-    completed: set[str] = {
-        s["id"]
-        for s in prd_data.get("userStories", [])
-        if s.get("passes") is True
-    }
+    completed: set[str] = {s["id"] for s in prd_data.get("userStories", []) if s.get("passes") is True}
 
     try:
         result = subprocess.run(

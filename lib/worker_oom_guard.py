@@ -66,9 +66,7 @@ class OomGuard:
         self.limit_bytes = limit_bytes
         self.tsv_path = tsv_path
 
-    def check_and_enforce(
-        self, proc: "subprocess.Popen[bytes]", story_id: str
-    ) -> bool:
+    def check_and_enforce(self, proc: "subprocess.Popen[bytes]", story_id: str) -> bool:
         """Check memory; kill proc if over limit, log event. Returns True if killed."""
         used = get_process_memory_bytes(proc.pid)
         if used > self.limit_bytes:

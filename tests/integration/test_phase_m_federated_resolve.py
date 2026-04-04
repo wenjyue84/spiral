@@ -176,15 +176,11 @@ class TestFederatedThreeWorkerScenario:
         'Auto-resolved federated conflict' commit message."""
         self._simulate_three_workers(tmp_path)
         _content, auto_resolved = resolve_or_mark(BASE_PY, self._worker_a, self._worker_b)
-        assert auto_resolved is True, (
-            "Phase M should commit with 'Auto-resolved federated conflict' for clean merges"
-        )
+        assert auto_resolved is True, "Phase M should commit with 'Auto-resolved federated conflict' for clean merges"
 
     def test_manual_review_flag_on_unresolvable(self, tmp_path: Path) -> None:
         """resolve_or_mark sets auto_resolved=False for true conflicts, indicating
         the file should be marked for manual review rather than committed."""
         self._simulate_three_workers(tmp_path)
-        _content, auto_resolved = resolve_or_mark(
-            BASE_PY, self._worker_a_with_version, self._worker_c
-        )
+        _content, auto_resolved = resolve_or_mark(BASE_PY, self._worker_a_with_version, self._worker_c)
         assert auto_resolved is False, "Phase M must not auto-commit files with unresolvable conflicts"

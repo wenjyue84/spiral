@@ -39,6 +39,7 @@ def main(args: list[str] | None = None) -> int:
         # "from lib.X" works whether the script is invoked as
         # `python lib/filter_rejected_patterns.py` or via uv run.
         import os
+
         _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         if _project_root not in sys.path:
             sys.path.insert(0, _project_root)

@@ -68,11 +68,7 @@ def validate_quota(
                 prd_data = json.load(f)
             existing_stories: list[dict[str, Any]] = prd_data.get("userStories", [])
             for story in existing_stories:
-                sub_project = (
-                    story.get("sub_project", "").lower()
-                    if story.get("sub_project")
-                    else "default"
-                )
+                sub_project = story.get("sub_project", "").lower() if story.get("sub_project") else "default"
                 current_counts[sub_project] += 1
         except (FileNotFoundError, json.JSONDecodeError):
             pass
@@ -80,11 +76,7 @@ def validate_quota(
     # Count candidate stories per sub_project
     candidate_counts: dict[str, int] = defaultdict(int)
     for candidate in candidates:
-        sub_project = (
-            candidate.get("sub_project", "").lower()
-            if candidate.get("sub_project")
-            else "default"
-        )
+        sub_project = candidate.get("sub_project", "").lower() if candidate.get("sub_project") else "default"
         candidate_counts[sub_project] += 1
 
     # Check quotas

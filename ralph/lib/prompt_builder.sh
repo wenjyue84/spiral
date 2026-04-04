@@ -326,4 +326,3 @@ ${_FT_CONTEXT_BODY}"
     [[ -n "$_FT_STATUS" ]] && echo "$_FT_STATUS"
   fi
 }
-

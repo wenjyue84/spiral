@@ -36,9 +36,9 @@ class CodeDiff:
 class Violation:
     """A single architectural constraint violation."""
 
-    validator: str       # validator class name
-    file_path: str       # file that triggered the violation
-    message: str         # human-readable description
+    validator: str  # validator class name
+    file_path: str  # file that triggered the violation
+    message: str  # human-readable description
     violation_type: str  # machine-readable type (e.g. "MaxFileSize")
 
 
@@ -75,10 +75,7 @@ class MaxFileSize(ArchValidator):
                     Violation(
                         validator="MaxFileSize",
                         file_path=f.path,
-                        message=(
-                            f"{f.path} is {f.size_bytes:,} bytes, "
-                            f"exceeds limit of {self.max_bytes:,} bytes"
-                        ),
+                        message=(f"{f.path} is {f.size_bytes:,} bytes, exceeds limit of {self.max_bytes:,} bytes"),
                         violation_type="MaxFileSize",
                     )
                 )
@@ -185,10 +182,7 @@ class LayerAccess(ArchValidator):
                             Violation(
                                 validator="LayerAccess",
                                 file_path=f.path,
-                                message=(
-                                    f"{f.path} (layer '{file_layer}') imports from "
-                                    f"higher layer '{layer}': {imp}"
-                                ),
+                                message=(f"{f.path} (layer '{file_layer}') imports from higher layer '{layer}': {imp}"),
                                 violation_type="LayerAccess",
                             )
                         )
@@ -256,8 +250,6 @@ def load_validators(validators_str: str) -> List[ArchValidator]:
             continue
         cls = registry.get(name)
         if cls is None:
-            raise ValueError(
-                f"Unknown validator: {name!r}. Available: {sorted(registry)}"
-            )
+            raise ValueError(f"Unknown validator: {name!r}. Available: {sorted(registry)}")
         result.append(cls())
     return result

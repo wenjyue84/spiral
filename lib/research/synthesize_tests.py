@@ -403,7 +403,6 @@ def main() -> int:
     if len(clustered_candidates) < len(candidates):
         print(f"[synthesize] Clustered failures: {len(candidates)} -> {len(clustered_candidates)} stories")
 
-
     if args.output_format == "yaml":
         # AC4: omit null fields and use block scalars for compact YAML
         filtered_candidates = [_filter_none(s) for s in clustered_candidates]

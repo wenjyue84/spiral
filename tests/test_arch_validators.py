@@ -127,9 +127,7 @@ class TestAC3MaxFileSizeIntegration:
             cwd=str(repo),
             capture_output=True,
         )
-        subprocess.run(
-            ["git", "add", "."], cwd=str(repo), capture_output=True, check=True
-        )
+        subprocess.run(["git", "add", "."], cwd=str(repo), capture_output=True, check=True)
         subprocess.run(
             ["git", "commit", "-m", "init"],
             cwd=str(repo),
@@ -139,9 +137,7 @@ class TestAC3MaxFileSizeIntegration:
         # Second commit: add the 5MB file — this is what HEAD~1 diff shows
         (repo / "big.bin").write_bytes(b"x" * (5 * MB))
         subprocess.run(["git", "add", "."], cwd=str(repo), capture_output=True)
-        subprocess.run(
-            ["git", "commit", "-m", "add big file"], cwd=str(repo), capture_output=True, check=True
-        )
+        subprocess.run(["git", "commit", "-m", "add big file"], cwd=str(repo), capture_output=True, check=True)
 
         runner_path = Path(__file__).parent.parent / "lib" / "run_arch_validators.py"
         env = {
@@ -159,9 +155,9 @@ class TestAC3MaxFileSizeIntegration:
         assert result.stdout.strip(), f"No output from runner. stderr: {result.stderr}"
         output = json.loads(result.stdout.strip())
         assert output["arch_validation_failed"] is True
-        assert any(
-            v["violation_type"] == "MaxFileSize" for v in output["violations"]
-        ), f"Expected MaxFileSize violation in {output['violations']}"
+        assert any(v["violation_type"] == "MaxFileSize" for v in output["violations"]), (
+            f"Expected MaxFileSize violation in {output['violations']}"
+        )
         assert result.returncode == 1
 
     def test_runner_no_violation_passes(self, tmp_path: Path) -> None:
@@ -176,18 +172,12 @@ class TestAC3MaxFileSizeIntegration:
             cwd=str(repo),
             capture_output=True,
         )
-        subprocess.run(
-            ["git", "config", "user.name", "T"], cwd=str(repo), capture_output=True
-        )
+        subprocess.run(["git", "config", "user.name", "T"], cwd=str(repo), capture_output=True)
         subprocess.run(["git", "add", "."], cwd=str(repo), capture_output=True)
-        subprocess.run(
-            ["git", "commit", "-m", "init"], cwd=str(repo), capture_output=True
-        )
+        subprocess.run(["git", "commit", "-m", "init"], cwd=str(repo), capture_output=True)
         (repo / "another.py").write_text("y = 2\n")
         subprocess.run(["git", "add", "."], cwd=str(repo), capture_output=True)
-        subprocess.run(
-            ["git", "commit", "-m", "second"], cwd=str(repo), capture_output=True
-        )
+        subprocess.run(["git", "commit", "-m", "second"], cwd=str(repo), capture_output=True)
 
         runner_path = Path(__file__).parent.parent / "lib" / "run_arch_validators.py"
         env = {
@@ -287,9 +277,7 @@ class TestLayerAccess:
 
     def test_file_not_in_any_layer_skipped(self) -> None:
         v = LayerAccess(layers=["api", "service"])
-        diff = _make_diff(
-            DiffFile("lib/utils.py", size_bytes=100, content="from api import x\n")
-        )
+        diff = _make_diff(DiffFile("lib/utils.py", size_bytes=100, content="from api import x\n"))
         # 'lib' is not a known layer — no violations raised
         assert v.validate(diff) == []
 

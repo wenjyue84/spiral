@@ -43,9 +43,7 @@ class ConflictMarker:
     annotated: str = ""
 
 
-def _line_diff(
-    base: list[str], version: list[str]
-) -> Sequence[tuple[str, int, int, int, int]]:
+def _line_diff(base: list[str], version: list[str]) -> Sequence[tuple[str, int, int, int, int]]:
     """Return opcodes from SequenceMatcher comparing *base* to *version*."""
     sm = difflib.SequenceMatcher(None, base, version, autojunk=False)
     return sm.get_opcodes()

@@ -4,6 +4,7 @@ Computes which stories in other sub-projects are transitively affected when
 a given sub-project changes. Uses reverse dependency graph + BFS traversal.
 Detects cycles in the story dependency DAG using iterative DFS (safe for large graphs).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -73,18 +74,14 @@ def transitive_closure(
     story_map: dict[str, dict[str, Any]] = {s["id"]: s for s in stories}
 
     # Build forward deps for cycle detection
-    forward_deps: dict[str, list[str]] = {
-        s["id"]: list(s.get("dependencies", [])) for s in stories
-    }
+    forward_deps: dict[str, list[str]] = {s["id"]: list(s.get("dependencies", [])) for s in stories}
     cycle_detected = _detect_cycles(forward_deps)
 
     # Build reverse graph: node -> stories that depend on it
     dependents = _build_dependents_graph(stories)
 
     # Stories owned by the target sub-project
-    source_ids: set[str] = {
-        s["id"] for s in stories if s.get("sub_project", "") == sub_project_id
-    }
+    source_ids: set[str] = {s["id"] for s in stories if s.get("sub_project", "") == sub_project_id}
 
     # BFS to find all transitively affected story IDs
     visited: set[str] = set()
@@ -103,9 +100,7 @@ def transitive_closure(
 
     # Critical stories: affected stories outside the source sub-project
     critical_stories = sorted(
-        sid
-        for sid in affected_ids
-        if story_map.get(sid, {}).get("sub_project", "") != sub_project_id
+        sid for sid in affected_ids if story_map.get(sid, {}).get("sub_project", "") != sub_project_id
     )
 
     # Affected sub-projects: distinct sub-project values of affected stories (excluding source)
@@ -113,8 +108,7 @@ def transitive_closure(
         {
             story_map[sid]["sub_project"]
             for sid in affected_ids
-            if story_map.get(sid, {}).get("sub_project")
-            and story_map[sid]["sub_project"] != sub_project_id
+            if story_map.get(sid, {}).get("sub_project") and story_map[sid]["sub_project"] != sub_project_id
         }
     )
 

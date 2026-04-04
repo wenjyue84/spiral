@@ -92,10 +92,7 @@ class TestHTTPEndpointAuth:
         """GET /api/dashboard/* endpoints return 403 with invalid token."""
         with patch.dict(os.environ, {"SPIRAL_DASHBOARD_API_KEY": "correct-key"}):
             client = TestClient(app)
-            response = client.get(
-                "/api/dashboard/overview",
-                headers={"X-API-Key": "wrong-key"}
-            )
+            response = client.get("/api/dashboard/overview", headers={"X-API-Key": "wrong-key"})
             assert response.status_code == 403
             assert "Forbidden" in response.json()["detail"]
 
@@ -103,10 +100,7 @@ class TestHTTPEndpointAuth:
         """GET /api/dashboard/* endpoints return success with valid token."""
         with patch.dict(os.environ, {"SPIRAL_DASHBOARD_API_KEY": "correct-key"}):
             client = TestClient(app)
-            response = client.get(
-                "/api/dashboard/overview",
-                headers={"X-API-Key": "correct-key"}
-            )
+            response = client.get("/api/dashboard/overview", headers={"X-API-Key": "correct-key"})
             # Should succeed (200 OK)
             assert response.status_code == 200
 
@@ -114,10 +108,7 @@ class TestHTTPEndpointAuth:
         """POST /api/dashboard/* endpoints return 401 without X-API-Key."""
         with patch.dict(os.environ, {"SPIRAL_DASHBOARD_API_KEY": "test-key"}):
             client = TestClient(app)
-            response = client.post(
-                "/api/dashboard/some-action",
-                json={"action": "test"}
-            )
+            response = client.post("/api/dashboard/some-action", json={"action": "test"})
             assert response.status_code == 401
 
     def test_health_endpoint_no_auth_required(self):
@@ -158,7 +149,7 @@ class TestTokenValidation:
             # HTTP headers are case-insensitive, so lowercase should also work
             response = client.get(
                 "/api/dashboard/overview",
-                headers={"x-api-key": "test-key"}  # lowercase
+                headers={"x-api-key": "test-key"},  # lowercase
             )
             # Should work because HTTP headers are case-insensitive
             assert response.status_code == 200
@@ -167,10 +158,7 @@ class TestTokenValidation:
         """Empty X-API-Key header is treated as missing."""
         with patch.dict(os.environ, {"SPIRAL_DASHBOARD_API_KEY": "test-key"}):
             client = TestClient(app)
-            response = client.get(
-                "/api/dashboard/overview",
-                headers={"X-API-Key": ""}
-            )
+            response = client.get("/api/dashboard/overview", headers={"X-API-Key": ""})
             assert response.status_code in [401, 403]
 
     def test_whitespace_in_token_is_not_trimmed(self):
@@ -179,7 +167,7 @@ class TestTokenValidation:
             client = TestClient(app)
             response = client.get(
                 "/api/dashboard/overview",
-                headers={"X-API-Key": " test-key"}  # leading space
+                headers={"X-API-Key": " test-key"},  # leading space
             )
             assert response.status_code == 403
 
@@ -197,10 +185,7 @@ class TestPermissionScopeChecks:
         with patch.dict(os.environ, {"SPIRAL_DASHBOARD_API_KEY": "admin-key"}):
             client = TestClient(app)
             for endpoint in endpoints:
-                response = client.get(
-                    endpoint,
-                    headers={"X-API-Key": "admin-key"}
-                )
+                response = client.get(endpoint, headers={"X-API-Key": "admin-key"})
                 # Should succeed with valid token
                 assert response.status_code == 200
 
@@ -208,8 +193,5 @@ class TestPermissionScopeChecks:
         """Different tokens cannot be used to access protected resources."""
         with patch.dict(os.environ, {"SPIRAL_DASHBOARD_API_KEY": "correct-key"}):
             client = TestClient(app)
-            response = client.get(
-                "/api/dashboard/overview",
-                headers={"X-API-Key": "different-key"}
-            )
+            response = client.get("/api/dashboard/overview", headers={"X-API-Key": "different-key"})
             assert response.status_code == 403

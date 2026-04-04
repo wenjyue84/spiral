@@ -85,9 +85,7 @@ def test_children_have_small_complexity() -> None:
 # -- AC3: integration -- triple retry exhaustion ------------------------------
 
 
-def _simulate_exhaustion(
-    story_id: str, prd: dict[str, Any]
-) -> tuple[dict[str, Any], list[str]]:
+def _simulate_exhaustion(story_id: str, prd: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     """Walk haiku->sonnet->opus, then decompose when ladder exhausted."""
     models_tried: list[str] = []
     model: str | None = "haiku"
@@ -97,9 +95,7 @@ def _simulate_exhaustion(
         attempt += 1
         nxt = _next_model(model)
         if nxt is None:
-            updated = decompose_exhausted_story(
-                story_id, prd, max_stories_ceiling=200, iteration=attempt
-            )
+            updated = decompose_exhausted_story(story_id, prd, max_stories_ceiling=200, iteration=attempt)
             return updated, models_tried
         model = nxt
     raise RuntimeError("Ladder not exhausted")

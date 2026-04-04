@@ -42,6 +42,7 @@ def test_return_structure(temp_json_files):
     write_prd = temp_json_files["write_prd"]
 
     import os
+
     old_cwd = os.getcwd()
     try:
         os.chdir(str(tmp_path))
@@ -64,6 +65,7 @@ def test_no_collisions_no_violations(temp_json_files):
     write_prd = temp_json_files["write_prd"]
 
     import os
+
     old_cwd = os.getcwd()
     try:
         os.chdir(str(tmp_path))
@@ -105,6 +107,7 @@ def test_file_collision_detection(temp_json_files):
     write_prd = temp_json_files["write_prd"]
 
     import os
+
     old_cwd = os.getcwd()
     try:
         os.chdir(str(tmp_path))
@@ -141,6 +144,7 @@ def test_ordering_violation_detection(temp_json_files):
     write_prd = temp_json_files["write_prd"]
 
     import os
+
     old_cwd = os.getcwd()
     try:
         os.chdir(str(tmp_path))
@@ -173,6 +177,7 @@ def test_multiple_collisions_and_violations(temp_json_files):
     write_prd = temp_json_files["write_prd"]
 
     import os
+
     old_cwd = os.getcwd()
     try:
         os.chdir(str(tmp_path))
@@ -217,6 +222,7 @@ def test_no_technical_notes(temp_json_files):
     write_prd = temp_json_files["write_prd"]
 
     import os
+
     old_cwd = os.getcwd()
     try:
         os.chdir(str(tmp_path))
@@ -245,6 +251,7 @@ def test_empty_validated_stories(temp_json_files):
     write_prd = temp_json_files["write_prd"]
 
     import os
+
     old_cwd = os.getcwd()
     try:
         os.chdir(str(tmp_path))

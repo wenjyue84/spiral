@@ -737,7 +737,7 @@ ruff check: ✓
 ### What was implemented
 - lib/results_tsv.py: Added 3 new columns to ResultsRecord and HEADER
   - worker_id: identifier for federated parallel workers
-  - conflict_file_count: count of files with conflicts detected  
+  - conflict_file_count: count of files with conflicts detected
   - phase_timing: JSON dict of phase durations (e.g. '{"R": 1.5, "M": 0.8, "I": 2.0}')
   - Updated _keep_quota_fields_in_sync() helper to prevent linter from removing new fields
 
@@ -765,7 +765,7 @@ ruff check: ✓
 - AC3: ✓ results.tsv includes worker_id, conflict_file_count, phase_timing columns; cost tracking infrastructure in place
 
 All tests passing: 6/6 ✓
-Type checking: mypy --strict ✓  
+Type checking: mypy --strict ✓
 Linting: ruff check ✓
 
 
@@ -782,14 +782,14 @@ Linting: ruff check ✓
 - tests/test_e2e_federated_conflicts.py: New 400+ line integration test file with 6 test methods
   - test_fixture_seeds_2_subprojects_6_stories(): Verifies fixture creates 2 sub-projects with 6 stories
   - test_phase_m_detects_file_collisions(): Verifies Phase M conflict detection for overlapping files
-    - Uses federation.conflict_detector.detect_file_conflicts() 
+    - Uses federation.conflict_detector.detect_file_conflicts()
     - Verifies 2 conflicts detected (shared/utils.ts and config/webpack.js)
     - Each conflict includes file_path, sub_projects (set), story_ids (set)
   - test_worker_isolation_prevents_corruption(): Verifies prd.json integrity across 3 sequential worker modifications
   - test_results_tsv_captures_worker_metadata(): Verifies new columns written/read correctly via TSV
   - test_conflict_resolution_cost_under_budget(): Verifies phase timing JSON and token cost tracking (<200 token budget)
   - test_3_parallel_workers_without_deadlock(): Verifies 3 workers finish without deadlock (time < 1s)
-  
+
   - Helper functions for test infrastructure:
     - _make_story(): Creates minimal valid story dict with sub_project and filesTouch fields
     - _make_prd_federated(): Creates federated prd.json with 2 sub-projects
@@ -801,12 +801,12 @@ Linting: ruff check ✓
   - Using `line.strip().split("\t")` loses trailing empty columns (doesn't preserve tab count)
   - Correct: `line.rstrip("\n").split("\t")` only removes newlines, preserves tabs
   - After split, pad values array to header length for missing columns
-  
+
 - Type annotation issues with mypy --strict in test helpers:
   - Mypy requires explicit type annotations for variables initialized without context (e.g., `records = []` → `records: list[dict[str, Any]] = []`)
   - Dict comprehensions from `prd.get("userStories", [])` have type `list[Any]`, so set comprehensions on them need explicit type annotation
   - Loop variables in for loops can conflict with later variable assignments in same scope (rename to avoid `no-redef` error)
-  
+
 - Pre-commit formatter (ruff format) can modify type annotations:
   - Type annotations may be reformatted or appear to disappear during pre-commit run
   - Use explicit type annotations on full expressions to ensure persistence

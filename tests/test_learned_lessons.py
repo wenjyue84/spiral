@@ -20,6 +20,7 @@ from lib.learned_lessons import (
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def lessons_path(tmp_path: Path) -> Path:
     return tmp_path / "learned_lessons.jsonl"
@@ -49,6 +50,7 @@ def _lesson(
 
 # ── tokenize / overlap ──────────────────────────────────────────────────────
 
+
 def test_tokenize_basic() -> None:
     tokens = _tokenize("Missing __init__.py export")
     assert "missing" in tokens
@@ -75,6 +77,7 @@ def test_overlap_empty() -> None:
 
 
 # ── load / append ────────────────────────────────────────────────────────────
+
 
 def test_load_empty(lessons_path: Path) -> None:
     assert load_lessons(lessons_path) == []
@@ -117,6 +120,7 @@ def test_append_different_pattern_not_deduped(lessons_path: Path) -> None:
 
 
 # ── query_lessons ────────────────────────────────────────────────────────────
+
 
 def test_query_empty(lessons_path: Path) -> None:
     story = {"title": "Add something", "description": "test"}
@@ -170,6 +174,7 @@ def test_query_ranks_by_seen_count(lessons_path: Path) -> None:
 
 # ── promote_to_skill ─────────────────────────────────────────────────────────
 
+
 def test_promote_below_threshold(lessons_path: Path, skills_dir: Path) -> None:
     append_lesson(lessons_path, _lesson(seen=2))
     created = promote_to_skill(lessons_path, skills_dir, threshold=3)
@@ -200,15 +205,21 @@ def test_promote_idempotent(lessons_path: Path, skills_dir: Path) -> None:
 
 # ── CLI: extract ─────────────────────────────────────────────────────────────
 
+
 def test_extract_cli_no_results(tmp_path: Path) -> None:
     """extract with missing results.tsv should not crash."""
     lessons = tmp_path / "lessons.jsonl"
-    main([
-        "extract",
-        "--results", str(tmp_path / "results.tsv"),
-        "--prd", str(tmp_path / "prd.json"),
-        "--lessons", str(lessons),
-    ])
+    main(
+        [
+            "extract",
+            "--results",
+            str(tmp_path / "results.tsv"),
+            "--prd",
+            str(tmp_path / "prd.json"),
+            "--lessons",
+            str(lessons),
+        ]
+    )
     # No crash, no file created
     assert not lessons.exists()
 
@@ -233,13 +244,19 @@ def test_extract_cli_with_failures(tmp_path: Path) -> None:
     prd.write_text('{"userStories": [{"id": "US-100", "title": "Add widget"}]}')
 
     lessons_path = tmp_path / "lessons.jsonl"
-    main([
-        "extract",
-        "--results", str(results),
-        "--prd", str(prd),
-        "--lessons", str(lessons_path),
-        "--iteration", "1",
-    ])
+    main(
+        [
+            "extract",
+            "--results",
+            str(results),
+            "--prd",
+            str(prd),
+            "--lessons",
+            str(lessons_path),
+            "--iteration",
+            "1",
+        ]
+    )
     assert lessons_path.exists()
     loaded = load_lessons(lessons_path)
     assert len(loaded) == 1
@@ -249,19 +266,23 @@ def test_extract_cli_with_failures(tmp_path: Path) -> None:
 
 # ── CLI: inject ──────────────────────────────────────────────────────────────
 
+
 def test_inject_cli_no_lessons(tmp_path: Path) -> None:
     """inject with no lessons file should pass through stories unchanged."""
     validated = tmp_path / "validated.json"
-    validated.write_text(json.dumps({
-        "stories": [{"id": "US-200", "title": "New feature"}]
-    }))
+    validated.write_text(json.dumps({"stories": [{"id": "US-200", "title": "New feature"}]}))
     output = tmp_path / "enriched.json"
-    main([
-        "inject",
-        "--lessons", str(tmp_path / "nonexistent.jsonl"),
-        "--validated-in", str(validated),
-        "--enriched-out", str(output),
-    ])
+    main(
+        [
+            "inject",
+            "--lessons",
+            str(tmp_path / "nonexistent.jsonl"),
+            "--validated-in",
+            str(validated),
+            "--enriched-out",
+            str(output),
+        ]
+    )
     assert output.exists()
     data = json.loads(output.read_text())
     assert "_learned_lessons" not in data["stories"][0]
@@ -279,17 +300,21 @@ def test_inject_cli_with_matching_lessons(tmp_path: Path) -> None:
         ),
     )
     validated = tmp_path / "validated.json"
-    validated.write_text(json.dumps({
-        "stories": [{"id": "US-300", "title": "Add helper to lib/bar.py"}]
-    }))
+    validated.write_text(json.dumps({"stories": [{"id": "US-300", "title": "Add helper to lib/bar.py"}]}))
     output = tmp_path / "enriched.json"
-    main([
-        "inject",
-        "--lessons", str(lessons_path),
-        "--validated-in", str(validated),
-        "--enriched-out", str(output),
-        "--top-k", "3",
-    ])
+    main(
+        [
+            "inject",
+            "--lessons",
+            str(lessons_path),
+            "--validated-in",
+            str(validated),
+            "--enriched-out",
+            str(output),
+            "--top-k",
+            "3",
+        ]
+    )
     data = json.loads(output.read_text())
     story = data["stories"][0]
     assert "_learned_lessons" in story

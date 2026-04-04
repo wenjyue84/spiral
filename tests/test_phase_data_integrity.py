@@ -156,9 +156,7 @@ class TestPhaseDataIntegrity:
             json.dump(output, f)
         return output
 
-    def assert_research_schema_valid(
-        self, temp_spiral_dir: str, mock_research_output: dict[str, Any]
-    ) -> None:
+    def assert_research_schema_valid(self, temp_spiral_dir: str, mock_research_output: dict[str, Any]) -> None:
         """Assert Phase R research output conforms to schema."""
         result = validate_phase("R", spiral_dir=temp_spiral_dir, schema_dir="lib/schemas")
         assert result["valid"], f"Phase R validation failed: {result['errors']}"
@@ -175,9 +173,7 @@ class TestPhaseDataIntegrity:
             if "relevance_score" in story:
                 assert 0 <= story["relevance_score"] <= 1, f"Invalid relevance_score: {story['relevance_score']}"
 
-    def assert_test_failures_no_duplicates(
-        self, temp_spiral_dir: str, mock_test_output: dict[str, Any]
-    ) -> None:
+    def assert_test_failures_no_duplicates(self, temp_spiral_dir: str, mock_test_output: dict[str, Any]) -> None:
         """Assert Phase T test failures have no duplicate test IDs."""
         result = validate_phase("T", spiral_dir=temp_spiral_dir, schema_dir="lib/schemas")
         assert result["valid"], f"Phase T validation failed: {result['errors']}"
@@ -216,15 +212,11 @@ class TestPhaseDataIntegrity:
             assert ".." not in story_id, f"Path traversal detected in story ID: {story_id}"
             assert "/" not in story_id, f"Invalid path separator in story ID: {story_id}"
 
-    def test_phase_r_research_schema_valid(
-        self, temp_spiral_dir: str, mock_research_output: dict[str, Any]
-    ) -> None:
+    def test_phase_r_research_schema_valid(self, temp_spiral_dir: str, mock_research_output: dict[str, Any]) -> None:
         """Test Phase R output conforms to research schema."""
         self.assert_research_schema_valid(temp_spiral_dir, mock_research_output)
 
-    def test_phase_t_test_failures_schema_valid(
-        self, temp_spiral_dir: str, mock_test_output: dict[str, Any]
-    ) -> None:
+    def test_phase_t_test_failures_schema_valid(self, temp_spiral_dir: str, mock_test_output: dict[str, Any]) -> None:
         """Test Phase T output conforms to test failures schema."""
         self.assert_test_failures_no_duplicates(temp_spiral_dir, mock_test_output)
 

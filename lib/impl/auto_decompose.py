@@ -11,6 +11,7 @@ from typing import Any
 _NUM_SUB_STORIES = 4
 _STORY_ID_RE = re.compile(r"^([A-Z]+-?)(\d+)$")
 
+
 def _find_max_id(stories: list[dict[str, Any]]) -> int:
     max_num = 0
     for s in stories:
@@ -19,15 +20,18 @@ def _find_max_id(stories: list[dict[str, Any]]) -> int:
             max_num = max(max_num, int(m.group(2)))
     return max_num
 
+
 def _get_prefix(story_id: str) -> str:
     m = _STORY_ID_RE.match(story_id)
     return m.group(1) if m else "US-"
+
 
 def _distribute_round_robin(items: list[Any], n: int) -> list[list[Any]]:
     buckets: list[list[Any]] = [[] for _ in range(n)]
     for i, item in enumerate(items):
         buckets[i % n].append(item)
     return buckets
+
 
 def decompose_exhausted_story(
     story_id: str, prd: dict[str, Any], max_stories_ceiling: int, *, iteration: int = 0
@@ -50,7 +54,9 @@ def decompose_exhausted_story(
         )
     files_touch: list[str] = parent.get("filesTouch", [])
     acs: list[str] = parent.get("acceptanceCriteria", [])
-    file_buckets = _distribute_round_robin(files_touch, _NUM_SUB_STORIES) if files_touch else [[] for _ in range(_NUM_SUB_STORIES)]
+    file_buckets = (
+        _distribute_round_robin(files_touch, _NUM_SUB_STORIES) if files_touch else [[] for _ in range(_NUM_SUB_STORIES)]
+    )
     ac_buckets = _distribute_round_robin(acs, _NUM_SUB_STORIES) if acs else [[] for _ in range(_NUM_SUB_STORIES)]
     prefix = _get_prefix(story_id)
     next_num = _find_max_id(stories) + 1
@@ -90,6 +96,7 @@ def decompose_exhausted_story(
     prd["userStories"] = stories + sub_stories
     return prd
 
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Deterministic Phase I story decomposer")
     parser.add_argument("--story-id", required=True)
@@ -116,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     cids: list[str] = parent_out.get("_decomposedInto", [])
     print(f"[auto_decompose] {args.story_id} -> {len(cids)} sub-stories: {', '.join(cids)}")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
