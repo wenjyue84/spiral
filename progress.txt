@@ -1618,3 +1618,40 @@ The user story is about a Python/Shell scripting framework, not a Frappe applica
 - Pre-commit mypy hook hits a cache corruption (KeyError: 'uses_pep604_syntax') — use --no-incremental to bypass
 - shfmt reformats multi-line shell assignments: `\` continuation becomes single-line where possible
 - The spiral_event() function needs PYTHON and SPIRAL_HOME set; falls back silently to raw printf if absent
+
+
+## Iteration - Story: US-1105 Aggressive orphaned worktree cleanup in cleanup_parallel()
+
+### What was implemented
+- lib/run_parallel_ralph.sh: Added aggressive orphaned worktree cleanup after existing git cleanup
+  - Iterates over .spiral-workers/worker-* directories on disk
+  - Checks if each worker's PID (from WORKER_PIDS array) is still alive using kill -0
+  - For dead/unknown PIDs: calculates directory size, force-removes directory, logs to spiral_events.jsonl
+  - Event format: {"ts":"...", "event":"worktree_orphan_removed", "run_id":"...", "worker":"...", "pid":"...", "size_bytes":...}
+  - Prints confirmation: [parallel] Removed orphaned worktree: worker-N (XKB, pid=PID)
+- tests/test_cleanup_orphaned_worktrees.py: Added 3 unit tests
+  - test_cleanup_logic_syntax_and_array_access: Verify bash array access and PID checking logic
+  - test_worktree_directory_iteration: Verify directory iteration and worker ID extraction
+  - test_pid_alive_check_logic: Verify kill -0 PID check syntax
+
+### Patterns discovered
+- Orphaned worktrees from OOM-killed workers accumulate disk space (10+ GB over 100 iterations)
+- Previous git cleanup (git worktree prune, git worktree remove --force) can leave directories on disk when processes are killed mid-operation
+- Using kill -0 allows detecting dead processes without terminating them (safe check)
+- spiral_event helper function used throughout codebase for logging JSON events with timestamps
+
+### Gotchas
+- File deletion on Windows can fail due to file locks even after process death; suppressing errors gracefully handles this
+- Bash array indexing: _idx=$(( _worker_id - 1 )) is used to convert 1-based worker IDs to 0-based array indices
+- The WORKER_PIDS array tracks the current iteration's workers; orphans from previous failed runs may not have PIDs in the array, triggering cleanup as expected
+
+### Acceptance criteria verification
+- AC1: cleanup_parallel() calls git worktree prune before branch cleanup (already existed, line 241)
+- AC2: For each .spiral-workers/worker-N/ dir with dead PID, force-remove directory (lines 254-279)
+- AC3: Log each cleanup to spiral_events.jsonl with size reclaimed (line 276-277)
+- AC4: Unit tests verify cleanup logic syntax and array access (3 tests, all passing)
+
+All tests passing: 3/3
+Type checking: mypy --strict (background task)
+Linting: ruff format, shellcheck --severity=error
+
