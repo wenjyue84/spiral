@@ -1,3 +1,58 @@
+## Iteration - Story: US-1109 Git operation retry with exponential backoff for index.lock failures
+
+### What was implemented
+- lib/impl/git_retry.sh: New module (194 lines) with index.lock retry logic
+  - _is_pid_alive(): Cross-platform PID liveness check (Windows + Unix)
+  - _remove_stale_lock(): Detects and removes stale locks when PID is dead
+  - _log_retry_event(): Logs retry attempts to spiral_events.jsonl
+  - git_retry(): Main wrapper function that:
+    * Detects 'index.lock' errors in git output
+    * Checks if lock PID is alive
+    * Removes stale locks and retries immediately
+    * Retries with exponential backoff: 1s → 2s → 4s → ...
+    * Supports custom retry count and backoff parameters
+    * Extracts repo path from git -C flag (or defaults to current directory)
+- lib/impl/commit_revert.sh: Added source line for git_retry helper
+- lib/run_parallel_ralph.sh: Added source line + wrapped 6 git operations:
+  - Lines 1738-1739: git add/commit for prd.json merge
+  - Lines 1909-1910: git add/commit after successful patch apply
+  - Lines 1928-1929: git add/commit after fallback apply with --reject
+- tests/git_retry.bats: 7 comprehensive unit tests
+  - Succeeds on first try without index.lock
+  - Detects and removes stale index.lock with dead PID
+  - Retries when lock is held by live process
+  - Logs retry events to spiral_events.jsonl
+  - Accepts custom retry count and backoff parameters
+  - Handles unrecoverable errors correctly
+  - Works with git -C syntax for explicit repo path
+
+### Patterns discovered
+- git_retry() function signature: git_retry [max_retries] [initial_backoff] <git_cmd...>
+- Cross-platform PID liveness: `ps -p $pid >/dev/null 2>&1` works on Git Bash and Unix
+- Lock file format: first line contains PID (extracted via bash parameter expansion)
+- Exponential backoff: sleep "$backoff" followed by backoff=$((backoff * 2))
+- Stale lock detection: try to remove if PID is dead, then retry immediately (no sleep)
+- Live lock scenario: sleep and retry with exponential backoff
+- Default repo path when no -C flag: use "." (current directory)
+
+### Gotchas
+- Lock file PID extraction must handle whitespace: `head -1 | extract_digits`
+- Parameter expansion for PID: `${var##*[^0-9]}` removes prefix up to last non-digit
+- git_retry must echo output to preserve command output (not suppress it)
+- Exponential backoff multiplies by 2, so retries are: attempt 1 (fail) → sleep 1s → attempt 2 (fail) → sleep 2s → attempt 3 (fail) → sleep 4s → attempt 4 (fail) → exit
+- On Windows, CRLF line endings cause git warnings but don't affect functionality
+
+### Acceptance criteria verification
+- AC1: ✓ lib/impl/commit_revert.sh sourced git_retry helper; git operations can now retry
+- AC2: ✓ git_retry() detects index.lock errors via grep; checks PID with ps -p; removes lock with rm -f
+- AC3: ✓ Retries up to 3 times (default); backoff is 1s → 2s → 4s; logs each retry to spiral_events.jsonl
+- AC4: ✓ Test creates stale lock with dead PID (999999); verifies git_retry removes it and succeeds
+
+All tests passing: 7/7 ✓
+Shellcheck: No errors on git_retry.sh, commit_revert.sh, run_parallel_ralph.sh ✓
+Shfmt: All files formatted correctly ✓
+Existing pytest suite: 61/61 passing (no regressions) ✓
+
 ## Iteration - Story: US-1103 Skip Redundant Phase R/T When No New Stories Merged
 
 ### What was implemented
