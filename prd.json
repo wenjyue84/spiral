@@ -7116,6 +7116,26 @@
       "model": "haiku"
     },
     {
+      "id": "US-1100",
+      "title": "Worker pool pre-warming to eliminate 1.2s per-worker startup overhead",
+      "description": "In run_parallel_ralph.sh, each worker spawns a fresh bash subshell with Node.js/Claude CLI init (~1.2s overhead). With 3 workers, that is 3.6s wasted every Phase I wave. Pre-warm worker shells at SPIRAL startup: spawn placeholder processes that wait for work, then reuse them across stories within the same iteration. Workers stay alive between stories, only recycled between iterations.",
+      "acceptanceCriteria": [
+        "lib/run_parallel_ralph.sh: add worker_pool_init() called once at Phase I start, spawning N idle worker shells",
+        "Workers receive story assignments via named pipes or temp files instead of fresh exec",
+        "Measure: first Phase I wave starts 2-3s faster than current cold-start approach",
+        "Worker pool is cleaned up on SIGINT/SIGTERM and between iterations"
+      ],
+      "technicalNotes": [
+        "lib/run_parallel_ralph.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "priority": "medium",
+      "passes": false,
+      "_source": "seed",
+      "model": "haiku"
+    },
+    {
       "id": "US-1101",
       "title": "Phase E batch enrichment to reduce per-story Claude CLI overhead",
       "description": "Phase E enriches stories one-at-a-time, each requiring a separate Claude CLI invocation (~3s startup per call). Batch 5-10 stories into a single enrichment prompt, reducing N calls to ceil(N/5) calls. For 20 stories, this cuts from 60s to 12s of CLI overhead alone.",
@@ -7154,8 +7174,7 @@
       "priority": "high",
       "passes": true,
       "_source": "seed",
-      "model": "haiku",
-      "last_attempted": "2026-04-04T18:44:21Z"
+      "model": "haiku"
     },
     {
       "id": "US-1103",
@@ -7257,6 +7276,27 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "priority": "high",
+      "passes": false,
+      "_source": "seed",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1108",
+      "title": "Memory watchdog graceful degradation: reduce workers before OOM kill",
+      "description": "The memory watchdog monitors free RAM and kills workers when threshold is breached. But killing a worker mid-implementation wastes all progress on that story. Instead of kill, implement graceful degradation: (1) stop accepting new stories on the worker, (2) let current story finish, (3) reduce worker count for next wave. Only hard-kill if RSS exceeds critical threshold (90% of system RAM).",
+      "acceptanceCriteria": [
+        "Watchdog has two thresholds: soft (SPIRAL_MEM_SOFT_LIMIT, default 80%) and hard (SPIRAL_MEM_HARD_LIMIT, default 90%)",
+        "Soft breach: mark worker as draining (no new stories), let current finish, reduce worker count next wave",
+        "Hard breach: SIGTERM worker with 30s grace period, then SIGKILL",
+        "Unit test: simulate soft breach, verify worker completes current story; simulate hard breach, verify kill"
+      ],
+      "technicalNotes": [
+        "lib/run_parallel_ralph.sh",
+        "spiral.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "priority": "medium",
       "passes": false,
       "_source": "seed",
       "model": "haiku"
