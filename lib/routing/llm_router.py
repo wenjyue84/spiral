@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-lib/llm_router.py — Centralized LLM model selection for SPIRAL (US-294, US-295).
+lib/llm_router.py — Centralized LLM model selection for SPIRAL (US-294, US-295, US-1093).
 
 Encapsulates model selection logic into three tiers:
   - UTILITY   (haiku)   — small/trivial stories, retry 0
@@ -11,6 +11,11 @@ Context-window-aware upgrade (US-295):
   Before dispatching, if estimated prompt tokens exceed
   model_context_limit * SPIRAL_CONTEXT_WINDOW_MARGIN the model is
   automatically upgraded one tier to prevent silent truncation.
+
+Cost-per-win calibration (US-1093):
+  On startup, loads .spiral/routing_calibration.json which contains
+  cost_per_pass metrics per (model, complexity) bin. Escalation ladder
+  is adjusted to skip tiers with poor cost/quality ratios.
 
 Usage as CLI (called from ralph.sh):
   uv run python lib/llm_router.py --story US-123 [--retry 0] [--prd prd.json]
@@ -25,10 +30,11 @@ Outputs JSON:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -43,6 +49,10 @@ __all__ = [
     "MODEL_CONTEXT_LIMITS",
     "estimate_tokens",
     "get_thinking_budget",
+    "load_calibration",
+    "compute_calibration",
+    "save_calibration",
+    "CalibrationMetric",
 ]
 
 # ---------------------------------------------------------------------------
@@ -211,6 +221,116 @@ class TaskContext:
 
 
 # ---------------------------------------------------------------------------
+# Calibration (US-1093)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class CalibrationMetric:
+    """Cost-per-pass metric for a (model, complexity) pair (US-1093)."""
+
+    model: str  # e.g., "haiku", "sonnet", "opus"
+    complexity: str  # e.g., "small", "medium", "large"
+    success_count: int  # number of pass statuses
+    total_count: int  # total attempts
+    avg_cost_per_pass: float  # average cost (tokens or USD) per successful attempt
+
+
+def load_calibration(path: str) -> dict[tuple[str, str], CalibrationMetric] | None:
+    """Load calibration data from .spiral/routing_calibration.json.
+
+    Returns a dict mapping (model, complexity) → CalibrationMetric, or None if file doesn't exist.
+    """
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        result = {}
+        for key, metric_dict in data.items():
+            model, complexity = key.split("|")
+            result[(model, complexity)] = CalibrationMetric(**metric_dict)
+        return result
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        return None
+
+
+def compute_calibration(results_tsv_path: str) -> dict[tuple[str, str], CalibrationMetric]:
+    """Compute cost-per-pass metrics from results.tsv grouped by (model, complexity).
+
+    Parses results.tsv, groups by (model, complexity bin), counts passes,
+    and computes average cost per pass.
+
+    Returns dict mapping (model, complexity) → CalibrationMetric.
+    """
+    metrics: dict[tuple[str, str], dict[str, Any]] = {}
+
+    try:
+        with open(results_tsv_path, encoding="utf-8", errors="replace") as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            if reader.fieldnames is None:
+                return {}
+
+            for row in reader:
+                model = row.get("model", "").strip()
+                if not model:
+                    continue
+
+                status = row.get("status", "").strip()
+                complexity = row.get("estimatedComplexity", "medium").strip().lower()
+                if complexity not in ("small", "medium", "large"):
+                    complexity = "medium"
+
+                # Estimate cost as cache_read_tokens + cache_creation_tokens or 0
+                try:
+                    cost = int(row.get("cache_read_tokens", "0") or "0") + int(
+                        row.get("cache_creation_tokens", "0") or "0"
+                    )
+                except (ValueError, TypeError):
+                    cost = 0
+
+                key = (model, complexity)
+                if key not in metrics:
+                    metrics[key] = {"successes": 0, "total": 0, "total_cost": 0}
+
+                metrics[key]["total"] += 1
+                if status == "pass":
+                    metrics[key]["successes"] += 1
+                    metrics[key]["total_cost"] += cost
+
+    except FileNotFoundError:
+        return {}
+
+    # Convert to CalibrationMetric objects
+    result = {}
+    for (model, complexity), data in metrics.items():
+        success_count = data["successes"]
+        total_count = data["total"]
+        avg_cost = data["total_cost"] / success_count if success_count > 0 else 0
+        result[(model, complexity)] = CalibrationMetric(
+            model=model,
+            complexity=complexity,
+            success_count=success_count,
+            total_count=total_count,
+            avg_cost_per_pass=avg_cost,
+        )
+
+    return result
+
+
+def save_calibration(metrics: dict[tuple[str, str], CalibrationMetric], path: str) -> None:
+    """Save calibration metrics to .spiral/routing_calibration.json."""
+    try:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        data = {}
+        for (model, complexity), metric in metrics.items():
+            key = f"{model}|{complexity}"
+            data[key] = asdict(metric)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except OSError:
+        pass  # Non-fatal: calibration failure must not block startup
+
+
+# ---------------------------------------------------------------------------
 # LlmRouter
 # ---------------------------------------------------------------------------
 
@@ -221,7 +341,7 @@ class LlmRouter:
     Routing priority (highest first):
     1. ``SPIRAL_CLI_MODEL`` env var — explicit override (haiku/sonnet/opus or full ID)
     2. ``SPIRAL_MODEL_ROUTING`` == fixed tier name — config-level fixed tier
-    3. Auto-routing: complexity + retry escalation heuristic
+    3. Auto-routing: complexity + retry escalation heuristic (or calibrated heuristic if US-1093)
     4. Context-window upgrade: if prompt_tokens exceeds safety margin, step up one tier
        (US-295; applied after tier selection, before returning)
     """
@@ -232,6 +352,23 @@ class LlmRouter:
         "medium": ModelTier.PRODUCTION,
         "large": ModelTier.PRODUCTION,  # large still starts at sonnet, not opus
     }
+
+    def __init__(self) -> None:
+        """Initialize router with optional calibration data (US-1093)."""
+        self.calibration: dict[tuple[str, str], CalibrationMetric] | None = None
+        self._calibration_loaded = False
+
+    def _load_calibration(self) -> None:
+        """Lazy-load calibration from .spiral/routing_calibration.json on first use."""
+        if self._calibration_loaded:
+            return
+        self._calibration_loaded = True
+
+        calib_path = os.environ.get(
+            "SPIRAL_ROUTING_CALIBRATION",
+            str(Path(__file__).parent.parent.parent / ".spiral" / "routing_calibration.json"),
+        )
+        self.calibration = load_calibration(calib_path)
 
     def route(
         self,
@@ -349,22 +486,97 @@ class LlmRouter:
         if routing_mode != "auto":
             return SHORT_TO_TIER.get(routing_mode, ModelTier.PRODUCTION)
 
-        # 3. Auto-routing: base tier + retry escalation
+        # 3. Auto-routing: base tier + retry escalation (with optional calibration US-1093)
+        self._load_calibration()  # Lazy-load from .spiral/routing_calibration.json
         base = self._BASE_TIER.get(ctx.complexity, ModelTier.PRODUCTION)
 
         if ctx.retry_count <= 0:
+            # Check calibration: if base tier has poor cost/quality, skip to next tier
+            if self.calibration:
+                tier = self._find_best_tier_for_complexity(ctx.complexity)
+                return tier
             return base
 
         # On retry ≥ 2, always escalate to FRONTIER
         if ctx.retry_count >= 2:
             return ModelTier.FRONTIER
 
-        # retry == 1: step up one tier
+        # retry == 1: step up one tier (with calibration override if available)
         try:
+            if self.calibration:
+                # Find the best tier given this complexity and retry count
+                tier = self._find_best_tier_for_complexity(ctx.complexity)
+                # If we're still at base tier after calibration check, escalate one more
+                if tier == base:
+                    idx = _ESCALATION.index(base)
+                    return _ESCALATION[min(idx + 1, len(_ESCALATION) - 1)]
+                return tier
             idx = _ESCALATION.index(base)
             return _ESCALATION[min(idx + 1, len(_ESCALATION) - 1)]
         except ValueError:
             return ModelTier.FRONTIER
+
+    def _find_best_tier_for_complexity(self, complexity: str) -> ModelTier:
+        """Find the best tier for a given complexity using calibration data.
+
+        Skips tiers with poor cost/quality ratio: if a tier costs 2x for <10% quality gain over
+        a cheaper tier, that expensive tier is skipped.
+        """
+        if not self.calibration:
+            return self._BASE_TIER.get(complexity, ModelTier.PRODUCTION)
+
+        # Gather metrics for all models in this complexity bin
+        # Calibration stores both short names (haiku, sonnet, opus) and full IDs
+        metrics_by_tier: dict[ModelTier, CalibrationMetric | None] = {}
+        for tier in _ESCALATION:
+            full_id = TIER_TO_MODEL[tier]
+            # Try both short name and full ID lookup
+            short_name = {
+                ModelTier.UTILITY: "haiku",
+                ModelTier.PRODUCTION: "sonnet",
+                ModelTier.FRONTIER: "opus",
+            }.get(tier, "")
+            metric = self.calibration.get((short_name, complexity))
+            if metric is None:
+                metric = self.calibration.get((full_id, complexity))
+            metrics_by_tier[tier] = metric
+
+        # Find base tier
+        base = self._BASE_TIER.get(complexity, ModelTier.PRODUCTION)
+        base_metric = metrics_by_tier.get(base)
+
+        # If no base metrics, return base tier
+        if base_metric is None or base_metric.success_count == 0:
+            return base
+
+        base_win_rate = base_metric.success_count / base_metric.total_count
+        base_cost = base_metric.avg_cost_per_pass
+
+        # Check if base tier is worth the cost compared to cheaper alternatives
+        # If a cheaper tier has similar quality (within 5%), prefer the cheaper one
+        try:
+            base_idx = _ESCALATION.index(base)
+            # Check all lower tiers (cheaper options)
+            for idx in range(base_idx - 1, -1, -1):
+                cheaper_tier = _ESCALATION[idx]
+                cheaper_metric = metrics_by_tier.get(cheaper_tier)
+                if cheaper_metric is None or cheaper_metric.success_count == 0:
+                    continue
+
+                cheaper_win_rate = cheaper_metric.success_count / cheaper_metric.total_count
+                cheaper_cost = cheaper_metric.avg_cost_per_pass
+
+                # If base is 2x+ cost for <10% quality gain over cheaper tier, use cheaper tier
+                if base_cost > 0 and cheaper_cost > 0:
+                    cost_ratio = base_cost / cheaper_cost
+                    quality_gain = base_win_rate - cheaper_win_rate
+                    if cost_ratio >= 2.0 and quality_gain < 0.1:
+                        return cheaper_tier  # Cheaper tier is good enough
+
+        except ValueError:
+            pass
+
+        return base
 
     def _apply_context_window_upgrade(
         self,
@@ -494,7 +706,7 @@ def _load_story(story_id: str, prd_path: str) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Query SPIRAL LLM routing decision for a story",
+        description="Query SPIRAL LLM routing decision for a story, or compute calibration",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -502,9 +714,10 @@ Examples:
   uv run python lib/llm_router.py --story US-123 --retry 1
   uv run python lib/llm_router.py --story US-123 --prd my_prd.json
   uv run python lib/llm_router.py --story US-123 --prompt-tokens 170000
+  uv run python lib/llm_router.py --calibrate results.tsv
 """,
     )
-    parser.add_argument("--story", required=True, help="Story ID, e.g. US-123")
+    parser.add_argument("--story", default=None, help="Story ID, e.g. US-123")
     parser.add_argument(
         "--retry",
         type=int,
@@ -531,8 +744,29 @@ Examples:
         dest="events_file",
         help="Path to spiral_events.jsonl for logging upgrade decisions (optional).",
     )
+    parser.add_argument(
+        "--calibrate",
+        default=None,
+        dest="calibrate_path",
+        help="Compute calibration from results.tsv and save to .spiral/routing_calibration.json",
+    )
 
     args = parser.parse_args(argv)
+
+    # Handle calibration mode (US-1093)
+    if args.calibrate_path:
+        metrics = compute_calibration(args.calibrate_path)
+        calib_path = os.environ.get(
+            "SPIRAL_ROUTING_CALIBRATION",
+            ".spiral/routing_calibration.json",
+        )
+        save_calibration(metrics, calib_path)
+        print(json.dumps({"status": "ok", "metrics_computed": len(metrics), "saved_to": calib_path}))
+        return
+
+    # Handle routing mode (default)
+    if not args.story:
+        parser.error("--story is required unless --calibrate is used")
 
     story = _load_story(args.story, args.prd)
     router = LlmRouter()

@@ -6978,7 +6978,8 @@
         "lib/llm_router.py",
         "spiral.sh"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-04T17:10:36Z"
     },
     {
       "id": "US-1094",

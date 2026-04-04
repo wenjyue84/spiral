@@ -1289,3 +1289,31 @@ This is a technical brief for implementing story US-1090.
 - Trimming happens in-place to prd.json in Phase X
   - Stories with _context_trimmed=True are marked for monitoring
 - json.loads(json.dumps(story)) deep copy is needed to avoid modifying original dict
+
+## Pre-analysis for US-1093 (Gemini 2.5 Pro)
+This is a Python-based task, not a Frappe application. The user story focuses on enhancing a command-line tool's routing logic.
+
+**Technical Brief for US-1093: Model Routing Calibration**
+
+**1. Primary Files for Modification:**
+*   `lib/llm_router.py`: This is the core file to implement the new calibration and dynamic routing logic.
+*   `tests/test_routing_calibration.py`: A new or existing test file to add unit tests for the calibration feature, as per the acceptance criteria.
+*   `spiral.sh`: May require minor changes to ensure the calibration data is passed to or loaded by the Python script at the right time.
+
+**2. Involved Components (Not Frappe DocTypes):**
+*   **Input Data:** `results.tsv` file is the historical data source.
+*   **Persistent State:** `.spiral/routing_calibration.json` will store the computed calibration data.
+
+**3. Recommended Implementation Approach:**
+*   In `lib/llm_router.py`, create a new class/module to handle calibration.
+*   On startup, it should load `results.tsv` using the `csv` module (with `delimiter='\t'`).
+*   Process the data to calculate `cost_per_pass` for each model (haiku, sonnet, opus), grouped by complexity bins.
+*   Modify the main routing function to consult this calibration data.
+*   Implement the skip-tier logic: if the cost/benefit ratio for the next model tier is poor (e.g., sonnet cost is 2x haiku for only a marginal quality gain), adjust the escalation path to jump directly to the next viable tier (e.g., opus).
+*   Serialize the computed calibration map to `.spiral/routing_calibration.json`.
+
+**4. Edge Cases & Gotchas:**
+*   **Cold Start:** The system must handle cases where `results.tsv` is empty or does not exist, falling back to a default static routing ladder.
+*   **Data Sparsity:** The logic must be robust against missing data for certain model/complexity combinations, again using a default behavior.
+*   **File I/O:** Add error handling for reading the `.tsv` and writing the `.json` configuration file.
+
