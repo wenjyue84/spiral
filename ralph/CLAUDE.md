@@ -248,3 +248,8 @@ this redirect — backgrounded worker subprocesses must never block on terminal 
 - Exit cleanly so Ralph can spawn the next iteration
 
 Now, read `prd.json` and `progress.txt`, find the story ID from your task prompt, and implement it!
+
+
+<claude-mem-context>
+
+</claude-mem-context>

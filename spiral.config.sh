@@ -29,10 +29,23 @@ SPIRAL_MODEL_ROUTING="auto"
 # Default 0.85 = upgrade when prompt > 85% of the 200k context window (~170k tokens)
 SPIRAL_CONTEXT_WINDOW_MARGIN="${SPIRAL_CONTEXT_WINDOW_MARGIN:-0.85}"
 
+# ── Model escalation retry thresholds (US-296) ──────────────────────────────
+# Skip haiku entirely for complex runs — start at sonnet, escalate to opus on retry 1.
+SPIRAL_ESCALATION_RETRY_SONNET="${SPIRAL_ESCALATION_RETRY_SONNET:-0}"
+SPIRAL_ESCALATION_RETRY_OPUS="${SPIRAL_ESCALATION_RETRY_OPUS:-1}"
+
+# ── Decompose threshold (retry count for auto-decomposition) ────────────────
+# Default 2 splits too early for complex stories. 3 = give opus a full attempt first.
+SPIRAL_DECOMPOSE_THRESHOLD="${SPIRAL_DECOMPOSE_THRESHOLD:-3}"
+
+# ── Context budget tokens (pre-flight overflow check) ───────────────────────
+# Increase from 150k default to give complex stories more room before trimming.
+export SPIRAL_CONTEXT_BUDGET_TOKENS="${SPIRAL_CONTEXT_BUDGET_TOKENS:-180000}"
+
 # ── Adaptive thinking effort (US-373) ─────────────────────────────────────────
 # Controls --effort flag for 4.6 models (opus/sonnet). Choices: low/medium/high/max.
 # Older models (haiku-4-5, sonnet-4-5) ignore this and use default budget_tokens.
-SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"
+SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-max}"
 
 # ── Thinking budget cap (US-398) ─────────────────────────────────────────────
 # Maximum thinking tokens per story. Maps to --effort level in Claude CLI:
@@ -141,7 +154,7 @@ SPIRAL_STORY_PREFIX="US"
 # ── Parallel worker settings ─────────────────────────────────────────────────
 # 3 workers (32GB RAM). Uses hot-file registry + sequential merge + file
 # inference to minimize inter-worker merge conflicts.
-SPIRAL_RALPH_WORKERS="${SPIRAL_RALPH_WORKERS:-3}"
+SPIRAL_RALPH_WORKERS="${SPIRAL_RALPH_WORKERS:-2}"
 
 # ── Conflict minimization (Strategies 1-3) ───────────────────────────────────
 # Strategy 1: Hot File Registry — track historically conflict-prone files.
@@ -309,14 +322,14 @@ SPIRAL_CONSECUTIVE_FAIL_ABORT=0 # disabled — allow retries on difficult sub-st
 export SPIRAL_SKIP_DISK_CHECK=1
 
 # ── Implementation timeout per story ─────────────────────────────────────
-export SPIRAL_IMPL_TIMEOUT=1800
-export SPIRAL_WORKER_TIMEOUT=1800
+export SPIRAL_IMPL_TIMEOUT=2400
+export SPIRAL_WORKER_TIMEOUT=2400
 
 # ── Per-complexity timeouts (defaults: small=300, medium=600, large=1200) ──
 # Doubled to give Ralph enough runway for complex stories (integration tests, CLI tools)
 export SPIRAL_STORY_TIMEOUT_SMALL=1200
 export SPIRAL_STORY_TIMEOUT_MEDIUM=1800
-export SPIRAL_STORY_TIMEOUT_LARGE=2400
+export SPIRAL_STORY_TIMEOUT_LARGE=3600
 
 # ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
@@ -481,9 +494,9 @@ SPIRAL_ANTI_PATTERN_INJECT="${SPIRAL_ANTI_PATTERN_INJECT:-true}"
 # if its complexity is >= SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY (or its title
 # word count > 12). This avoids wasting sonnet/opus calls on stories that
 # should have been split from the start.
-SPIRAL_DECOMPOSE_ON_FIRST_FAIL="${SPIRAL_DECOMPOSE_ON_FIRST_FAIL:-true}"
+SPIRAL_DECOMPOSE_ON_FIRST_FAIL="${SPIRAL_DECOMPOSE_ON_FIRST_FAIL:-false}"
 # Complexity threshold (small | medium | large) for first-fail decomposition.
-SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY="${SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY:-medium}"
+SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY="${SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY:-large}"
 
 # ── OpenTelemetry privacy scrubbing (US-348) ────────────────────────────────
 # Enable privacy-scrubbing span processor to redact sensitive data before
@@ -504,7 +517,7 @@ SPIRAL_OTEL_EMIT_MESSAGES="${SPIRAL_OTEL_EMIT_MESSAGES:-false}"
 #   redact (entire field removed, not pattern-matched).
 #   Default: gen_ai.input.messages,gen_ai.output.messages
 # SPIRAL_OTEL_SCRUB_FIELDS="gen_ai.input.messages,gen_ai.output.messages"
-export SPIRAL_MAX_DIFF_LINES=400
+export SPIRAL_MAX_DIFF_LINES=800
 
 # ── Phase V: AC Verification (US-1005) ───────────────────────────────────────
 # When true, Phase V runs AC verification after pytest passes.

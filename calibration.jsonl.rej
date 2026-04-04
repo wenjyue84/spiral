@@ -1,8 +1,0 @@
-diff a/calibration.jsonl b/calibration.jsonl	(rejected hunks)
-@@ -67,6 +67,3 @@
- {"story_id": "US-602", "estimated_complexity": "small", "actual_duration_s": 1203, "phase_retries": 0, "passed": true}
- {"story_id": "US-602", "estimated_complexity": "small", "actual_duration_s": 1209, "phase_retries": 0, "passed": true}
- {"story_id": "US-602", "estimated_complexity": "small", "actual_duration_s": 1202, "phase_retries": 0, "passed": true}
--{"story_id": "US-602", "estimated_complexity": "small", "actual_duration_s": 2402, "phase_retries": 0, "passed": true}
--{"story_id": "US-604", "estimated_complexity": "medium", "actual_duration_s": 1805, "phase_retries": 0, "passed": true}
--{"story_id": "US-604", "estimated_complexity": "medium", "actual_duration_s": 902, "phase_retries": 0, "passed": true}

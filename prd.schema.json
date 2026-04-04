@@ -289,6 +289,10 @@
         "_scopeCreep": {
           "type": "boolean",
           "description": "Flagged by scope-creep guard"
+        },
+        "_validation_confidence": {
+          "type": "number",
+          "description": "Confidence score from story validation (0.0-1.0)"
         }
       },
       "additionalProperties": false

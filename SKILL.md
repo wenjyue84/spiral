@@ -1,10 +1,6 @@
 ---
 name: spiral
-<<<<<<< Updated upstream
-version: 4.2.71
-=======
-version: 4.2.72
->>>>>>> Stashed changes
+version: 4.2.83
 description: >
   Run the SPIRAL autonomous development loop on any project. Handles setup,
   generates prd.json and spiral.config.sh if missing, then launches the
@@ -175,6 +171,25 @@ EOF
 
 ## Phase 3 — Launch
 
+### 3-pre — Start spiral-ui (ALWAYS, before anything else)
+
+Before launching spiral.sh, **always** ensure spiral-ui is running. Check port 5299 first — if it's not responding, start it:
+
+```bash
+# Check if already running
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5299/ 2>/dev/null
+```
+
+If not 200, start it in the background:
+
+```bash
+cd "$SPIRAL_HOME/spiral-ui" && npm run dev -- --port 5299 &
+```
+
+Wait for it to respond (up to 10s), then continue. This applies to ALL states (A, B, C) — spiral-ui must always be running when spiral.sh launches.
+
+---
+
 The GUI has already written `spiral.config.sh` to the project root with all settings.
 Read the key CLI parameters from the saved config, then build and run the launch command.
 
@@ -237,9 +252,19 @@ curl -s -X POST http://localhost:5299/api/register-project \
 
 This persists in `~/.spiral/ui-projects.json` — only needs to be done once per project.
 
-### 3d — Open and screenshot project dashboard (ALWAYS do this right after running spiral.sh)
+### 3c-browser — Open spiral-ui in browser (ALWAYS do after registering)
 
-After registering the project, take a screenshot of the dashboard and show it to the user. Use the dev-browser skill server (start if not running) and run:
+Open the project dashboard in the user's default browser so they can follow along:
+
+```bash
+powershell -Command "Start-Process 'http://localhost:5299/<PROJECT_NAME>'"
+```
+
+This opens the live dashboard immediately — the user doesn't have to manually navigate to it.
+
+### 3d — Screenshot project dashboard (ALWAYS do this right after opening browser)
+
+After opening the browser, take a screenshot of the dashboard and show it to the user. Use the dev-browser skill server (start if not running) and run:
 
 ```bash
 cd "/c/Users/Jyue/.claude/skills/dev-browser" && npx tsx <<'EOF'
