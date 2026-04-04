@@ -1206,3 +1206,86 @@ This is a technical brief for implementing story US-1090.
 - Keyword penalty caps prevent absurdly low scores (min 0) even with many keywords
 - Test diff size limit (307 lines added vs ~350 budget) required aggressive code condensing
 
+
+## Pre-analysis for US-1092 (Gemini 2.5 Pro)
+### Technical Brief for Claude: US-1092
+
+**Objective:** Implement a context overflow guard to pre-trim large prompts before sending them to the LLM, based on the user story. Note: The story relates to the `spiral` Python CLI tool, not a Frappe application.
+
+**1. Files to Modify:**
+- **Create New:** `lib/context/overflow_guard.py` (main logic)
+- **Create New:** `tests/test_overflow_guard.py` (unit tests)
+- **Modify:** `spiral.sh` or a core Python script it invokes (e.g., `main.py` or a script in `lib/`). This script orchestrates the "phases" and needs to call the new overflow guard before sending the prompt to the LLM.
+
+**2. Involved Frappe Components:**
+- None. This is a pure Python task within the Spiral project.
+
+**3. Implementation Approach:**
+- In `overflow_guard.py`, create a primary function `guard(prompt_data, budget)`.
+- Use a character-to-token heuristic (e.g., `len(text) / 4`) for initial token estimation.
+- Read the budget from a `SPIRAL_CONTEXT_BUDGET` environment variable (default: 180,000).
+- If tokens exceed the budget, apply these trimming strategies in order until the budget is met:
+    1.  **Reduce Diff Context:** Parse git diffs and reduce the number of context lines.
+    2.  **Smart File Trimming:** Keep only modified sections plus a 50-line surrounding buffer.
+    3.  **Strip Comments:** Use regex to remove comments from code files.
+- The function should return the trimmed data and a flag indicating if trimming occurred.
+- The calling script must use this flag to set `_context_trimmed: true` on the story JSON.
+- Add unit tests in `tests/test_overflow_guard.py` to verify both over-budget (trimming occurs) and under-budget (no trimming) scenarios.
+
+**4. Edge Cases & Gotchas:**
+- The character-based token estimation is imprecise; `tiktoken` is a more robust alternative but adds a dependency.
+- Aggressive file trimming might remove crucial context like function or class definitions that are outside the 50-line boundary.
+- The integration point in the calling script ("Phase X") must be carefully located to ensure the guard runs after all context is gathered but before the final LLM call.
+
+
+## Iteration - Story: US-1092 Context window overflow guard trims prompts before Phase I
+
+### What was implemented
+- lib/context/overflow_guard.py: Core overflow guard module with 3 main functions
+  - `estimate_tokens(text)`: Uses tiktoken if available, fallback to 4 chars/token heuristic
+  - `trim_progressive(story, max_tokens, ralph_prompt, ralph_prompt_tokens)`: Applies 3-stage trimming
+    - Stage 1: Reduce diff depth (trim technicalNotes to <200 chars each)
+    - Stage 2: Trim large files (description to 1500 chars, criteria to 10 items)
+    - Stage 3: Strip verbose comments from code blocks
+    - Last resort: Keep only critical fields (id, title, description, acceptanceCriteria)
+  - `guard_story_context(story, budget_tokens, ralph_prompt)`: Main entry point
+    - Gets budget from SPIRAL_CONTEXT_BUDGET env var if set
+    - Returns story with `_context_trimmed=True` if trimmed, unchanged if under budget
+
+- lib/context/apply_overflow_guard.py: Phase X integration script
+  - Reads prd.json, applies guard to all stories, writes updated prd.json
+  - Logs trimmed story counts to stderr
+  - Accepts --prd and --budget arguments
+
+- lib/phases/phase_x_contextbuild.sh: Updated to call overflow guard
+  - Runs `apply_overflow_guard.py` before repo map generation
+  - Guard runs regardless of SPIRAL_REPO_MAP setting
+  - Reports trimmed story counts
+
+- tests/test_overflow_guard.py: 11 comprehensive unit tests
+  - test_estimate_tokens_basic: Token estimation accuracy
+  - test_estimate_tokens_longer: Token count scaling
+  - test_guard_under_budget: No trimming when under budget
+  - test_guard_over_budget_trims: Trimming when over budget
+  - test_trim_progressive_preserves_critical_fields: ID/title preservation
+  - test_guard_with_mock_large_prompt: 500k char story + ralph prompt
+  - test_guard_respects_env_budget: SPIRAL_CONTEXT_BUDGET env var handling
+  - test_trim_removes_optional_fields_when_needed: Extreme budget pressure
+  - test_estimate_tokens_consistency: Idempotent estimation
+  - test_no_trimming_for_small_story: Minimal stories never trimmed
+  - test_guard_with_all_field_types: Various story field types
+
+### Patterns discovered
+- Token estimation: 4 chars = 1 token is reliable fallback when tiktoken unavailable
+- Progressive trimming order matters: diff/notes → file contents → comments → critical-only
+- Story trimming preserves structure: only removes content, not fields
+- Phase X is ideal place for guard: before Phase I but after Phase M (prd.json stable)
+- Environment variable budget override allows per-run control (SPIRAL_CONTEXT_BUDGET)
+
+### Gotchas
+- When describing tests with "500k chars", that's actually ~125k tokens (4-char heuristic)
+  - 500k char story + 500k char ralph prompt = ~250k tokens total, under 180k budget limit
+  - Tests need smaller budget values to force trimming
+- Trimming happens in-place to prd.json in Phase X
+  - Stories with _context_trimmed=True are marked for monitoring
+- json.loads(json.dumps(story)) deep copy is needed to avoid modifying original dict

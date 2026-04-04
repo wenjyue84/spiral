@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
-import pytest
 from routing.velocity_score import compute_velocity_score, sort_candidates_by_velocity
 
 
