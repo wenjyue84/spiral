@@ -1,3 +1,54 @@
+## Iteration - Story: US-1102 Incremental Test Execution with Changed-File Detection
+
+### What was implemented
+- spiral.config.sh: Added two new config variables:
+  - SPIRAL_FULL_TEST_EVERY_N=5: Forces full test suite every N iterations as safety net
+  - SPIRAL_USE_LAST_FAILED=true: Enables pytest --lf (last-failed) in incremental mode
+- lib/phases/phase_v_validate.sh: Enhanced Phase V incremental validation:
+  - Added logic to force full suite when iteration % SPIRAL_FULL_TEST_EVERY_N == 0
+  - When no newly passed stories, detects changed files via git diff HEAD~1
+  - Maps changed files to test files using new utility (naming convention + import tracing)
+  - Adds pytest --lf flag when SPIRAL_USE_LAST_FAILED=true for incremental runs
+  - Skips full suite if incremental tests pass; runs full suite on failures
+- lib/util/changed_files_to_tests.py: New utility module:
+  - detect_changed_files(git_ref, repo_root): Parses git diff output
+  - get_test_file_by_convention(py_file): Maps foo.py -> tests/test_foo.py
+  - find_tests_importing_module(py_file, repo_root): Uses grep to find importing tests
+  - map_changed_to_tests(changed_files, repo_root): Combines both strategies for complete mapping
+  - CLI interface: --changed-files or --git-diff, outputs JSON with mapping
+- tests/test_phase_v_incremental.py: 18 comprehensive unit tests:
+  - TestFullSuiteForcing: Iteration modulo logic (5, 10, 15 force; others allow incremental)
+  - TestChangedFileDetection: git diff parsing, error handling, timeouts
+  - TestTestFileMapping: Convention mapping, import graph tracing, edge cases
+  - TestLastFailedIntegration: pytest --lf flag injection with other pytest flags
+  - TestIncrementalLogic: Full incremental workflow and output structure
+  - TestConfigVariables: Configuration defaults and zero-frequency disabling
+
+### Patterns discovered
+- Full suite forcing uses simple iteration count modulo: if (iter % N == 0) force full suite
+- Changed file detection fallback: attempt git diff only when no newly passed stories exist
+- Test file mapping uses two strategies: naming convention is fast, import tracing is thorough
+- pytest --lf flag appended to existing command (e.g., "pytest tests/ -v" becomes "pytest tests/ -v --lf")
+- Configuration vars follow SPIRAL pattern: uppercase with underscores, exported as env vars
+- Shell script event logging pattern: log_spiral_event "event_name" "\"key\":value,..."
+
+### Gotchas
+- grep on Windows may not be available; commands wrapped in try-except with graceful fallback
+- git diff HEAD~1 fails on first iteration (no previous commit); returns [] which triggers filesTouch path
+- test_by_convention path construction must check Path(repo_root) / test_file.exists() before adding to results
+- Import tracing grep searches both "from module" and "import module" forms; must deduplicate results
+
+### Acceptance criteria verification
+- AC1: ✓ Phase V detects changed files via git diff HEAD~1 --name-only
+- AC2: ✓ Maps changed files to test files (naming convention + import tracing)
+- AC3: ✓ Runs affected tests + last-failed; skips full suite if incremental pass
+- AC4: ✓ Full suite forced every SPIRAL_FULL_TEST_EVERY_N iterations + final Phase C check
+
+All tests passing: 18/18 ✓
+Type checking: mypy --strict ✓
+Linting: ruff check ✓
+Shell linting: shellcheck --severity=error ✓
+
 ## Iteration - Story: US-1101 Phase E Batch Enrichment to Reduce CLI Overhead
 
 ### What was implemented
