@@ -247,6 +247,22 @@ PYEOF
     echo "  [C] Velocity: ~${RALPH_PROGRESS} stories/iter | ~${ITERS_LEFT} more iters to completion"
   fi
 
+  # ── US-1094: Velocity trend detection — alert on stalling loops ──────────
+  if [[ -f "$REPO_ROOT/results.tsv" ]]; then
+    "$SPIRAL_PYTHON" - <<PYEOF 2>/dev/null || true
+import sys
+sys.path.insert(0, "$SPIRAL_HOME")
+from lib.velocity_tracker import check_and_warn
+# Check velocity and emit stall_warning event if needed
+check_and_warn(
+    results_tsv_path="$REPO_ROOT/results.tsv",
+    prd_path="$PRD_FILE",
+    iteration=$SPIRAL_ITER,
+    events_file="$SCRATCH_DIR/spiral_events.jsonl"
+)
+PYEOF
+  fi
+
   # ── Phase L: LEARNING — analyze retry patterns ──────────────────────────
   run_phase_learn
 
