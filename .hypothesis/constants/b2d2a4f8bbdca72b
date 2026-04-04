@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\_parallel_backends.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.2, 0.8, 300, '1', 'BLIS_NUM_THREADS', 'ENABLE_IPC', 'MKL_NUM_THREADS', 'NUMBA_NUM_THREADS', 'NUMEXPR_NUM_THREADS', 'OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'nesting_level']

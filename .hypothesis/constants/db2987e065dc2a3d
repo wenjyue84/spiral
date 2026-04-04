@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\numpy\random\_pickle.py
+# hypothesis_version: 6.151.9
+
+['MT19937', 'PCG64', 'PCG64DXSM', 'Philox', 'SFC64']

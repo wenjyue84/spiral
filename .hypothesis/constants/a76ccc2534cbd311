@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\_memmapping_reducer.py
+# hypothesis_version: 6.151.9
+
+[0.2, 1000000.0, 2000000000.0, '/dev/shm', 'C', 'C_CONTIGUOUS', 'F', 'F_CONTIGUOUS', 'JOBLIB_TEMP_FOLDER', 'auto', 'base', 'delete_folder', 'file', 'folder', 'prewarm', 'r', 'r+', 'statvfs', 'verbose', 'w+', '{}-{}-{}.pkl']

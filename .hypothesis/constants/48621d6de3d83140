@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\numpy\testing\_private\extbuild.py
+# hypothesis_version: 6.151.9
+
+['\nreturn mod;', '--buildtype=release', '--vsenv', '-L', '-O0', '-fPIC', '-g', '.', '..', '/DEBUG', '/we4013', 'EXT_SUFFIX', 'METH_KEYWORDS', 'body', 'build', 'compile', 'init', 'linux', 'meson', 'meson.build', 'methods', 'modname', 'name', 'setup', 'source.c', 'w', 'win32', 'wt']

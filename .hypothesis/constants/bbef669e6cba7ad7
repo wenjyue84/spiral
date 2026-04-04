@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\spiral\dashboard\aggregator.py
+# hypothesis_version: 6.151.9
+
+[-1.0, 0.0, 0.25, 3.0, 15.0, 1000000, 'avgPhaseTime', 'blockerCount', 'cache_read_tokens', 'duration_sec', 'escalationPct', 'haiku', 'keep', 'model', 'opus', 'r', 'retry_num', 'review_tokens', 'slowestSubProject', 'sonnet', 'status', 'storiesPassed', 'subProjectCount', 'sub_project', 'totalCost', 'utf-8']

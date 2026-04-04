@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\numpy\matrixlib\defmatrix.py
+# hypothesis_version: 6.151.9
+
+[10.0, ',', ';', 'C', 'F', '[]', '__rmul__', 'asmatrix', 'bmat', 'matrix', 'numpy', 'unsupported axis']

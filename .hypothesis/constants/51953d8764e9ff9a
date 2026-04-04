@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\numpy_pickle_compat.py
+# hypothesis_version: 6.151.9
+
+[b' ', 1024, '__array_prepare__', 'allow_mmap', 'allow_pickle', 'b', 'file_handle', 'latin1', 'mmap_mode', 'rb', '{:#x}']

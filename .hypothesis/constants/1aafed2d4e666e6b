@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\parallel.py
+# hypothesis_version: 6.151.9
+
+[0.01, 0.5, 1.0, ' Additionally, ', '%s(n_jobs=%s)', '1M', '2 * n_jobs', 'Done', 'Error', 'GeneratorExitThread', 'JOBLIB_START_METHOD', 'Lock', 'Pending', 'Pool', '_lock', 'abort_everything', 'all', 'auto', 'backend', 'config', 'context', 'dask', 'endswith', 'generator', 'generator_unordered', 'get_context', 'list', 'loky', 'max_nbytes', 'mmap_mode', 'multiprocessing', 'n_jobs', 'prefer', 'processes', 'pypy_version_info', 'r', 'require', 'result', 'sequential', 'sharedmem', 'start_call', 'status', 'stop_call', 'supports_sharedmem', 'temp_folder', 'threading', 'threads', 'uses_threads', 'verbose']

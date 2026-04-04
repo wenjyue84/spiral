@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\numpy\polynomial\__init__.py
+# hypothesis_version: 6.151.9
+
+['Chebyshev', 'Hermite', 'HermiteE', 'Laguerre', 'Legendre', 'Polynomial', 'ascii', 'chebyshev', 'hermite', 'hermite_e', 'laguerre', 'legendre', 'polynomial', 'unicode']

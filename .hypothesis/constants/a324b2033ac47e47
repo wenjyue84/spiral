@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\__init__.py
+# hypothesis_version: 6.151.9
+
+['1.4.2', 'FALSE', 'KMP_INIT_AT_FORK', 'Logger', 'MemorizedResult', 'Memory', 'Parallel', 'PrintTime', 'cpu_count', 'delayed', 'dump', 'effective_n_jobs', 'expires_after', 'hash', 'load', 'parallel_backend', 'parallel_config', 'register_compressor']

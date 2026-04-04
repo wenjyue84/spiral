@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\numpy\f2py\use_rules.py
+# hypothesis_version: 6.151.9
+
+['$Revision: 1.3 $', 'F_MODFUNC', 'REALNAME', 'Ri', 'Rii', 'Riii', 'Riv', 'Rix', 'Ro', 'Rv', 'Rvi', 'Rvii', 'Rviii', 'See `f2py -v`', 'USEMODULENAME', '\\_', '_', 'apiname', 'begintitle', 'body', 'endtitle', 'map', 'method', 'name', 'need', 'note', 'only', 'realname', 'texname', 'texnamename', 'usemodulename', 'vars']

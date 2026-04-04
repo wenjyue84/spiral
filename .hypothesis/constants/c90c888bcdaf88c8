@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\logger.py
+# hypothesis_version: 6.151.9
+
+[0.1, 60.0, '\n---%s---\n', ' %5.1fs', '%.1fs, %.1fmin', '%4.1fmin', '%s: %.2fs, %.1f min', '%s: %s', '.%i', '.1', '[%s]: %s', 'a', 'joblib', 'joblib.log', 'numpy', 'w', 'win']

@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\spiral\preflight.py
+# hypothesis_version: 6.151.9
+
+['--prd', '--spiral-home', '--version', '.', '.specify', '.spiral', '.spiral-workers', '; ', 'DIR', 'FILE', 'SPIRAL_COST_CEILING', 'SPIRAL_VALIDATE_CMD', '__main__', 'bash', 'bash_version_ge4', 'check_name', 'constitution.md', 'constitution_exists', 'docker', 'docker_available', 'fail', 'info', 'jq', 'jq.exe', 'jq_available', 'lib', 'memory', 'node', 'node_version_ge20', 'ok', 'pass', 'prd.json', 'prd_schema_valid', 'ralph', 'remediation', 'replace', 'spiral.config.sh', 'spiral_dir_writable', 'status', 'utf-8']

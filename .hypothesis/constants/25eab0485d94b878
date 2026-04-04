@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\numpy\_core\_dtype_ctypes.py
+# hypothesis_version: 6.151.9
+
+['<', '>', '__ctype_be__', '__ctype_le__', '_pack_', '_type_', 'formats', 'itemsize', 'names', 'offsets']

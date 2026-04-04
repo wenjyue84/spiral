@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\backports.py
+# hypothesis_version: 6.151.9
+
+[0.001, "%s ('%s')", '(\\d+ | [a-z]+ | \\.)', '.', '1.13', 'C', "LooseVersion ('%s')", 'nt', 'r+', 'uint8', 'winerror']

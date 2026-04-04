@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\numpy\core\__init__.py
+# hypothesis_version: 6.151.9
+
+['_dtype', '_dtype_ctypes', '_internal', '_multiarray_umath', 'arrayprint', 'defchararray', 'einsumfunc', 'fromnumeric', 'function_base', 'getlimits', 'multiarray', 'numeric', 'numerictypes', 'overrides', 'records', 'shape_base', 'umath']

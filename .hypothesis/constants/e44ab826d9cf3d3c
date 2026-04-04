@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\func_inspect.py
+# hypothesis_version: 6.151.9
+
+[700, 1500, '\n%s', '!', '%s(%s)', '%s-alias', '%s...', '%s=%s', '*', '**', ', ', '-', '.', '.py', ':', '<', '<doctest ', '<doctest %s>', '<ipython-input', '>', 'FullArgSpec', 'Memory', '\\', '_', '__class__', '__code__', '__main__', '__module__', '__name__', '__qualname__', 'func_globals', 'func_name', 'im_class', 'ipykernel', 'ipykernel_', 'nt', 'quote', 'unknown', '{0}({1}, {2})', '{}{}']

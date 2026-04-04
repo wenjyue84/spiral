@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\externals\loky\backend\resource_tracker.py
+# hypothesis_version: 6.151.9
+
+[512, '-c', ':', 'MAYBE_UNLINK', 'PROBE', 'REGISTER', 'UNREGISTER', 'ascii', 'ensure_running', 'file', 'folder', 'name too long', 'posix', 'pthread_sigmask', 'rb', 'register', 'semlock', 'unregister', 'win32']

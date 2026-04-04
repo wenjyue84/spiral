@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\numpy\fft\_helper.py
+# hypothesis_version: 6.151.9
+
+[1.0, 'fftfreq', 'fftshift', 'ifftshift', 'numpy.fft', 'rfftfreq']

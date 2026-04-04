@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\externals\loky\process_executor.py
+# hypothesis_version: 6.151.9
+
+[0.001, 1.0, 1.2, 5.0, 300000000.0, 256, 'Exited cleanly', 'Exiting with code 1', 'LOKY_MAX_DEPTH', 'SC_SEM_NSEMS_MAX', '__traceback__', 'args', 'broken executor', 'chunksize', 'closing call_queue', 'closing result_queue', 'fn', 'fork', 'future', 'kwargs', 'timeout', 'win32']

@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\joblib\_store_backends.py
+# hypothesis_version: 6.151.9
+
+['({})', ', ', 'CacheItemInfo', 'Deleting item {0}', 'Persisting in %s', '[a-f0-9]{32}', 'compress', 'func_code.py', 'input_args', 'last_access', 'location', 'metadata.json', 'mmap_mode', 'output.pkl', 'rb', 'utf-8', 'wb', '{0} from {1}', '{0}...', '{: <16}', '{}.thread-{}-pid-{}', '{}={}']
