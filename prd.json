@@ -6922,7 +6922,7 @@
         "Unit test: score 5 stories (2 simple, 3 complex), verify ordering puts simple first"
       ],
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -6932,7 +6932,8 @@
         "spiral.sh",
         "lib/merge_stories.py"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-04T16:34:13Z"
     },
     {
       "id": "US-1092",
@@ -7000,7 +7001,8 @@
         "lib/phases/phase_c_check_done.sh"
       ],
       "model": "haiku",
-      "last_attempted": "2026-04-04T16:12:38Z"
+      "last_attempted": "2026-04-04T16:12:38Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-1095",

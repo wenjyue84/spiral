@@ -1171,3 +1171,38 @@ This is a technical brief for implementing story US-1090.
 - Message extraction returns "unknown error" only on completely empty input
 - Failure types are: 'missing_dependency' (not 'import_error' or 'module_not_found')
 - Timeout priority is after oom/context_overflow but before type_error/syntax_error/test_assertion
+
+## Iteration - Story: US-1091 Velocity-aware story prioritization in Phase M merge ordering
+
+### What was implemented
+- lib/routing/velocity_score.py: Compute implementation velocity scores (0-100) based on:
+  - filesTouch count: 5 points per file beyond 3 files (capped at -40)
+  - Complexity keywords: 15 points per architecture keyword (refactor, migration, overhaul, etc., capped at -50)
+  - Historical patterns: +10 bonus if >60% of story types show >75% pass rates
+  - Simple stories (≤3 files, no keywords) score >70; complex stories score <40
+  
+- lib/prd/merge_stories.py: Phase M integration
+  - Added velocity_score module import with graceful fallback if unavailable
+  - Load velocity_model from .spiral/velocity_model.json (optional, if results.tsv exists)
+  - Apply `sort_candidates_by_velocity()` to reorder test_candidates and research_candidates
+  - With focus mode: split candidates by focus match, score each group separately, preserve ordering
+  
+- tests/test_velocity_score.py: 13 unit tests covering:
+  - Simple story high scores (>70 with ≤3 files, no keywords)
+  - Complex story low scores (<40 with many files + keywords)
+  - File and keyword penalties (linear, capped)
+  - Sorting (puts simple stories first)
+  - All 4 acceptance criteria verified with test_ac1-4 test cases
+
+### Patterns discovered
+- Scoring with caps (min/max) prevents outliers from dominating: both file and keyword penalties cap at -40/-50
+- Keyword matching on title + description required (not just title) for catching complex changes
+- Sorting integration point: after dedup but before cap-check loop (not after priority sort)
+- Phase M's focus mode needs special handling to preserve velocity ordering within focus groups
+
+### Gotchas
+- Story scoring is deterministic and reproducible (keyword heuristics only, no randomness)
+- velocity_model is optional: if not available, defaults to no bonus, still scores properly
+- Keyword penalty caps prevent absurdly low scores (min 0) even with many keywords
+- Test diff size limit (307 lines added vs ~350 budget) required aggressive code condensing
+
