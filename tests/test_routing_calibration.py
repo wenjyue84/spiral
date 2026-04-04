@@ -265,9 +265,7 @@ class TestCalibratedRouting:
 class TestCalibrationIntegration:
     """Integration tests for calibration with llm_router full flow."""
 
-    def test_calibration_with_context_window_upgrade(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_calibration_with_context_window_upgrade(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that context-window upgrade works with calibration enabled."""
         # Set up calibration with haiku being good for medium
         metrics = {
@@ -377,10 +375,20 @@ class TestCalibrationEdgeCases:
         # Create mock results.tsv
         results_path = tmp_path / "results.tsv"
         rows = [
-            {"model": "haiku", "status": "pass", "estimatedComplexity": "small",
-             "cache_read_tokens": "1000", "cache_creation_tokens": "500"},
-            {"model": "sonnet", "status": "reject", "estimatedComplexity": "medium",
-             "cache_read_tokens": "2000", "cache_creation_tokens": "1000"},
+            {
+                "model": "haiku",
+                "status": "pass",
+                "estimatedComplexity": "small",
+                "cache_read_tokens": "1000",
+                "cache_creation_tokens": "500",
+            },
+            {
+                "model": "sonnet",
+                "status": "reject",
+                "estimatedComplexity": "medium",
+                "cache_read_tokens": "2000",
+                "cache_creation_tokens": "1000",
+            },
         ]
         with open(results_path, "w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=rows[0].keys(), delimiter="\t")

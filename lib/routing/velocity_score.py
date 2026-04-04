@@ -57,9 +57,7 @@ def compute_velocity_score(
     # Bonus: if model shows high pass rates
     if velocity_model and velocity_model.get("story_types"):
         types = velocity_model.get("story_types", {})
-        high_pass = sum(
-            1 for st in types.values() if st.get("pass_rate", 0) > 0.75
-        )
+        high_pass = sum(1 for st in types.values() if st.get("pass_rate", 0) > 0.75)
         if high_pass / max(1, len(types)) > 0.6:
             score += 10
 
@@ -73,9 +71,6 @@ def sort_candidates_by_velocity(
     reverse: bool = True,
 ) -> list[dict[str, Any]]:
     """Sort candidates by velocity score (highest first by default)."""
-    scored = [
-        (story, compute_velocity_score(story, velocity_model, results_tsv_path))
-        for story in candidates
-    ]
+    scored = [(story, compute_velocity_score(story, velocity_model, results_tsv_path)) for story in candidates]
     scored.sort(key=lambda x: x[1], reverse=reverse)
     return [story for story, _score in scored]

@@ -1180,13 +1180,13 @@ This is a technical brief for implementing story US-1090.
   - Complexity keywords: 15 points per architecture keyword (refactor, migration, overhaul, etc., capped at -50)
   - Historical patterns: +10 bonus if >60% of story types show >75% pass rates
   - Simple stories (≤3 files, no keywords) score >70; complex stories score <40
-  
+
 - lib/prd/merge_stories.py: Phase M integration
   - Added velocity_score module import with graceful fallback if unavailable
   - Load velocity_model from .spiral/velocity_model.json (optional, if results.tsv exists)
   - Apply `sort_candidates_by_velocity()` to reorder test_candidates and research_candidates
   - With focus mode: split candidates by focus match, score each group separately, preserve ordering
-  
+
 - tests/test_velocity_score.py: 13 unit tests covering:
   - Simple story high scores (>70 with ≤3 files, no keywords)
   - Complex story low scores (<40 with many files + keywords)

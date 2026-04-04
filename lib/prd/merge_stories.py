@@ -12,6 +12,7 @@ Cap: --max-new 50 total additions per SPIRAL iteration.
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import re
@@ -67,6 +68,18 @@ def _log_conflicts_to_results(results_tsv: str, conflicts: list[dict[str, Any]])
                     "conflict_files": c["conflict_files"],
                 }
             )
+
+
+def compute_content_hash(story: dict[str, Any]) -> str:
+    """Compute sha256 hash of normalized title + description.
+
+    Used for O(1) exact duplicate detection before expensive similarity comparison.
+    Normalizes by stripping whitespace and lowercasing.
+    """
+    title = story.get("title", "").strip().lower()
+    description = story.get("description", "").strip().lower()
+    combined = f"{title}\n{description}"
+    return hashlib.sha256(combined.encode("utf-8")).hexdigest()
 
 
 def normalize(text: str) -> set[str]:
@@ -212,6 +225,46 @@ def _load_raw(path: str) -> dict[str, Any]:
             except ImportError:
                 raise ImportError(f"pyyaml required to read {path} — install with: uv add pyyaml")
         return json.load(f)
+
+
+def load_dedup_hashes(scratch_dir: str = ".spiral") -> set[str]:
+    """Load persisted content hashes from .spiral/dedup_hashes.json.
+
+    Returns empty set if file doesn't exist.
+    """
+    hashes_path = os.path.join(scratch_dir, "dedup_hashes.json")
+    if not os.path.isfile(hashes_path):
+        return set()
+    try:
+        with open(hashes_path, encoding="utf-8") as f:
+            data = json.load(f)
+        return set(data.get("hashes", []))
+    except (json.JSONDecodeError, OSError):
+        return set()
+
+
+def save_dedup_hashes(hashes: set[str], scratch_dir: str = ".spiral") -> None:
+    """Persist content hashes to .spiral/dedup_hashes.json."""
+    hashes_path = os.path.join(scratch_dir, "dedup_hashes.json")
+    os.makedirs(scratch_dir, exist_ok=True)
+    with open(hashes_path, "w", encoding="utf-8") as f:
+        json.dump({"hashes": sorted(hashes)}, f, indent=2)
+
+
+def ensure_log_directory(scratch_dir: str = ".spiral") -> str:
+    """Ensure .spiral/logs/ directory exists, return path."""
+    logs_dir = os.path.join(scratch_dir, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    return logs_dir
+
+
+def log_dedup_hit(scratch_dir: str, story_title: str) -> None:
+    """Log a hash dedup hit to phase_m.log."""
+    logs_dir = ensure_log_directory(scratch_dir)
+    log_path = os.path.join(logs_dir, "phase_m.log")
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(f"{ts} dedup_hash_hit {story_title[:80]}\n")
 
 
 def load_candidates(path: str) -> list[dict[str, Any]]:
@@ -452,6 +505,15 @@ def main() -> int:
             test_candidates.sort(key=lambda s: (0 if matches_focus(s, args.focus) else 1, sort_key(s)))
         print(f'[merge] Focus: "{args.focus}" — research hard-filtered, test stories soft-prioritized')
 
+    # ── US-1095: Load persisted content hashes for O(1) dedup ─────────────────
+    # Pre-populate with hashes of existing stories in prd.json so we only dedup
+    # against stories already in the system, not candidates from previous iterations
+    scratch_dir = os.environ.get("SPIRAL_SCRATCH_DIR", ".spiral")
+    dedup_hashes = set()
+    for story in existing_stories:
+        dedup_hashes.add(compute_content_hash(story))
+    dedup_hits = 0
+
     new_stories: list[dict[str, Any]] = []
     seen_titles: list[str] = list(existing_titles)
     seen_epics: list[str] = list(existing_epics)
@@ -469,11 +531,20 @@ def main() -> int:
         title = story.get("title", "")
         if not title:
             continue
+        # ── US-1095: Check content hash first (O(1) exact dedup) ────────────────
+        content_hash = compute_content_hash(story)
+        if content_hash in dedup_hashes:
+            print(f"[merge] Skip duplicate (test, hash): {title[:80]}")
+            log_dedup_hit(scratch_dir, title)
+            dedup_hits += 1
+            continue
         cand_epic = story.get("epicId", "")
         if is_duplicate(title, seen_titles, candidate_epic=cand_epic, existing_epics=seen_epics):
             print(f"[merge] Skip duplicate (test): {title[:80]}")
             continue
         story["_isTestFix"] = True
+        story["_content_hash"] = content_hash
+        dedup_hashes.add(content_hash)
         new_stories.append(story)
         seen_titles.append(title)
         seen_epics.append(cand_epic)
@@ -498,11 +569,20 @@ def main() -> int:
             title = story.get("title", "")
             if not title:
                 continue
+            # ── US-1095: Check content hash first (O(1) exact dedup) ────────────────
+            content_hash = compute_content_hash(story)
+            if content_hash in dedup_hashes:
+                print(f"[merge] Skip duplicate (promoted, hash): {title[:80]}")
+                log_dedup_hit(scratch_dir, title)
+                dedup_hits += 1
+                continue
             cand_epic = story.get("epicId", "")
             if is_duplicate(title, seen_titles, candidate_epic=cand_epic, existing_epics=seen_epics):
                 print(f"[merge] Skip duplicate (promoted): {title[:80]}")
                 continue
             story["_isTestFix"] = True
+            story["_content_hash"] = content_hash
+            dedup_hashes.add(content_hash)
             new_stories.append(story)
             seen_titles.append(title)
             seen_epics.append(cand_epic)
@@ -520,14 +600,24 @@ def main() -> int:
         if args.focus and not matches_focus(story, args.focus):
             print(f"[merge] Skip (focus mismatch): {title[:80]}")
             continue
+        # ── US-1095: Check content hash first (O(1) exact dedup) ────────────────
+        content_hash = compute_content_hash(story)
+        if content_hash in dedup_hashes:
+            print(f"[merge] Skip duplicate (research, hash): {title[:80]}")
+            log_dedup_hit(scratch_dir, title)
+            dedup_hits += 1
+            continue
         cand_epic = story.get("epicId", "")
         if is_duplicate(title, seen_titles, candidate_epic=cand_epic, existing_epics=seen_epics):
             print(f"[merge] Skip duplicate (research): {title[:80]}")
             continue
         if len(new_stories) >= effective_cap:
             # Cap hit — save non-duplicate for next iteration
+            # Note: hash NOT added to dedup_hashes, so overflow candidates can be reconsidered next iteration
             leftover_research.append({k: v for k, v in story.items() if not k.startswith("_")})
         else:
+            story["_content_hash"] = content_hash
+            dedup_hashes.add(content_hash)
             new_stories.append(story)
             seen_titles.append(title)
             seen_epics.append(cand_epic)
@@ -593,6 +683,11 @@ def main() -> int:
     if src_counts:
         parts = ", ".join(f"{k}={v}" for k, v in src_counts.items())
         print(f"[merge] Added by source: {parts}")
+
+    # ── US-1095: Save updated content hashes for next iteration ────────────────
+    save_dedup_hashes(dedup_hashes, scratch_dir)
+    if dedup_hits:
+        print(f"[merge] Content-hash dedup: {dedup_hits} exact duplicates skipped")
 
     total_after = len(prd["userStories"])
     pending_after = sum(1 for s in prd["userStories"] if not s.get("passes") and not s.get("_archived"))

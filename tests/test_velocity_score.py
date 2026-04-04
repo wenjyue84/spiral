@@ -167,9 +167,7 @@ class TestAcceptanceCriteria:
 
         # Simple stories should come before complex
         simple_indices = [i for i, sid in enumerate(ordered_ids) if sid.startswith("simple")]
-        complex_indices = [
-            i for i, sid in enumerate(ordered_ids) if sid.startswith("complex")
-        ]
+        complex_indices = [i for i, sid in enumerate(ordered_ids) if sid.startswith("complex")]
 
         if simple_indices and complex_indices:
             assert max(simple_indices) < min(complex_indices)

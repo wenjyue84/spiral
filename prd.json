@@ -7017,7 +7017,7 @@
         "Unit test: generate 10 candidates with 3 exact duplicates, verify hash dedup removes 3 before similarity runs"
       ],
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -7026,7 +7026,8 @@
         "lib/merge_stories.py",
         "spiral.sh"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-04T17:32:53Z"
     },
     {
       "id": "US-1096",
