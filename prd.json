@@ -7285,6 +7285,27 @@
       "_scopeCreep": true
     },
     {
+      "id": "US-1108",
+      "title": "Memory watchdog graceful degradation: reduce workers before OOM kill",
+      "description": "The memory watchdog monitors free RAM and kills workers when threshold is breached. But killing a worker mid-implementation wastes all progress on that story. Instead of kill, implement graceful degradation: (1) stop accepting new stories on the worker, (2) let current story finish, (3) reduce worker count for next wave. Only hard-kill if RSS exceeds critical threshold (90% of system RAM).",
+      "acceptanceCriteria": [
+        "Watchdog has two thresholds: soft (SPIRAL_MEM_SOFT_LIMIT, default 80%) and hard (SPIRAL_MEM_HARD_LIMIT, default 90%)",
+        "Soft breach: mark worker as draining (no new stories), let current finish, reduce worker count next wave",
+        "Hard breach: SIGTERM worker with 30s grace period, then SIGKILL",
+        "Unit test: simulate soft breach, verify worker completes current story; simulate hard breach, verify kill"
+      ],
+      "technicalNotes": [
+        "lib/run_parallel_ralph.sh",
+        "spiral.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "priority": "medium",
+      "passes": false,
+      "_source": "seed",
+      "model": "haiku"
+    },
+    {
       "id": "US-1109",
       "title": "Git operation retry with exponential backoff for index.lock failures",
       "description": "On Windows, git operations frequently fail with 'index.lock already exists' when parallel workers race on shared git state. Current behavior: hard fail, story marked as failed. Add a retry wrapper for all git commands in commit_revert.sh and run_parallel_ralph.sh: retry up to 3 times with exponential backoff (1s, 2s, 4s). If lock file owner PID is dead, remove stale lock before retry.",
@@ -7303,8 +7324,7 @@
       "priority": "high",
       "passes": true,
       "_source": "seed",
-      "model": "haiku",
-      "last_attempted": "2026-04-04T21:38:06Z"
+      "model": "haiku"
     }
   ]
 }

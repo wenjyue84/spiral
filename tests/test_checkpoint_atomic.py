@@ -36,17 +36,13 @@ def test_write_checkpoint_includes_schema_version() -> None:
     """AC4: write_checkpoint() function must include schema_version in its JSON output."""
     content = SPIRAL_HELPERS.read_text(encoding="utf-8")
     # Verify schema_version is present in the write_checkpoint printf format string
-    assert "schema_version" in content, (
-        "write_checkpoint() in spiral_helpers.sh must include 'schema_version' field"
-    )
+    assert "schema_version" in content, "write_checkpoint() in spiral_helpers.sh must include 'schema_version' field"
     # Verify it appears near the write_checkpoint function definition
     wc_idx = content.find("write_checkpoint()")
     assert wc_idx >= 0, "write_checkpoint() function not found in spiral_helpers.sh"
     # schema_version should appear within ~20 lines of the function definition
     wc_block = content[wc_idx : wc_idx + 600]
-    assert "schema_version" in wc_block, (
-        "schema_version not found within write_checkpoint() function body"
-    )
+    assert "schema_version" in wc_block, "schema_version not found within write_checkpoint() function body"
 
 
 def test_load_checkpoint_resets_on_truncated_json() -> None:
@@ -119,18 +115,14 @@ rm -rf "$TMP_DIR"
 """
     result = _run_bash(script)
     assert result.returncode == 0, f"Bash script failed: {result.stderr}"
-    assert "MISSING_ITER_DETECTED" in result.stdout, (
-        f"Missing 'iter' field was not detected. stdout: {result.stdout}"
-    )
+    assert "MISSING_ITER_DETECTED" in result.stdout, f"Missing 'iter' field was not detected. stdout: {result.stdout}"
     assert "RESET" in result.stdout, "Expected RESET when iter field is missing"
 
 
 def test_load_checkpoint_function_exists_in_helpers() -> None:
     """AC2: load_checkpoint() function must be defined in spiral_helpers.sh."""
     content = SPIRAL_HELPERS.read_text(encoding="utf-8")
-    assert "load_checkpoint()" in content, (
-        "load_checkpoint() function not found in lib/spiral_helpers.sh"
-    )
+    assert "load_checkpoint()" in content, "load_checkpoint() function not found in lib/spiral_helpers.sh"
     # Verify it includes the malformed-JSON warning
     lc_idx = content.find("load_checkpoint()")
     lc_block = content[lc_idx : lc_idx + 1500]
