@@ -1025,3 +1025,70 @@ All 23 tests passing ✓, mypy --strict ✓, ruff ✓
 - AC3: ✓ SHA deduplication via _extract_shas_from_changelog + seen_shas filter; test_sha_deduplication_prevents_redundant_entries verifies no duplicate entries
 
 All 23 tests passing ✓, mypy --strict ✓ (gen_changelog.py), ruff ✓
+
+## Pre-analysis for US-1088 (Gemini 2.5 Pro)
+This is not a Frappe/ERPNext user story. It pertains to a Python-based project management tool named Spiral.
+
+**Project:** Spiral - `prd.json` Resilience
+**Story:** US-1088 - Transaction Journal for Crash-Safe Writes
+
+### Technical Brief for Implementation
+
+**1. Files to Modify / Create:**
+*   **Create:** `lib/resilience/txn_journal.py` - This new module will contain the core journaling logic.
+*   **Create:** `tests/test_txn_journal.py` - To unit and integration-test the new resilience mechanism.
+*   **Modify:** `spiral.sh` (and/or its sub-scripts) - The main entry point will be modified to invoke the journal verification at startup ("Phase C") and must be integrated with the test harness to simulate a `SIGKILL`.
+*   **Modify:** Any Python script that writes to `prd.json`. These scripts ("Phase I") must be updated to call `write_entry()` before committing changes to the file.
+
+**2. Core Components Involved:**
+*   **Python Modules:** `lib/resilience/txn_journal.py`
+*   **Configuration File:** `prd.json` (the file being protected).
+*   **Scripts:** `spiral.sh` (orchestrator), and `lib/impl/commit_revert.sh` (for rollback).
+*   **Not Involved:** Frappe DocTypes or hooks.
+
+**3. Implementation Approach:**
+1.  In `txn_journal.py`, implement `write_entry()` to append a JSON line to a log file (e.g., `.spiral/journal.log`). The entry must contain `story_id`, `worker_pid`, `timestamp`, `operation`, and a pre-mutation hash of `prd.json`.
+2.  Implement `verify_all()` to read the journal on startup. For each entry, it will likely need to execute a `git log` command to check for a corresponding commit (e.g., one containing the `story_id`).
+3.  Implement `rollback_orphaned()` which is triggered by `verify_all()` if an uncommitted write is found. This function should use `lib/impl/commit_revert.sh` or direct `git` commands to restore `prd.json` from the last valid commit (HEAD~1).
+4.  Identify the Python functions responsible for mutating `prd.json` and insert a call to `write_entry()` before the file is written and the changes are committed to git.
+
+**4. Edge Cases & Gotchas:**
+*   **Concurrency:** Multiple workers may write to the journal. Use file locking (e.g., `fcntl`) in `write_entry` to prevent race conditions and corrupting the journal itself.
+*   **Commit Correlation:** Tying a journal entry to a commit via log messages is fragile. The verification logic must be robust.
+*   **Test Orchestration:** The `SIGKILL` integration test requires precise timing to interrupt the process between the file write and the `git commit`. This may require adding a debug hook or a small `sleep` interval.
+*   **Idempotency:** The rollback and recovery process should be idempotent, ensuring it can be run multiple times without adverse effects if the startup process fails and restarts.
+
+
+## Iteration - Story: US-1088 Phase I transaction journal for crash-safe prd.json writes
+
+### What was implemented
+- lib/resilience/txn_journal.py: Added 3 standalone functions:
+  - `write_entry(story_id, worker_pid, operation, pre_hash, *, journal_path, backup_path)` — appends entry with all AC-required fields
+  - `verify_all(journal_path)` — checks each entry against `git log --grep=<story_id>`, returns orphaned list
+  - `rollback_orphaned(prd_path, journal_path)` — restores prd.json from .bak for each orphaned entry
+  - `_hash_file(path)` — helper SHA-256 hash for pre-hash computation
+  - Extended CLI with `write-entry` and `verify` subcommands
+- tests/test_txn_journal.py: Added 4 tests for new functions:
+  - test_write_entry_stores_required_fields — AC4 field verification
+  - test_verify_all_empty_journal — empty journal no-op
+  - test_rollback_orphaned_restores_from_backup — full restore cycle with monkeypatched git
+  - test_sigkill_simulation — subprocess writes + kills, then verifies recovery
+- lib/phases/phase_c_check_done.sh: Added recover call at Phase C start (US-1088)
+- lib/impl/commit_revert.sh: Added write-entry call before merge in commit_or_revert()
+
+### Patterns discovered
+- Existing file already had TxnJournal class with transaction() context manager; story required different standalone function API
+- Pre-commit mypy runs on lib/ only (not tests/), so test helper functions don't need type annotations
+- verify_all uses `git log --oneline --grep=<story_id>` to check for corresponding commits
+- subprocess.run call in verify_all is easily monkeypatched in tests for offline testing
+
+### Acceptance criteria verification
+- AC1: ✓ write_entry(), verify_all(), rollback_orphaned() all added to lib/resilience/txn_journal.py
+- AC2: ✓ Phase I (commit_revert.sh) calls write-entry CLI; Phase C (phase_c_check_done.sh) calls recover (which includes verify_all)
+- AC3: ✓ test_sigkill_simulation spawns subprocess, writes journal + corrupts prd.json, verifies rollback_orphaned restores original
+- AC4: ✓ Journal entries include story_id, worker_pid, timestamp, operation, pre_hash, backup_path
+
+All 11 tests passing ✓
+mypy --strict (lib/resilience/txn_journal.py): ✓
+ruff check: ✓
+shellcheck/shfmt: ✓

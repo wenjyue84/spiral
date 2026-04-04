@@ -39,6 +39,14 @@ run_phase_check_done() {
     fi
   fi
 
+  # ── US-1088: Recover any orphaned prd.json writes from crashed workers ──────
+  if [[ -f "${SCRATCH_DIR:-}/_prd_journal.jsonl" || -f ".spiral/_prd_journal.jsonl" ]]; then
+    _TXN_JOURNAL="${SCRATCH_DIR:-}/_prd_journal.jsonl"
+    [[ ! -f "$_TXN_JOURNAL" ]] && _TXN_JOURNAL=".spiral/_prd_journal.jsonl"
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/txn_journal.py" recover \
+      --journal "$_TXN_JOURNAL" --prd "${PRD_FILE:-prd.json}" 2>&1 || true
+  fi
+
   # ── Phase C: CHECK DONE ─────────────────────────────────────────────────────
   PHASE="C"
   write_active_status "C" 95 # US-311

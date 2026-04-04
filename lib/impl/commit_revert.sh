@@ -208,6 +208,16 @@ commit_or_revert() {
 
   if [[ "$passes" == "true" ]]; then
     echo "[Phase I / commit] $story_id passed — merging $worker_branch"
+
+    # ── US-1088: Journal the prd.json write before merge ─────────────────────
+    _TXN_JOURNAL="${SCRATCH_DIR:-${SPIRAL_ROOT:-.}/.spiral}/_prd_journal.jsonl"
+    _PRD="${PRD_FILE:-prd.json}"
+    _BAK="${_PRD}.bak"
+    cp "$_PRD" "$_BAK" 2>/dev/null || true
+    "${SPIRAL_PYTHON:-uv run python}" "${SPIRAL_HOME:-$SPIRAL_ROOT}/lib/resilience/txn_journal.py" \
+      write-entry --journal "$_TXN_JOURNAL" --story-id "$story_id" \
+      --operation update --prd "$_PRD" --backup "$_BAK" 2>/dev/null || true
+
     # TODO: implement merge + quality gate assertion
 
     # ── Protected-path audit (second defense after PreToolUse hook) ──

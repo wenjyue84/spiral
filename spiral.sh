@@ -573,7 +573,7 @@ SPIRAL_CREATE_PRS="${SPIRAL_CREATE_PRS:-false}"         # true = push story comm
 SPIRAL_PR_BASE_BRANCH="${SPIRAL_PR_BASE_BRANCH:-main}"  # base branch for PRs created by SPIRAL_CREATE_PRS (default: main)
 SPIRAL_PR_DRAFT="${SPIRAL_PR_DRAFT:-false}"             # true = create draft PRs (prevents auto-merge triggers)
 export SPIRAL_CREATE_PRS SPIRAL_PR_BASE_BRANCH SPIRAL_PR_DRAFT
-SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-false}"                     # true = auto-stash dirty working tree before Phase I and pop after (US-177)
+SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-true}"                      # true = auto-stash dirty working tree before Phase I and pop after (US-177)
 SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"   # US-322: max consecutive story failures before Phase I aborts; 0 = disabled
 SPIRAL_CONSECUTIVE_FAIL_ABORT="${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}" # US-400: stop loop after N zero-progress iterations; 0 = disabled
 SPIRAL_QUALITY_THRESHOLD="${SPIRAL_QUALITY_THRESHOLD:-3}"           # US-248: LLM-as-Judge score threshold (1-5); below this emits a warning (non-blocking)

@@ -20,7 +20,11 @@ Usage:
 """
 
 import argparse
+import datetime
+import hashlib
 import os
+import shutil
+import subprocess
 import sys
 import uuid
 from collections.abc import Generator
@@ -161,21 +165,155 @@ class TxnWriter:
                     pass
 
 
-def _cli_recover() -> int:
-    """CLI entry point for transaction recovery."""
-    parser = argparse.ArgumentParser(description="SPIRAL transaction journal recovery")
-    parser.add_argument("action", choices=["recover"], help="Action to perform")
-    parser.add_argument("--journal", required=True, help="Path to journal file")
+_DEFAULT_JOURNAL = ".spiral/_prd_journal.jsonl"
+
+
+def _hash_file(path: str) -> str:
+    """Return SHA-256 hex digest of file contents, or '' if file missing."""
+    if not os.path.isfile(path):
+        return ""
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def write_entry(
+    story_id: str,
+    worker_pid: int,
+    operation: str,
+    pre_hash: str,
+    *,
+    journal_path: str = _DEFAULT_JOURNAL,
+    backup_path: str = "",
+) -> None:
+    """Append a journal entry recording intent to mutate prd.json.
+
+    Call this BEFORE the prd.json write. ``pre_hash`` should be the SHA-256
+    of prd.json before mutation (use ``_hash_file``). ``backup_path`` points
+    to a pre-mutation backup so ``rollback_orphaned`` can restore the file.
+    """
+    entry: dict[str, Any] = {
+        "story_id": story_id,
+        "worker_pid": worker_pid,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "operation": operation,
+        "pre_hash": pre_hash,
+        "backup_path": backup_path,
+    }
+    append_jsonl(journal_path, entry)
+
+
+def verify_all(
+    journal_path: str = _DEFAULT_JOURNAL,
+) -> list[dict[str, Any]]:
+    """Return journal entries that have no corresponding git commit.
+
+    A journaled write is considered committed when a git commit exists whose
+    message contains the ``story_id``. Entries with no matching commit are
+    'orphaned' — the writer was killed before committing.
+    """
+    records = safe_read_jsonl(journal_path)
+    orphaned: list[dict[str, Any]] = []
+    for rec in records:
+        story_id = rec.get("story_id", "")
+        if not story_id:
+            continue
+        try:
+            result = subprocess.run(
+                ["git", "log", "--oneline", f"--grep={story_id}"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if story_id not in result.stdout:
+                orphaned.append(rec)
+        except (OSError, subprocess.TimeoutExpired):
+            orphaned.append(rec)
+    return orphaned
+
+
+def rollback_orphaned(
+    prd_path: str,
+    journal_path: str = _DEFAULT_JOURNAL,
+) -> list[str]:
+    """Restore prd.json from backup for each orphaned journal entry.
+
+    Calls ``verify_all`` to find uncommitted writes, then restores the
+    pre-mutation backup identified in the journal entry.  Returns a list
+    of human-readable action strings.
+    """
+    orphaned = verify_all(journal_path)
+    actions: list[str] = []
+    for rec in orphaned:
+        backup = rec.get("backup_path", "")
+        story_id = rec.get("story_id", "?")
+        if backup and os.path.isfile(backup):
+            shutil.copy2(backup, prd_path)
+            try:
+                os.unlink(backup)
+            except OSError:
+                pass
+            msg = f"Rolled back {prd_path} (orphaned write for {story_id})"
+            actions.append(msg)
+            print(f"[txn_journal] {msg}", file=sys.stderr)
+    if actions:
+        try:
+            os.unlink(journal_path)
+        except OSError:
+            pass
+    return actions
+
+
+def _cli_main() -> int:
+    """CLI entry point: write-entry, verify, recover."""
+    parser = argparse.ArgumentParser(description="SPIRAL prd.json transaction journal")
+    parser.add_argument(
+        "action",
+        choices=["write-entry", "verify", "recover"],
+        help="Action to perform",
+    )
+    parser.add_argument("--journal", default=_DEFAULT_JOURNAL, help="Path to journal file")
+    # write-entry args
+    parser.add_argument("--story-id", default="", help="Story ID being mutated")
+    parser.add_argument("--operation", default="update", help="add|update|delete")
+    parser.add_argument("--prd", default="prd.json", help="Path to prd.json (for pre-hash)")
+    parser.add_argument("--backup", default="", help="Path where backup was created")
     args = parser.parse_args()
 
+    if args.action == "write-entry":
+        pre_hash = _hash_file(args.prd)
+        write_entry(
+            args.story_id,
+            worker_pid=os.getpid(),
+            operation=args.operation,
+            pre_hash=pre_hash,
+            journal_path=args.journal,
+            backup_path=args.backup,
+        )
+        print(f"[txn_journal] Entry written for {args.story_id}")
+        return 0
+
+    if args.action == "verify":
+        orphaned = verify_all(args.journal)
+        if orphaned:
+            for rec in orphaned:
+                print(f"  [txn] Orphaned: {rec.get('story_id')} at {rec.get('timestamp')}")
+            print(f"  [txn] {len(orphaned)} orphaned write(s) detected", file=sys.stderr)
+        return 1 if orphaned else 0
+
+    # recover — original TxnJournal recovery + new prd.json rollback
     journal = TxnJournal(args.journal)
-    actions = journal.recover()
-    if actions:
-        for a in actions:
+    old_actions = journal.recover()
+    new_actions = rollback_orphaned(args.prd, journal_path=args.journal)
+    all_actions = old_actions + new_actions
+    if all_actions:
+        for a in all_actions:
             print(f"  [txn] {a}")
-        print(f"  [txn] Recovered {len(actions)} file(s)")
+        print(f"  [txn] Recovered {len(all_actions)} file(s)")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(_cli_recover())
+    sys.exit(_cli_main())

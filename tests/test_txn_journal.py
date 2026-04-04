@@ -2,12 +2,13 @@
 
 import json
 import os
+import subprocess
 import sys
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from txn_journal import TxnJournal
+from txn_journal import TxnJournal, _hash_file, rollback_orphaned, verify_all, write_entry
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -148,3 +149,119 @@ def test_write_json_creates_new_file(tmp_path):
         txn.write_json(new_file, {"created": True})
 
     assert _read_json(new_file) == {"created": True}
+
+
+# ── Tests for write_entry / verify_all / rollback_orphaned ───────────────────
+
+
+def test_write_entry_stores_required_fields(tmp_path):
+    """write_entry() writes all AC-required fields to the journal."""
+    prd = str(tmp_path / "prd.json")
+    _write_json(prd, {"userStories": []})
+    journal_path = str(tmp_path / "journal.jsonl")
+
+    pre_hash = _hash_file(prd)
+    write_entry(
+        "US-001",
+        worker_pid=12345,
+        operation="update",
+        pre_hash=pre_hash,
+        journal_path=journal_path,
+        backup_path=prd + ".bak",
+    )
+
+    with open(journal_path, encoding="utf-8") as f:
+        entry = json.loads(f.readline())
+
+    assert entry["story_id"] == "US-001"
+    assert entry["worker_pid"] == 12345
+    assert entry["operation"] == "update"
+    assert entry["pre_hash"] == pre_hash
+    assert "timestamp" in entry
+    assert entry["backup_path"] == prd + ".bak"
+
+
+def test_verify_all_empty_journal(tmp_path):
+    """verify_all() returns [] when journal does not exist."""
+    journal_path = str(tmp_path / "nonexistent.jsonl")
+    assert verify_all(journal_path) == []
+
+
+def test_rollback_orphaned_restores_from_backup(tmp_path, monkeypatch):
+    """rollback_orphaned() restores prd.json from backup for an orphaned entry."""
+    prd = str(tmp_path / "prd.json")
+    bak = prd + ".bak"
+    journal_path = str(tmp_path / "journal.jsonl")
+
+    original = {"userStories": [{"id": "US-001", "passes": False}]}
+    corrupted = {"userStories": []}
+    _write_json(prd, original)
+    _write_json(bak, original)
+
+    # Write entry and simulate "prd.json corrupted before commit"
+    write_entry(
+        "US-001",
+        worker_pid=os.getpid(),
+        operation="update",
+        pre_hash=_hash_file(bak),
+        journal_path=journal_path,
+        backup_path=bak,
+    )
+    _write_json(prd, corrupted)
+
+    # Patch verify_all to return the orphaned entry (no git commit exists)
+    monkeypatch.setattr(
+        "txn_journal.subprocess.run",
+        lambda *a, **kw: type("R", (), {"stdout": "", "returncode": 1})(),
+    )
+
+    actions = rollback_orphaned(prd, journal_path=journal_path)
+    assert len(actions) == 1
+    assert _read_json(prd) == original
+    assert not os.path.isfile(bak)
+
+
+def test_sigkill_simulation(tmp_path, monkeypatch):
+    """Simulate SIGKILL mid-write: recovery restores prd.json consistency."""
+    prd = str(tmp_path / "prd.json")
+    bak = prd + ".bak"
+    journal_path = str(tmp_path / "journal.jsonl")
+
+    original_data = {"userStories": [{"id": "US-999", "passes": False}]}
+    _write_json(prd, original_data)
+    _write_json(bak, original_data)
+
+    # Subprocess writes entry + corrupts prd.json then exits cleanly
+    # (simulating the state left by SIGKILL after file write but before commit)
+    helper_code = f"""
+import json, sys, os
+sys.path.insert(0, {repr(os.path.join(os.path.dirname(__file__), "..", "lib"))})
+from txn_journal import write_entry
+write_entry(
+    'US-999', worker_pid=os.getpid(), operation='update', pre_hash='abc',
+    journal_path={repr(journal_path)}, backup_path={repr(bak)},
+)
+with open({repr(prd)}, 'w', encoding='utf-8') as f:
+    json.dump({{'userStories': []}}, f)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", helper_code],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
+
+    # prd.json is now "corrupted"; journal has an orphaned entry
+    assert _read_json(prd) == {"userStories": []}
+
+    # Patch subprocess.run inside txn_journal so verify_all returns the entry
+    # (pretend no git commit found for US-999)
+    monkeypatch.setattr(
+        "txn_journal.subprocess.run",
+        lambda *a, **kw: type("R", (), {"stdout": "", "returncode": 1})(),
+    )
+
+    actions = rollback_orphaned(prd, journal_path=journal_path)
+    assert len(actions) == 1
+    assert _read_json(prd) == original_data
