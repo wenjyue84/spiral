@@ -29,6 +29,7 @@ Subcommands:
   show-dead-features      List all detected dead features across stories (US-1006)
   show-perf-baseline      Display per-phase performance baseline statistics (US-1008)
   replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
+  timing-report           Cross-phase timing analyzer with bottleneck detection (US-1097)
   phase-timing-report     Generate phase timing report with SLA breach analysis (US-546)
   analyze-failures        Categorize retry failure root causes and recommend tuning (US-547)
   extract-failed-stories  Generate triage report from results.tsv (US-613)
@@ -4437,6 +4438,24 @@ def main():
         help="Directory containing worker-N subdirs (default: .spiral-workers)",
     )
 
+    # ── timing-report subcommand (US-1097) ─────────────────────────────────
+    timing_report_parser = subparsers.add_parser(
+        "timing-report",
+        help="Cross-phase timing analyzer with bottleneck detection (US-1097)",
+    )
+    timing_report_parser.add_argument(
+        "--events",
+        default=".spiral/spiral_events.jsonl",
+        metavar="FILE",
+        help="Path to spiral_events.jsonl (default: .spiral/spiral_events.jsonl)",
+    )
+    timing_report_parser.add_argument(
+        "--format",
+        choices=["grid", "json"],
+        default="grid",
+        help="Output format (default: grid)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -4597,6 +4616,8 @@ def main():
         cmd_score_stories_for_validation(args)
     elif args.command == "debug-worker-state":
         cmd_debug_worker_state(args)
+    elif args.command == "timing-report":
+        cmd_timing_report(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -5715,6 +5736,57 @@ def cmd_score_stories_for_validation(args: argparse.Namespace) -> None:
 
     summary = score_all_stories(prd_path)
     print(json.dumps(summary, indent=2))
+    sys.exit(0)
+
+
+def cmd_timing_report(args: argparse.Namespace) -> None:
+    """Generate cross-phase timing report with bottleneck detection (US-1097).
+
+    Usage: spiral timing-report [--events FILE] [--format {grid,json}]
+
+    Parses spiral_events.jsonl to extract phase_start/phase_end events,
+    computes per-phase duration by iteration, and identifies outliers
+    (duration > mean + 2 sigma). Outputs iteration x phase grid with
+    outlier flags (* prefix).
+
+    Example:
+        spiral timing-report
+        spiral timing-report --format json
+        spiral timing-report --events .spiral/spiral_events.jsonl --format grid
+    """
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from observability.timing_analyzer import (
+        compute_stats,
+        format_timing_grid,
+        format_timing_json,
+        identify_outliers,
+        parse_events,
+    )
+
+    events_file = getattr(args, "events", ".spiral/spiral_events.jsonl")
+    output_format = getattr(args, "format", "grid")
+
+    # Ensure path is relative to project root
+    events_path = Path(events_file)
+    if not events_path.is_absolute():
+        events_path = Path.cwd() / events_path
+
+    # Parse events
+    durations = parse_events(str(events_path))
+    if not durations:
+        print("Error: No phase timing data found in events.", file=sys.stderr)
+        sys.exit(1)
+
+    # Compute stats and identify outliers
+    stats = compute_stats(durations)
+    outlier_map = identify_outliers(stats)
+
+    # Format and output
+    if output_format == "json":
+        print(format_timing_json(durations, stats, outlier_map))
+    else:
+        print(format_timing_grid(durations, stats, outlier_map))
+
     sys.exit(0)
 
 
