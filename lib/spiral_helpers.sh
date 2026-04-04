@@ -118,7 +118,7 @@ write_checkpoint() {
   # Atomic write via tmp + mv to prevent corruption if SIGINT fires mid-write
   local _ckpt_tmp
   _ckpt_tmp="${CHECKPOINT_FILE}.tmp.$$"
-  printf '{"iter":%d,"phase":"%s","ts":"%s","run_id":"%s","spiralVersion":"%s","log_level":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
+  printf '{"schema_version":1,"iter":%d,"phase":"%s","ts":"%s","run_id":"%s","spiralVersion":"%s","log_level":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
     "$iter" "$phase" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "${SPIRAL_RUN_ID:-}" \
     "${SPIRAL_VERSION:-unknown}" \
@@ -126,6 +126,43 @@ write_checkpoint() {
     "${_PHASE_DUR_R:-0}" "${_PHASE_DUR_T:-0}" "${_PHASE_DUR_M:-0}" \
     "${_PHASE_DUR_I:-0}" "${_PHASE_DUR_V:-0}" "${_PHASE_DUR_C:-0}" \
     >"$_ckpt_tmp" 2>/dev/null && mv "$_ckpt_tmp" "$CHECKPOINT_FILE" 2>/dev/null || true
+}
+
+# ── load_checkpoint: validate and load checkpoint with fallback to iter 1 ────
+# Reads $CHECKPOINT_FILE, validates JSON structure, and populates CKPT_* vars.
+# Returns 0 on success, 1 if no checkpoint exists or JSON is malformed.
+# On malformed JSON, logs a warning and removes the corrupt file.
+load_checkpoint() {
+  [[ -f "$CHECKPOINT_FILE" ]] || return 1
+
+  # Validate that the file contains parseable JSON
+  if ! "$JQ" -e '.' "$CHECKPOINT_FILE" >/dev/null 2>&1; then
+    echo "  [checkpoint] WARNING: Malformed JSON in checkpoint — starting fresh from iter 1" >&2
+    rm -f "$CHECKPOINT_FILE"
+    return 1
+  fi
+
+  CKPT_ITER=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE" 2>/dev/null) || CKPT_ITER=""
+  CKPT_PHASE=$("$JQ" -r '.phase // ""' "$CHECKPOINT_FILE" 2>/dev/null) || CKPT_PHASE=""
+
+  # Validate iter is a non-negative integer
+  if [[ ! "$CKPT_ITER" =~ ^[0-9]+$ ]]; then
+    echo "  [checkpoint] WARNING: Checkpoint has invalid iter ('$CKPT_ITER') — starting fresh from iter 1" >&2
+    rm -f "$CHECKPOINT_FILE"
+    return 1
+  fi
+
+  # Validate phase is non-empty
+  if [[ -z "$CKPT_PHASE" ]]; then
+    echo "  [checkpoint] WARNING: Checkpoint has empty phase field — starting fresh from iter 1" >&2
+    rm -f "$CHECKPOINT_FILE"
+    return 1
+  fi
+
+  CKPT_RUN_ID=$("$JQ" -r '.run_id // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
+  CKPT_TS=$("$JQ" -r '.ts // 0' "$CHECKPOINT_FILE" 2>/dev/null || echo 0)
+  CKPT_SPIRAL_VERSION=$("$JQ" -r '.spiralVersion // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
+  return 0
 }
 
 # ── Helper: POST a JSON notification to SPIRAL_NOTIFY_WEBHOOK (US-100) ──────

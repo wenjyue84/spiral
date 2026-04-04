@@ -281,20 +281,16 @@ export DRY_RUN
 export ALLOW_UNSAFE_STORIES
 export SPIRAL_ALLOW_EXEC_WRITES="${ALLOW_EXEC_WRITES}"
 
-if [[ -f "$CHECKPOINT_FILE" ]]; then
-  CKPT_ITER=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE")
-  CKPT_PHASE=$("$JQ" -r '.phase // ""' "$CHECKPOINT_FILE")
+if load_checkpoint; then
   echo "  [checkpoint] Resuming from iter=$CKPT_ITER phase=$CKPT_PHASE"
   SPIRAL_ITER=$((CKPT_ITER - 1)) # loop will increment to CKPT_ITER on first pass
   # Restore run_id from checkpoint so all events share the same correlation ID
-  CKPT_RUN_ID=$("$JQ" -r '.run_id // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
   if [[ -n "$CKPT_RUN_ID" ]]; then
     SPIRAL_RUN_ID="$CKPT_RUN_ID"
     export SPIRAL_RUN_ID
   fi
 
   # ── Warn if checkpoint is older than 24 hours ────────────────────────────
-  CKPT_TS=$("$JQ" -r '.ts // 0' "$CHECKPOINT_FILE" 2>/dev/null || echo 0)
   CKPT_AGE=$(($(date +%s) - ${CKPT_TS%.*}))
   if [[ "$CKPT_AGE" -gt 86400 ]]; then
     CKPT_AGE_HOURS=$((CKPT_AGE / 3600))
@@ -302,7 +298,6 @@ if [[ -f "$CHECKPOINT_FILE" ]]; then
   fi
 
   # ── Warn if SPIRAL version changed since checkpoint was written ───────────
-  CKPT_SPIRAL_VERSION=$("$JQ" -r '.spiralVersion // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
   if [[ -n "$CKPT_SPIRAL_VERSION" && "$CKPT_SPIRAL_VERSION" != "${SPIRAL_VERSION:-unknown}" ]]; then
     echo "  [checkpoint] WARNING: checkpoint written by SPIRAL $CKPT_SPIRAL_VERSION, current is ${SPIRAL_VERSION:-unknown}" >&2
   fi

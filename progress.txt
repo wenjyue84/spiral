@@ -1655,3 +1655,25 @@ All tests passing: 3/3
 Type checking: mypy --strict (background task)
 Linting: ruff format, shellcheck --severity=error
 
+
+## Iteration - Story: US-1106 Atomic checkpoint writes via temp-file + rename pattern
+
+### What was implemented
+- lib/spiral_helpers.sh: Added schema_version:1 field to write_checkpoint() JSON output
+- lib/spiral_helpers.sh: Added load_checkpoint() function with JSON validation and fallback
+  - jq -e validates parseable JSON; truncated/empty files detected as malformed
+  - Non-numeric iter and empty phase fields trigger recovery to iter 1
+  - Removes corrupt checkpoint file and returns 1 so startup skips to fresh start
+- lib/spiral_startup.sh: Replaced direct-jq checkpoint block with load_checkpoint() call
+  - CKPT_ITER, CKPT_PHASE, CKPT_RUN_ID, CKPT_TS, CKPT_SPIRAL_VERSION populated by function
+- tests/checkpoint_atomic.bats: 11 integration tests covering all acceptance criteria
+
+### Patterns discovered
+- Existing write_checkpoint() already used tmp+rename (CHECKPOINT_FILE.tmp.$$) — only schema_version was missing
+- load_checkpoint() must be defined in spiral_helpers.sh (sourced before spiral_startup.sh)
+- jq -e '.' is the canonical way to validate JSON parseability in bash
+- CRLF line endings in .sh files cause pre-existing shellcheck SC1017 errors (not introduced here)
+
+### Gotchas
+- checkpoint_completeness.bats was already failing before this story (check_checkpoint_completeness sourced from wrong location)
+- The git pre-commit hook only validates prd.json schema, not shellcheck; uv run pre-commit is separate
