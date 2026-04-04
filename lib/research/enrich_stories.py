@@ -88,6 +88,65 @@ Rules:
 - Preserve the original _source, dependencies, and priority fields
 """
 
+BATCH_ENRICH_PROMPT = """\
+You are a story quality reviewer for an autonomous AI coding system called SPIRAL.
+Ralph, the implementation agent, uses your output to implement stories. Ralph is
+powered by a small/cheap model (haiku or sonnet), so stories must be crystal-clear.
+
+Review each story JSON below and do EXACTLY ONE of the following for EACH story:
+
+**ACTION A — SPLIT**: If a story touches 3 or more source files OR would take a
+senior engineer more than 15 minutes to implement cleanly, split it into exactly
+2 smaller atomic stories.
+
+**ACTION B — ENRICH**: Otherwise, enrich the story:
+  1. Rewrite any acceptance criteria that are not independently verifiable by a single command.
+  2. Add or improve technicalNotes so they include:
+     - At least one "File to edit: <exact-relative-path> (<function or section>)" entry
+     - At least one "Test command: <exact runnable command that verifies an AC>"
+  3. Set estimatedComplexity to "small" or "medium" (never "large").
+  4. Trim acceptanceCriteria to at most 4 items (keep the most specific ones).
+
+Stories to review (batch):
+{stories_json}
+
+Output ONLY valid JSON in this shape — no prose, no markdown fences:
+
+{{"stories": [
+  {{"original_index": 0, "action": "split|enrich", "results": [...]}},
+  {{"original_index": 1, "action": "split|enrich", "results": [...]}}
+]}}
+
+Where "results" contains:
+- For split: [{{"title": "...", ...}}, {{"title": "...", ...}}] (exactly 2 stories)
+- For enrich: [{{"title": "...", ...}}] (single enriched story)
+
+Story object schema:
+{{
+  "title": "Short imperative title (max 80 chars)",
+  "priority": "<same as input>",
+  "description": "2-3 sentences explaining what and why",
+  "acceptanceCriteria": ["<independently runnable criterion>"],
+  "technicalNotes": [
+    "File to edit: path/to/file.py (function_name)",
+    "Test command: uv run pytest tests/test_X.py::test_name -v"
+  ],
+  "filesTouch": ["path/to/file.py", "tests/test_file.py"],
+  "dependencies": [],
+  "estimatedComplexity": "small|medium"
+}}
+
+Rules:
+- estimatedComplexity MUST be "small" or "medium" — never "large"
+- Max 4 acceptance criteria per story
+- Each AC must be runnable/checkable with a single shell command
+- technicalNotes MUST include at least one file path and one test command
+- filesTouch MUST list every file the story creates or modifies (implementation + test files)
+- If splitting, each sub-story must independently satisfy its own acceptance criteria
+- Preserve the original _source, dependencies, and priority fields
+- Process ALL stories in the batch — do not skip any
+"""
+
 
 def _get_episodic_memory() -> Any:
     """Return EpisodicMemory instance, or None if unavailable."""
@@ -239,17 +298,96 @@ def _enrich_one(story: dict[str, Any], model: str, dry_run: bool = False) -> lis
         return [story]
 
 
+def _enrich_batch(stories: list[dict[str, Any]], model: str, dry_run: bool = False) -> dict[int, list[dict[str, Any]]]:
+    """
+    Enrich or split a batch of stories in a single Claude call.
+    Returns a dict mapping original_index -> list of enriched/split story dicts.
+    On failure, returns empty dict (caller falls back to individual enrichment).
+    """
+    if not stories:
+        return {}
+
+    # Special case: if batch_size would be 1, skip batch enrichment
+    # and let caller use _enrich_one instead
+    if len(stories) == 1:
+        return {}
+
+    # Create indexed stories for response mapping
+    indexed_stories = [{**story, "_batch_index": i} for i, story in enumerate(stories)]
+    stories_json = json.dumps(indexed_stories, indent=2, ensure_ascii=False)
+    prompt = BATCH_ENRICH_PROMPT.format(stories_json=stories_json)
+
+    if dry_run:
+        return {i: [story] for i, story in enumerate(stories)}
+
+    try:
+        response = call_claude(prompt, model)
+        result = extract_json_from_response(response)
+    except Exception as exc:
+        print(f"  [E] WARNING: batch enrichment failed ({len(stories)} stories): {exc}")
+        return {}  # return empty to trigger fallback
+
+    batch_stories = result.get("stories", [])
+    if not isinstance(batch_stories, list):
+        print("  [E] WARNING: batch response malformed — expected list of stories")
+        return {}
+
+    output: dict[int, list[dict[str, Any]]] = {}
+
+    for entry in batch_stories:
+        if not isinstance(entry, dict):
+            continue
+        orig_idx = entry.get("original_index")
+        if orig_idx is None or orig_idx >= len(stories):
+            continue
+        action = entry.get("action", "")
+        results = entry.get("results", [])
+
+        if not isinstance(results, list):
+            continue
+
+        original_story = stories[orig_idx]
+        processed: list[dict[str, Any]] = []
+
+        if action == "split":
+            for sub in results[:2]:  # cap at 2
+                if isinstance(sub, dict):
+                    sub.setdefault("priority", original_story.get("priority", "medium"))
+                    sub.setdefault("dependencies", original_story.get("dependencies", []))
+                    sub.setdefault("passes", False)
+                    sub["_source"] = original_story.get("_source", "research")
+                    sub["_enrichedFrom"] = original_story.get("title", "")
+                    processed.append(sub)
+            if processed:
+                output[orig_idx] = processed
+        elif action == "enrich":
+            for enriched_story in results:
+                if isinstance(enriched_story, dict) and enriched_story.get("title"):
+                    enriched_story.setdefault("priority", original_story.get("priority", "medium"))
+                    enriched_story.setdefault("dependencies", original_story.get("dependencies", []))
+                    enriched_story["passes"] = original_story.get("passes", False)
+                    enriched_story["_source"] = original_story.get("_source", "research")
+                    enriched_story["_enriched"] = True
+                    processed.append(enriched_story)
+            if processed:
+                output[orig_idx] = processed
+
+    return output
+
+
 def enrich_stories(
     validated_path: str,
     enriched_path: str,
     model: str = "sonnet",
     dry_run: bool = False,
     max_enrich: int = 0,
+    batch_size: int = 0,
 ) -> tuple[int, int]:
     """
     Read validated stories, enrich eligible ones, write output.
     Returns (enriched_count, split_count).
     max_enrich: cap on stories to enrich per call (0 = unlimited).
+    batch_size: size of batch for enrichment (0 = use SPIRAL_ENRICH_BATCH_SIZE or default 5).
     """
     if not os.path.isfile(validated_path):
         print(f"  [E] ERROR: {validated_path} not found", file=sys.stderr)
@@ -263,6 +401,10 @@ def enrich_stories(
         print("  [E] No stories to enrich — writing empty output")
         atomic_write_json(enriched_path, {"stories": []})
         return 0, 0
+
+    # Get batch size from env or parameter
+    if batch_size <= 0:
+        batch_size = int(os.environ.get("SPIRAL_ENRICH_BATCH_SIZE", "5"))
 
     # Priority-aware sorting: enrich high-priority stories first
     # Priority order: critical > high > medium > low
@@ -299,43 +441,79 @@ def enrich_stories(
     _enrichment_timeout = int(os.environ.get("SPIRAL_ENRICHMENT_TIMEOUT", "600"))
     _enrich_start = time.monotonic()
 
-    for i, story in enumerate(sorted_stories, 1):
+    # Collect eligible stories for batch processing
+    eligible_stories: list[tuple[int, dict[str, Any]]] = []
+    for i, story in enumerate(sorted_stories):
+        if _should_enrich(story) and enrich_budget > 0:
+            eligible_stories.append((i, story))
+            enrich_budget -= 1
+
+    # Process eligible stories in batches
+    batch_idx = 0
+    processed_indices: set[int] = set()
+
+    for batch_start in range(0, len(eligible_stories), batch_size):
         if time.monotonic() - _enrich_start > _enrichment_timeout:
             print(
                 f"  [E] Wall-clock timeout ({_enrichment_timeout}s) — "
                 f"writing {len(output_stories)} stories collected so far",
                 flush=True,
             )
-            # Passthrough remaining stories unenriched
-            output_stories.extend(sorted_stories[i - 1 :])
             break
-        if _should_enrich(story):
-            if enrich_budget <= 0:
-                output_stories.append(story)  # passthrough — budget exhausted
-                continue
-            title = story.get("title", "?")
-            print(
-                f"  [E] [{i}/{len(sorted_stories)}] Enriching: {title[:70]!r} "
-                f"(complexity={story.get('estimatedComplexity', '?')}, "
-                f"notes={len(story.get('technicalNotes') or [])})",
-                flush=True,
-            )
-            result = _enrich_one(story, model, dry_run=dry_run)
-            enrich_budget -= 1
-            if len(result) > 1:
-                split_count += 1
-                enriched_count += len(result)
-                print(f"  [E]   → split into {len(result)} stories", flush=True)
-            elif result and result[0] is not story:
-                enriched_count += 1
-                print("  [E]   → enriched", flush=True)
-            if _epi_mem is not None:
-                result = [_inject_past_patterns(s, _epi_mem) for s in result]
-            output_stories.extend(result)
+
+        batch_idx += 1
+        batch_end = min(batch_start + batch_size, len(eligible_stories))
+        batch_eligible = eligible_stories[batch_start:batch_end]
+
+        if not batch_eligible:
+            continue
+
+        # Try batch enrichment
+        batch_stories = [story for _, story in batch_eligible]
+        batch_indices = [idx for idx, _ in batch_eligible]
+        title_list = ", ".join(s.get("title", "?")[:50] for s in batch_stories)
+        print(
+            f"  [E] Batch {batch_idx}: {len(batch_stories)} stories — {title_list}",
+            flush=True,
+        )
+
+        batch_result = _enrich_batch(batch_stories, model, dry_run=dry_run)
+
+        # Process batch results or fall back to individual enrichment
+        if batch_result:
+            # Batch succeeded — use results
+            for relative_idx, enriched_list in batch_result.items():
+                if relative_idx < len(batch_indices):
+                    if len(enriched_list) > 1:
+                        split_count += 1
+                    enriched_count += len(enriched_list)
+                    if _epi_mem is not None:
+                        enriched_list = [_inject_past_patterns(s, _epi_mem) for s in enriched_list]
+                    output_stories.extend(enriched_list)
+                    processed_indices.add(batch_indices[relative_idx])
         else:
+            # Batch failed — fall back to individual enrichment
+            print("  [E]   → batch failed, falling back to individual enrichment", flush=True)
+            for sorted_idx, story in batch_eligible:
+                result = _enrich_one(story, model, dry_run=dry_run)
+                if len(result) > 1:
+                    split_count += 1
+                    enriched_count += len(result)
+                    print(f"  [E]     → split into {len(result)} stories", flush=True)
+                elif result and result[0] is not story:
+                    enriched_count += 1
+                    print("  [E]     → enriched", flush=True)
+                if _epi_mem is not None:
+                    result = [_inject_past_patterns(s, _epi_mem) for s in result]
+                output_stories.extend(result)
+                processed_indices.add(sorted_idx)
+
+    # Add stories that were not eligible for enrichment
+    for i, story in enumerate(sorted_stories):
+        if i not in processed_indices and not any(idx == i for idx, _ in eligible_stories):
             if _epi_mem is not None:
                 story = _inject_past_patterns(story, _epi_mem)
-            output_stories.append(story)  # passthrough — small + well-specified
+            output_stories.append(story)  # passthrough — small + well-specified or budget exhausted
 
     if max_enrich > 0:
         eligible = sum(1 for s in stories if _should_enrich(s))
@@ -357,6 +535,9 @@ def main() -> int:
     parser.add_argument("--model", default="sonnet", help="Claude model (default: sonnet)")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without calling Claude")
     parser.add_argument("--max", type=int, default=0, help="Max stories to enrich per iteration (0=unlimited)")
+    parser.add_argument(
+        "--batch-size", type=int, default=0, help="Batch size for enrichment (0=use SPIRAL_ENRICH_BATCH_SIZE)"
+    )
     args = parser.parse_args()
 
     enriched, split = enrich_stories(
@@ -365,6 +546,7 @@ def main() -> int:
         model=args.model,
         dry_run=args.dry_run,
         max_enrich=args.max,
+        batch_size=args.batch_size,
     )
 
     print(f"  [E] Done: {enriched} stories enriched/split ({split} splits)", flush=True)

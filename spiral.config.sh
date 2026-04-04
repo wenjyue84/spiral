@@ -138,6 +138,9 @@ SPIRAL_STORY_ENRICHMENT="${SPIRAL_STORY_ENRICHMENT:-true}"
 SPIRAL_STORY_ENRICHMENT_MODEL="${SPIRAL_STORY_ENRICHMENT_MODEL:-sonnet}"
 # Max stories to enrich per iteration (0=unlimited). Default: 10.
 SPIRAL_STORY_ENRICHMENT_MAX="${SPIRAL_STORY_ENRICHMENT_MAX:-10}"
+# Batch size for enrichment (US-1101) — groups multiple stories into single Claude call.
+# Default: 5. Reduces N enrichment calls to ceil(N/5) calls. Set to 1 to disable batching.
+SPIRAL_ENRICH_BATCH_SIZE="${SPIRAL_ENRICH_BATCH_SIZE:-5}"
 
 # ── Context injection mode (US-280) ──────────────────────────────────────────
 # diff = inject git diff of filesTouch paths (empty for new files)
