@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\failure_categorizer.py
+# hypothesis_version: 6.151.9
+
+[200, 'argument of type', 'assert', 'assertion failure', 'cannot allocate', 'cannot import', 'context overflow', 'context window', 'context_overflow', 'deadline', 'deadline exceeded', 'error', 'exception', 'execution timeout', 'expected', 'failed', 'hang', 'heap overflow', 'importerror', 'incompatible type', 'indentation', 'indentationerror', 'invalid syntax', 'memory error', 'memoryerror', 'missing dependency', 'missing_dependency', 'modulenotfounderror', 'mypy', 'no module named', 'not found: module', 'oom', 'other', 'out of memory', 'prompt too long', 'pytest', 'syntax error', 'syntax_error', 'syntaxerror', 'test error', 'test_assertion', 'time limit', 'timed out', 'timeout', 'token limit', 'too many tokens', 'type checking', 'type error', 'type mismatch', 'type_error', 'typeerror', 'unexpected token', 'unittest', 'unknown error']
