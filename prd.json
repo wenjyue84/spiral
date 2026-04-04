@@ -6859,7 +6859,8 @@
         "lib/impl/commit_revert.sh"
       ],
       "model": "sonnet",
-      "last_attempted": "2026-04-04T14:51:49Z"
+      "last_attempted": "2026-04-04T14:51:49Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-1089",
@@ -6872,7 +6873,7 @@
         "Unit test: inject circular dep (A->B->C->A), verify detection; test with clean DAG, verify pass"
       ],
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -6881,7 +6882,8 @@
         "tests/test_dag_validator.py",
         "spiral.sh"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-04T15:22:35Z"
     },
     {
       "id": "US-1090",
