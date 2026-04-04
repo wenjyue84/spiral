@@ -6969,7 +6969,7 @@
         "Unit test: feed mock results.tsv with 50 entries, verify calibrated routing differs from static routing"
       ],
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "dependencies": [],
       "estimatedComplexity": "medium",
