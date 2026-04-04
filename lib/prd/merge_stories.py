@@ -31,6 +31,13 @@ from spiral_io import atomic_write_json, configure_utf8_stdout
 from story_helpers import priority_key
 from txn_journal import TxnJournal
 
+# Import velocity scoring for Phase M reordering (US-1091)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "routing"))
+try:
+    from velocity_score import sort_candidates_by_velocity
+except ImportError:
+    sort_candidates_by_velocity = None
+
 configure_utf8_stdout()
 
 # Story ID prefix from env
@@ -398,12 +405,51 @@ def main() -> int:
         print(f"[merge] Overflow (carried from previous iteration): {len(overflow_candidates)} candidates")
     print(f"[merge] Test candidates: {len(test_candidates)}, Research candidates: {len(research_candidates)}")
 
-    # Sort each group by priority
+    # ── US-1091: Apply velocity scoring for quick-win prioritization ──────────
+    # Load velocity model from results.tsv for historical context
+    _velocity_model: dict[str, Any] = {}
+    _results_path = os.path.join(os.path.dirname(os.path.abspath(args.prd)), "results.tsv")
+    if sort_candidates_by_velocity is not None and os.path.isfile(_results_path):
+        try:
+            # Try to load velocity model if available
+            _velocity_model_path = os.path.join(
+                os.path.dirname(os.path.abspath(args.prd)), ".spiral", "velocity_model.json"
+            )
+            if os.path.isfile(_velocity_model_path):
+                with open(_velocity_model_path, encoding="utf-8") as f:
+                    _velocity_model = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    # Sort each group by priority, then apply velocity scoring
     test_candidates.sort(key=sort_key)
     research_candidates.sort(key=sort_key)
 
+    # Apply velocity-aware reordering (quick wins first)
+    if sort_candidates_by_velocity is not None:
+        test_candidates = sort_candidates_by_velocity(
+            test_candidates, velocity_model=_velocity_model, results_tsv_path=_results_path
+        )
+        research_candidates = sort_candidates_by_velocity(
+            research_candidates, velocity_model=_velocity_model, results_tsv_path=_results_path
+        )
+        print("[merge] Velocity-aware reordering: prioritizing quick-win stories")
+
     if args.focus:
-        test_candidates.sort(key=lambda s: (0 if matches_focus(s, args.focus) else 1, sort_key(s)))
+        # With focus: prioritize matching stories, then velocity within each group
+        if sort_candidates_by_velocity is not None:
+            # Split by focus match, score each group, then concat
+            matching = [s for s in test_candidates if matches_focus(s, args.focus)]
+            non_matching = [s for s in test_candidates if not matches_focus(s, args.focus)]
+            matching = sort_candidates_by_velocity(
+                matching, velocity_model=_velocity_model, results_tsv_path=_results_path
+            )
+            non_matching = sort_candidates_by_velocity(
+                non_matching, velocity_model=_velocity_model, results_tsv_path=_results_path
+            )
+            test_candidates = matching + non_matching
+        else:
+            test_candidates.sort(key=lambda s: (0 if matches_focus(s, args.focus) else 1, sort_key(s)))
         print(f'[merge] Focus: "{args.focus}" — research hard-filtered, test stories soft-prioritized')
 
     new_stories: list[dict[str, Any]] = []
