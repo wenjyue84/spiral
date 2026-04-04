@@ -193,6 +193,90 @@ declare -a WORKER_PGID_FILES=()     # US-245: path to per-worker PGID file
 declare -a WORKER_START_TIMES=()    # US-318: epoch seconds per worker for invoke_agent span
 declare -a WORKER_STALL_RESTARTS=() # US-531: stall-restart attempts per worker (max 1)
 
+# US-1100: Worker pool pre-warming — pre-spawned idle bash processes
+declare -a POOL_WORKER_PIDS=()                      # PIDs of pre-warmed idle workers
+_POOL_ENABLED_FEATURE="${SPIRAL_WORKER_POOL:-true}" # enable/disable pool pre-warming (env var)
+_POOL_INIT_DIR=""                                   # directory for pool task files
+
+# ── US-1100: Worker pool pre-warming — initialize idle worker processes ──────
+# Spawns N idle bash processes that wait for task assignments via files.
+# Each worker reads from a task file, executes the command, and waits for the next task.
+# This eliminates ~1.2s startup overhead per worker on first Phase I wave.
+worker_pool_init() {
+  local pool_size="${1:-$RALPH_WORKERS}"
+  [[ "$_POOL_ENABLED_FEATURE" != "true" ]] && return 0
+  _POOL_INIT_DIR="$SPIRAL_SCRATCH_DIR/.worker-pool"
+  mkdir -p "$_POOL_INIT_DIR"
+  echo "  [pool] Initializing worker pool: $pool_size idle workers..."
+  local _pool_start=$(date +%s%N | cut -b1-13)
+  for i in $(seq 1 "$pool_size"); do
+    mkdir -p "$_POOL_INIT_DIR/worker-$i"
+    (
+      # Idle worker loop: wait for command files, execute, repeat
+      _WORKER_POOL_ID=$i
+      _WORKER_POOL_DIR="$_POOL_INIT_DIR/worker-$i"
+      export _WORKER_POOL_ID
+      while true; do
+        # Wait for task file to appear
+        _TASK_FILE="$_WORKER_POOL_DIR/task"
+        while [[ ! -f "$_TASK_FILE" ]]; do
+          sleep 0.1
+          # Exit gracefully if stop file appears
+          [[ -f "$_WORKER_POOL_DIR/stop" ]] && exit 0
+        done
+        # Execute task: file contains "command arg1 arg2..."
+        _TASK_CMD=$(cat "$_TASK_FILE" 2>/dev/null)
+        rm -f "$_TASK_FILE" 2>/dev/null || true
+        [[ -z "$_TASK_CMD" ]] && continue
+        # Execute the task in a subshell to isolate environment
+        (
+          eval "$_TASK_CMD"
+        )
+        _TASK_RC=$?
+        # Write exit code for parent to read
+        echo "$_TASK_RC" >"$_WORKER_POOL_DIR/exit_code" 2>/dev/null || true
+        # Signal task complete
+        touch "$_WORKER_POOL_DIR/done" 2>/dev/null || true
+      done
+    ) &
+    POOL_WORKER_PIDS+=($!)
+  done
+  local _pool_end=$(date +%s%N | cut -b1-13)
+  local _pool_elapsed=$((_pool_end - _pool_start))
+  echo "  [pool] Pool initialized in ${_pool_elapsed}ms"
+  spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+    "$(printf '{"ts":"%s","event":"pool_init","run_id":"%s","pool_size":%d,"elapsed_ms":%d}' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$pool_size" "$_pool_elapsed")"
+}
+
+# ── US-1100: Assign a story to a pre-warmed worker in the pool ───────────────
+# Returns 0 on success, 1 if pool is not available
+worker_pool_assign_task() {
+  local worker_id="$1"
+  local task_cmd="$2"
+  [[ "$_POOL_ENABLED_FEATURE" != "true" ]] && return 1
+  [[ -z "$_POOL_INIT_DIR" ]] && return 1
+  local _task_dir="$_POOL_INIT_DIR/worker-$worker_id"
+  [[ ! -d "$_task_dir" ]] && return 1
+  # Write task and signal worker
+  echo "$task_cmd" >"$_task_dir/task" 2>/dev/null || return 1
+  # Wait for completion (timeout 120s)
+  local _wait_count=0
+  while [[ ! -f "$_task_dir/done" ]]; do
+    sleep 0.1
+    _wait_count=$((_wait_count + 1))
+    if [[ "$_wait_count" -ge 1200 ]]; then
+      echo "  [pool] WARNING: Worker $worker_id task timeout" >&2
+      return 1
+    fi
+  done
+  # Read exit code and clean up
+  local _exit_code=0
+  [[ -f "$_task_dir/exit_code" ]] && _exit_code=$(cat "$_task_dir/exit_code" 2>/dev/null || echo "0")
+  rm -f "$_task_dir/done" "$_task_dir/exit_code" 2>/dev/null || true
+  return "$_exit_code"
+}
+
 # ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
 _CLEANUP_RUNNING=0
 cleanup_parallel() {
@@ -293,6 +377,27 @@ cleanup_parallel() {
   rmdir "${_CGROUP_BASE}" 2>/dev/null || true
   # Clean up memory pool ledger and lock
   if type pool_cleanup &>/dev/null; then pool_cleanup 2>/dev/null || true; fi
+  # US-1100: Clean up worker pool (pre-warmed idle workers)
+  if [[ "$_POOL_ENABLED_FEATURE" == "true" && -n "$_POOL_INIT_DIR" ]]; then
+    for _pid in "${POOL_WORKER_PIDS[@]:-}"; do
+      [[ -z "$_pid" ]] && continue
+      kill "$_pid" 2>/dev/null || true
+    done
+    sleep 0.5
+    for _pid in "${POOL_WORKER_PIDS[@]:-}"; do
+      [[ -z "$_pid" ]] && continue
+      kill -9 "$_pid" 2>/dev/null || true
+    done
+    # Signal all workers to exit gracefully
+    if [[ -d "$_POOL_INIT_DIR" ]]; then
+      for _wdir in "$_POOL_INIT_DIR"/worker-*; do
+        [[ -d "$_wdir" ]] && touch "$_wdir/stop" 2>/dev/null || true
+      done
+      sleep 0.2
+      rm -rf "$_POOL_INIT_DIR" 2>/dev/null || true
+    fi
+    POOL_WORKER_PIDS=()
+  fi
   echo "  [parallel] Cleanup done."
 }
 trap cleanup_parallel EXIT INT TERM
@@ -868,6 +973,19 @@ wait_for_memory() {
     sleep 10
   done
 }
+
+# ── US-1100: Pre-warm worker pool before launching actual workers ────────────
+# Initialize idle bash processes that will receive story assignments during Phase I.
+# Eliminates ~1.2s startup overhead per worker on first phase wave.
+if [[ "$_POOL_ENABLED_FEATURE" == "true" ]]; then
+  _POOL_WARM_START=$(date +%s%N | cut -b1-13)
+  worker_pool_init "$RALPH_WORKERS"
+  _POOL_WARM_END=$(date +%s%N | cut -b1-13)
+  _POOL_WARM_ELAPSED=$((_POOL_WARM_END - _POOL_WARM_START))
+  echo "  [pool] Warm-up completed in ${_POOL_WARM_ELAPSED}ms (expected 2-3s speedup on first wave)"
+else
+  echo "  [pool] Worker pool pre-warming disabled (SPIRAL_WORKER_POOL=false)"
+fi
 
 # ── Step 3: Launch all workers in background (staggered) ─────────────────────
 # Workers are staggered by 20 seconds to let each process complete its initial

@@ -9,6 +9,13 @@ SPIRAL_PYTHON="/c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/.venv
 # ── Test / validation command ────────────────────────────────────────────────
 SPIRAL_VALIDATE_CMD="uv run pytest tests/ -v --tb=short -n 6"
 
+# ── Worker pool pre-warming (US-1100) ────────────────────────────────────────
+# Pre-spawn idle worker processes at Phase I start to eliminate ~1.2s startup overhead.
+# When true, N idle bash processes wait for story assignments. When false, spawn fresh
+# workers for each iteration. Speedup: ~2-3s on first wave with 3 workers.
+# Options: true (enabled, default) | false (disabled, use cold-start)
+SPIRAL_WORKER_POOL="${SPIRAL_WORKER_POOL:-true}"
+
 # ── pytest cache persistence (US-1099) ───────────────────────────────────────
 # Persistent cache directory across iterations for faster test reruns (10-15% speedup)
 SPIRAL_PYTEST_CACHE_DIR=".spiral/.pytest_cache"

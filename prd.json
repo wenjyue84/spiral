@@ -7116,7 +7116,8 @@
       "passes": true,
       "_source": "seed",
       "model": "haiku",
-      "last_attempted": "2026-04-04T22:57:08Z"
+      "last_attempted": "2026-04-04T22:57:08Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-1100",
@@ -7136,7 +7137,8 @@
       "priority": "medium",
       "passes": false,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-04T23:18:40Z"
     },
     {
       "id": "US-1101",
