@@ -205,6 +205,70 @@ recover_detached_worktree() {
   fi
 }
 
+# ── WORKTREE HEALTH CHECK (US-1107) ────────────────────────────────────────
+#
+# Pre-launch health check verifies each worktree is in a valid state before
+# spawning ralph. Performs three checks and auto-repairs if any fail.
+#
+# worktree_health_check <worktree_path> <expected_branch>
+# Verifies:
+#   (1) HEAD is not detached
+#   (2) Current branch matches expected worker branch
+#   (3) No uncommitted changes
+# Auto-repair: git checkout -B <expected_branch> main && git clean -fd
+# Returns: 0 if healthy or repaired, 1 if unrecoverable
+worktree_health_check() {
+  local worktree_path="$1"
+  local expected_branch="$2"
+
+  if [[ ! -d "$worktree_path" ]]; then
+    echo "[health-check] ERROR: Worktree does not exist: $worktree_path" >&2
+    return 1
+  fi
+
+  local _current_branch
+  _current_branch=$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null) || true
+
+  # Check (1): Detached HEAD?
+  if [[ "$_current_branch" == "HEAD" ]]; then
+    echo "[health-check] Worktree in detached HEAD state — auto-repairing"
+    if ! git -C "$worktree_path" checkout -B "$expected_branch" main 2>/dev/null; then
+      echo "[health-check] ERROR: Failed to repair detached HEAD" >&2
+      return 1
+    fi
+    _current_branch="$expected_branch"
+  fi
+
+  # Check (2): Branch mismatch?
+  if [[ "$_current_branch" != "$expected_branch" ]]; then
+    echo "[health-check] Worktree on wrong branch ($(_current_branch) != $expected_branch) — auto-repairing"
+    if ! git -C "$worktree_path" checkout -B "$expected_branch" main 2>/dev/null; then
+      echo "[health-check] ERROR: Failed to checkout expected branch $expected_branch" >&2
+      return 1
+    fi
+  fi
+
+  # Check (3): Uncommitted changes?
+  local _has_changes
+  _has_changes=$(git -C "$worktree_path" status --porcelain 2>/dev/null | wc -l)
+  if [[ "$_has_changes" -gt 0 ]]; then
+    echo "[health-check] Worktree has uncommitted changes — auto-cleaning"
+    git -C "$worktree_path" reset HEAD 2>/dev/null || true
+    git -C "$worktree_path" checkout -- . 2>/dev/null || true
+    git -C "$worktree_path" clean -fd 2>/dev/null || true
+  fi
+
+  # Final verification
+  _current_branch=$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null) || true
+  if [[ "$_current_branch" != "$expected_branch" ]]; then
+    echo "[health-check] ERROR: Verification failed — worktree not on $expected_branch" >&2
+    return 1
+  fi
+
+  echo "[health-check] Worktree is healthy"
+  return 0
+}
+
 # ── COMMIT OR REVERT ─────────────────────────────────────────────────────────
 
 # commit_or_revert <story_id> <worker_branch> <passes>

@@ -421,6 +421,7 @@ SPIRAL_PYTHON="${SPIRAL_PYTHON:-$PYTHON}"
 export SPIRAL_PYTHON
 source "$SPIRAL_HOME/lib/spiral_assert.sh"
 source "$SPIRAL_HOME/lib/crash_capture.sh"
+source "$SPIRAL_HOME/lib/impl/commit_revert.sh"
 
 # ── Resolve spiral-core binary (Rust hot-path) ────────────────────────────────
 _SC_BIN=""
@@ -1060,6 +1061,11 @@ _launch_worker_i() {
     cd "$WTREE"
     export PATH="$WTREE/.spiral-bin:$PATH"
     export SPIRAL_WORKER_ID=$i HEARTBEAT_DIR="$WORKTREE_BASE/worker-${i}"
+    # US-1107: Pre-launch health check — verify worktree is not detached, on correct branch, clean
+    if ! worktree_health_check "$WTREE" "spiral-worker-${i}"; then
+      echo "[launch] ERROR: Worktree health check failed for worker $i" >&2
+      exit 1
+    fi
     # Dynamic pool: reserve memory based on story complexity; static: use fixed limit
     if [[ "${_POOL_ENABLED:-0}" -eq 1 ]]; then
       # Classify first story in this worker's PRD slice
@@ -1184,6 +1190,11 @@ _restart_stalled_worker() {
     [[ -n "${TRACEPARENT:-}" ]] && export TRACEPARENT
     [[ -n "${TRACESTATE:-}" ]] && export TRACESTATE
     if type worker_heartbeat_start &>/dev/null; then worker_heartbeat_start "$worker_num" 30 2>/dev/null || true; fi
+    # US-1107: Pre-launch health check — verify worktree is not detached, on correct branch, clean
+    if ! worktree_health_check "$WTREE" "spiral-worker-${worker_num}"; then
+      echo "[restart] ERROR: Worktree health check failed for worker $worker_num" >&2
+      exit 1
+    fi
     _restrict_worker_env "$worker_num"
     _RC=0
     if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then
