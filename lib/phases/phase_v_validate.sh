@@ -194,6 +194,35 @@ run_phase_validate() {
         fi
       fi
     fi
+
+    # ── pytest cache persistence (US-1099) ────────────────────────────────────
+    # Add -o cache_dir and --import-mode to pytest for faster reruns.
+    # Cache persists across iterations and worker resets.
+    if echo "$_EFFECTIVE_VALIDATE_CMD" | grep -q "pytest"; then
+      _CACHE_DIR="${SPIRAL_PYTEST_CACHE_DIR:-.spiral/.pytest_cache}"
+      _CACHE_PATH="$REPO_ROOT/$_CACHE_DIR"
+      mkdir -p "$_CACHE_PATH" 2>/dev/null || true
+
+      # Check cache size and prune if exceeds limit
+      if [[ "${SPIRAL_PYTEST_CACHE_MAX_MB:-100}" -gt 0 ]]; then
+        _CACHE_SIZE_MB=$("$SPIRAL_PYTHON" -c \
+          "import os; cd='$_CACHE_PATH'; print(int(sum(os.path.getsize(os.path.join(d,f)) for d,_,fs in os.walk(cd) for f in fs) / 1024 / 1024)) if os.path.exists(cd) else print(0)" \
+          2>/dev/null || echo 0)
+        if [[ "$_CACHE_SIZE_MB" -gt "${SPIRAL_PYTEST_CACHE_MAX_MB}" ]]; then
+          echo "  [V] Cache: ${_CACHE_SIZE_MB}MB > limit ${SPIRAL_PYTEST_CACHE_MAX_MB}MB — pruning..."
+          rm -rf "$_CACHE_PATH" 2>/dev/null || true
+          mkdir -p "$_CACHE_PATH" 2>/dev/null || true
+          log_spiral_event "phase_v_cache_prune" \
+            "\"cache_size_mb\":$_CACHE_SIZE_MB,\"limit_mb\":${SPIRAL_PYTEST_CACHE_MAX_MB},\"iteration\":$SPIRAL_ITER"
+        else
+          echo "  [V] Cache: ${_CACHE_SIZE_MB}MB (limit: ${SPIRAL_PYTEST_CACHE_MAX_MB}MB)"
+        fi
+      fi
+
+      # Add cache flags to pytest command using -o (config override)
+      _EFFECTIVE_VALIDATE_CMD="$_EFFECTIVE_VALIDATE_CMD -o cache_dir=$_CACHE_DIR --import-mode=importlib"
+    fi
+
     export _EFFECTIVE_VALIDATE_CMD
 
     # ── Pre-Phase V memory gate: cap pytest workers under memory pressure ────

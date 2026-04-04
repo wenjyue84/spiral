@@ -9,6 +9,12 @@ SPIRAL_PYTHON="/c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/.venv
 # ── Test / validation command ────────────────────────────────────────────────
 SPIRAL_VALIDATE_CMD="uv run pytest tests/ -v --tb=short -n 6"
 
+# ── pytest cache persistence (US-1099) ───────────────────────────────────────
+# Persistent cache directory across iterations for faster test reruns (10-15% speedup)
+SPIRAL_PYTEST_CACHE_DIR=".spiral/.pytest_cache"
+# Max cache size in MB before pruning (0 = no limit)
+SPIRAL_PYTEST_CACHE_MAX_MB=100
+
 # ── Phase V timeout (seconds) ─────────────────────────────────────────────
 # Default 300s is too short for 2900+ tests. Increased to 600s.
 SPIRAL_VALIDATE_TIMEOUT=600

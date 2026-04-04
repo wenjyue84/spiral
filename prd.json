@@ -7072,7 +7072,8 @@
         "main.py"
       ],
       "model": "haiku",
-      "last_attempted": "2026-04-04T22:37:18Z"
+      "last_attempted": "2026-04-04T22:37:18Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-1098",
@@ -7112,9 +7113,10 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-04T22:57:08Z"
     },
     {
       "id": "US-1100",
