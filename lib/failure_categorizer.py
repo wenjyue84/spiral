@@ -40,6 +40,22 @@ def categorize_failure(stderr: str, stdout: str) -> tuple[str, str]:
     return (failure_type, failure_message)
 
 
+def categorize_message(message: str) -> str:
+    """
+    Classify a single error message into a category.
+
+    Wrapper around _classify for single-message categorization (used by Phase L).
+
+    Args:
+        message: error message or failure text
+
+    Returns:
+        failure_type: one of 'missing_dependency', 'syntax_error', 'type_error',
+                      'test_assertion', 'timeout', 'oom', 'context_overflow', 'other'
+    """
+    return _classify(message)
+
+
 def _classify(output: str) -> str:
     """
     Determine failure category from output text.

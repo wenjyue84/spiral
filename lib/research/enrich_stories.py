@@ -176,6 +176,35 @@ def _inject_past_patterns(story: dict[str, Any], mem: Any) -> dict[str, Any]:
     return story
 
 
+def _inject_learned_lessons(story: dict[str, Any], lessons: list[dict[str, Any]]) -> dict[str, Any]:
+    """Inject learned lessons matched by pattern, filesTouch, and title overlap.
+
+    Uses lesson_matcher to find relevant lessons with >70% confidence and injects
+    them into story._lessons_applied array for Ralph to use during implementation.
+    """
+    if not lessons:
+        return story
+    try:
+        from lib.lesson_matcher import match_lessons  # noqa: PLC0415
+
+        # Match lessons with >70% confidence (default threshold)
+        matched = match_lessons(story, lessons, confidence_threshold=0.7, top_k=5)
+        if matched:
+            story["_lessons_applied"] = [
+                {
+                    "pattern": m.get("pattern", ""),
+                    "fix": m.get("fix", ""),
+                    "confidence": m.get("confidence", 0.5),
+                    "error_category": m.get("error_category", "other"),
+                    "score": m.get("_match_score", 0.0),
+                }
+                for m in matched
+            ]
+    except Exception:
+        pass
+    return story
+
+
 def _should_enrich(story: dict[str, Any]) -> bool:
     """Return True if the story needs enrichment (medium complexity, sparse technicalNotes, or no filesTouch)."""
     complexity = story.get("estimatedComplexity", "")
@@ -437,6 +466,17 @@ def enrich_stories(
     split_count = 0
     enrich_budget = max_enrich if max_enrich > 0 else len(stories)
     _epi_mem = _get_episodic_memory()
+
+    # Load learned lessons for Phase L injection
+    _learned_lessons: list[dict[str, Any]] = []
+    try:
+        from lib.learned_lessons import load_lessons  # noqa: PLC0415
+
+        lessons_path = os.environ.get("SPIRAL_LEARNED_LESSONS", ".spiral/learned_lessons.jsonl")
+        _learned_lessons = load_lessons(__import__("pathlib").Path(lessons_path))
+    except Exception:
+        pass
+
     # Wall-clock timeout: write whatever we have and exit cleanly (default 600s)
     _enrichment_timeout = int(os.environ.get("SPIRAL_ENRICHMENT_TIMEOUT", "600"))
     _enrich_start = time.monotonic()
@@ -489,6 +529,8 @@ def enrich_stories(
                     enriched_count += len(enriched_list)
                     if _epi_mem is not None:
                         enriched_list = [_inject_past_patterns(s, _epi_mem) for s in enriched_list]
+                    if _learned_lessons:
+                        enriched_list = [_inject_learned_lessons(s, _learned_lessons) for s in enriched_list]
                     output_stories.extend(enriched_list)
                     processed_indices.add(batch_indices[relative_idx])
         else:
@@ -505,6 +547,8 @@ def enrich_stories(
                     print("  [E]     → enriched", flush=True)
                 if _epi_mem is not None:
                     result = [_inject_past_patterns(s, _epi_mem) for s in result]
+                if _learned_lessons:
+                    result = [_inject_learned_lessons(s, _learned_lessons) for s in result]
                 output_stories.extend(result)
                 processed_indices.add(sorted_idx)
 
@@ -513,6 +557,8 @@ def enrich_stories(
         if i not in processed_indices and not any(idx == i for idx, _ in eligible_stories):
             if _epi_mem is not None:
                 story = _inject_past_patterns(story, _epi_mem)
+            if _learned_lessons:
+                story = _inject_learned_lessons(story, _learned_lessons)
             output_stories.append(story)  # passthrough — small + well-specified or budget exhausted
 
     if max_enrich > 0:

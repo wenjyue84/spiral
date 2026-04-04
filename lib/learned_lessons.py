@@ -179,6 +179,50 @@ def query_lessons(
     return [lesson for _, lesson in scored[:top_k]]
 
 
+# ── Track: update lesson confidence based on story success ─────────────────
+
+
+def track_lesson_success(
+    path: Path,
+    lesson_pattern: str,
+    story_passed: bool,
+    delta: float = 0.05,
+) -> None:
+    """Update lesson confidence based on story pass/fail outcome.
+
+    If story_passed=True, increase confidence by delta (success reinforcement).
+    If story_passed=False, decrease confidence by delta (failure penalty).
+
+    Searches for lessons matching the pattern (token overlap >50%) and updates
+    all matching lessons.
+
+    Args:
+        path: Path to lessons JSONL file
+        lesson_pattern: Pattern string to search for
+        story_passed: Whether the story that used this lesson passed
+        delta: Confidence adjustment (0.0 to 1.0)
+    """
+    lessons = load_lessons(path)
+    changed = False
+
+    for lesson in lessons:
+        # Find lessons with similar pattern (>50% overlap)
+        if _overlap(lesson.get("pattern", ""), lesson_pattern) > 0.5:
+            old_conf = lesson.get("confidence", 0.5)
+            if story_passed:
+                # Increase confidence on success
+                new_conf = min(1.0, old_conf + delta)
+            else:
+                # Decrease confidence on failure
+                new_conf = max(0.0, old_conf - delta)
+
+            lesson["confidence"] = new_conf
+            changed = True
+
+    if changed:
+        _save_lessons(path, lessons)
+
+
 # ── Promote: auto-generate skill files ───────────────────────────────────────
 
 
