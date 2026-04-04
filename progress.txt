@@ -1092,3 +1092,82 @@ All 11 tests passing ✓
 mypy --strict (lib/resilience/txn_journal.py): ✓
 ruff check: ✓
 shellcheck/shfmt: ✓
+
+## Pre-analysis for US-1090 (Gemini 2.5 Pro)
+This is a technical brief for implementing story US-1090.
+
+**Objective:** Create a Python script to categorize failed implementation attempts and log the classification.
+
+**1. Files to Modify:**
+*   **Create:** `lib/failure_categorizer.py`: The main script for classification logic.
+*   **Create:** `tests/test_failure_categorizer.py`: Unit tests for the new script.
+*   **Modify:** `spiral.sh` (or a script it calls like `lib/impl/retry.sh`): To capture `ralph` agent's stderr/stdout on failure and invoke the categorizer.
+*   **Modify:** The script currently writing to `results.tsv` needs to be updated to handle the two new columns.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is a command-line script and does not involve the Frappe framework.
+
+**3. Implementation Approach:**
+1.  In `lib/failure_categorizer.py`, create a function that accepts stderr/stdout text.
+2.  Use a sequence of regex checks to match error patterns for categories: `missing_dependency` (e.g., `ImportError`, `ModuleNotFoundError`), `syntax_error` (`SyntaxError:`), `test_assertion` (`AssertionError`), `timeout`, `oom` (`MemoryError`), etc.
+3.  The function should return a `(failure_type, failure_message)` tuple. The message should be a relevant snippet from the log.
+4.  In `spiral.sh`, after a non-zero exit code from the agent, pipe the captured logs to `lib/failure_categorizer.py`.
+5.  Append the categorizer's output to the corresponding row in `results.tsv`.
+
+**4. Edge Cases & Gotchas:**
+*   **Regex Robustness:** Ensure patterns are specific enough to avoid misclassification but broad enough for variations.
+*   **Backward Compatibility:** Scripts reading `results.tsv` must not break on older rows. When updating, pad existing rows with empty values for the new columns.
+*   **Default Case:** The "other" category must effectively catch all unclassified errors.
+*   **Log Parsing:** Error messages can span multiple lines; regex should account for this (e.g., using the `re.DOTALL` flag in Python).
+
+
+## Iteration - Story: US-1090 Failure Pattern Categorizer Classifies Phase I Errors for Smarter Retries
+
+### What was implemented
+- lib/failure_categorizer.py: New module with categorize_failure(stderr, stdout) function
+  - Classifies failures into 8 categories: missing_dependency, syntax_error, type_error, test_assertion, timeout, oom, context_overflow, other
+  - Extracts meaningful error message (first matching line, truncated to 200 chars)
+  - Uses pattern matching on lowercased output for case-insensitive classification
+  - Pattern priority order: missing_dependency → oom → context_overflow → timeout → type_error → syntax_error → test_assertion → other
+
+- lib/results_tsv.py: Updated ResultsRecord dataclass
+  - Added failure_type: str = "" field for categorized error class
+  - Added failure_message: str = "" field for extracted error message
+  - Added both fields to HEADER list (maintains backward-compatibility with empty strings for old rows)
+  - Added _keep_failure_fields_in_sync() helper to prevent linter from removing new fields
+
+- tests/test_failure_categorizer.py: Comprehensive 15-test suite covering:
+  - test_importerror_classification: ImportError → missing_dependency
+  - test_syntaxerror_classification: SyntaxError → syntax_error
+  - test_pytest_assertion_classification: pytest failures → test_assertion
+  - test_timeout_classification: timeout/timed out → timeout
+  - test_oom_classification: MemoryError/OOM → oom
+  - test_typeerror_classification: TypeError → type_error
+  - test_context_overflow_classification: context window exceeded → context_overflow
+  - test_unknown_error_classification: unknown errors → other
+  - test_empty_input: empty stderr/stdout → other with "unknown error" message
+  - test_failure_message_truncation: messages truncated to ≤200 chars
+  - test_multiple_errors_first_wins: priority ordering works correctly
+  - test_case_insensitive_matching: error matching is case-insensitive
+  - test_failure_message_from_stdout: message extraction from stdout when stderr empty
+  - test_real_world_pytest_failure: real pytest output parsing
+  - test_real_world_import_error: real ImportError output parsing
+
+### Patterns discovered
+- Failure categorization uses simple pattern matching on lowercased output (fast, no ML needed)
+- Pattern priority matters: check high-specificity patterns (missing_dependency, oom) before generic ones
+- Message extraction finds first line matching the failure type pattern, or falls back to first non-empty line
+- All 15 tests passing; mypy --strict clean; ruff check clean
+- Backward-compatibility preserved: existing results.tsv rows will have empty failure_type/failure_message
+
+### Acceptance criteria verification
+- AC1: ✓ lib/failure_categorizer.py classifies failures into 8 categories (> 7 required)
+- AC2: ✓ results.tsv gains failure_type and failure_message columns (backward-compatible: empty for old rows)
+- AC3: ✓ Unit tests feed 5 different error outputs (ImportError, SyntaxError, pytest, timeout, OOM), verify correct classification
+- Future work: Phase I integration to call categorizer after failures; Phase L grouping by failure_type
+
+### Gotchas
+- Pattern matching is case-insensitive (all lowercased before checking)
+- Message extraction returns "unknown error" only on completely empty input
+- Failure types are: 'missing_dependency' (not 'import_error' or 'module_not_found')
+- Timeout priority is after oom/context_overflow but before type_error/syntax_error/test_assertion
