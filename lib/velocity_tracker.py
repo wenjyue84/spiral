@@ -162,13 +162,20 @@ def emit_stall_warning(
         suggestions: List of actionable suggestion strings.
         events_file: Path to spiral_events.jsonl (default .spiral/spiral_events.jsonl).
     """
+    import datetime
+
     path = Path(events_file)
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Use timezone-aware UTC datetime (Python 3.11+)
+    ts = datetime.datetime.now(datetime.UTC).isoformat()
+    # Ensure Z suffix for consistency with ISO 8601
+    ts = ts.replace("+00:00", "Z")
 
     event = {
         "event": "stall_warning",
         "iteration": iteration,
-        "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        "timestamp": ts,
         "velocity_samples": [
             {"iteration": v.iteration, "stories_passed": v.stories_passed, "velocity": v.velocity}
             for v in velocity_history[-5:]
