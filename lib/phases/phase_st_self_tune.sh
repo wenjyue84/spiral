@@ -61,7 +61,7 @@ run_phase_self_tune() {
 
   while IFS='=' read -r key val; do
     [[ -z "$key" ]] && continue
-    echo "  [ST] TUNING: $key  $( printenv "$key" 2>/dev/null || echo '(unset)' ) -> $val"
+    echo "  [ST] TUNING: $key  $(printenv "$key" 2>/dev/null || echo '(unset)') -> $val"
     export "$key"="$val"
     _EXPORT_COUNT=$((_EXPORT_COUNT + 1))
     log_spiral_event "self_tune_adjust" \

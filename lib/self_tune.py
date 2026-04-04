@@ -31,7 +31,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lib.results_tsv import ResultsRecord, parse_results_tsv  # noqa: E402
 
-
 # ── Data structures ──────────────────────────────────────────────────────────
 
 
@@ -121,10 +120,9 @@ def _is_timeout_failure(record: ResultsRecord) -> bool:
     """Check if a result row represents a timeout failure."""
     frc = (record.failure_root_cause or "").lower()
     status = (record.status or "").lower()
-    return any(
-        kw in frc
-        for kw in ("timeout", "timed_out", "timed out", "deadline")
-    ) or (status in ("timeout", "error") and "timeout" in frc)
+    return any(kw in frc for kw in ("timeout", "timed_out", "timed out", "deadline")) or (
+        status in ("timeout", "error") and "timeout" in frc
+    )
 
 
 def _is_oversized_diff(record: ResultsRecord) -> bool:
@@ -204,9 +202,7 @@ class SelfTuner:
 
     def _metrics_for_iter(self, iteration: int) -> IterationMetrics:
         """Build aggregated metrics for a single iteration."""
-        rows = [
-            r for r in self._records if _safe_int(r.spiral_iter) == iteration
-        ]
+        rows = [r for r in self._records if _safe_int(r.spiral_iter) == iteration]
         m = IterationMetrics(iteration=iteration)
         m.total_attempts = len(rows)
         if not rows:
@@ -318,11 +314,15 @@ class SelfTuner:
                 current = _env_int(var, default)
                 new_val = _clamp(int(current * 1.25), var)
                 if new_val != current:
-                    adjustments.append(TuningAdjustment(
-                        setting=var, old_value=str(current), new_value=str(new_val),
-                        rule_name="timeout_scaling",
-                        reason=f"Timeout rate {rate:.0%} > 30% in last 2 iters — increasing by 25%",
-                    ))
+                    adjustments.append(
+                        TuningAdjustment(
+                            setting=var,
+                            old_value=str(current),
+                            new_value=str(new_val),
+                            rule_name="timeout_scaling",
+                            reason=f"Timeout rate {rate:.0%} > 30% in last 2 iters — increasing by 25%",
+                        )
+                    )
         elif rate < 0.05:
             # Check if avg duration is well below limit
             avg_dur = sum(m.avg_duration_sec for m in last2) / len(last2)
@@ -334,11 +334,15 @@ class SelfTuner:
                     current = _env_int(var, default)
                     new_val = _clamp(int(current * 0.85), var)
                     if new_val != current:
-                        adjustments.append(TuningAdjustment(
-                            setting=var, old_value=str(current), new_value=str(new_val),
-                            rule_name="timeout_scaling",
-                            reason=f"Timeout rate {rate:.0%} < 5%, avg duration {avg_dur:.0f}s < 50% of limit — decreasing by 15%",
-                        ))
+                        adjustments.append(
+                            TuningAdjustment(
+                                setting=var,
+                                old_value=str(current),
+                                new_value=str(new_val),
+                                rule_name="timeout_scaling",
+                                reason=f"Timeout rate {rate:.0%} < 5%, avg duration {avg_dur:.0f}s < 50% of limit — decreasing by 15%",
+                            )
+                        )
 
         return adjustments
 
@@ -360,9 +364,10 @@ class SelfTuner:
             if new_val != current:
                 return TuningAdjustment(
                     setting="SPIRAL_MAX_DIFF_LINES",
-                    old_value=str(current), new_value=str(new_val),
+                    old_value=str(current),
+                    new_value=str(new_val),
                     rule_name="diff_limit_scaling",
-                    reason=f"{oversized}/{total} failures ({oversized/total:.0%}) are oversized_diff — increasing by 200",
+                    reason=f"{oversized}/{total} failures ({oversized / total:.0%}) are oversized_diff — increasing by 200",
                 )
 
         # Decrease if 0 oversized for 3+ iterations
@@ -373,7 +378,8 @@ class SelfTuner:
                 if new_val != current:
                     return TuningAdjustment(
                         setting="SPIRAL_MAX_DIFF_LINES",
-                        old_value=str(current), new_value=str(new_val),
+                        old_value=str(current),
+                        new_value=str(new_val),
                         rule_name="diff_limit_scaling",
                         reason="0 oversized_diff failures for 3 iterations — decreasing by 100",
                     )
@@ -396,12 +402,15 @@ class SelfTuner:
             if haiku_rate < 0.30:
                 current = _env_int("SPIRAL_ESCALATION_RETRY_SONNET", 1)
                 if current > 0 and not self._on_cooldown("SPIRAL_ESCALATION_RETRY_SONNET"):
-                    adjustments.append(TuningAdjustment(
-                        setting="SPIRAL_ESCALATION_RETRY_SONNET",
-                        old_value=str(current), new_value="0",
-                        rule_name="model_floor_escalation",
-                        reason=f"Haiku success rate {haiku_rate:.0%} < 30% over 3 iters ({haiku_passes}/{haiku_attempts}) — skipping haiku",
-                    ))
+                    adjustments.append(
+                        TuningAdjustment(
+                            setting="SPIRAL_ESCALATION_RETRY_SONNET",
+                            old_value=str(current),
+                            new_value="0",
+                            rule_name="model_floor_escalation",
+                            reason=f"Haiku success rate {haiku_rate:.0%} < 30% over 3 iters ({haiku_passes}/{haiku_attempts}) — skipping haiku",
+                        )
+                    )
 
         # Sonnet success rate
         sonnet_attempts = sum(m.sonnet_attempts for m in last3)
@@ -411,12 +420,15 @@ class SelfTuner:
             if sonnet_rate < 0.40:
                 current = _env_int("SPIRAL_ESCALATION_RETRY_OPUS", 2)
                 if current > 0 and not self._on_cooldown("SPIRAL_ESCALATION_RETRY_OPUS"):
-                    adjustments.append(TuningAdjustment(
-                        setting="SPIRAL_ESCALATION_RETRY_OPUS",
-                        old_value=str(current), new_value="0",
-                        rule_name="model_floor_escalation",
-                        reason=f"Sonnet success rate {sonnet_rate:.0%} < 40% over 3 iters ({sonnet_passes}/{sonnet_attempts}) — starting at opus",
-                    ))
+                    adjustments.append(
+                        TuningAdjustment(
+                            setting="SPIRAL_ESCALATION_RETRY_OPUS",
+                            old_value=str(current),
+                            new_value="0",
+                            rule_name="model_floor_escalation",
+                            reason=f"Sonnet success rate {sonnet_rate:.0%} < 40% over 3 iters ({sonnet_passes}/{sonnet_attempts}) — starting at opus",
+                        )
+                    )
 
         return adjustments
 
@@ -438,9 +450,10 @@ class SelfTuner:
             if new_val != current:
                 return TuningAdjustment(
                     setting="SPIRAL_RALPH_WORKERS",
-                    old_value=str(current), new_value=str(new_val),
+                    old_value=str(current),
+                    new_value=str(new_val),
                     rule_name="worker_count",
-                    reason=f"Conflict rate {conflicts/total:.0%} > 15% — reducing workers by 1",
+                    reason=f"Conflict rate {conflicts / total:.0%} > 15% — reducing workers by 1",
                 )
 
         # Increase when stable (0 conflicts for 3 iters)
@@ -451,7 +464,8 @@ class SelfTuner:
                 if new_val != current:
                     return TuningAdjustment(
                         setting="SPIRAL_RALPH_WORKERS",
-                        old_value=str(current), new_value=str(new_val),
+                        old_value=str(current),
+                        new_value=str(new_val),
                         rule_name="worker_count",
                         reason="0 merge conflicts for 3 iterations — increasing workers by 1",
                     )
@@ -475,7 +489,8 @@ class SelfTuner:
                 vels = [m.velocity for m in last2]
                 return TuningAdjustment(
                     setting="SPIRAL_STORY_BATCH_SIZE",
-                    old_value=str(current), new_value=str(new_val),
+                    old_value=str(current),
+                    new_value=str(new_val),
                     rule_name="batch_size",
                     reason=f"Velocity {vels} < 1.0 for 2 consecutive iters — reducing batch by 2",
                 )
@@ -486,7 +501,8 @@ class SelfTuner:
             if new_val != current:
                 return TuningAdjustment(
                     setting="SPIRAL_STORY_BATCH_SIZE",
-                    old_value=str(current), new_value=str(new_val),
+                    old_value=str(current),
+                    new_value=str(new_val),
                     rule_name="batch_size",
                     reason=f"Velocity {recent[-1].velocity:.1f} > 4.0 — increasing batch by 2",
                 )
@@ -511,9 +527,10 @@ class SelfTuner:
             if new_val != current:
                 return TuningAdjustment(
                     setting="SPIRAL_DECOMPOSE_THRESHOLD",
-                    old_value=str(current), new_value=str(new_val),
+                    old_value=str(current),
+                    new_value=str(new_val),
                     rule_name="decompose_threshold",
-                    reason=f"{max_retries}/{total} attempts ({max_retries/total:.0%}) hit max retry — lowering threshold",
+                    reason=f"{max_retries}/{total} attempts ({max_retries / total:.0%}) hit max retry — lowering threshold",
                 )
 
         # Raise if very few reach retry 2
@@ -523,9 +540,10 @@ class SelfTuner:
             if new_val != current:
                 return TuningAdjustment(
                     setting="SPIRAL_DECOMPOSE_THRESHOLD",
-                    old_value=str(current), new_value=str(new_val),
+                    old_value=str(current),
+                    new_value=str(new_val),
                     rule_name="decompose_threshold",
-                    reason=f"Only {retry2/total:.0%} reach retry 2+ — raising threshold (stories don't need early split)",
+                    reason=f"Only {retry2 / total:.0%} reach retry 2+ — raising threshold (stories don't need early split)",
                 )
 
         return None
@@ -563,7 +581,8 @@ class SelfTuner:
                 new_effort = EFFORT_LEVELS[idx - 1]
                 return TuningAdjustment(
                     setting="SPIRAL_THINKING_EFFORT",
-                    old_value=current, new_value=new_effort,
+                    old_value=current,
+                    new_value=new_effort,
                     rule_name="thinking_effort",
                     reason=f"Cost-per-pass doubled ({cost_ratio:.1f}x) without proportional gain ({improvement:+.0%}) — downgrading effort",
                 )
@@ -604,12 +623,15 @@ class SelfTuner:
                 current = _env_int(var, default)
                 new_val = _clamp(current + 256, var)
                 if new_val != current:
-                    adjustments.append(TuningAdjustment(
-                        setting=var,
-                        old_value=str(current), new_value=str(new_val),
-                        rule_name="memory_pool_scaling",
-                        reason=f"{rate:.0%} of {tier} stories exceed 80% RSS allocation — increasing by 256MB",
-                    ))
+                    adjustments.append(
+                        TuningAdjustment(
+                            setting=var,
+                            old_value=str(current),
+                            new_value=str(new_val),
+                            rule_name="memory_pool_scaling",
+                            reason=f"{rate:.0%} of {tier} stories exceed 80% RSS allocation — increasing by 256MB",
+                        )
+                    )
 
         return adjustments
 
