@@ -51,7 +51,7 @@ teardown() {
 @test "git_retry: succeeds on first try without index.lock" {
   # Normal git command should succeed immediately
   cd "$REPO" || skip "Failed to cd to repo"
-  echo "new file" > testfile.txt
+  echo "new file" >testfile.txt
 
   git_retry git add testfile.txt
   run git_retry git commit -m "test commit"
@@ -65,12 +65,12 @@ teardown() {
   cd "$REPO" || skip "Failed to cd to repo"
 
   # Create a file to commit
-  echo "new file" > testfile.txt
+  echo "new file" >testfile.txt
   git add testfile.txt
 
   # Create index.lock with a fake dead PID
   # Use PID 999999 which should never be running
-  echo "999999" > "$REPO/.git/index.lock"
+  echo "999999" >"$REPO/.git/index.lock"
 
   # git_retry should detect stale lock and remove it
   run git_retry git commit -m "test with stale lock"
@@ -105,12 +105,12 @@ teardown() {
   rm -f "$REPO/.git/index.lock"
 
   # Create a new file and stage it
-  echo "new file for logging test" > testfile.txt
+  echo "new file for logging test" >testfile.txt
   git add testfile.txt
 
   # Create index.lock with dead PID (after staging to trigger the lock scenario)
   rm -f "$REPO/.git/index.lock"
-  echo "999999" > "$REPO/.git/index.lock"
+  echo "999999" >"$REPO/.git/index.lock"
 
   # Run git_retry (should remove stale lock and succeed)
   run git_retry git commit -m "test with logging"
@@ -125,7 +125,7 @@ teardown() {
   cd "$REPO" || skip "Failed to cd to repo"
 
   # Normal command with custom args should work
-  echo "new file" > testfile2.txt
+  echo "new file" >testfile2.txt
   git add testfile2.txt
 
   # git_retry 5 2 means max_retries=5, backoff=2 seconds
@@ -149,7 +149,7 @@ teardown() {
   # Verify git_retry can extract repo path from git -C argument
   cd / || skip "Failed to cd to root"
 
-  echo "new file" > "$REPO/testfile3.txt"
+  echo "new file" >"$REPO/testfile3.txt"
   git -C "$REPO" add testfile3.txt
 
   run git_retry git -C "$REPO" commit -m "test with -C syntax"

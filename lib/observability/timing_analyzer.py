@@ -115,7 +115,7 @@ def _parse_timestamp(ts: str) -> float:
     if isinstance(ts, str):
         try:
             # Try parsing ISO 8601 format
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
             return dt.timestamp()
@@ -275,9 +275,7 @@ def format_timing_json(
 
 def main() -> int:
     """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Analyze phase timing from spiral_events.jsonl with outlier detection"
-    )
+    parser = argparse.ArgumentParser(description="Analyze phase timing from spiral_events.jsonl with outlier detection")
     parser.add_argument(
         "--events",
         default=".spiral/spiral_events.jsonl",
