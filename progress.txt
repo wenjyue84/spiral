@@ -1871,3 +1871,36 @@ Based on the user story, the request appears to concern a Bash script for proces
 *   **Stale Pipes:** The cleanup trap is critical to remove named pipes; otherwise, subsequent runs may fail or behave incorrectly.
 *   **Worker Crashes:** The main script should have a mechanism to detect and potentially restart a worker if it dies unexpectedly.
 
+## Iteration - Story: US-534 [Security Test] CLI spiral lint-prd: no sensitive data leaked in error output
+
+### What was implemented
+- tests/test_us639_security.py: New security test module (203 lines, 4 tests)
+  - test_us639_cli_malformed_json_exits_nonzero_no_traceback: Validates exit code 1 + no "Traceback" in output for malformed JSON
+  - test_us639_cli_no_env_var_leakage: Creates PRD with credential-like patterns; asserts they don't appear in error output
+  - test_us639_cli_missing_file_user_readable_error: Tests missing file exits non-zero with user-friendly "File not found" message
+  - test_us639_cli_valid_prd_exits_zero: Sanity check that valid PRD exits 0 with valid JSON and no errors
+
+### Patterns discovered
+- CLI testing via subprocess.run captures stdout/stderr for assertion
+- The main.py lint-prd handler already outputs structured JSON with proper error handling
+- File not found errors are properly caught and converted to JSON: {valid: false, errors: [...]}
+- JSON decode errors from malformed prd.json are caught and returned as structured errors (no raw exceptions leak)
+- Environment variables are NOT passed through to error output; only the PRD content structure is validated
+
+### Gotchas
+- subprocess.run with env parameter requires explicit os.environ.copy() to extend (not override) environment
+- JSON errors from malformed files are wrapped in json.JSONDecodeError which provides just the error message, not file paths
+- File path in error message (e.g. "File not found: /path/to/file") is acceptable; it's not a secret, just user feedback
+- All 4 tests must use tmpdir for prd.json creation to avoid interference with actual project prd.json
+
+### Acceptance criteria verification
+- AC1: ✓ Malformed prd.json exits code 1, no "Traceback (most recent call last)" in output (test_us639_cli_malformed_json_exits_nonzero_no_traceback)
+- AC2: ✓ Error output contains no credential patterns like "api_key=sk-test-secret-value" or env var values (test_us639_cli_no_env_var_leakage)
+- AC3: ✓ Missing file exits non-zero with JSON error "File not found: <path>", no FileNotFoundError traceback (test_us639_cli_missing_file_user_readable_error)
+- AC4: ✓ `uv run pytest tests/test_us639_security.py -v` passes with 4/4 tests ✓
+
+All tests passing: 4/4 ✓
+mypy --strict: No issues ✓
+ruff check: All checks passed ✓
+Diff size: 203 lines (within budget) ✓
+
