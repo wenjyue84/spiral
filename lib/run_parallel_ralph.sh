@@ -68,6 +68,12 @@ if [[ -f "$_LOCKED_APPEND_HELPER" ]]; then
   source "$_LOCKED_APPEND_HELPER"
 fi
 
+# ── Source prd.json atomic patch helper (US-1137) ──────────────────────────────
+_PRD_LOCK_HELPER="$SPIRAL_HOME/lib/core/prd_lock.sh"
+if [[ -f "$_PRD_LOCK_HELPER" ]]; then
+  source "$_PRD_LOCK_HELPER"
+fi
+
 WORKER_DIR="$SCRATCH_DIR/workers"
 WORKTREE_BASE="$REPO_ROOT/.spiral-workers"
 # Note: HEARTBEAT_DIR is set per-worker in _launch_worker_i() to $WORKTREE_BASE/worker-${i}
@@ -787,7 +793,7 @@ for worker_identifier in "${WORKER_IDENTIFIERS[@]}"; do
   else
     cp "$WORKER_DIR/worker_${i}.json" "$WTREE/prd.json"
   fi
-  "$JQ" --arg b "$BRANCH" '.branchName = $b' "$WTREE/prd.json" >"$WTREE/prd.json.tmp" && mv "$WTREE/prd.json.tmp" "$WTREE/prd.json"
+  atomic_patch_prd "$WTREE" '.branchName = $b' --arg b "$BRANCH"
 
   # US-376: Sparse-checkout disabled — it restricts workers to a subset of
   # files, causing Ralph to fail when it needs lib/ modules or other files
@@ -1638,8 +1644,8 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
                 "$WTREE/prd.json" 2>/dev/null || echo "unknown")
               if [[ "$_REQUEUE_STATUS" != "false" && "$_REQUEUE_STATUS" != "null" ]]; then
                 echo "  [parallel] WARNING: requeue verification failed for story $_SID (status: $_REQUEUE_STATUS) — force-resetting"
-                "$JQ" --arg sid "$_SID" '(.userStories[] | select(.id == $sid) | .passes) = false' \
-                  "$WTREE/prd.json" >"$WTREE/prd.json.tmp" && mv "$WTREE/prd.json.tmp" "$WTREE/prd.json" || true
+                atomic_patch_prd "$WTREE" '(.userStories[] | select(.id == $sid) | .passes) = false' \
+                  --arg sid "$_SID" || true
               fi
             fi
           fi

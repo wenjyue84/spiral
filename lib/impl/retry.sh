@@ -29,6 +29,12 @@
 
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && echo "Source this file, do not execute it directly." && exit 1
 
+# ── Source prd.json atomic patch helper (US-1137) ──────────────────────────────
+_RETRY_PRD_LOCK_HELPER="${SPIRAL_HOME:-$(dirname "${BASH_SOURCE[0]}")/../..}/lib/core/prd_lock.sh"
+if [[ -f "$_RETRY_PRD_LOCK_HELPER" ]]; then
+  source "$_RETRY_PRD_LOCK_HELPER"
+fi
+
 # invoke_exhaustion_analyzer <story_id> <attempts_json_file>
 # Runs lib/impl/exhaustion_analyzer.py and writes the JSON report to
 # .spiral/exhausted_stories/<story_id>_analysis.json.
@@ -135,14 +141,14 @@ handle_story_failure() {
     esac
 
     if [[ -n "$truncated" ]]; then
-      "$jq_bin" --arg sid "$story_id" --arg note "$truncated" \
-        --arg cat "$category" --argjson attempt "$((retries + 1))" \
+      atomic_patch_prd "$(dirname "$prd_file")" \
         '(.userStories[] | select(.id == $sid) | ._antiPatterns) |= (. // []) + [{
           "attempt": $attempt,
           "approach": $note,
           "category": $cat
         }]' \
-        "$prd_file" >"${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file" || true
+        --arg sid "$story_id" --arg note "$truncated" \
+        --arg cat "$category" --argjson attempt "$((retries + 1))" || true
       echo "[Phase I / retry] Anti-pattern recorded for $story_id [$cat]: ${truncated:0:60}..."
     fi
   fi
