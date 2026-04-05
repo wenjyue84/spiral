@@ -7441,7 +7441,7 @@
         "analyticsApi.ts buildBottlenecks() reads prd.json userStories and maps id to title",
         "Titles truncated to 80 chars with ellipsis if longer"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [],
       "filesTouch": [
         "spiral-ui/src/server/analyticsApi.ts"
@@ -7452,7 +7452,8 @@
         "bugfix",
         "spiral-ui"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_passedCommit": "7db61adf20a1179a551c58ae7f4bae042137f06e"
     },
     {
       "id": "US-1115",
