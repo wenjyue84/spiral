@@ -157,6 +157,15 @@ SPIRAL_STORY_ENRICHMENT="${SPIRAL_STORY_ENRICHMENT:-true}"
 SPIRAL_STORY_ENRICHMENT_MODEL="${SPIRAL_STORY_ENRICHMENT_MODEL:-sonnet}"
 # Max stories to enrich per iteration (0=unlimited). Default: 10.
 SPIRAL_STORY_ENRICHMENT_MAX="${SPIRAL_STORY_ENRICHMENT_MAX:-10}"
+
+# ---- Complexity gating (Phase S) -----------------------------------------------
+# Ceiling: reject stories with more ACs or files_touch entries than these limits.
+SPIRAL_STORY_MAX_AC_COUNT="${SPIRAL_STORY_MAX_AC_COUNT:-6}"
+SPIRAL_STORY_MAX_FILES_TOUCH="${SPIRAL_STORY_MAX_FILES_TOUCH:-8}"
+# Floor: reject stories (non-test-fix) with fewer ACs than this.
+SPIRAL_STORY_MIN_AC_COUNT="${SPIRAL_STORY_MIN_AC_COUNT:-2}"
+# Quality score gate: reject stories scoring below this (0-100). 0 = disabled.
+SPIRAL_STORY_MIN_QUALITY_SCORE="${SPIRAL_STORY_MIN_QUALITY_SCORE:-35}"
 # Batch size for enrichment (US-1101) — groups multiple stories into single Claude call.
 # Default: 5. Reduces N enrichment calls to ceil(N/5) calls. Set to 1 to disable batching.
 SPIRAL_ENRICH_BATCH_SIZE="${SPIRAL_ENRICH_BATCH_SIZE:-5}"
