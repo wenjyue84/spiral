@@ -7470,7 +7470,7 @@
         "Empty state message shown when no rows match current filters",
         "Show more / Show less still works with filters applied"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [
         "US-1110",
         "US-1113"
@@ -7485,7 +7485,8 @@
         "ui",
         "spiral-ui"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_passedCommit": "7db61adf20a1179a551c58ae7f4bae042137f06e"
     }
   ]
 }
