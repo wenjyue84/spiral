@@ -50,7 +50,7 @@ for worker in 1 2 3; do
     for row in 1 2 3 4 5; do
       _row_data="worker-${worker}	row-${row}	data-${row}"
       locked_append_tsv "$TEST_TSV" "$_row_data"
-      sleep 0.01  # Simulate work
+      sleep 0.01 # Simulate work
     done
   ) &
 done

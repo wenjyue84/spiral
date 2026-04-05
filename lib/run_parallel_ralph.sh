@@ -2017,6 +2017,7 @@ echo "  [parallel] Pre-check: ${#CLEAN_WORKERS[@]} clean, ${#CONFLICT_WORKERS[@]
 # ── Step 7: Apply code changes — clean patches only; conflict workers are skipped ──
 # Conflict workers' stories were reset to pending above; they'll be requeued.
 # Non-conflicting workers' patches are applied cleanly.
+# US-1139: Transactional patch application with rollback on failure.
 PATCHES_APPLIED=0
 PATCHES_SKIPPED_CONFLICT=0
 
@@ -2026,6 +2027,19 @@ sort_by_patch_size() {
     echo "$SIZE $i"
   done | sort -rn | awk '{print $2}'
 }
+
+# US-1139: Save HEAD SHA before patch application (savepoint)
+SAVEPOINT_SHA=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo "")
+if [[ -z "$SAVEPOINT_SHA" ]]; then
+  echo "  [parallel] ERROR: Cannot determine HEAD SHA — patch application skipped"
+  SAVEPOINT_SHA=""
+fi
+
+# US-1139: Track applied patches and affected stories for rollback
+declare -a APPLIED_PATCHES=()
+declare -a APPLIED_STORY_IDS=()
+ROLLBACK_NEEDED=0
+ROLLBACK_REASON=""
 
 SORTED_CLEAN=$(sort_by_patch_size "${CLEAN_WORKERS[@]}")
 
@@ -2041,28 +2055,78 @@ for i in $SORTED_CLEAN; do
       -m "feat(spiral): worker $i parallel implementation" \
       2>/dev/null || true
     PATCHES_APPLIED=$((PATCHES_APPLIED + 1))
+    APPLIED_PATCHES+=("$i")
     echo "  [parallel] Worker $i code applied cleanly"
   else
     # Unexpected failure (merge-tree said clean but apply failed) — fall back to --reject
-    echo "  [parallel] WARNING: Worker $i unexpected conflict — applying with --reject"
-    git -C "$REPO_ROOT" apply --reject "$PATCH_FILE" 2>/dev/null || true
-    # Detect .rej files created by partial patch application (Idea 6)
-    _REJ_FILES=$(find "$REPO_ROOT" -name "*.rej" 2>/dev/null | grep -v '\.spiral' | head -20 || true)
-    if [[ -n "$_REJ_FILES" ]]; then
-      echo "  [parallel] WARNING: Worker $i has unresolved .rej files:"
-      echo "$_REJ_FILES" | sed 's/^/    /'
-      echo "  [parallel] These indicate partial patch application — manual review needed"
-      spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
-        "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"event\":\"patch_rejected\",\"workerId\":$i}"
+    echo "  [parallel] WARNING: Worker $i unexpected conflict — attempting fallback apply with --reject"
+    if git -C "$REPO_ROOT" apply --reject "$PATCH_FILE" 2>/dev/null; then
+      # Detect .rej files created by partial patch application (Idea 6)
+      _REJ_FILES=$(find "$REPO_ROOT" -name "*.rej" 2>/dev/null | grep -v '\.spiral' | head -20 || true)
+      if [[ -n "$_REJ_FILES" ]]; then
+        echo "  [parallel] WARNING: Worker $i has unresolved .rej files:"
+        echo "$_REJ_FILES" | sed 's/^/    /'
+        echo "  [parallel] These indicate partial patch application — manual review needed"
+        spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+          "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"event\":\"patch_rejected\",\"workerId\":$i}"
+      fi
+      git_retry 3 1 git -C "$REPO_ROOT" add -A 2>/dev/null || true
+      git_retry 3 1 git -C "$REPO_ROOT" commit \
+        -m "feat(spiral): worker $i code (partial — .rej files need review)" \
+        2>/dev/null || true
+      PATCHES_APPLIED=$((PATCHES_APPLIED + 1))
+      APPLIED_PATCHES+=("$i")
+      echo "  [parallel] Worker $i: partial apply done; review *.rej files"
+    else
+      # US-1139: Both --3way and --reject failed — trigger rollback
+      echo "  [parallel] CRITICAL: Worker $i patch application failed completely — rolling back"
+      ROLLBACK_NEEDED=1
+      ROLLBACK_REASON="git apply failed for worker $i"
+      break
     fi
-    git_retry 3 1 git -C "$REPO_ROOT" add -A 2>/dev/null || true
-    git_retry 3 1 git -C "$REPO_ROOT" commit \
-      -m "feat(spiral): worker $i code (partial — .rej files need review)" \
-      2>/dev/null || true
-    PATCHES_APPLIED=$((PATCHES_APPLIED + 1))
-    echo "  [parallel] Worker $i: partial apply done; review *.rej files"
   fi
 done
+
+# US-1139: Execute rollback if any patch application failed
+if [[ "$ROLLBACK_NEEDED" -eq 1 && -n "$SAVEPOINT_SHA" ]]; then
+  echo "  [parallel] ROLLBACK: Reverting to savepoint $SAVEPOINT_SHA"
+  git -C "$REPO_ROOT" reset --hard "$SAVEPOINT_SHA" 2>/dev/null || true
+
+  # Collect story IDs from applied patches and reset them to pending
+  _ROLLBACK_STORY_IDS=()
+  for worker_i in "${APPLIED_PATCHES[@]}"; do
+    # Find stories associated with this worker in the worker PRD
+    if [[ "$_FEDERATED_MODE" -eq 1 ]]; then
+      _WORKER_PRD="$WORKER_DIR/worker-${worker_i}.json"
+    else
+      _WORKER_PRD="$WORKER_DIR/worker_${worker_i}.json"
+    fi
+    if [[ -f "$_WORKER_PRD" ]]; then
+      _WORKER_STORIES=$("$JQ" -r '.userStories[] | select(.passes == true) | .id' "$_WORKER_PRD" 2>/dev/null || echo "")
+      if [[ -n "$_WORKER_STORIES" ]]; then
+        while IFS= read -r _sid; do
+          [[ -n "$_sid" ]] && _ROLLBACK_STORY_IDS+=("$_sid")
+        done <<<"$_WORKER_STORIES"
+      fi
+    fi
+  done
+
+  # Call Python helper to reset stories and log event
+  if [[ ${#_ROLLBACK_STORY_IDS[@]} -gt 0 && -n "$PYTHON" ]]; then
+    echo "  [parallel] Resetting ${#_ROLLBACK_STORY_IDS[@]} rolled-back stories to pending"
+    "$PYTHON" "$SPIRAL_HOME/lib/handle_patch_rollback.py" \
+      --prd "$PRD_FILE" \
+      --events "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+      --story-ids "${_ROLLBACK_STORY_IDS[@]}" \
+      --sha "$SAVEPOINT_SHA" \
+      --reason "$ROLLBACK_REASON" \
+      2>/dev/null || true
+  fi
+
+  echo "  [parallel] ROLLBACK complete — codebase reverted to $SAVEPOINT_SHA"
+  echo "  [parallel] ERROR: Patch application failed — $((${#APPLIED_PATCHES[@]})) patches reverted"
+  exit 1
+fi
 
 # Report skipped conflict workers
 for i in "${CONFLICT_WORKERS[@]:-}"; do

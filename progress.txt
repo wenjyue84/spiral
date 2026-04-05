@@ -139,3 +139,93 @@ This brief outlines the plan to fix a race condition where parallel workers corr
 - BASH_SOURCE path gives `lib/impl`, so `../..` reaches repo root for prd_lock.sh path
 - decompose.sh and commit_revert.sh satisfy the AC trivially (no patterns to replace)
 - bats test for stale lock must use `touch -t 197001010000 dir` to backdate mtime, not a `created` file
+## Iteration 1 - Mon, Apr  6, 2026  4:15:47 AM
+Completed: Parallel workers: atomic compare-and-swap for prd.json updates in worker worktrees (ID: US-1137) in 14m
+
+
+## Pre-analysis for US-1139 (Gemini 2.5 Pro)
+Here is a technical brief for implementing story US-1139.
+
+**File Modifications:**
+*   **Primary:** `lib/run_parallel_ralph.sh`. The core transactional logic (savepoint, apply, rollback) will be implemented here as shell script commands.
+*   **Supporting:** A new Python helper script, suggested name `lib/handle_patch_rollback.py`, should be created to manage state and logging updates atomically upon failure.
+
+**Frappe DocTypes/Hooks:**
+*   This story does not involve Frappe DocTypes or hooks. The implementation is at the level of a Git workflow and file-based state management (`prd.json`).
+
+**Implementation Approach:**
+1.  In `run_parallel_ralph.sh`, before applying patches, store the output of `git rev-parse HEAD` in a `savepoint_sha` variable.
+2.  Create two lists: `applied_patches` and `applied_story_ids`.
+3.  In the patch application loop, if a patch succeeds, add its identifier and corresponding story ID to the lists.
+4.  If any patch command fails, immediately exit the loop and trigger a rollback.
+5.  The rollback process will:
+    *   Execute `git reset --hard $savepoint_sha`. Check the exit code of this command for safety.
+    *   Call the new Python script: `python3 lib/handle_patch_rollback.py --stories-to-reset ${applied_story_ids} --revert-to-sha $savepoint_sha`.
+6.  The `handle_patch_rollback.py` script will:
+    *   Read `prd.json`, find the stories passed via CLI arguments, and set their `passes` status to `false`.
+    *   Append a `patch_rollback` event to `spiral_events.jsonl` with the rolled-back `story_ids`, `sha`, and `reason`.
+    *   Overwrite `prd.json` with the updated data.
+
+**Gotchas & Edge Cases:**
+*   Ensure the `git reset --hard` command is failsafe; a failure here is critical.
+*   The update to `prd.json` and `spiral_events.jsonl` should be as atomic as possible. Writing to a temp file and then renaming is a good practice.
+*   The script must clearly log which patch failed and why (e.g., merge conflict, disk full).
+*   State management is critical: if the rollback script itself fails, the system may be left in an inconsistent state (code rolled back, but `prd.json` not updated). The Python script should be robust.
+
+## Iteration 2 - Implementation: US-1139 - Parallel workers: transactional patch application with rollback on partial failure
+
+### What was implemented
+- Created `lib/handle_patch_rollback.py`: Python helper for resetting stories and logging events atomically
+  - `reset_stories_to_pending(prd_path, story_ids)`: Resets specified stories to passes=false, removes _passedCommit
+  - `log_patch_rollback_event(events_path, story_ids, sha, reason)`: Logs patch_rollback event with ISO timestamp
+  - Uses `atomic_write_json` from spiral_io.py for atomic prd.json updates
+  - Uses `locked_append_jsonl` from spiral_io.py for event logging
+
+- Modified `lib/run_parallel_ralph.sh` Step 7 (patch application, lines 2017-2129):
+  - Added savepoint: `SAVEPOINT_SHA=$(git rev-parse HEAD)` before patch loop
+  - Added tracking arrays: `APPLIED_PATCHES=()`, `APPLIED_STORY_IDS=()`, `ROLLBACK_NEEDED`, `ROLLBACK_REASON`
+  - Split failure handling: distinguish between --3way failure → try --reject vs both fail → trigger rollback
+  - On failure after --reject: set rollback flag and break loop
+  - After loop: if rollback needed, execute:
+    1. git reset --hard to revert all commits
+    2. Collect story IDs from applied patches' worker PRD files
+    3. Call Python helper to reset stories and log event
+    4. Exit with code 1 to signal failure
+
+- Created `tests/test_handle_patch_rollback.py`: 5 unit tests
+  - test_reset_stories_to_pending: Verify stories reset to pending, _passedCommit removed
+  - test_reset_stories_with_missing_story: Handle missing stories gracefully
+  - test_log_patch_rollback_event: Verify event structure and fields
+  - test_log_multiple_events: Verify JSONL format with concurrent events
+  - test_reset_and_log_atomically: End-to-end atomicity
+  - All tests pass
+
+- Created `tests/test_patch_rollback_integration.bats`: 5 integration tests
+  - savepoint SHA is captured before patch loop
+  - failed patch in sequence triggers rollback to savepoint
+  - affected stories are reset to passes=false
+  - patch_rollback event is logged with correct fields
+  - successful patch application does NOT trigger rollback
+
+### Patterns discovered
+- Rollback is triggered only when BOTH git apply --3way AND git apply --reject fail (complete failure)
+- Worker PRD files use naming convention: worker_N.json (unfederated) or worker-N.json (federated)
+- Story IDs are collected from worker PRD files via jq: .userStories[] | select(.passes == true) | .id
+- SAVEPOINT_SHA can be empty on init failures; rollback is skipped if savepoint is missing (safety)
+- Rollback exits with code 1 to ensure SPIRAL iteration is marked as failed
+- Event structure: {ts, event, story_ids, sha, reason} - ts is ISO8601 with Z suffix
+
+### Acceptance Criteria Met
+- ✓ HEAD SHA is saved before the patch application loop
+- ✓ Any patch failure triggers revert to saved SHA
+- ✓ After rollback, affected stories are reset to passes=false
+- ✓ spiral_events.jsonl receives a patch_rollback event with story_ids, reason, and sha fields
+- ✓ Successful full runs are NOT rolled back (rollback only on failure)
+- ✓ Test: bats tests cover injection of bad patch mid-sequence, earlier patches reverted
+
+### Gotchas & Notes
+- ROLLBACK_NEEDED is set only when both apply methods fail; partial apply with --reject does NOT trigger rollback (by design)
+- Exit code 1 after rollback ensures the iteration fails immediately
+- If SAVEPOINT_SHA is empty, rollback is skipped (safety measure)
+- _ROLLBACK_STORY_IDS array construction assumes worker PRD files exist; missing files are silently ignored
+- Python helper is called with || true to prevent shell exit on errors

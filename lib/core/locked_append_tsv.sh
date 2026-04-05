@@ -23,7 +23,7 @@ locked_append_tsv() {
   # Use mkdir-based atomic lock (faster than Python on most systems)
   # mkdir is atomic on POSIX/Windows and can't race
   local lock_path="${lock_dir}/.${tsv_file##*/}.lock"
-  local timeout=100  # 1 second total (100 × 10ms)
+  local timeout=100 # 1 second total (100 × 10ms)
   local attempt=0
 
   # Spin-wait for lock with backoff
