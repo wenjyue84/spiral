@@ -66,21 +66,34 @@ def _claude_cmd() -> str:
     return shutil.which("claude") or "claude"
 
 
-def _build_prompt(prd: dict[str, Any], existing_titles: list[str], focus: str, n: int) -> str:
+def _build_prompt(
+    prd: dict[str, Any], existing_titles: list[str], completed_titles: list[str], focus: str, n: int
+) -> str:
     goals: list[str] = prd.get("goals", [])
     goals_str = "\n".join(f"{i + 1}. {g}" for i, g in enumerate(goals)) or "(no goals defined)"
     titles_str = "\n".join(f"- {t}" for t in existing_titles) or "(none)"
     focus_line = f"\nFocus area: {focus}\n" if focus else ""
+
+    # Completed stories section (if any)
+    completed_section = ""
+    dedup_instruction = ""
+    if completed_titles:
+        completed_str = "\n".join(f"- {t}" for t in completed_titles)
+        completed_section = (
+            f"\n\nAlready Done (do NOT suggest duplicates or close variants of these):\n{completed_str}\n"
+        )
+        dedup_instruction = ' Avoid any similarity to the "Already Done" section.'
+
     return f"""\
 You are a product owner for SPIRAL (a self-iterating autonomous development system written in Python + Bash).
 
 Project goals:
 {goals_str}
 {focus_line}
-These stories are already implemented — do NOT suggest anything similar:
-{titles_str}
+These stories exist (pending or in progress) — context only:
+{titles_str}{completed_section}
 
-Suggest exactly {n} new user stories that advance the project goals above.
+Suggest exactly {n} new user stories that advance the project goals above.{dedup_instruction}
 Each story MUST:
 - Have a specific, actionable title (no generic "Extend X", "Refactor Y", or "Add tests for Z")
 - Address one of the project goals concretely
@@ -95,6 +108,7 @@ Output ONLY valid JSON — no explanation, no markdown:
 def _suggest_via_llm(
     prd: dict[str, Any],
     existing_titles: list[str],
+    completed_titles: list[str],
     focus: str,
     n: int,
     model: str | None = None,
@@ -103,7 +117,7 @@ def _suggest_via_llm(
         return []
     if model is None:
         model = os.environ.get("SPIRAL_AI_SUGGEST_MODEL", _DEFAULT_MODEL)
-    prompt = _build_prompt(prd, existing_titles, focus, n)
+    prompt = _build_prompt(prd, existing_titles, completed_titles, focus, n)
     cmd = [
         _claude_cmd(),
         "-p",
@@ -204,6 +218,12 @@ def main() -> int:
         default=0,
         help="SPIRAL_MAX_PENDING cap (0 = no cap check)",
     )
+    parser.add_argument(
+        "--history-limit",
+        type=int,
+        default=50,
+        help="Max completed stories to inject into prompt for dedup (default: 50, 0 = disable)",
+    )
     args = parser.parse_args()
 
     if not os.path.isfile(args.prd):
@@ -219,20 +239,46 @@ def main() -> int:
     if queued:
         print(f"  [A] Loaded {len(queued)} queued ai-example pick(s) from Phase 0-D")
 
+    # Extract completed stories (passes=true) for dedup injection (US-1133)
+    all_stories = prd.get("userStories", [])
+    completed_stories = [s for s in all_stories if s.get("passes") is True]
+
+    # Group by epicId, keep only title, limit to history_limit
+    completed_by_epic: dict[str, list[str]] = {}
+    for story in completed_stories:
+        epic = story.get("epicId", "untagged")
+        title = story.get("title", "")
+        if title:
+            if epic not in completed_by_epic:
+                completed_by_epic[epic] = []
+            completed_by_epic[epic].append(title)
+
+    # Flatten and limit to most recent N
+    completed_titles: list[str] = []
+    if args.history_limit > 0 and completed_stories:
+        # Flatten all completed stories (in original order, which is roughly chronological in prd.json)
+        for story in completed_stories[-args.history_limit :]:  # Take last N (most recent)
+            title = story.get("title", "")
+            if title:
+                completed_titles.append(title)
+
     # Check pending cap — skip LLM call if already at limit
     if args.max_pending > 0 and args.pending >= args.max_pending:
         print(f"  [A] Pending cap reached ({args.pending}/{args.max_pending}) — skipping LLM suggest")
         generated: list[dict[str, Any]] = []
     else:
-        existing_titles = [s.get("title", "") for s in prd.get("userStories", [])]
+        existing_titles = [s.get("title", "") for s in all_stories]
         generated = _suggest_via_llm(
             prd,
             existing_titles=existing_titles,
+            completed_titles=completed_titles,
             focus=args.focus,
             n=args.max_suggest,
         )
         if generated:
             print(f"  [A] Generated {len(generated)} AI suggestion(s) via LLM")
+        if completed_titles:
+            print(f"  [A] Injected {len(completed_titles)} completed stories into prompt for dedup")
 
     all_suggestions = queued + generated
 

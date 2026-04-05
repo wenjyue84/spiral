@@ -623,13 +623,11 @@ def validate_stories(
                 )
             elif isinstance(files_list, list) and len(files_list) > _max_files:
                 rejection_reason = (
-                    f"too_complex: touches {len(files_list)} files (limit {_max_files})"
-                    " -- split into smaller stories"
+                    f"too_complex: touches {len(files_list)} files (limit {_max_files}) -- split into smaller stories"
                 )
             elif story.get("estimatedComplexity") == "medium" and not tech_notes:
                 rejection_reason = (
-                    "too_complex: medium-complexity stories must include at least one"
-                    " file path in technicalNotes"
+                    "too_complex: medium-complexity stories must include at least one file path in technicalNotes"
                 )
             else:
                 if isinstance(ac_list, list) and len(ac_list) > 4:

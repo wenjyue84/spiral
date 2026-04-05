@@ -241,9 +241,7 @@ def validate_prd(prd: dict) -> list[str]:
                     else:
                         has_field = True
                 if not has_field:
-                    errors.append(
-                        f"{sp}/verification — must have at least one of testFiles, testMarker, command"
-                    )
+                    errors.append(f"{sp}/verification — must have at least one of testFiles, testMarker, command")
 
     # ── Cross-story checks (only if IDs were valid) ──────────────────────────
     for i, story in enumerate(stories):

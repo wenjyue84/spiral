@@ -16,9 +16,7 @@ def _write_results_tsv(path: Path, rows: list[dict[str, str]]) -> None:
     header = "story_id\tstatus\tmodel\testimated_complexity\n"
     lines = [header]
     for row in rows:
-        lines.append(
-            f"{row['story_id']}\t{row['status']}\t{row['model']}\t{row['complexity']}\n"
-        )
+        lines.append(f"{row['story_id']}\t{row['status']}\t{row['model']}\t{row['complexity']}\n")
     path.write_text("".join(lines), encoding="utf-8")
 
 

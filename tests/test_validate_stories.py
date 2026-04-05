@@ -184,6 +184,7 @@ def test_semantic_dedup_threshold_zero_disables():
 
 # ---- Complexity gating: _all_acs_vague helper --------------------------------
 
+
 def test_all_acs_vague_detects_single_verb_phrases():
     from validate_stories import _all_acs_vague  # type: ignore[import]
 
@@ -342,9 +343,7 @@ def test_floor_gate_rejects_story_with_short_description():
 def test_floor_gate_exempt_for_test_fix_source():
     """test-fix stories bypass the floor gate even if ACs are sparse."""
     story = _good_story(acceptanceCriteria=["It works"])
-    accepted, rejected = _run_validate(
-        [story], source="test-fix", env_overrides={"SPIRAL_STORY_MIN_AC_COUNT": "2"}
-    )
+    accepted, rejected = _run_validate([story], source="test-fix", env_overrides={"SPIRAL_STORY_MIN_AC_COUNT": "2"})
     # Should NOT be rejected by floor gate (test-fix is exempt)
     floor_rejections = [r for r in rejected if "too_simple" in r.get("_rejection_reason", "")]
     assert len(floor_rejections) == 0, f"test-fix should be floor-gate exempt: {floor_rejections}"

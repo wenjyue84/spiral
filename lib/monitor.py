@@ -111,6 +111,7 @@ def _save_state(state_path: Path, passes: int, ts: str) -> None:
 
 # ── Check functions ──────────────────────────────────────────────────────────
 
+
 def _check_current_story(scratch_dir: Path) -> dict[str, Any] | None:
     """Read .spiral/_active_status.json for the story currently being implemented."""
     status_path = scratch_dir / "_active_status.json"
@@ -132,8 +133,6 @@ def _check_current_story(scratch_dir: Path) -> dict[str, Any] | None:
         }
     except (json.JSONDecodeError, OSError, KeyError):
         return None
-
-
 
 
 def _check_stories(project_root: Path) -> dict[str, Any]:
@@ -276,8 +275,7 @@ def _diagnose(project_root: Path, scratch_dir: Path) -> list[dict[str, Any]]:
             with open(index_file, encoding="utf-8") as _f:
                 _crash_data = json.load(_f)
             _entries: list[dict[str, Any]] = (
-                _crash_data if isinstance(_crash_data, list)
-                else _crash_data.get("crashes", [])
+                _crash_data if isinstance(_crash_data, list) else _crash_data.get("crashes", [])
             )
             _latest_ts: float = 0.0
             for _entry in _entries:
@@ -285,6 +283,7 @@ def _diagnose(project_root: Path, scratch_dir: Path) -> list[dict[str, Any]]:
                 if _ts:
                     try:
                         from datetime import datetime as _dt
+
                         _parsed = _dt.fromisoformat(_ts.replace("Z", "+00:00"))
                         _latest_ts = max(_latest_ts, _parsed.timestamp())
                     except (ValueError, TypeError):

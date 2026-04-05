@@ -627,6 +627,7 @@ validate_config() {
   : "${SPIRAL_MAX_PENDING:=50}"
   : "${SPIRAL_MEMORY_LIMIT:=1024}"
   : "${SPIRAL_AI_SUGGEST_MIN_SCORE:=0}"
+  : "${SPIRAL_AI_SUGGEST_HISTORY_LIMIT:=50}"
   : "${SPIRAL_FULL_TEST_EVERY_N:=5}"
 
   # Verify SPIRAL_PYTHON actually resolves
@@ -1187,6 +1188,7 @@ print(len(completed))
     --out "$AI_SUGGEST_OUTPUT" \
     --focus "${SPIRAL_FOCUS:-}" \
     --max-suggest "$SPIRAL_MAX_AI_SUGGEST" \
+    --history-limit "$SPIRAL_AI_SUGGEST_HISTORY_LIMIT" \
     --clear-queue || true
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/generate_test_stories.py" \
     --prd "$PRD_FILE" \

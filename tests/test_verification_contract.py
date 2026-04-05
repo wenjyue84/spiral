@@ -36,9 +36,7 @@ class TestVerificationSchemaValidation:
     """Test that validate_prd() handles the verification field correctly."""
 
     def test_valid_with_test_files(self) -> None:
-        story = _make_story(
-            verification={"testFiles": ["tests/test_foo.py", "tests/test_bar.py"]}
-        )
+        story = _make_story(verification={"testFiles": ["tests/test_foo.py", "tests/test_bar.py"]})
         errors = validate_prd(_make_prd([story]))
         verification_errors = [e for e in errors if "verification" in e]
         assert verification_errors == []

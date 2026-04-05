@@ -79,9 +79,7 @@ class TestSelectRetryStrategy:
             ("other", 2, "skip"),
         ],
     )
-    def test_strategy_selection(
-        self, failure_type: str, retry: int, expected: str
-    ) -> None:
+    def test_strategy_selection(self, failure_type: str, retry: int, expected: str) -> None:
         result = select_retry_strategy(failure_type, retry)
         assert result == expected
 

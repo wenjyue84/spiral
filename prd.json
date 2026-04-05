@@ -421,7 +421,8 @@
         "archive",
         "maintenance"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1133",
@@ -435,7 +436,7 @@
         "Phase A output has measurably lower overlap with completed story titles (test: TF-IDF similarity < 0.7 avg)",
         "Token cost increase for the Phase A call is < 500 tokens per iteration at the default limit"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [],
       "filesTouch": [
         "spiral.sh",
@@ -774,6 +775,24 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_734 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1146",
+      "title": "[Security Test] CLI: validate-federated — Circular Dependency Detection with Cycle Paths",
+      "priority": "high",
+      "description": "Write security tests for auth/permission logic in US-515. Story description: Extend `lib/commands/validate_federated.py` with a cycle-detection pass that builds a directed dependency graph from story `depends_on` fields and reports all cycles with their full traversal path. Cycles are appended to the existing JSON report under key `cycles`.",
+      "acceptanceCriteria": [
+        "Security test covers access control introduced by US-515",
+        "Test verifies unauthorized access is blocked (401/403 responses)",
+        "No sensitive data (tokens, passwords) leaked in error responses"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_515 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
