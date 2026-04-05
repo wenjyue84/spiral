@@ -940,6 +940,41 @@
         "tests/test_phase_t_error_categorization.py"
       ],
       "model": "haiku"
+    },
+    {
+      "id": "US-1160",
+      "title": "[Security Test] [Regression Test] US-553 Phase Completion: I→V→C Workers Finish and Story Passes",
+      "priority": "high",
+      "description": "Write security tests for auth/permission logic in US-1037. Story description: Write a regression test verifying that SPIRAL's last three phases (Implement, Validate, Check-Done) complete successfully, workers exit cleanly, and the seeded story reaches 'done' status. Guards against regressions in the implementation engine and completion-check logic.",
+      "acceptanceCriteria": [
+        "Security test covers access control introduced by US-1037",
+        "Test verifies unauthorized access is blocked (401/403 responses)",
+        "No sensitive data (tokens, passwords) leaked in error responses"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1037 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-1161",
+      "title": "[Integration Test] Enhance: Enable SPIRAL to support multi-repo projects: federated prd.json with su",
+      "priority": "high",
+      "description": "Write integration tests for the feature implemented in US-457. Story description: Continuous-improvement story for goal: Enable SPIRAL to support multi-repo projects: federated prd.json with sub-project story namespacing. All current stories pass — pushing coverage higher (54% → target 70%).",
+      "acceptanceCriteria": [
+        "Integration tests exist covering the core behaviour of US-457",
+        "Tests cover the happy path and at least one error/edge case",
+        "Tests run without requiring external services or manual setup"
+      ],
+      "technicalNotes": [
+        "Source files from US-457: .claude/hooks/protect-spiral-files.sh, .claude/hooks/worktree_audit.sh, .claude/scheduled_tasks.lock, .claude/settings.json, .claude/worktrees/exciting-bell",
+        "Run: uv run pytest tests/ -k us_457 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
     }
   ]
 }
