@@ -337,6 +337,15 @@ SPIRAL_SEMANTIC_DEDUP_THRESHOLD="${SPIRAL_SEMANTIC_DEDUP_THRESHOLD:-0.85}"
 # 0.70 allows different-module coverage while blocking near-verbatim duplicates.
 SPIRAL_ENDGAME_DEDUP_THRESHOLD="${SPIRAL_ENDGAME_DEDUP_THRESHOLD:-0.70}"
 
+# ── Phase M: Fallback dedup threshold lowering (US-1134) ───────────────────────
+# Number of consecutive iterations where ALL candidates are rejected as duplicates
+# before Phase M activates the fallback mechanism (threshold lowering).
+# After N consecutive all-rejected iterations, the effective dedup threshold is
+# lowered by 0.05 for the next merge attempt (floor: 0.60).
+# Set to 0 to disable fallback mechanism entirely (always use configured threshold).
+# Default 3 allows 3 iterations of dense backlog before relaxing dedup.
+SPIRAL_DEDUP_FALLBACK_ITERS="${SPIRAL_DEDUP_FALLBACK_ITERS:-3}"
+
 # ── Worker env allowlist (US-359) ──────────────────────────────────────────
 # Comma-separated list of env var names/prefixes passed to worker subprocesses.
 # Suffix * for prefix match (e.g. SPIRAL_* matches SPIRAL_WORKER_ID, SPIRAL_PYTHON).

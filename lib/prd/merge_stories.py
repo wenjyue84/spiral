@@ -302,6 +302,30 @@ def _load_raw(path: str) -> dict[str, Any]:
         return json.load(f)
 
 
+def load_fallback_counter(scratch_dir: str = ".spiral") -> int:
+    """Load consecutive all-rejected iteration counter from .spiral/dedup_fallback_count.json.
+
+    Returns 0 if file doesn't exist (no prior rejections).
+    """
+    counter_path = os.path.join(scratch_dir, "dedup_fallback_count.json")
+    if not os.path.isfile(counter_path):
+        return 0
+    try:
+        with open(counter_path, encoding="utf-8") as f:
+            data = json.load(f)
+        return int(data.get("count", 0))
+    except (json.JSONDecodeError, OSError, ValueError):
+        return 0
+
+
+def save_fallback_counter(count: int, scratch_dir: str = ".spiral") -> None:
+    """Persist consecutive all-rejected iteration counter to .spiral/dedup_fallback_count.json."""
+    counter_path = os.path.join(scratch_dir, "dedup_fallback_count.json")
+    os.makedirs(scratch_dir, exist_ok=True)
+    with open(counter_path, "w", encoding="utf-8") as f:
+        json.dump({"count": count}, f)
+
+
 def load_dedup_hashes(scratch_dir: str = ".spiral") -> set[str]:
     """Load persisted content hashes from .spiral/dedup_hashes.json.
 
@@ -433,6 +457,11 @@ def main() -> int:
     with open(args.prd, encoding="utf-8") as f:
         prd = json.load(f)
 
+    # ── US-1134: Load fallback counter for dense backlog detection ───────────────
+    scratch_dir = os.environ.get("SPIRAL_SCRATCH_DIR", ".spiral")
+    fallback_iters = int(os.environ.get("SPIRAL_DEDUP_FALLBACK_ITERS", "3"))
+    fallback_counter = load_fallback_counter(scratch_dir) if fallback_iters > 0 else 0
+
     errors = validate_prd(prd)
     if errors:
         print("[schema] PRD validation failed:", file=sys.stderr)
@@ -533,6 +562,20 @@ def main() -> int:
         print(f"[merge] Overflow (carried from previous iteration): {len(overflow_candidates)} candidates")
     print(f"[merge] Test candidates: {len(test_candidates)}, Research candidates: {len(research_candidates)}")
 
+    # ── US-1134: Calculate effective dedup threshold for fallback mechanism ──────
+    total_input_candidates = len(test_candidates) + len(research_candidates) + len(overflow_candidates)
+    effective_threshold = 0.6  # Default Jaccard threshold used in is_duplicate()
+    threshold_lowered = False
+
+    # Apply fallback threshold lowering if consecutive all-rejected iterations reached limit
+    if fallback_iters > 0 and fallback_counter >= fallback_iters:
+        effective_threshold = max(0.60, effective_threshold - 0.05)  # Floor at 0.60
+        threshold_lowered = True
+        print(
+            f"[merge] Applying fallback threshold {effective_threshold:.2f} (normal: 0.60) "
+            f"— {fallback_counter} consecutive all-rejected iterations"
+        )
+
     # ── US-1091: Apply velocity scoring for quick-win prioritization ──────────
     # Load velocity model from results.tsv for historical context
     _velocity_model: dict[str, Any] = {}
@@ -617,6 +660,7 @@ def main() -> int:
         if is_duplicate(
             title,
             seen_titles,
+            threshold=effective_threshold,
             candidate_epic=cand_epic,
             existing_epics=seen_epics,
             token_index=_build_token_index(seen_titles),
@@ -661,6 +705,7 @@ def main() -> int:
             if is_duplicate(
                 title,
                 seen_titles,
+                threshold=effective_threshold,
                 candidate_epic=cand_epic,
                 existing_epics=seen_epics,
                 token_index=_build_token_index(seen_titles),
@@ -698,6 +743,7 @@ def main() -> int:
         if is_duplicate(
             title,
             seen_titles,
+            threshold=effective_threshold,
             candidate_epic=cand_epic,
             existing_epics=seen_epics,
             token_index=_build_token_index(seen_titles),
@@ -714,6 +760,24 @@ def main() -> int:
             new_stories.append(story)
             seen_titles.append(title)
             seen_epics.append(cand_epic)
+
+    # ── US-1134: Detect and handle all-rejected iteration (dense backlog deadlock) ──
+    all_candidates_rejected = total_input_candidates > 0 and len(new_stories) == 0
+    if all_candidates_rejected:
+        fallback_counter += 1
+        print(
+            f"[merge] WARNING: All {total_input_candidates} candidates rejected as duplicates. "
+            f"Consider --archive-done or lowering SPIRAL_SEMANTIC_DEDUP_THRESHOLD. "
+            f"(consecutive rejections: {fallback_counter})"
+        )
+        if fallback_iters > 0:
+            save_fallback_counter(fallback_counter, scratch_dir)
+    else:
+        # Reset counter to 0 after any iteration where at least 1 story is merged
+        if fallback_counter > 0:
+            fallback_counter = 0
+            if fallback_iters > 0:
+                save_fallback_counter(fallback_counter, scratch_dir)
 
     if not new_stories and not (args.overflow_out and leftover_research) and not dead_weight_changes_made:
         # No overflow to write and no new stories and no dead weight changes

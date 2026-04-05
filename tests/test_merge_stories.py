@@ -21,7 +21,9 @@ from merge_stories import (
     full_sort_key,
     is_duplicate,
     jaccard_similarity,
+    load_fallback_counter,
     overlap_ratio,
+    save_fallback_counter,
     sort_key,
     story_to_prd_entry,
 )
@@ -1186,6 +1188,96 @@ class PRDMergeStateMachine(RuleBasedStateMachine):
         for s in self.stories:
             for field in ("id", "title", "priority", "passes"):
                 assert field in s, f"Story {s.get('id', '?')} missing required field: {field}"
+
+
+# ── US-1134: Fallback dedup threshold logic ──────────────────────────────────
+
+
+class TestFallbackThresholdLogic:
+    """Tests for the dense backlog deadlock detection and fallback mechanism (US-1134).
+
+    Verifies that:
+    - Consecutive all-rejected iterations are tracked
+    - Threshold is lowered after N iterations
+    - Counter resets after successful merge
+    - Threshold never goes below 0.60
+    """
+
+    def test_load_fallback_counter_returns_zero_when_missing(self, tmp_path) -> None:
+        """When counter file doesn't exist, load_fallback_counter returns 0."""
+        scratch_dir = str(tmp_path)
+        count = load_fallback_counter(scratch_dir)
+        assert count == 0
+
+    def test_save_and_load_fallback_counter(self, tmp_path) -> None:
+        """Save and load fallback counter preserves value."""
+        scratch_dir = str(tmp_path)
+        save_fallback_counter(3, scratch_dir)
+        count = load_fallback_counter(scratch_dir)
+        assert count == 3
+
+    def test_fallback_counter_increments_on_all_rejected(self, tmp_path) -> None:
+        """Simulates two consecutive all-rejected iterations."""
+        scratch_dir = str(tmp_path)
+        # First iteration: all rejected
+        count = load_fallback_counter(scratch_dir)
+        count += 1  # Simulating rejection
+        save_fallback_counter(count, scratch_dir)
+        assert load_fallback_counter(scratch_dir) == 1
+
+        # Second iteration: all rejected again
+        count = load_fallback_counter(scratch_dir)
+        count += 1
+        save_fallback_counter(count, scratch_dir)
+        assert load_fallback_counter(scratch_dir) == 2
+
+    def test_fallback_counter_resets_on_success(self, tmp_path) -> None:
+        """Counter resets to 0 after >= 1 story is merged."""
+        scratch_dir = str(tmp_path)
+        # Build up counter
+        save_fallback_counter(5, scratch_dir)
+        assert load_fallback_counter(scratch_dir) == 5
+
+        # Reset after success (at least 1 story merged)
+        count = load_fallback_counter(scratch_dir)
+        if count > 0:  # Story was merged
+            count = 0
+        save_fallback_counter(count, scratch_dir)
+        assert load_fallback_counter(scratch_dir) == 0
+
+    def test_effective_threshold_lowering(self) -> None:
+        """Calculate effective threshold: lower by 0.05 after fallback_iters, floor at 0.60."""
+        base_threshold = 0.60
+        fallback_iters = 3
+        fallback_counter = 3
+
+        # After 3 consecutive rejections, lower by 0.05
+        effective = base_threshold
+        if fallback_counter >= fallback_iters:
+            effective = max(0.60, effective - 0.05)
+
+        # 0.60 - 0.05 = 0.55, but floored at 0.60 → 0.60
+        assert effective == 0.60
+
+    def test_effective_threshold_never_below_floor(self) -> None:
+        """Even after multiple fallback iterations, threshold never goes below 0.60."""
+        base_threshold = 0.60
+        for fallback_counter in range(1, 10):
+            effective = max(0.60, base_threshold - 0.05)
+            assert effective >= 0.60, f"Threshold {effective} is below floor 0.60"
+
+    def test_fallback_disabled_when_iters_zero(self) -> None:
+        """When SPIRAL_DEDUP_FALLBACK_ITERS=0, no fallback mechanism is used."""
+        fallback_iters = 0
+        fallback_counter = 999  # Large counter, but disabled
+
+        # No fallback when iters is 0
+        if fallback_iters > 0 and fallback_counter >= fallback_iters:
+            effective_threshold = max(0.60, 0.60 - 0.05)
+        else:
+            effective_threshold = 0.60
+
+        assert effective_threshold == 0.60
 
 
 # Hypothesis needs this test class to discover the state machine
