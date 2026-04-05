@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "productName": "Spiral",
   "branchName": "main",
-  "overview": "SPIRAL is a self-iterating autonomous development loop (Research  \u00e2\u2020\u2019  Implement  \u00e2\u2020\u2019  Validate). This PRD drives Spiral to improve itself: integrating newly-written lib modules into the main loop, enhancing the setup wizard to educate users about every configurable option, and adding Chrome DevTools-powered visual validation.",
+  "overview": "SPIRAL is a self-iterating autonomous development loop (Research  â†’  Implement  â†’  Validate). This PRD drives Spiral to improve itself: integrating newly-written lib modules into the main loop, enhancing the setup wizard to educate users about every configurable option, and adding Chrome DevTools-powered visual validation.",
   "goals": [
     "Implement SPIRAL Phase G: auto-generate CHANGELOG.md and API docs from story commits using git-cliff and pdoc",
     "Add comprehensive integration test suite that runs SPIRAL end-to-end with mock Claude API responses",
@@ -51,7 +51,7 @@
     },
     {
       "id": "US-529",
-      "title": "Create lib/context_guard.py \u00e2\u20ac\u201d Token Estimation and Prompt Trimming",
+      "title": "Create lib/context_guard.py â€” Token Estimation and Prompt Trimming",
       "priority": "high",
       "description": "Implement token counting and prompt trimming logic in a new lib/context_guard.py module. estimate_phase_i_tokens counts tokens for a Phase I prompt; trim_prompt_sections removes example code files, AC examples, and truncates description when prompt exceeds 88% of model context limit.",
       "acceptanceCriteria": [
@@ -164,11 +164,11 @@
         "`uv run pytest tests/test_us639_security.py -v` passes with zero failures"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_us639_security.py (new file \u00e2\u20ac\u201d create security test module)",
+        "File to edit: tests/test_us639_security.py (new file â€” create security test module)",
         "Reference the lint-prd handler in lib/spiral/ or main.py (search for 'lint-prd' or 'lint_prd')",
         "Test command: uv run pytest tests/test_us639_security.py -v",
         "Use subprocess.run to invoke the CLI and capture stdout/stderr for assertion",
-        "Do NOT assert on 401/403 HTTP codes \u00e2\u20ac\u201d this is a CLI tool, not a web service"
+        "Do NOT assert on 401/403 HTTP codes â€” this is a CLI tool, not a web service"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -187,11 +187,11 @@
         "At least one test asserts that a simulated API error (e.g. rate-limit or 500) raises or returns the expected error type"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_us476_integration.py (new file \u00e2\u20ac\u201d integration test module)",
+        "File to edit: tests/test_us476_integration.py (new file â€” integration test module)",
         "File to edit: tests/conftest.py (add mock_claude_client fixture if not already present)",
         "Check tests/fixtures/mock_claude_responses/ for existing pre-recorded response files",
         "Test command: uv run pytest tests/test_us476_integration.py -v",
-        "Use pytest fixtures (not .hypothesis files) \u00e2\u20ac\u201d ignore .hypothesis/constants/* paths in technicalNotes from enrichment"
+        "Use pytest fixtures (not .hypothesis files) â€” ignore .hypothesis/constants/* paths in technicalNotes from enrichment"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
@@ -210,7 +210,7 @@
         "Test asserts that results.tsv rows from both workers are present and non-overlapping (no duplicate attempt rows for the same story ID)"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_worker_isolation.py (new file \u00e2\u20ac\u201d create worker isolation test module)",
+        "File to edit: tests/test_worker_isolation.py (new file â€” create worker isolation test module)",
         "Reference lib/slice_prd.py for PRD slicing logic used by workers",
         "Reference lib/run_parallel_ralph.sh or lib/worker_heartbeat.sh for worker orchestration context",
         "Test command: uv run pytest tests/test_worker_isolation.py -v",
@@ -226,7 +226,7 @@
       "id": "US-537",
       "title": "[Integration Test] WebSocket /ws/cost streams cost delta within 2s after story completion",
       "priority": "high",
-      "description": "Write integration tests for the WebSocket /ws/cost endpoint introduced in US-497. Tests must connect a WebSocket client to the dashboard server, trigger a simulated Phase I story-completion event, and assert that a cost delta message is received within 2 seconds \u00e2\u20ac\u201d all without hitting real external services.",
+      "description": "Write integration tests for the WebSocket /ws/cost endpoint introduced in US-497. Tests must connect a WebSocket client to the dashboard server, trigger a simulated Phase I story-completion event, and assert that a cost delta message is received within 2 seconds â€” all without hitting real external services.",
       "acceptanceCriteria": [
         "`uv run pytest tests/test_ws_cost.py -v` passes with zero failures",
         "Test connects to ws://localhost:<port>/ws/cost and receives a JSON message with a 'cost_delta' key after triggering a story-complete event",
@@ -234,7 +234,7 @@
         "Test asserts that a second connected client also receives the broadcast (fan-out check)"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_ws_cost.py (new file \u00e2\u20ac\u201d WebSocket integration tests)",
+        "File to edit: tests/test_ws_cost.py (new file â€” WebSocket integration tests)",
         "File to edit: lib/dashboard.py or lib/dashboard/api.py (locate broadcast_cost_delta or equivalent function)",
         "Test command: uv run pytest tests/test_ws_cost.py -v",
         "Use pytest-asyncio and websockets library for async WebSocket client in tests",
@@ -257,11 +257,11 @@
         "Test asserts that message payload does not match any loaded environment variable values (check os.environ values against message JSON dump)"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_ws_cost_security.py (new file \u00e2\u20ac\u201d security test module separate from integration tests)",
+        "File to edit: tests/test_ws_cost_security.py (new file â€” security test module separate from integration tests)",
         "Reference lib/dashboard.py or lib/dashboard/cost_broadcaster.py for the broadcast payload structure",
         "Test command: uv run pytest tests/test_ws_cost_security.py -v",
         "Use pytest-asyncio + websockets for async client; start a local server fixture identical to the integration test pattern",
-        "Note: SPIRAL dashboard has no login system \u00e2\u20ac\u201d omit 401/403 assertions; focus on data-leakage assertions instead"
+        "Note: SPIRAL dashboard has no login system â€” omit 401/403 assertions; focus on data-leakage assertions instead"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -291,7 +291,7 @@
     },
     {
       "id": "US-540",
-      "title": "[Integration Test] Integration test: Phase I retry escalation haiku\u00e2\u2020\u2019sonnet\u00e2\u2020\u2019opus",
+      "title": "[Integration Test] Integration test: Phase I retry escalation haikuâ†’sonnetâ†’opus",
       "priority": "high",
       "description": "Write integration tests for the feature implemented in US-502. Story description: Add integration test that validates Phase I retry mechanism correctly escalates from haiku to sonnet to opus on API failures. Ensures SPIRAL_MODEL_ROUTING=auto increments retry-counts.json and records the final model in results.tsv.",
       "acceptanceCriteria": [
@@ -311,7 +311,7 @@
     },
     {
       "id": "US-541",
-      "title": "[Security Test] CLI: validate-federated \u00e2\u20ac\u201d Wire Command & Validate Story ID/Duplicate Rules",
+      "title": "[Security Test] CLI: validate-federated â€” Wire Command & Validate Story ID/Duplicate Rules",
       "priority": "high",
       "description": "Write security tests for auth/permission logic in US-514. Story description: Create `lib/commands/validate_federated.py` and wire it as the `spiral validate-federated` subcommand. Implement ID format validation (`^[a-z-]+:(US|UT)-\\d{3}$`), duplicate-ID detection across repos, and unresolved cross-repo dependency reporting. Output a JSON report and exit 0/1.",
       "acceptanceCriteria": [
@@ -345,7 +345,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
       "model": "sonnet"
     },
@@ -372,7 +372,7 @@
     {
       "id": "US-1131",
       "title": "Phase M: exclude completed stories from semantic dedup comparison set",
-      "description": "Phase M currently compares every new story candidate against ALL stories in prd.json, including the 309+ completed ones (passes: true). This means a new story about 'improving X' gets rejected as a near-duplicate of the completed story 'implement X', even though they are genuinely different work. The dedup filter should only compare new candidates against PENDING stories (passes: false). Completed stories are done \u00e2\u20ac\u201d a candidate that resembles a completed story is an extension or improvement, not a true duplicate. Fix lib/merge_stories.py (or the relevant dedup function): when building the comparison corpus, filter to only stories where passes is False.",
+      "description": "Phase M currently compares every new story candidate against ALL stories in prd.json, including the 309+ completed ones (passes: true). This means a new story about 'improving X' gets rejected as a near-duplicate of the completed story 'implement X', even though they are genuinely different work. The dedup filter should only compare new candidates against PENDING stories (passes: false). Completed stories are done â€” a candidate that resembles a completed story is an extension or improvement, not a true duplicate. Fix lib/merge_stories.py (or the relevant dedup function): when building the comparison corpus, filter to only stories where passes is False.",
       "priority": "critical",
       "acceptanceCriteria": [
         "Phase M dedup only compares new candidates against stories where passes == False",
@@ -427,7 +427,7 @@
     {
       "id": "US-1133",
       "title": "Phase A: inject completed story titles into AI suggest prompt to avoid near-duplicates",
-      "description": "The Phase A LLM prompt does not include the list of already-completed stories, so the AI generates suggestions that are near-duplicates of completed work. Inject a summary of completed story titles (grouped by theme/epic) into the Phase A system prompt with the instruction: 'The following stories are ALREADY DONE \u00e2\u20ac\u201d do not suggest them again or close variations.' This makes the LLM generate genuinely novel stories rather than retracing completed ground. To keep the prompt compact, send only titles (not full descriptions), grouped by epicId, truncated to SPIRAL_AI_SUGGEST_HISTORY_LIMIT entries (default 50 most recent).",
+      "description": "The Phase A LLM prompt does not include the list of already-completed stories, so the AI generates suggestions that are near-duplicates of completed work. Inject a summary of completed story titles (grouped by theme/epic) into the Phase A system prompt with the instruction: 'The following stories are ALREADY DONE â€” do not suggest them again or close variations.' This makes the LLM generate genuinely novel stories rather than retracing completed ground. To keep the prompt compact, send only titles (not full descriptions), grouped by epicId, truncated to SPIRAL_AI_SUGGEST_HISTORY_LIMIT entries (default 50 most recent).",
       "priority": "high",
       "acceptanceCriteria": [
         "Phase A prompt includes a completed-stories section listing done story titles",
@@ -569,7 +569,7 @@
     {
       "id": "US-1138",
       "title": "Parallel workers: use millisecond-precision timestamps to prevent branch name collisions",
-      "description": "Branch names for worker worktrees are derived from TIMESTAMP=$(date +%s) which has 1-second granularity. Two Spiral runs starting within the same second produce identical branch names (e.g. spiral-worker-1-1712345600), causing git to reject the second creation and fall back to detached HEAD \u00e2\u20ac\u201d silently losing patch tracking. Fix: replace date +%s with date +%s%3N (epoch milliseconds) everywhere TIMESTAMP is used for branch naming. Also append a short random suffix ($RANDOM) to guarantee uniqueness even on systems where date lacks %N support (Windows Git Bash). Update the branch-name regex in run_parallel_ralph.sh cleanup code to match the new format.",
+      "description": "Branch names for worker worktrees are derived from TIMESTAMP=$(date +%s) which has 1-second granularity. Two Spiral runs starting within the same second produce identical branch names (e.g. spiral-worker-1-1712345600), causing git to reject the second creation and fall back to detached HEAD â€” silently losing patch tracking. Fix: replace date +%s with date +%s%3N (epoch milliseconds) everywhere TIMESTAMP is used for branch naming. Also append a short random suffix ($RANDOM) to guarantee uniqueness even on systems where date lacks %N support (Windows Git Bash). Update the branch-name regex in run_parallel_ralph.sh cleanup code to match the new format.",
       "priority": "medium",
       "acceptanceCriteria": [
         "TIMESTAMP variable uses millisecond precision (date +%s%3N) with $RANDOM fallback for Windows Git Bash compatibility",
@@ -620,7 +620,7 @@
     {
       "id": "US-1140",
       "title": "Parallel workers: validate partition completeness and disjointness before worker launch",
-      "description": "After partition_prd.py generates per-worker story slices, run_parallel_ralph.sh calls spiral_assert_worker_disjoint to check for overlaps, but does NOT verify that every pending story appears in exactly one slice (coverage gaps). A bug in rebalancing logic or circular-dependency resolution can silently drop stories \u00e2\u20ac\u201d they never get assigned to any worker and are missed for the entire iteration. Add a second assertion: spiral_assert_worker_coverage that computes the union of all worker story IDs and compares against the set of pending story IDs in the main prd.json. Fail fast with a clear error if any pending story is absent from all slices or appears in more than one.",
+      "description": "After partition_prd.py generates per-worker story slices, run_parallel_ralph.sh calls spiral_assert_worker_disjoint to check for overlaps, but does NOT verify that every pending story appears in exactly one slice (coverage gaps). A bug in rebalancing logic or circular-dependency resolution can silently drop stories â€” they never get assigned to any worker and are missed for the entire iteration. Add a second assertion: spiral_assert_worker_coverage that computes the union of all worker story IDs and compares against the set of pending story IDs in the main prd.json. Fail fast with a clear error if any pending story is absent from all slices or appears in more than one.",
       "priority": "medium",
       "acceptanceCriteria": [
         "spiral_assert_worker_coverage function implemented in lib/run_parallel_ralph.sh or lib/prd/partition_prd.py",
@@ -676,7 +676,7 @@
     {
       "id": "US-1142",
       "title": "Parallel workers: replace hardcoded docker lock timeout with adaptive PID-aware backoff",
-      "description": "The docker mutex in run_parallel_ralph.sh uses a hardcoded 120-iteration wait loop (1s sleep each = 120s max). On slow systems or during heavy I/O, legitimate docker pull/build operations exceed 120s, causing a healthy worker to assume lock-holder crash and break the mutex \u00e2\u20ac\u201d allowing two workers to run docker commands simultaneously and corrupt container state. Replace the fixed loop with: (1) exponential backoff (1s, 2s, 4s... capped at 30s), (2) detect if lock-holder PID (stored in the lock directory as a pid file) is still alive (kill -0 $pid), (3) only break the lock if the PID is dead AND the lock is older than SPIRAL_DOCKER_LOCK_TIMEOUT (default 300s). Store the PID in a file inside the lock directory on acquisition.",
+      "description": "The docker mutex in run_parallel_ralph.sh uses a hardcoded 120-iteration wait loop (1s sleep each = 120s max). On slow systems or during heavy I/O, legitimate docker pull/build operations exceed 120s, causing a healthy worker to assume lock-holder crash and break the mutex â€” allowing two workers to run docker commands simultaneously and corrupt container state. Replace the fixed loop with: (1) exponential backoff (1s, 2s, 4s... capped at 30s), (2) detect if lock-holder PID (stored in the lock directory as a pid file) is still alive (kill -0 $pid), (3) only break the lock if the PID is dead AND the lock is older than SPIRAL_DOCKER_LOCK_TIMEOUT (default 300s). Store the PID in a file inside the lock directory on acquisition.",
       "priority": "medium",
       "acceptanceCriteria": [
         "Docker lock acquisition writes holder PID to $LOCK_DIR/pid file",
