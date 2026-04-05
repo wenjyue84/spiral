@@ -7310,6 +7310,170 @@
       "_source": "seed",
       "model": "haiku",
       "_passedCommit": "5bc6b5f60710737d81cecd96c1ed0cf6b9822213"
+    },
+    {
+      "id": "US-1110",
+      "title": "Show failure type column in analytics retry history table",
+      "description": "The retry history table shows Story, Attempts, Model Path, Outcome, Total Time but not WHY a story failed. The failure_root_cause field is already parsed from results.tsv in analyticsApi.ts (TsvRow.failure_root_cause) but never surfaced in the UI. Add a Failure Type column to the retry history table populated from failure_root_cause, with colour-coded badges: amber for syntax_error/type_error/missing_dependency, blue for test_assertion, purple for context_overflow, red for oom, orange for timeout, grey for other/empty.",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "Retry history table has a Failure Type column after Model Path",
+        "Column shows the failure_root_cause value from results.tsv for each story's last failed attempt",
+        "Badges are colour-coded: amber=syntax_error/type_error/missing_dependency, blue=test_assertion, purple=context_overflow, red=oom, orange=timeout, grey=other/empty",
+        "Column is present in both Most Recent and Most Retried sort views",
+        "analyticsApi.ts exposes failure_root_cause in the retryHistory payload"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx",
+        "spiral-ui/src/components/analytics/FailureRetryDashboard.tsx",
+        "spiral-ui/src/server/analyticsApi.ts"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui",
+        "spiral-ui"
+      ]
+    },
+    {
+      "id": "US-1111",
+      "title": "Fix analytics model performance and iteration velocity to count pass not keep",
+      "description": "The Model Performance table shows 0% rate for all models even though 304 stories passed. Root cause: analyticsApi.ts counts status === keep as success, but Phase V marks stories as status === pass. Same bug causes Iteration Velocity bars to show 0 kept for every iteration. Fix: treat both pass and keep as successes in model performance rate and iteration velocity. Rename the Kept column header to Passed.",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "Model Performance table Rate column reflects stories with status pass OR keep as successes",
+        "Haiku/sonnet/opus rows show non-zero pass rates when results.tsv has matching pass/keep rows",
+        "Iteration Velocity bars show non-zero height for iterations where stories passed",
+        "Column header renamed from Kept to Passed in the model performance table",
+        "iterationVelocity data in API counts status in (pass,keep) not just keep"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "spiral-ui/src/server/analyticsApi.ts",
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "bugfix",
+        "spiral-ui"
+      ]
+    },
+    {
+      "id": "US-1112",
+      "title": "Add cumulative cost and stories-passed trend chart to analytics",
+      "description": "The analytics summary only shows a single total cost number with no over-time view. Add a dual-axis line chart below the summary bar: x-axis = iteration number, left y-axis = cumulative API cost ($), right y-axis = cumulative stories passed. Both lines on the same chart show the economic efficiency curve. Data: group results.tsv by spiral_iter, accumulate cost and passed count per iteration.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "A line chart appears below the summary metrics row",
+        "Chart has two y-axes: left for cumulative cost ($), right for cumulative stories passed",
+        "X-axis shows iteration numbers",
+        "Both lines are non-flat when multiple iterations of data exist",
+        "Chart has a legend identifying each line",
+        "analyticsApi.ts exposes a costTrend array: [{iter, cumulativeCost, cumulativePassed}]",
+        "Chart is hidden when fewer than 2 iterations of data exist"
+      ],
+      "passes": false,
+      "dependencies": [
+        "US-1111"
+      ],
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx",
+        "spiral-ui/src/server/analyticsApi.ts"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "analytics",
+        "ui",
+        "spiral-ui",
+        "charts"
+      ]
+    },
+    {
+      "id": "US-1113",
+      "title": "Show per-attempt failure messages in retry history drill-down",
+      "description": "The retry history table has an expander per row but expanded content does not show the failure message for each attempt. When expanded, show a sub-table: one row per attempt with columns: Attempt #, Model, Duration, Status, Failure Message (from results.tsv failure_root_cause). This makes it possible to trace the full retry sequence, e.g. attempt 1 syntax_error (haiku), attempt 2 test_assertion (sonnet), attempt 3 passed (opus).",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Expanding a retry history row shows a sub-table with one row per attempt",
+        "Sub-table columns: Attempt #, Model, Duration, Status, Failure Message",
+        "Failure Message populated from results.tsv failure_root_cause for that story_id + retry_num",
+        "Sub-table rows sorted by retry_num ascending",
+        "Stories with only 1 attempt show a message indicating single attempt",
+        "analyticsApi.ts exposes per-attempt detail under storyAttempts keyed by story_id"
+      ],
+      "passes": false,
+      "dependencies": [
+        "US-1110"
+      ],
+      "filesTouch": [
+        "spiral-ui/src/components/StoryDetailPanel.tsx",
+        "spiral-ui/src/components/analytics/FailureRetryDashboard.tsx",
+        "spiral-ui/src/server/analyticsApi.ts"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "analytics",
+        "ui",
+        "spiral-ui"
+      ]
+    },
+    {
+      "id": "US-1114",
+      "title": "Fix missing story titles in Most Retried section of analytics",
+      "description": "The Most Retried section shows US-418 (5x), US-403 (4x), US-351 (3x) with no titles, only IDs. The bottlenecks.mostRetried type has a title field but it is empty. Root cause: retry count data comes from retry-counts.json which has no titles, and the title lookup from prd.json is failing. Fix analyticsApi.ts buildBottlenecks() to cross-reference prd.json and populate title for all mostRetried entries.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Most Retried section shows story title next to the ID for all entries",
+        "Stories not found in prd.json show only the ID without crashing",
+        "analyticsApi.ts buildBottlenecks() reads prd.json userStories and maps id to title",
+        "Titles truncated to 80 chars with ellipsis if longer"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "spiral-ui/src/server/analyticsApi.ts"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "bugfix",
+        "spiral-ui"
+      ]
+    },
+    {
+      "id": "US-1115",
+      "title": "Add filter controls to analytics retry history table",
+      "description": "The retry history table has no way to slice the data. Add a filter bar above the table with three dropdowns: (1) Failure Type - filters by failure_root_cause value; (2) Model Tier - haiku/sonnet/opus/all; (3) Outcome - passed/skipped/decomposed/all. The existing Most Recent / Most Retried sort toggle should remain. Show empty state message when no rows match filters.",
+      "priority": "low",
+      "acceptanceCriteria": [
+        "Filter bar with three dropdowns appears above the retry history table",
+        "Failure Type dropdown lists all distinct failure_root_cause values plus All",
+        "Model Tier dropdown: All, haiku, sonnet, opus",
+        "Outcome dropdown: All, passed, skipped, decomposed",
+        "Selecting a filter immediately updates rows without page reload",
+        "Active filter count badge shown on filter bar when filters are active",
+        "Empty state message shown when no rows match current filters",
+        "Show more / Show less still works with filters applied"
+      ],
+      "passes": false,
+      "dependencies": [
+        "US-1110",
+        "US-1113"
+      ],
+      "filesTouch": [
+        "spiral-ui/src/components/analytics/FailureRetryDashboard.tsx",
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "analytics",
+        "ui",
+        "spiral-ui"
+      ]
     }
   ]
 }
