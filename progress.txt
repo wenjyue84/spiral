@@ -1,4 +1,38 @@
+## Iteration N - Story: US-1152 - Phase E: Inject Top-3 Similar Passing Stories as Ralph Reference Implementations
 
+### What was implemented
+- **lib/research/enrich_stories.py**:
+  - Added `find_similar_passed_stories(story, prd, top_k=3)` using difflib.SequenceMatcher on concatenated title+description
+  - Added `get_git_diff_summary(story_id, max_chars=8000, lines_per_file=60)` to retrieve diffs via `git log --all --grep=<story_id> -p` and truncate
+  - Added `_inject_reference_implementations(story, prd)` to enrich stories with reference implementations list containing {id, title, score, diff_summary}
+  - Modified `enrich_stories()` pipeline to inject reference implementations into all output stories (enriched, split, and passthrough)
+  - Loads prd.json during enrichment to find similar passed stories
+
+- **ralph/CLAUDE.md**:
+  - Added Critical Rule 19 explaining reference implementations: what they are, how to use them, and that they're empty if no similar stories exist
+
+- **tests/test_enrich_stories.py**:
+  - Added TestFindSimilarPassedStories: tests for similarity detection, excluding same story, returning top-k, and handling no passed stories
+  - Added TestGetGitDiffSummary: tests for retrieving diffs and truncation to max_chars
+  - Added TestInjectReferenceImplementations: tests for injection, empty cases, and capping total diff at ~8000 chars
+
+### Patterns discovered
+- difflib.SequenceMatcher is sufficient for semantic similarity without external ML libraries
+- git log --grep searches commit messages for story IDs (works if commits follow story ID convention)
+- File truncation logic: count lines per file and cap total output separately to ensure both bounds respected
+- Reference implementations injected at all enrichment points (batch success, fallback, passthrough) to ensure complete coverage
+
+### Gotchas
+- git diff retrieval returns empty string gracefully if no commits match (prevents errors if story hasn't been committed)
+- Test mocking must handle the partial application of max_chars remaining budget when processing multiple similar stories
+- Ralph/CLAUDE.md updates must use plain numbered rule format (19) to match existing convention, not special formatting
+
+### Acceptance Criteria Met
+- [x] find_similar_passed_stories() returns list of (story_id, score) tuples for top-3 similar passed stories
+- [x] get_git_diff_summary() retrieves git diffs and truncates to 60 lines per file and ~8000 chars total
+- [x] Ralph prompt documents reference implementations in Critical Rules section
+- [x] Total injected diff capped at ~8000 chars via partial budget allocation across stories
+- [x] Tests: test_find_similar_passed_stories, test_reference_injection_in_prompt, test_empty_when_no_passed_stories all passing
 
 ## Pre-analysis for US-1134 (Gemini 2.5 Pro)
 Here is a technical brief for implementing story US-1134.
@@ -282,4 +316,3 @@ This brief outlines the implementation plan for enriching the Ralph agent's prom
 *   **Git Failures:** The `git log` command may find no matching commit. The code must handle this gracefully by returning an empty result for that story.
 *   **No Prior Examples:** If no passed stories exist, the `<reference_implementations>` section should be omitted from the prompt entirely.
 *   **Security:** Use `subprocess.run` with a list of arguments (e.g., `['git', 'log', ...]`) rather than a formatted string with `shell=True` to prevent injection risks.
-
