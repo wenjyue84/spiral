@@ -15,7 +15,7 @@ main() {
   cat >"$hook_file" <<'HOOK_EOF'
 #!/bin/bash
 # Pre-commit hook: enforce story ID prefix in commit messages
-# Validates message matches regex ^(US|UT)-[0-9]+:
+# Validates message matches regex ^(US|UT|FE|BE)-[0-9]+:
 
 set -euo pipefail
 
@@ -28,9 +28,9 @@ COMMIT_MSG=$(cat "$COMMIT_MSG_FILE" 2>/dev/null || echo "")
 # Trim leading/trailing whitespace for validation
 COMMIT_MSG_TRIMMED=$(echo "$COMMIT_MSG" | sed -e 's/^[[:space:]]*//')
 
-# Check if message matches regex ^(US|UT)-[0-9]+:
-if [[ ! "$COMMIT_MSG_TRIMMED" =~ ^(US|UT)-[0-9]+: ]]; then
-  echo "Commit message must start with US-NNN: or UT-NNN:" >&2
+# Check if message matches regex ^(US|UT|FE|BE)-[0-9]+:
+if [[ ! "$COMMIT_MSG_TRIMMED" =~ ^(US|UT|FE|BE)-[0-9]+: ]]; then
+  echo "Commit message must start with US-NNN:, UT-NNN:, FE-NNN:, or BE-NNN:" >&2
   exit 1
 fi
 

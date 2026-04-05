@@ -22,11 +22,11 @@ from story_reorder import build_dep_graph, topological_sort  # noqa: E402
 # Pattern to detect cross-project story ID references in description text.
 # Matches: "depends on US-123", "requires US-B5", "after US-42", etc.
 _DEP_PATTERN = re.compile(
-    r"(?:depends?\s+on|requires?|after|needs?)\s+((?:US|UT)-[A-Za-z0-9]+)",
+    r"(?:depends?\s+on|requires?|after|needs?)\s+((?:US|UT|FE|BE)-[A-Za-z0-9]+)",
     re.IGNORECASE,
 )
-# Also match bare "US-XYZ" references when they appear near dependency keywords.
-_BARE_ID_PATTERN = re.compile(r"\b((?:US|UT)-[A-Za-z0-9]+)\b")
+# Also match bare "US-XYZ", "FE-XYZ", "BE-XYZ" references near dependency keywords.
+_BARE_ID_PATTERN = re.compile(r"\b((?:US|UT|FE|BE)-[A-Za-z0-9]+)\b")
 
 
 def _extract_referenced_ids(text: str) -> list[str]:

@@ -1,7 +1,7 @@
 r"""CLI command: validate-federated — Validate federated prd.json structure.
 
 Checks for:
-- Story ID format: ^[a-z-]+:(US|UT)-\d{3}$
+- Story ID format: ^[a-z-]+:(US|UT|FE|BE)-\d{3}$
 - Duplicate IDs across repos
 - Unresolved cross-repo dependencies
 """
@@ -17,8 +17,8 @@ from typing import Any
 def _validate_ids(prd_dict: dict[str, Any]) -> list[str]:
     """Validate story ID format across all stories.
 
-    Valid format: ^[a-z-]+:(US|UT)-\\d{3}$
-    Examples: repo-a:US-001, my-project:UT-042
+    Valid format: ^[a-z-]+:(US|UT|FE|BE)-\\d{3}$
+    Examples: repo-a:US-001, my-project:FE-042, repo-b:BE-100
 
     Args:
         prd_dict: Parsed prd.json
@@ -27,7 +27,7 @@ def _validate_ids(prd_dict: dict[str, Any]) -> list[str]:
         List of error strings (empty if all IDs are valid)
     """
     errors: list[str] = []
-    id_pattern = re.compile(r"^[a-z-]+(:(US|UT)-\d{3})?$")
+    id_pattern = re.compile(r"^[a-z-]+(:(US|UT|FE|BE)-\d{3})?$")
 
     for story in prd_dict.get("userStories", []):
         story_id = story.get("id", "")
@@ -41,16 +41,16 @@ def _validate_ids(prd_dict: dict[str, Any]) -> list[str]:
             # Namespaced ID - validate full format
             if not id_pattern.match(story_id):
                 errors.append(
-                    f"Invalid ID format: {story_id!r} (expected format: 'namespace:(US|UT)-NNN')."
-                    f" Fix: Rename to match 'namespace:(US|UT)-NNN' pattern (e.g., 'my-repo:US-001')."
+                    f"Invalid ID format: {story_id!r} (expected format: 'namespace:(US|UT|FE|BE)-NNN')."
+                    f" Fix: Rename to match 'namespace:(US|UT|FE|BE)-NNN' pattern (e.g., 'my-repo:US-001')."
                 )
         else:
-            # Non-namespaced ID - validate base format (US-NNN or UT-NNN)
-            base_pattern = re.compile(r"^(US|UT)-\d{3}$")
+            # Non-namespaced ID - validate base format (US/UT/FE/BE-NNN)
+            base_pattern = re.compile(r"^(US|UT|FE|BE)-\d{3,}$")
             if not base_pattern.match(story_id):
                 errors.append(
-                    f"Invalid ID format: {story_id!r} (expected format: '(US|UT)-NNN' or 'namespace:(US|UT)-NNN')."
-                    f" Fix: Rename to match '(US|UT)-NNN' or 'namespace:(US|UT)-NNN' pattern."
+                    f"Invalid ID format: {story_id!r} (expected format: '(US|UT|FE|BE)-NNN' or 'namespace:(US|UT|FE|BE)-NNN')."
+                    f" Fix: Rename to match '(US|UT|FE|BE)-NNN' or 'namespace:(US|UT|FE|BE)-NNN' pattern."
                 )
 
     return errors

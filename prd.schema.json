@@ -75,8 +75,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^(US|UT)-[0-9]{3,}$",
-          "description": "Story identifier matching US-NNN or UT-NNN (3 or more digits)"
+          "pattern": "^(US|UT|FE|BE)-[0-9]{3,}$",
+          "description": "Story identifier matching US-NNN, UT-NNN, FE-NNN, or BE-NNN (3 or more digits)"
         },
         "title": {
           "type": "string",

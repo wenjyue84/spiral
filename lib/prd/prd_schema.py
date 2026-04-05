@@ -34,7 +34,7 @@ STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
 
 VALID_PRIORITIES = {"critical", "high", "medium", "low"}
 VALID_COMPLEXITIES = {"small", "medium", "large"}
-STORY_ID_PATTERN = re.compile(r"^(US|UT)-[0-9]{3,}$")
+STORY_ID_PATTERN = re.compile(r"^(US|UT|FE|BE)-[0-9]{3,}$")
 
 # Current PRD schema version — bump when schema changes
 CURRENT_SCHEMA_VERSION = 1
@@ -124,7 +124,7 @@ def validate_prd(prd: dict) -> list[str]:
             errors.append(f"{sp}/id — id must be string, got {type(sid).__name__}")
         else:
             if not STORY_ID_PATTERN.match(sid):
-                errors.append(f"{sp}/id — id '{sid}' does not match pattern (US|UT)-NNN")
+                errors.append(f"{sp}/id — id '{sid}' does not match pattern (US|UT|FE|BE)-NNN")
             if sid in seen_ids:
                 errors.append(f"{sp}/id — duplicate story ID '{sid}' (first at index {seen_ids[sid]})")
             seen_ids[sid] = i

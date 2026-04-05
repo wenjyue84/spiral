@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 log = logging.getLogger(__name__)
-_STORY_RE = re.compile(r"\b(?:US|UT)-\d{3}\b")
+_STORY_RE = re.compile(r"\b(?:US|UT|FE|BE)-\d{3,}\b")
 
 
 def story_commits_from_git(

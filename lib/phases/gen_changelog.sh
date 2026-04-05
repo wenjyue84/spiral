@@ -88,7 +88,7 @@ _log_orphan_commits() {
     local full_message
     full_message=$(git log -1 --format="%B" "$hash" 2>/dev/null || echo "")
 
-    if ! echo "$full_message" | grep -qE '(US|UT)-[0-9]+'; then
+    if ! echo "$full_message" | grep -qE '(US|UT|FE|BE)-[0-9]+'; then
       echo "${hash} ${subject}" >>"$warnings_file"
       orphan_count=$((orphan_count + 1))
     fi

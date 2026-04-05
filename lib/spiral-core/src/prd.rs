@@ -136,7 +136,7 @@ pub fn validate_prd(prd: &serde_json::Value) -> Vec<String> {
     let stories = prd["userStories"].as_array().unwrap();
     let valid_priorities: HashSet<&str> = ["critical", "high", "medium", "low"].iter().cloned().collect();
     let valid_complexities: HashSet<&str> = ["small", "medium", "large"].iter().cloned().collect();
-    let id_re = regex::Regex::new(r"^(US|UT)-\d{3,4}$").unwrap();
+    let id_re = regex::Regex::new(r"^(US|UT|FE|BE)-\d{3,}$").unwrap();
 
     let mut seen_ids: HashMap<String, usize> = HashMap::new();
     let mut all_ids: HashSet<String> = HashSet::new();
@@ -159,7 +159,7 @@ pub fn validate_prd(prd: &serde_json::Value) -> Vec<String> {
             Some(v) => {
                 sid = v.as_str().unwrap().to_string();
                 if !id_re.is_match(&sid) {
-                    errors.push(format!("{}: id '{}' does not match pattern (US|UT)-NNN", prefix, sid));
+                    errors.push(format!("{}: id '{}' does not match pattern (US|UT|FE|BE)-NNN", prefix, sid));
                 }
                 if let Some(&first) = seen_ids.get(&sid) {
                     errors.push(format!(

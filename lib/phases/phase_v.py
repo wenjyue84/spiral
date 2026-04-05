@@ -16,8 +16,8 @@ from typing import Any
 
 from lib.validators.changelog_schema import validate_changelog_format
 
-# Matches US-123 or UT-456 patterns
-_STORY_ID_RE = re.compile(r"\b((?:US|UT)-\d+)\b")
+# Matches US-123, UT-456, FE-789, or BE-101 patterns
+_STORY_ID_RE = re.compile(r"\b((?:US|UT|FE|BE)-\d+)\b")
 
 
 def extract_story_ids(changelog_path: str) -> list[str]:

@@ -20,7 +20,7 @@ import re
 import sys
 from pathlib import Path
 
-STORY_ID_PATTERN = re.compile(r"^(US|UT)-\d{3,}$")
+STORY_ID_PATTERN = re.compile(r"^(US|UT|FE|BE)-\d{3,}$")
 
 
 def _find_cycle_path(graph: dict[str, list[str]]) -> list[str] | None:
@@ -121,7 +121,7 @@ def lint_prd(prd: object, schema_path: str | None = None) -> dict[str, object]:
                 {
                     "type": "naming",
                     "story_id": sid,
-                    "message": f"ID '{sid}' does not match pattern (US|UT)-NNN",
+                    "message": f"ID '{sid}' does not match pattern (US|UT|FE|BE)-NNN",
                 }
             )
 

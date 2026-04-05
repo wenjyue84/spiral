@@ -14,8 +14,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Regex pattern matching story ID prefixes US-NNN or UT-NNN (case-insensitive)
-STORY_ID_PATTERN = re.compile(r"(US|UT)-\d+", re.IGNORECASE)
+# Regex pattern matching story ID prefixes US-NNN, UT-NNN, FE-NNN, or BE-NNN (case-insensitive)
+STORY_ID_PATTERN = re.compile(r"(US|UT|FE|BE)-\d+", re.IGNORECASE)
 
 # Regex for GitHub issue/PR references: "closes #123", "fixes #456", bare "#789"
 # Group 1: keyword-prefixed number; Group 2: bare #NNN (not preceded by "[")
