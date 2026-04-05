@@ -269,6 +269,106 @@
       "model": "haiku"
     },
     {
+      "id": "US-539",
+      "title": "[Integration Test] Enforce SPIRAL_COST_CEILING with pre-Phase I budget check and story rollback",
+      "priority": "high",
+      "description": "Write integration tests for the feature implemented in US-498. Story description: Before Phase I executes, compute the estimated token cost of all pending stories. If total would exceed SPIRAL_COST_CEILING, prompt the user to either skip the phase, continue with warning, or rollback the lowest-priority story. Prevent unexpected overages.",
+      "acceptanceCriteria": [
+        "Integration tests exist covering the core behaviour of US-498",
+        "Tests cover the happy path and at least one error/edge case",
+        "Tests run without requiring external services or manual setup"
+      ],
+      "technicalNotes": [
+        "Source files from US-498: .coverage, .github/actions/lint-shell/action.yml, .github/actions/setup-uv/action.yml, .github/workflows/ci.yml, .github/workflows/release.yml",
+        "Run: uv run pytest tests/ -k us_498 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-540",
+      "title": "[Integration Test] Integration test: Phase I retry escalation haiku→sonnet→opus",
+      "priority": "high",
+      "description": "Write integration tests for the feature implemented in US-502. Story description: Add integration test that validates Phase I retry mechanism correctly escalates from haiku to sonnet to opus on API failures. Ensures SPIRAL_MODEL_ROUTING=auto increments retry-counts.json and records the final model in results.tsv.",
+      "acceptanceCriteria": [
+        "Integration tests exist covering the core behaviour of US-502",
+        "Tests cover the happy path and at least one error/edge case",
+        "Tests run without requiring external services or manual setup"
+      ],
+      "technicalNotes": [
+        "Source files from US-502: .coverage, .hypothesis/constants/19b92a82c7a5fbb7, .hypothesis/constants/be82d7f330748f87, .hypothesis/examples/04e6b3400353b141/2786903576343a97, .hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6",
+        "Run: uv run pytest tests/ -k us_502 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-541",
+      "title": "[Security Test] CLI: validate-federated — Wire Command & Validate Story ID/Duplicate Rules",
+      "priority": "high",
+      "description": "Write security tests for auth/permission logic in US-514. Story description: Create `lib/commands/validate_federated.py` and wire it as the `spiral validate-federated` subcommand. Implement ID format validation (`^[a-z-]+:(US|UT)-\\d{3}$`), duplicate-ID detection across repos, and unresolved cross-repo dependency reporting. Output a JSON report and exit 0/1.",
+      "acceptanceCriteria": [
+        "Security test covers access control introduced by US-514",
+        "Test verifies unauthorized access is blocked (401/403 responses)",
+        "No sensitive data (tokens, passwords) leaked in error responses"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_514 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-542",
+      "title": "[Integration Test] Phase G: Wire git-cliff CHANGELOG Generator with Story Commit Parsing",
+      "priority": "high",
+      "description": "Write integration tests for the feature implemented in US-604. Story description: Integrate git-cliff into Phase G to automatically generate CHANGELOG.md from story commits. Parse commit messages for story IDs (US-NNN, UT-NNN), categorize by type (feat, fix, docs, refactor), and produce markdown output with sections. Log commits without story IDs as warnings.",
+      "acceptanceCriteria": [
+        "Integration tests exist covering the core behaviour of US-604",
+        "Tests cover the happy path and at least one error/edge case",
+        "Tests run without requiring external services or manual setup"
+      ],
+      "technicalNotes": [
+        "Source files from US-604: cliff.toml, .hypothesis/constants/016af87f794a90e9, lib/gen_changelog.py, .hypothesis/constants/0144005a67236799, .claude/hooks/verify_story_acceptance.py",
+        "Suggested test files: tests/test_gen_changelog.py, tests/test_test_gen_changelog.py, tests/test_verify_story_acceptance.py",
+        "Run: uv run pytest tests/ -k us_604 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-543",
+      "title": "[Integration Test] CLI: spiral extract-failed-stories -- Generate Triage Report from results.tsv",
+      "priority": "high",
+      "description": "Write integration tests for the feature implemented in US-613. Story description: Scan results.tsv to identify stories with high retry counts, extract failure patterns, and generate a markdown triage report with decomposition recommendations. This helps operators understand which stories are stuck and why, advancing self-monitoring and integration test insights.",
+      "acceptanceCriteria": [
+        "Integration tests exist covering the core behaviour of US-613",
+        "Tests cover the happy path and at least one error/edge case",
+        "Tests run without requiring external services or manual setup"
+      ],
+      "technicalNotes": [
+        "Source files from US-613: .github/actions/lint-shell/action.yml, .github/actions/setup-uv/action.yml, .github/workflows/ci.yml, .github/workflows/release.yml, .github/workflows/spiral.yml",
+        "Run: uv run pytest tests/ -k us_613 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "sonnet"
+    },
+    {
       "id": "US-1116",
       "title": "Phase M: exclude completed stories from semantic dedup comparison set",
       "description": "Phase M currently compares every new story candidate against ALL stories in prd.json, including the 309+ completed ones (passes: true). This means a new story about 'improving X' gets rejected as a near-duplicate of the completed story 'implement X', even though they are genuinely different work. The dedup filter should only compare new candidates against PENDING stories (passes: false). Completed stories are done — a candidate that resembles a completed story is an extension or improvement, not a true duplicate. Fix lib/merge_stories.py (or the relevant dedup function): when building the comparison corpus, filter to only stories where passes is False.",
@@ -291,6 +391,121 @@
         "phase-m",
         "dedup",
         "bugfix"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1117",
+      "title": "Auto-archive completed stories when prd.json exceeds SPIRAL_AUTO_ARCHIVE_THRESHOLD",
+      "description": "When prd.json accumulates hundreds of completed stories (passes: true), the file becomes slow to parse, dedup becomes ineffective, and git diffs become noisy. Add a config var SPIRAL_AUTO_ARCHIVE_THRESHOLD (default: 100). At the start of each iteration, if the count of completed stories exceeds this threshold, automatically run the archive-done logic (equivalent to `spiral.sh --archive-done`) before Phase A begins. The archive must be committed to git immediately (auto-commit with message 'chore: auto-archive N completed stories') so the auto-stash mechanism does not revert it.",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "spiral.config.sh has SPIRAL_AUTO_ARCHIVE_THRESHOLD variable (default 100)",
+        "At the start of each iteration, if completed story count >= threshold, archive-done runs automatically",
+        "The resulting prd.json and prd-archive.json are committed to git before Phase A runs",
+        "Log message: [auto-archive] Archived N completed stories (threshold: M)",
+        "Setting SPIRAL_AUTO_ARCHIVE_THRESHOLD=0 disables auto-archive",
+        "uv run pytest tests/test_auto_archive.py covers threshold trigger and git commit"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "spiral.sh",
+        "spiral.config.sh",
+        "lib/commands/archive.py",
+        "tests/test_auto_archive.py"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "phase-a",
+        "archive",
+        "maintenance"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1118",
+      "title": "Phase A: inject completed story titles into AI suggest prompt to avoid near-duplicates",
+      "description": "The Phase A LLM prompt does not include the list of already-completed stories, so the AI generates suggestions that are near-duplicates of completed work. Inject a summary of completed story titles (grouped by theme/epic) into the Phase A system prompt with the instruction: 'The following stories are ALREADY DONE — do not suggest them again or close variations.' This makes the LLM generate genuinely novel stories rather than retracing completed ground. To keep the prompt compact, send only titles (not full descriptions), grouped by epicId, truncated to SPIRAL_AI_SUGGEST_HISTORY_LIMIT entries (default 50 most recent).",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "Phase A prompt includes a completed-stories section listing done story titles",
+        "Completed stories injected are grouped by epicId and limited to SPIRAL_AI_SUGGEST_HISTORY_LIMIT (default 50)",
+        "spiral.config.sh has SPIRAL_AI_SUGGEST_HISTORY_LIMIT variable (default 50, 0 = disable injection)",
+        "Phase A output has measurably lower overlap with completed story titles (test: TF-IDF similarity < 0.7 avg)",
+        "Token cost increase for the Phase A call is < 500 tokens per iteration at the default limit"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "spiral.sh",
+        "spiral.config.sh",
+        "lib/phases/phase_a_suggest.sh"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "phase-a",
+        "dedup",
+        "prompting"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1119",
+      "title": "Phase M: emit a warning and lower dedup threshold when 100% of candidates are rejected",
+      "description": "When Phase M rejects ALL candidates in an iteration (0 new stories added), it silently moves on. This makes it impossible to detect the 'dense backlog deadlock' without reading logs carefully. Add detection: if merge complete with 0 new stories AND input candidates > 0, emit a structured warning: [merge] WARNING: All N candidates rejected as duplicates. Consider --archive-done or lowering SPIRAL_SEMANTIC_DEDUP_THRESHOLD. Additionally, if this happens for SPIRAL_DEDUP_FALLBACK_ITERS consecutive iterations (default 3), automatically lower the effective threshold by 0.05 for that iteration only (floor: 0.60) as a one-time fallback. Log the temporary threshold: [merge] Applying fallback threshold 0.80 (normal: 0.85).",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "Phase M emits a WARNING log line when all candidates are rejected and input count > 0",
+        "Warning includes candidate count, current threshold, and remediation hint",
+        "spiral.config.sh has SPIRAL_DEDUP_FALLBACK_ITERS variable (default 3, 0 = disable fallback)",
+        "After SPIRAL_DEDUP_FALLBACK_ITERS consecutive all-rejected iterations, threshold lowered by 0.05 for next iteration",
+        "Fallback threshold is logged and never goes below 0.60",
+        "Counter resets to 0 after any iteration where at least 1 story is merged",
+        "uv run pytest tests/test_merge_stories.py covers the fallback threshold logic"
+      ],
+      "passes": false,
+      "dependencies": [
+        "US-1116"
+      ],
+      "filesTouch": [
+        "lib/merge_stories.py",
+        "spiral.config.sh",
+        "tests/test_merge_stories.py"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "phase-m",
+        "dedup",
+        "observability"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1120",
+      "title": "spiral-ui analytics: show Phase M merge rejection rate and dedup health indicator",
+      "description": "The analytics dashboard has no visibility into Phase M dedup decisions. Add a Phase M section to the analytics tab showing: (1) Merge acceptance rate per iteration (candidates proposed vs accepted) as a bar chart; (2) A dedup health indicator: GREEN if acceptance rate > 10%, AMBER if 1-10%, RED if 0% for 2+ iters; (3) A tooltip on the RED state: 'All new story candidates are being rejected as near-duplicates. Run spiral.sh --archive-done or lower SPIRAL_SEMANTIC_DEDUP_THRESHOLD.' Data source: parse the spiral event log (spiral_events.jsonl) for merge_complete events which contain candidates_in and stories_added fields.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Analytics tab has a Phase M Merge Health section",
+        "Bar chart shows candidates_proposed and stories_accepted per iteration from spiral_events.jsonl",
+        "Health indicator is GREEN/AMBER/RED based on acceptance rate thresholds",
+        "RED state shows actionable tooltip with remediation steps",
+        "analyticsApi.ts parses spiral_events.jsonl for merge_complete events",
+        "Section is hidden when spiral_events.jsonl has no merge_complete entries"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx",
+        "spiral-ui/src/server/analyticsApi.ts"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "analytics",
+        "phase-m",
+        "spiral-ui",
+        "observability"
       ],
       "model": "haiku"
     }
