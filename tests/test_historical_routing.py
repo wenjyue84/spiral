@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from lib.routing.complexity_scorer import recommend_model_from_history
 
 

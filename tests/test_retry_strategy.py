@@ -8,8 +8,6 @@ is equivalent.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from lib.failure_categorizer import categorize_failure
