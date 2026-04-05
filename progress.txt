@@ -88,3 +88,54 @@ This brief outlines the plan to fix a race condition where parallel workers corr
 - The 50ms budget is likely unachievable on Windows without using OS-level primitives
 - Lock is worker-local (per WTREE) as required, avoiding cross-run contention
 
+
+## Pre-analysis for US-1137 (Gemini 2.5 Pro)
+### Technical Brief for US-1137: Atomic prd.json Updates
+
+**Objective:** Prevent race conditions when concurrent shell processes update `prd.json` within the same worker worktree by introducing a locking mechanism. This is a shell scripting task, not a Python/Frappe task.
+
+**Affected Files:**
+*   **Create:** `lib/core/prd_lock.sh`
+*   **Modify:**
+    *   `lib/run_parallel_ralph.sh`
+    *   `lib/impl/retry.sh`
+    *   `lib/impl/decompose.sh`
+    *   `lib/impl/commit_revert.sh`
+
+**Involved Frappe/Framework Components:**
+*   None. This task is confined to shell scripts and does not interact with Frappe DocTypes or hooks.
+
+**Implementation Approach:**
+1.  **Create `atomic_patch_prd()`:** In a new `lib/core/prd_lock.sh` file, implement a shell function `atomic_patch_prd <wtree> <jq-filter>`.
+2.  **Locking:** Use `mkdir` to create a lock directory (e.g., `<wtree>/prd.json.lock`). This is an atomic operation. Store the current PID inside the lock directory for debugging.
+3.  **Read-Modify-Write:** The function will read the target `prd.json`, apply the `$2` (jq filter) to it in memory, and write the result to a temporary file.
+4.  **Atomic Write:** Use `mv` to atomically replace the original `prd.json` with the temporary file.
+5.  **Refactor Existing Code:** Replace all `jq ... > prd.json.tmp && mv prd.json.tmp prd.json` patterns in the affected scripts with a call to `atomic_patch_prd`.
+
+**Edge Cases & Gotchas:**
+*   **Stale Locks:** The lock mechanism must handle stale locks. Implement a cleanup that removes locks older than 60 seconds.
+*   **Concurrency:** The solution must be tested to ensure it correctly serializes concurrent writes. The AC specifies a test of 10 parallel appends.
+*   **Timeouts:** Lock acquisition should time out after 30 seconds and exit with a clear error message.
+*   **Cleanup:** Ensure the lock directory is always removed on successful exit or when a timeout occurs.
+
+
+## Iteration N - Story: US-1137 - Parallel workers: atomic compare-and-swap for prd.json updates
+
+### What was implemented
+- Created `lib/core/prd_lock.sh` with `atomic_patch_prd <wtree> <jq-filter> [extra-jq-args...]`
+- Replaced 2 bare jq patterns in `lib/run_parallel_ralph.sh` (lines 790, 1641-1642)
+- Replaced 1 bare jq pattern in `lib/impl/retry.sh` (anti-pattern accumulation)
+- `lib/impl/decompose.sh` and `lib/impl/commit_revert.sh` had no bare jq patterns (Python handles their writes)
+- Added `tests/prd_lock.bats` with 5 tests including 10-concurrent-append serialization
+
+### Patterns discovered
+- Stale lock detection via directory mtime (_dir_mtime uses GNU stat -c %Y / BSD stat -f %m) avoids the race between mkdir and file write that plagued the original approach
+- Check staleness ONCE before the spin loop, not inside it — checking inside allows processes to see empty `created` file and falsely remove valid locks
+- `atomic_patch_prd` takes jq extra args AFTER the filter: `atomic_patch_prd <wtree> <filter> --arg key val`
+- `prd_lock.sh` is sourced in `run_parallel_ralph.sh` alongside `locked_append_tsv.sh` using the same SPIRAL_HOME pattern
+- In `retry.sh` (no SPIRAL_HOME var), use `${SPIRAL_HOME:-$(dirname "${BASH_SOURCE[0]}")/../..}` fallback
+
+### Gotchas
+- BASH_SOURCE path gives `lib/impl`, so `../..` reaches repo root for prd_lock.sh path
+- decompose.sh and commit_revert.sh satisfy the AC trivially (no patterns to replace)
+- bats test for stale lock must use `touch -t 197001010000 dir` to backdate mtime, not a `created` file
