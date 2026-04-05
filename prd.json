@@ -618,7 +618,8 @@
         "spiral.config.sh",
         "tests/test_phase_i_decompose.py"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1154",
@@ -638,13 +639,14 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "lib/validate_stories.py",
         "spiral.config.sh",
         "tests/test_validate_stories.py"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-05T23:34:58Z"
     },
     {
       "id": "US-1155",
