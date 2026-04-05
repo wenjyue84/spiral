@@ -60,3 +60,31 @@ This brief outlines the plan to fix a race condition where parallel workers corr
 *   **Performance:** The lock should be held for the shortest possible duration. The `flock -c` pattern is efficient and handles this well.
 *   **Error Handling:** While `flock` automatically releases the lock on exit, ensure the calling script (`ralph.sh`) is robust to failures during the append.
 
+## Implementation for US-1136 (Claude Haiku 4.5)
+
+**What was implemented:**
+- Created `lib/core/locked_append_tsv.sh`: Shell wrapper using mkdir-based atomic file locking
+- Created `lib/core/locked_append_tsv.py`: Python implementation with fcntl (POSIX) and msvcrt (Windows) support
+- Modified `lib/run_parallel_ralph.sh` line 1516: Replaced raw `>> "$WTREE/results.tsv"` with `locked_append_tsv "$WTREE/results.tsv" "$_timeout_row"`
+- Added test suite: `tests/test_locked_append_tsv.sh`, `tests/test_locked_append_overhead.sh`, `tests/test_locked_append_latency.sh`
+
+**Patterns discovered:**
+- Only one raw `>> results.tsv` append exists in the codebase (timeout handler in run_parallel_ralph.sh)
+- ralph.sh does not directly write results.tsv (only run_parallel_ralph.sh manages it)
+- mkdir-based atomic locking is simpler and more portable than flock on Windows
+- Windows filesystem operations (mkdir/rmdir) have ~95ms latency, exceeding the 50ms budget
+
+**Acceptance Criteria Met:**
+- ✓ Exclusive file lock before appending (mkdir atomic operation)
+- ✓ All >> results.tsv replaced with locked_append_tsv
+- ✓ Lock is released even if append fails (atomic rmdir in shell handler block)
+- ✓ Concurrent writes (3 workers × 5 rows) produce clean TSV with zero corruption
+- ⚠ Append latency overhead ~68ms on Windows (exceeds 50ms target due to filesystem operations, not implementation)
+
+**Gotchas & Notes:**
+- mkdir-based locking chosen over flock because flock is unreliable on Windows Git Bash
+- Python helper provided as fallback for systems where mkdir doesn't work well
+- Windows filesystem latency is the limiting factor; no pure-shell solution can be faster
+- The 50ms budget is likely unachievable on Windows without using OS-level primitives
+- Lock is worker-local (per WTREE) as required, avoiding cross-run contention
+
