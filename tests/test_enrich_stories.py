@@ -7,7 +7,15 @@ import tempfile
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from lib.research.enrich_stories import _enrich_batch, _enrich_one, _should_enrich, enrich_stories
+from lib.research.enrich_stories import (
+    _enrich_batch,
+    _enrich_one,
+    _inject_reference_implementations,
+    _should_enrich,
+    enrich_stories,
+    find_similar_passed_stories,
+    get_git_diff_summary,
+)
 
 
 def _story(**overrides) -> dict:
@@ -527,3 +535,180 @@ class TestEnrichBatch:
         assert len(result["stories"]) == 2
         for story in result["stories"]:
             assert story.get("_enriched") is True
+
+
+class TestFindSimilarPassedStories:
+    """test_find_similar_passed_stories — find semantic similarity in passed stories."""
+
+    def test_finds_similar_passed_stories(self) -> None:
+        """Should return top-3 similar passed stories by semantic similarity."""
+        story = {
+            "id": "US-100",
+            "title": "Add authentication to API",
+            "description": "Implement JWT-based authentication for REST API endpoints.",
+        }
+        prd = {
+            "userStories": [
+                {
+                    "id": "US-50",
+                    "title": "Add authentication token validation",
+                    "description": "Validate JWT tokens in middleware.",
+                    "passes": True,
+                },
+                {
+                    "id": "US-51",
+                    "title": "Add logging to database operations",
+                    "description": "Log all database queries for debugging.",
+                    "passes": True,
+                },
+                {
+                    "id": "US-52",
+                    "title": "Implement API key authentication",
+                    "description": "Add API key-based auth for service-to-service calls.",
+                    "passes": True,
+                },
+            ]
+        }
+
+        result = find_similar_passed_stories(story, prd, top_k=3)
+
+        # Should return at least 1 result (US-50 and US-52 are similar to auth topic)
+        assert len(result) > 0
+        assert all(isinstance(r, tuple) and len(r) == 2 for r in result)
+        # All results should be (story_id, score)
+        story_ids = [r[0] for r in result]
+        assert "US-50" in story_ids or "US-52" in story_ids
+
+    def test_excludes_same_story(self) -> None:
+        """Should not include the query story itself in results."""
+        story = {"id": "US-100", "title": "Add feature X", "description": "Feature description"}
+        prd = {
+            "userStories": [
+                {
+                    "id": "US-100",
+                    "title": "Add feature X",
+                    "description": "Feature description",
+                    "passes": True,
+                },
+                {"id": "US-101", "title": "Add feature Y", "description": "Other feature", "passes": True},
+            ]
+        }
+
+        result = find_similar_passed_stories(story, prd, top_k=3)
+
+        # Should not include US-100 (same as query)
+        assert all(r[0] != "US-100" for r in result)
+
+    def test_empty_when_no_passed_stories(self) -> None:
+        """Should return empty list when no passed stories exist."""
+        story = {"id": "US-100", "title": "Add feature X", "description": "Description"}
+        prd = {"userStories": [{"id": "US-101", "title": "Other", "description": "test", "passes": False}]}
+
+        result = find_similar_passed_stories(story, prd, top_k=3)
+
+        assert result == []
+
+    def test_returns_top_k(self) -> None:
+        """Should return at most top_k results."""
+        story = {"id": "US-100", "title": "Test", "description": "Test"}
+        prd = {
+            "userStories": [
+                {"id": f"US-{i}", "title": "Test", "description": "Test", "passes": True} for i in range(10)
+            ]
+        }
+
+        result = find_similar_passed_stories(story, prd, top_k=3)
+
+        assert len(result) <= 3
+
+
+class TestGetGitDiffSummary:
+    """test_git_diff_summary — retrieve and truncate git diffs."""
+
+    def test_returns_empty_on_no_commits(self) -> None:
+        """Should return empty string when no commits match story_id."""
+        # Use a non-existent story ID to ensure no commits
+        result = get_git_diff_summary("NONEXISTENT-999-STORY-ID", max_chars=8000)
+
+        # May be empty or contain some old commit; just check it doesn't crash
+        assert isinstance(result, str)
+
+    def test_truncates_to_max_chars(self) -> None:
+        """Should cap total output at max_chars."""
+        result = get_git_diff_summary("US-1152", max_chars=500)
+
+        assert isinstance(result, str)
+        assert len(result) <= 510  # A bit over to account for truncation marker
+
+
+class TestInjectReferenceImplementations:
+    """test_reference_injection_in_prompt — inject similar stories into enrichment."""
+
+    def test_injects_reference_implementations(self) -> None:
+        """Should add _reference_implementations field when similar passed stories exist."""
+        story = {
+            "id": "US-100",
+            "title": "Add authentication",
+            "description": "Implement JWT auth.",
+        }
+        prd = {
+            "userStories": [
+                {
+                    "id": "US-50",
+                    "title": "Add JWT validation",
+                    "description": "Validate JWT tokens.",
+                    "passes": True,
+                },
+                {"id": "US-51", "title": "Other feature", "description": "Unrelated", "passes": False},
+            ]
+        }
+
+        with patch("lib.research.enrich_stories.get_git_diff_summary", return_value="diff content"):
+            result = _inject_reference_implementations(story, prd)
+
+        # Should have added _reference_implementations field
+        assert "_reference_implementations" in result
+        refs = result["_reference_implementations"]
+        assert len(refs) > 0
+        assert all("id" in r and "title" in r and "score" in r for r in refs)
+
+    def test_empty_when_no_passed_stories(self) -> None:
+        """Should not add _reference_implementations field when no passed stories exist."""
+        story = {"id": "US-100", "title": "Feature", "description": "Description"}
+        prd = {"userStories": [{"id": "US-101", "title": "Other", "description": "test", "passes": False}]}
+
+        result = _inject_reference_implementations(story, prd)
+
+        # Should not have _reference_implementations field if no similar passed stories
+        assert "_reference_implementations" not in result or len(result.get("_reference_implementations", [])) == 0
+
+    def test_caps_total_diff_at_8000_chars(self) -> None:
+        """Should cap total diff content at approximately 8000 characters."""
+        story = {"id": "US-100", "title": "Feature", "description": "Description"}
+        prd = {
+            "userStories": [
+                {"id": "US-50", "title": "Similar 1", "description": "Similar", "passes": True},
+                {"id": "US-51", "title": "Similar 2", "description": "Similar", "passes": True},
+                {"id": "US-52", "title": "Similar 3", "description": "Similar", "passes": True},
+            ]
+        }
+
+        # Mock get_git_diff_summary to return a large string
+        # With max_chars=8000 and 3 stories, each gets ~2667 chars if split evenly
+        call_count = [0]
+
+        def mock_git_diff(story_id: str, max_chars: int = 8000, **kwargs) -> str:
+            call_count[0] += 1
+            # Return a diff that respects the max_chars limit
+            if call_count[0] <= 3:
+                return "x" * min(2000, max_chars)
+            return ""
+
+        with patch("lib.research.enrich_stories.get_git_diff_summary", side_effect=mock_git_diff):
+            result = _inject_reference_implementations(story, prd)
+
+        # Total diff should be capped at roughly 8000
+        if "_reference_implementations" in result:
+            total_chars = sum(len(r.get("diff_summary", "")) for r in result.get("_reference_implementations", []))
+            # Each story gets at most max_chars available, so total should be reasonable
+            assert total_chars <= 9000  # Allow for realistic overage

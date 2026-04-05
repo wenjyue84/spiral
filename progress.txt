@@ -229,3 +229,57 @@ Here is a technical brief for implementing story US-1139.
 - If SAVEPOINT_SHA is empty, rollback is skipped (safety measure)
 - _ROLLBACK_STORY_IDS array construction assumes worker PRD files exist; missing files are silently ignored
 - Python helper is called with || true to prevent shell exit on errors
+
+## Pre-analysis for US-1152 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-1152: Inject Similar Story Diffs into Ralph Prompt**
+
+This brief outlines the implementation plan for enriching the Ralph agent's prompt with reference implementations from similar, previously completed stories. The context is a Python-based code generation tool, not a Frappe application.
+
+**1. Python Files to Modify:**
+*   `lib/enrich_stories.py`: Implement the core logic for finding similar stories and fetching their diffs.
+*   `ralph/CLAUDE.md`: This is the prompt template that will be updated to receive the reference implementations.
+*   `tests/test_enrich_stories.py`: Add unit tests covering similarity search, git diff retrieval, and prompt injection.
+
+**2. DocTypes & Hooks:**
+*   No Frappe DocTypes or hooks are involved. The work is confined to the Python scripts and markdown files listed above.
+
+**3. Recommended Implementation Approach:**
+*   In `lib/enrich_stories.py`, implement `find_similar_passed_stories(story, prd, top_k=3)`.
+*   This function should iterate through stories in the `prd` where `"passes": true`.
+*   Use `difflib.SequenceMatcher` to compare the `title` and `description` of the current story against each passed story.
+*   For the top 3 matches, retrieve the commit diff by executing a `subprocess` call to `git log --all --grep=<story_id> -p`.
+*   The main enrichment process will format these diffs into a `<reference_implementations>` XML block and inject it into the Ralph prompt.
+
+**4. Edge Cases & Gotchas:**
+*   **Context Limit:** Strictly enforce the ~8000 character total limit for all combined diffs to avoid overflowing the context window. Truncate aggressively.
+*   **Git Failures:** The `git log` command may find no matching commit. The code must handle this gracefully by returning an empty result for that story.
+*   **No Prior Examples:** If no passed stories exist, the `<reference_implementations>` section should be omitted from the prompt entirely.
+*   **Security:** Use `subprocess.run` with a list of arguments (e.g., `['git', 'log', ...]`) rather than a formatted string with `shell=True` to prevent injection risks.
+
+
+## Pre-analysis for US-1152 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-1152: Inject Similar Story Diffs into Ralph Prompt**
+
+This brief outlines the implementation plan for enriching the Ralph agent's prompt with reference implementations from similar, previously completed stories. The context is a Python-based code generation tool, not a Frappe application.
+
+**1. Python Files to Modify:**
+*   `lib/enrich_stories.py`: Implement the core logic for finding similar stories and fetching their diffs.
+*   `ralph/CLAUDE.md`: This is the prompt template that will be updated to receive the reference implementations.
+*   `tests/test_enrich_stories.py`: Add unit tests covering similarity search, git diff retrieval, and prompt injection.
+
+**2. DocTypes & Hooks:**
+*   No Frappe DocTypes or hooks are involved. The work is confined to the Python scripts and markdown files listed above.
+
+**3. Recommended Implementation Approach:**
+*   In `lib/enrich_stories.py`, implement `find_similar_passed_stories(story, prd, top_k=3)`.
+*   This function should iterate through stories in the `prd` where `"passes": true`.
+*   Use `difflib.SequenceMatcher` to compare the `title` and `description` of the current story against each passed story.
+*   For the top 3 matches, retrieve the commit diff by executing a `subprocess` call to `git log --all --grep=<story_id> -p`.
+*   The main enrichment process will format these diffs into a `<reference_implementations>` XML block and inject it into the Ralph prompt.
+
+**4. Edge Cases & Gotchas:**
+*   **Context Limit:** Strictly enforce the ~8000 character total limit for all combined diffs to avoid overflowing the context window. Truncate aggressively.
+*   **Git Failures:** The `git log` command may find no matching commit. The code must handle this gracefully by returning an empty result for that story.
+*   **No Prior Examples:** If no passed stories exist, the `<reference_implementations>` section should be omitted from the prompt entirely.
+*   **Security:** Use `subprocess.run` with a list of arguments (e.g., `['git', 'log', ...]`) rather than a formatted string with `shell=True` to prevent injection risks.
+

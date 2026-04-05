@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -41,9 +40,7 @@ def reset_stories_to_pending(prd_path: str, story_ids: list[str]) -> None:
             found_count += 1
 
     if found_count < len(story_ids):
-        missing = story_ids_set - {
-            s.get("id") for s in prd.get("userStories", [])
-        }
+        missing = story_ids_set - {s.get("id") for s in prd.get("userStories", [])}
         print(
             f"WARNING: {len(missing)} story IDs not found in prd.json: {missing}",
             file=sys.stderr,
@@ -52,9 +49,7 @@ def reset_stories_to_pending(prd_path: str, story_ids: list[str]) -> None:
     atomic_write_json(prd_path, prd)
 
 
-def log_patch_rollback_event(
-    events_path: str, story_ids: list[str], sha: str, reason: str
-) -> None:
+def log_patch_rollback_event(events_path: str, story_ids: list[str], sha: str, reason: str) -> None:
     """Log a patch_rollback event to spiral_events.jsonl.
 
     Parameters
@@ -80,9 +75,7 @@ def log_patch_rollback_event(
 
 def main() -> int:
     """Parse args and execute rollback logic."""
-    parser = argparse.ArgumentParser(
-        description="Reset rolled-back stories and log patch_rollback event"
-    )
+    parser = argparse.ArgumentParser(description="Reset rolled-back stories and log patch_rollback event")
     parser.add_argument(
         "--prd",
         required=True,

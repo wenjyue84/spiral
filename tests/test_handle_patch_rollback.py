@@ -81,9 +81,7 @@ def test_reset_stories_to_pending(temp_prd: tuple[Path, dict]) -> None:
     assert us103["_passedCommit"] == "ghi789"
 
 
-def test_reset_stories_with_missing_story(
-    temp_prd: tuple[Path, dict], capsys
-) -> None:
+def test_reset_stories_with_missing_story(temp_prd: tuple[Path, dict], capsys) -> None:
     """Test that reset_stories_to_pending handles missing stories gracefully."""
     prd_path, _ = temp_prd
 
@@ -126,12 +124,8 @@ def test_log_patch_rollback_event(temp_events: Path) -> None:
 
 def test_log_multiple_events(temp_events: Path) -> None:
     """Test that multiple events are logged correctly (JSONL format)."""
-    log_patch_rollback_event(
-        str(temp_events), ["US-101"], "sha1", "reason1"
-    )
-    log_patch_rollback_event(
-        str(temp_events), ["US-102"], "sha2", "reason2"
-    )
+    log_patch_rollback_event(str(temp_events), ["US-101"], "sha1", "reason1")
+    log_patch_rollback_event(str(temp_events), ["US-102"], "sha2", "reason2")
 
     # Read all events
     with open(temp_events, encoding="utf-8") as f:
@@ -148,9 +142,7 @@ def test_log_multiple_events(temp_events: Path) -> None:
     assert event2["sha"] == "sha2"
 
 
-def test_reset_and_log_atomically(
-    temp_prd: tuple[Path, dict], temp_events: Path
-) -> None:
+def test_reset_and_log_atomically(temp_prd: tuple[Path, dict], temp_events: Path) -> None:
     """Test that reset and logging work together correctly."""
     prd_path, _ = temp_prd
 

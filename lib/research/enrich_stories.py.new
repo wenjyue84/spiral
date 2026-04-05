@@ -276,7 +276,9 @@ def extract_json_from_response(text: str) -> dict[str, Any]:
     raise ValueError(f"Could not extract JSON from response:\n{text[:500]}")
 
 
-def find_similar_passed_stories(story: dict[str, Any], prd: dict[str, Any], top_k: int = 3) -> list[tuple[str, float]]:
+def find_similar_passed_stories(
+    story: dict[str, Any], prd: dict[str, Any], top_k: int = 3
+) -> list[tuple[str, float]]:
     """
     Find top-k most semantically similar stories that have passed.
     Uses difflib.SequenceMatcher on concatenated title+description.

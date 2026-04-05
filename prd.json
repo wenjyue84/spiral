@@ -703,202 +703,138 @@
       "model": "haiku"
     },
     {
-      "id": "US-1143",
-      "title": "Parallel workers: add timeout and respawn for idle worker pool processes",
-      "description": "Worker pool processes (pre-warming) wait indefinitely for task files to appear in .worker-pool/worker-N/task. If the main coordinator fails to write the task file (disk full, crash, permission error), the pool worker hangs forever consuming memory with no visibility. Add: (1) a configurable SPIRAL_POOL_TASK_TIMEOUT (default 120s) after which an idle pool worker logs a warning and exits cleanly, (2) when a pool worker exits due to timeout, write a pool_worker_timeout event to spiral_events.jsonl with worker_id and waited_seconds, (3) the main coordinator detects timed-out pool workers and respawns them up to SPIRAL_POOL_RESPAWN_LIMIT (default 3) times before giving up and falling back to non-pooled execution.",
-      "priority": "medium",
+      "id": "US-1152",
+      "title": "Phase E: Inject Top-3 Similar Passing Stories as Ralph Reference Implementations",
+      "priority": "high",
+      "description": "During Phase E enrichment, find the 3 most semantically similar stories that have already passed (using TF-IDF / SequenceMatcher on title+description). Retrieve their git diffs and inject them as a <reference_implementations> block in the Ralph prompt. Ralph uses these as concrete examples of correct implementation style for this codebase, reducing misunderstood scope and wrong patterns.",
       "acceptanceCriteria": [
-        "Pool workers exit after SPIRAL_POOL_TASK_TIMEOUT seconds of idle waiting (default 120)",
-        "On timeout exit, pool_worker_timeout event written to spiral_events.jsonl",
-        "Main coordinator detects pool worker exit and respawns up to SPIRAL_POOL_RESPAWN_LIMIT times",
-        "After exhausting respawn limit, fallback to non-pooled worker launch with a warning log",
-        "SPIRAL_POOL_TASK_TIMEOUT and SPIRAL_POOL_RESPAWN_LIMIT configurable in spiral.config.sh",
-        "No change in behavior when task files are delivered on time"
+        "lib/enrich_stories.py: find_similar_passed_stories(story, prd, top_k=3) returns list of (story_id, score, git_diff_summary)",
+        "git diff for each similar story is retrieved via git log --all --grep=<story_id> -p and truncated to 60 lines per file",
+        "Ralph prompt receives a <reference_implementations> section listing top-3 similar passed stories with diffs; absent if none exist yet",
+        "Total injected diff capped at ~8000 chars to avoid context overflow",
+        "tests/test_enrich_stories.py: test_find_similar_passed_stories, test_reference_injection_in_prompt, test_empty_when_no_passed_stories"
       ],
-      "passes": false,
+      "technicalNotes": [
+        "Use difflib.SequenceMatcher on concatenated title+description (no external deps)",
+        "Fall back to empty list if git log finds no matching commit"
+      ],
       "dependencies": [],
-      "filesTouch": [
-        "lib/run_parallel_ralph.sh",
-        "spiral.config.sh"
-      ],
       "estimatedComplexity": "medium",
-      "tags": [
-        "parallel-workers",
-        "worker-pool",
-        "reliability"
+      "passes": false,
+      "filesTouch": [
+        "lib/enrich_stories.py",
+        "ralph/CLAUDE.md",
+        "tests/test_enrich_stories.py"
+      ],
+      "model": "haiku",
+      "last_attempted": "2026-04-05T21:20:34Z"
+    },
+    {
+      "id": "US-1153",
+      "title": "Phase I: Structured Pre-Implementation Plan Gate — Scope Validation Before Coding",
+      "priority": "high",
+      "description": "Add a planning stage before Ralph writes code. Ralph emits a <plan> JSON block listing files_to_create, files_to_modify, and functions_to_add. SPIRAL validates: if the plan touches more than SPIRAL_PLAN_FILE_LIMIT files (default 8), it rejects the plan and auto-decomposes the story before any coding tokens are spent. This eliminates scope overrun at the root.",
+      "acceptanceCriteria": [
+        "ralph/CLAUDE.md: Ralph emits <plan>{files_to_create, files_to_modify, functions_to_add, estimated_loc}</plan> before any code block",
+        "lib/impl/decompose.sh: validate_plan(plan_json, story) returns OK or REJECT with reason; rejects if total file count > SPIRAL_PLAN_FILE_LIMIT",
+        "On plan rejection: story is decomposed via existing auto-decompose logic; no coding tokens spent",
+        "Plans touching files outside filesTouch heuristic emit a plan_drift WARNING to results.tsv",
+        "spiral.config.sh: SPIRAL_PLAN_FILE_LIMIT=8 (default)",
+        "tests/test_phase_i_decompose.py: test_plan_gate_triggers_decompose, test_plan_within_limit_proceeds"
+      ],
+      "technicalNotes": [
+        "SPIRAL_PLAN_FILE_LIMIT defaults to 8 in spiral.config.sh",
+        "Ralph prompt addition: BEFORE writing any code, output a <plan> JSON block; SPIRAL will validate scope."
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "filesTouch": [
+        "ralph/CLAUDE.md",
+        "lib/impl/decompose.sh",
+        "spiral.config.sh",
+        "tests/test_phase_i_decompose.py"
       ],
       "model": "haiku"
     },
     {
-      "id": "US-1129",
-      "title": "[Security Test] [Integration Test] File-Aware Retry: Verify Failed-File Tracking and Selective Re-im",
+      "id": "US-1154",
+      "title": "Phase S: Acceptance Criteria Completeness Scorer with Auto-Rewrite for Vague ACs",
       "priority": "high",
-      "description": "Write security tests for auth/permission logic in US-759. Story description: Write integration tests for the file-aware retry strategy introduced in US-597. Tests must verify that failed files are recorded after a story failure and that subsequent retries only re-implement those specific files. This guards against regressions in the token-saving behaviour.",
+      "description": "Stories with vague ACs are a primary cause of failed implementations. Phase S now scores each AC for measurability (does it contain a command, file path, numeric threshold, or testable assertion?). ACs below threshold get auto-rewritten via haiku before acceptance. Stories with fewer than 2 measurable ACs are rejected from the merge queue.",
       "acceptanceCriteria": [
-        "Security test covers access control introduced by US-759",
-        "Test verifies unauthorized access is blocked (401/403 responses)",
-        "No sensitive data (tokens, passwords) leaked in error responses"
+        "lib/validate_stories.py: score_ac_measurability(ac_list) -> float 0-1; AC is measurable if it contains a CLI command, file path, number+unit, or test/assert keyword",
+        "AC score < SPIRAL_AC_QUALITY_THRESHOLD triggers auto-rewrite via haiku (temperature=0.2); result cached in story._ac_rewrite_used",
+        "Stories with fewer than 2 measurable ACs after rewrite are rejected in Phase S; rejection logged to spiral_events.jsonl",
+        "spiral.config.sh: SPIRAL_AC_QUALITY_THRESHOLD=0.5",
+        "tests/test_validate_stories.py: test_ac_scorer_measurable, test_ac_scorer_vague, test_ac_rewrite_triggered, test_story_rejected_on_low_ac"
       ],
       "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_759 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1144",
-      "title": "[Security Test] [Security Test] Create validate_results_tsv.py data integrity validator",
-      "priority": "high",
-      "description": "Write security tests for auth/permission logic in US-769. Story description: Create lib/spiral/validate_results_tsv.py with a validate() function that checks results.tsv for data quality issues: missing story_ids, duplicate rows, out-of-range token counts, invalid phase durations, and unknown model names. The function returns a structured dict with keys 'errors', 'warnings', and 'check_counts'. Ensures no sensitive data is leaked in validation output.",
-      "acceptanceCriteria": [
-        "Security test covers access control introduced by US-769",
-        "Test verifies unauthorized access is blocked (401/403 responses)",
-        "No sensitive data (tokens, passwords) leaked in error responses"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_769 -v"
+        "Measurability via simple regex: backtick, file extension (.py/.sh), number+unit, assert/verify/test keywords",
+        "No semantic model needed — pattern matching is deterministic and fast"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "sonnet"
+      "filesTouch": [
+        "lib/validate_stories.py",
+        "spiral.config.sh",
+        "tests/test_validate_stories.py"
+      ],
+      "model": "haiku"
     },
     {
-      "id": "US-1145",
-      "title": "[Security Test] Integration Tests: CHANGELOG Generation Logic in gen_changelog.py",
+      "id": "US-1155",
+      "title": "Phase I Retry: Error-Signature-Aware Hint Injection — Targeted Fix Guidance on Re-Attempt",
       "priority": "high",
-      "description": "Write security tests for auth/permission logic in US-734. Story description: Write integration tests for lib/gen_changelog.py covering commit parsing, story ID extraction, type categorisation, and markdown output. These tests validate the core CHANGELOG generation behaviour introduced in US-604 without requiring external services.",
+      "description": "Current retry logic escalates the model but does not change the prompt. When a story fails, extract the structured error signature (ImportError, SyntaxError, TestFailure, etc.) and inject a targeted anti-pattern hint: 'Last attempt failed with <error_type>. Do NOT use <failed_pattern>. Try <alternative>.' Same error on retry 2 triggers model escalation; different error resets the escalation counter.",
       "acceptanceCriteria": [
-        "Security test covers access control introduced by US-734",
-        "Test verifies unauthorized access is blocked (401/403 responses)",
-        "No sensitive data (tokens, passwords) leaked in error responses"
+        "lib/impl/retry.sh: extract_error_signature(log_file) -> {error_type, error_message} covering ImportError, SyntaxError, TestFailure, TimeoutError, ScopeOverrun, Unknown",
+        "Retry prompt includes: PREVIOUS_FAILURE_TYPE, PREVIOUS_FAILURE_MSG, DO_NOT_REPEAT hint from type-lookup table",
+        "Same error_type on retry 2 triggers model escalation; different error_type resets escalation counter",
+        "results.tsv: new column error_signature populated on every failed attempt",
+        "tests/test_retry_strategy.py: test_error_signature_extraction, test_hint_injection_on_retry, test_escalation_reset_on_different_error"
       ],
       "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_734 -v"
+        "Error extracted from last 50 lines of ralph stdout/stderr log",
+        "Lookup table in retry.sh maps error_type to hint string; ImportError -> 'add missing import at top of file'"
       ],
       "dependencies": [],
-      "estimatedComplexity": "medium",
+      "estimatedComplexity": "small",
       "passes": false,
-      "model": "sonnet"
+      "filesTouch": [
+        "lib/impl/retry.sh",
+        "tests/test_retry_strategy.py"
+      ],
+      "model": "haiku"
     },
     {
-      "id": "US-1146",
-      "title": "[Security Test] CLI: validate-federated — Circular Dependency Detection with Cycle Paths",
+      "id": "US-1156",
+      "title": "Phase V: Ralph Self-Test Loop — Run Acceptance Tests Before Committing",
       "priority": "high",
-      "description": "Write security tests for auth/permission logic in US-515. Story description: Extend `lib/commands/validate_federated.py` with a cycle-detection pass that builds a directed dependency graph from story `depends_on` fields and reports all cycles with their full traversal path. Cycles are appended to the existing JSON report under key `cycles`.",
+      "description": "Ralph currently commits code and waits for SPIRAL Phase V to test it externally, wasting a full iteration on test failures. Add a self-test step: Ralph runs pytest on relevant tests before git commit. If tests fail, Ralph gets one self-correction pass (re-reads errors, patches code) then re-runs once. SPIRAL Phase V is the final arbiter but receives pre-validated code, dramatically increasing pass rate.",
       "acceptanceCriteria": [
-        "Security test covers access control introduced by US-515",
-        "Test verifies unauthorized access is blocked (401/403 responses)",
-        "No sensitive data (tokens, passwords) leaked in error responses"
+        "ralph/CLAUDE.md: before git commit, run tests; if FAILED, attempt one self-correction then re-run once",
+        "Self-test command priority: story.verification.command > story.verification.testMarker > SPIRAL_VALIDATE_CMD > 'pytest tests/ -x -q --tb=short'",
+        "Self-correction limited to files already in implementation diff (no new files introduced in self-correction)",
+        "ralph/ralph.sh: RALPH_SELF_TEST=true flag (default); RALPH_SELF_TEST=false disables for speed",
+        "tests/test_phase_v_integration.py: test_ralph_self_test_passes, test_ralph_self_correction_fixes_failure, test_self_test_disabled_flag"
       ],
       "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_515 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1147",
-      "title": "[Integration Test] Phase I: File-Aware Retry Strategy — Only Re-Implement Failed Files",
-      "priority": "high",
-      "description": "Write integration tests for the feature implemented in US-597. Story description: When a story fails during Phase I, track which files caused the failure. On retry, only re-implement those specific files to reduce token cost and iteration time.",
-      "acceptanceCriteria": [
-        "Integration tests exist covering the core behaviour of US-597",
-        "Tests cover the happy path and at least one error/edge case",
-        "Tests run without requiring external services or manual setup"
-      ],
-      "technicalNotes": [
-        "Source files from US-597: lib/impl/file_aware_retry.py, lib/results_tsv.py, lib/impl/retry.sh, tests/test_file_aware_retry.py",
-        "Suggested test files: tests/test_file_aware_retry.py, tests/test_results_tsv.py, tests/test_test_file_aware_retry.py",
-        "Run: uv run pytest tests/ -k us_597 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1148",
-      "title": "[Integration Test] Implement: Implement SPIRAL Phase G: auto-generate CHANGELOG.md and API docs from",
-      "priority": "high",
-      "description": "Write integration tests for the feature implemented in US-458. Story description: Story to address low-coverage project goal: Implement SPIRAL Phase G: auto-generate CHANGELOG.md and API docs from story commits using git-cliff and pdoc",
-      "acceptanceCriteria": [
-        "Integration tests exist covering the core behaviour of US-458",
-        "Tests cover the happy path and at least one error/edge case",
-        "Tests run without requiring external services or manual setup"
-      ],
-      "technicalNotes": [
-        "Source files from US-458: .github/actions/lint-shell/action.yml, .github/actions/setup-uv/action.yml, .github/workflows/ci.yml, .github/workflows/release.yml, .github/workflows/spiral.yml",
-        "Suggested test files: tests/test_auto_release.py, tests/test_batch_validate.py",
-        "Run: uv run pytest tests/ -k us_458 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1149",
-      "title": "[Integration Test] Implement: Add comprehensive integration test suite that runs SPIRAL end-to-end w",
-      "priority": "high",
-      "description": "Write integration tests for the feature implemented in US-459. Story description: Story to address low-coverage project goal: Add comprehensive integration test suite that runs SPIRAL end-to-end with mock Claude API responses",
-      "acceptanceCriteria": [
-        "Integration tests exist covering the core behaviour of US-459",
-        "Tests cover the happy path and at least one error/edge case",
-        "Tests run without requiring external services or manual setup"
-      ],
-      "technicalNotes": [
-        "Source files from US-459: .github/actions/lint-shell/action.yml, .github/actions/setup-uv/action.yml, .github/workflows/ci.yml, .github/workflows/release.yml, .github/workflows/spiral.yml",
-        "Run: uv run pytest tests/ -k us_459 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1150",
-      "title": "[Integration Test] Implement: Build SPIRAL self-monitoring dashboard: live token burn rate, story th",
-      "priority": "high",
-      "description": "Write integration tests for the feature implemented in US-460. Story description: Story to address low-coverage project goal: Build SPIRAL self-monitoring dashboard: live token burn rate, story throughput, model escalation heatmap",
-      "acceptanceCriteria": [
-        "Integration tests exist covering the core behaviour of US-460",
-        "Tests cover the happy path and at least one error/edge case",
-        "Tests run without requiring external services or manual setup"
-      ],
-      "technicalNotes": [
-        "Source files from US-460: .github/actions/lint-shell/action.yml, .github/actions/setup-uv/action.yml, .github/workflows/ci.yml, .github/workflows/release.yml, .github/workflows/spiral.yml",
-        "Suggested test files: tests/test_batch_validate.py",
-        "Run: uv run pytest tests/ -k us_460 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1151",
-      "title": "[Security Test] Cost Predictor CLI: KNN-based token/cost estimation from results.tsv",
-      "priority": "high",
-      "description": "Write security tests for auth/permission logic in US-529. Story description: Create lib/predict_cost.py implementing a K-nearest-neighbors estimator over results.tsv. The CLI `spiral predict-cost` parses story attributes, finds similar historical stories, and outputs a JSON estimate with tokens, cost, confidence, and matched stories.",
-      "acceptanceCriteria": [
-        "Security test covers access control introduced by US-529",
-        "Test verifies unauthorized access is blocked (401/403 responses)",
-        "No sensitive data (tokens, passwords) leaked in error responses"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_529 -v"
+        "Self-test must complete within SPIRAL_RALPH_TIMEOUT/3 to leave budget for commit",
+        "Test output injected as <test_output> block in self-correction prompt"
       ],
       "dependencies": [
-        "US-529"
+        "US-1153"
       ],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "sonnet"
+      "filesTouch": [
+        "ralph/CLAUDE.md",
+        "ralph/ralph.sh",
+        "tests/test_phase_v_integration.py"
+      ],
+      "model": "haiku"
     }
   ]
 }
