@@ -220,7 +220,7 @@ run_phase_gate_and_implement() {
           '    if len(new)!=len(old):s["dependencies"]=new;fixed+=1' \
           'fixed and json.dump(prd,open(path,"w",encoding="utf-8"),indent=2,ensure_ascii=False)' \
           'print(fixed)' \
-          > "$_ORPHAN_SCRIPT" 2>/dev/null
+          >"$_ORPHAN_SCRIPT" 2>/dev/null
         _ORPHAN_FIXED=$("$SPIRAL_PYTHON" "$_ORPHAN_SCRIPT" "$PRD_FILE" 2>/dev/null || echo "0")
         if [[ "${_ORPHAN_FIXED:-0}" -gt 0 ]]; then
           echo "  [Phase I] Auto-cleaned $_ORPHAN_FIXED story dep(s) referencing archived/missing stories"

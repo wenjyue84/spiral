@@ -207,7 +207,7 @@ resolve_model() {
     complexity=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .estimatedComplexity // \"medium\"" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo 'medium')
     local hist_model
     hist_model=$(uv run python "$(dirname "${BASH_SOURCE[0]}")/../../lib/routing/complexity_scorer.py" \
-        --recommend --complexity "$complexity" 2>/dev/null || echo "")
+      --recommend --complexity "$complexity" 2>/dev/null || echo "")
     if [[ -n "$hist_model" ]]; then
       echo "[model_routing] History recommends $hist_model for complexity=$complexity" >&2
       echo "$hist_model"

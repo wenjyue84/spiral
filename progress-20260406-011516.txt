@@ -2000,4 +2000,3 @@ Here is the technical brief for implementing story US-1133.
 *   If no completed stories are found, the script should inject nothing into the prompt.
 *   The exact data structure in `prd.json` for status, date, and `epicId` must be confirmed by inspecting the file.
 *   Keep the injected text compact to stay under the 500-token cost increase limit.
-

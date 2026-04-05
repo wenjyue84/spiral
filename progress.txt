@@ -1,0 +1,29 @@
+
+
+## Pre-analysis for US-1134 (Gemini 2.5 Pro)
+Here is a technical brief for implementing story US-1134.
+
+**Objective:** Implement a warning and automatic threshold fallback mechanism in the "Phase M" story merge process when all candidates are rejected.
+
+**1. Files to Modify:**
+*   `lib/merge_stories.py`: Core logic for the merge process, state tracking, and threshold adjustment.
+*   `spiral.config.sh`: To add the new `SPIRAL_DEDUP_FALLBACK_ITERS` configuration variable.
+*   `tests/test_merge_stories.py`: To add unit tests for the new warning and fallback logic.
+
+**2. Involved Components:**
+*   This is a Python script, not a Frappe application.
+*   The main process is orchestrated within `lib/merge_stories.py`.
+*   Configuration is controlled by environment variables sourced from `spiral.config.sh`.
+
+**3. Implementation Approach:**
+*   Introduce a state-tracking mechanism (e.g., a simple counter in a temp file) to record consecutive iterations with zero new stories.
+*   In `merge_stories.py`, after the merge attempt, check if `new_stories_added == 0` and `input_candidates > 0`.
+*   If true, increment the consecutive failure counter and emit the required `WARNING` log.
+*   If false, reset the counter to zero.
+*   Before the next merge's deduplication logic, check if the counter has reached `SPIRAL_DEDUP_FALLBACK_ITERS`. If so, temporarily lower the semantic deduplication threshold by 0.05 for that single run.
+
+**4. Edge Cases & Gotchas:**
+*   **State Persistence:** The failure counter must persist across separate runs of the script.
+*   **Threshold Floor:** The fallback threshold must not go below `0.60`.
+*   **One-Time Fallback:** The lowered threshold is temporary for one iteration only; it should not permanently alter the base threshold.
+*   **Disabling:** The fallback logic should be skipped if `SPIRAL_DEDUP_FALLBACK_ITERS` is set to 0.

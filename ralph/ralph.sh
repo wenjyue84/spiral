@@ -1103,8 +1103,8 @@ Story JSON: $STORY_JSON"
       # file context is large (printf is a bash builtin, no exec() call, no arg length limit).
       _USER_PROMPT_FILE="${SPIRAL_SCRATCH_DIR}/_user_prompt_$$.txt"
       _SYS_PROMPT_FILE="${SPIRAL_SCRATCH_DIR}/_sys_prompt_$$.txt"
-      printf '%s' "$RALPH_USER_PROMPT" > "$_USER_PROMPT_FILE"
-      printf '%s' "$RALPH_SYSTEM_PROMPT" > "$_SYS_PROMPT_FILE"
+      printf '%s' "$RALPH_USER_PROMPT" >"$_USER_PROMPT_FILE"
+      printf '%s' "$RALPH_SYSTEM_PROMPT" >"$_SYS_PROMPT_FILE"
       (
         unset CLAUDECODE
         export SPIRAL_WORKER_ACTIVE=1 # Tell PreToolUse hook this is a Ralph worker
@@ -1119,7 +1119,7 @@ Story JSON: $STORY_JSON"
           --verbose \
           --output-format stream-json \
           --dangerously-skip-permissions \
-          < "$_USER_PROMPT_FILE" 2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
+          <"$_USER_PROMPT_FILE" 2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
       ) || true
       rm -f "$_USER_PROMPT_FILE" "$_SYS_PROMPT_FILE" 2>/dev/null || true
       # ── Connection failure detection for Ollama fallback (US-144) ──────────────
