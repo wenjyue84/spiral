@@ -41,8 +41,16 @@ except ImportError:
 
 configure_utf8_stdout()
 
-# Story ID prefix from env
-STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
+# Story ID prefix from env — only US and UT are valid in prd.json schema
+_RAW_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
+_VALID_PREFIXES = {"US", "UT"}
+if _RAW_PREFIX not in _VALID_PREFIXES:
+    print(
+        f"[merge] WARNING: SPIRAL_STORY_PREFIX='{_RAW_PREFIX}' is not a valid schema prefix "
+        f"({', '.join(sorted(_VALID_PREFIXES))}). Mapping to 'US'."
+    )
+    _RAW_PREFIX = "US"
+STORY_PREFIX = _RAW_PREFIX
 
 
 def _log_conflicts_to_results(results_tsv: str, conflicts: list[dict[str, Any]]) -> None:
@@ -259,12 +267,26 @@ def full_sort_key(story: dict[str, Any]) -> tuple[int, int, int]:
 
 
 def matches_focus(story: dict[str, Any], focus: str) -> bool:
-    """Case-insensitive keyword match against title + description."""
+    """Case-insensitive token match against title + description.
+
+    Phase T stories (test-fix / test-story source) always pass — grounded in
+    actual code failures, so the focus bar is lower for them.
+
+    For all other stories: splits the focus phrase into tokens on whitespace/
+    commas and returns True if ANY token appears in the story. This prevents
+    compound phrases like "check-in check-out payment" from requiring all words
+    to appear as a single contiguous substring.
+    """
     if not focus:
         return True
-    focus_lower = focus.lower()
+    # Phase T stories always pass focus filter regardless of keyword match
+    if story.get("_source") in ("test-fix", "test-story"):
+        return True
+    import re as _re
+
     searchable = (story.get("title", "") + " " + story.get("description", "")).lower()
-    return focus_lower in searchable
+    tokens = [t.strip() for t in _re.split(r"[\s,]+", focus.lower()) if t.strip()]
+    return any(token in searchable for token in tokens)
 
 
 def _load_raw(path: str) -> dict[str, Any]:

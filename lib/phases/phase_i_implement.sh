@@ -348,11 +348,22 @@ run_phase_gate_and_implement() {
           if [[ -n "$_DIRTY_FILES" ]]; then
             if [[ "$SPIRAL_AUTO_STASH" == "true" ]]; then
               _STASH_MSG="spiral-auto-stash-iter-${SPIRAL_ITER}"
-              echo "  [Phase I] Dirty working tree detected — auto-stashing (iter ${SPIRAL_ITER})..."
-              # Backup prd.json before stash — Phase M changes (new stories) must survive
+              # Warn loudly if spiral.config.sh is about to be stashed/reverted
+              if echo "$_DIRTY_FILES" | grep -q "spiral.config.sh"; then
+                echo ""
+                echo "  ╔══════════════════════════════════════════════════════════════╗"
+                echo "  ║  [WARNING] spiral.config.sh has uncommitted changes          ║"
+                echo "  ║  Auto-stash WILL revert them on the next iteration.          ║"
+                echo "  ║  To preserve: git add spiral.config.sh && git commit         ║"
+                echo "  ╚══════════════════════════════════════════════════════════════╝"
+                echo ""
+              fi
+              echo "  [Phase I] Dirty working tree detected — auto-stashing prd.json only (iter ${SPIRAL_ITER})..."
+              # Targeted stash: only stash prd.json (the file Phase M modifies) to avoid
+              # conflicts with .spiral/ internals or unrelated work (US-177 fix)
               _PRD_STASH_BACKUP="${SCRATCH_DIR:-/tmp}/_prd_prestash_${SPIRAL_ITER}.json"
               cp "$PRD_FILE" "$_PRD_STASH_BACKUP" 2>/dev/null || _PRD_STASH_BACKUP=""
-              if git -C "$REPO_ROOT" stash push --include-untracked -m "$_STASH_MSG" 2>/dev/null; then
+              if git -C "$REPO_ROOT" stash push -m "$_STASH_MSG" -- "$PRD_FILE" 2>/dev/null; then
                 _AUTO_STASH_REF=$(git -C "$REPO_ROOT" stash list --format="%gd %gs" 2>/dev/null |
                   grep "$_STASH_MSG" | head -1 | awk '{print $1}')
                 echo "  [Phase I] Stash created: ${_AUTO_STASH_REF:-stash@{0}}"

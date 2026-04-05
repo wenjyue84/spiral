@@ -73,7 +73,7 @@ run_phase_validate() {
 
     # ── Check if we should force full suite every N iterations (US-1102) ──
     if [[ "${SPIRAL_FULL_TEST_EVERY_N:-5}" -gt 0 ]]; then
-      _MOD=$((SPIRAL_ITER % SPIRAL_FULL_TEST_EVERY_N))
+      _MOD=$((SPIRAL_ITER % ${SPIRAL_FULL_TEST_EVERY_N:-5}))
       if [[ "$_MOD" -eq 0 ]]; then
         _FORCE_FULL_SUITE=1
         echo "  [V] Full suite forced (iter $SPIRAL_ITER % ${SPIRAL_FULL_TEST_EVERY_N:-5} = 0)"

@@ -88,14 +88,21 @@ check_checkpoint_completeness() {
   local ckpt_file="$1"
   local phase story_id retry_count
 
-  # Check that phase, storyId, retryCount are all present and non-empty
+  # Only phase is required — storyId/retryCount are set mid-Phase-I only.
+  # Discarding checkpoints missing those fields caused every crash-recovery
+  # to restart from iter 1 (fix: accept partial checkpoints gracefully).
   phase=$("$JQ" -r '.phase // empty' "$ckpt_file" 2>/dev/null || true)
+
+  if [[ -z "$phase" ]]; then
+    echo "  [checkpoint-completeness] INCOMPLETE: phase=✗ (required field missing)"
+    return 1
+  fi
+
+  # Log optional fields as informational (not blocking)
   story_id=$("$JQ" -r '.storyId // empty' "$ckpt_file" 2>/dev/null || true)
   retry_count=$("$JQ" -r '.retryCount // empty' "$ckpt_file" 2>/dev/null || true)
-
-  if [[ -z "$phase" || -z "$story_id" || -z "$retry_count" ]]; then
-    echo "  [checkpoint-completeness] INCOMPLETE: phase=$([[ -n "$phase" ]] && echo "✓" || echo "✗"), storyId=$([[ -n "$story_id" ]] && echo "✓" || echo "✗"), retryCount=$([[ -n "$retry_count" ]] && echo "✓" || echo "✗")"
-    return 1
+  if [[ -z "$story_id" || -z "$retry_count" ]]; then
+    echo "  [checkpoint-completeness] OK (phase=✓, storyId=$([[ -n "$story_id" ]] && echo "✓" || echo "absent"), retryCount=$([[ -n "$retry_count" ]] && echo "✓" || echo "absent")) — resuming"
   fi
 
   return 0

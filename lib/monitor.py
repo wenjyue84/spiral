@@ -111,6 +111,30 @@ def _save_state(state_path: Path, passes: int, ts: str) -> None:
 
 # ── Check functions ──────────────────────────────────────────────────────────
 
+def _check_current_story(scratch_dir: Path) -> dict[str, Any] | None:
+    """Read .spiral/_active_status.json for the story currently being implemented."""
+    status_path = scratch_dir / "_active_status.json"
+    if not status_path.exists():
+        return None
+    try:
+        with open(status_path, encoding="utf-8") as f:
+            data: dict[str, Any] = json.load(f)
+        sid = data.get("story_id", "")
+        if not sid:
+            return None
+        started_at = data.get("started_at", 0)
+        elapsed = round(time.time() - started_at) if started_at else 0
+        return {
+            "id": sid,
+            "title": data.get("story_title", ""),
+            "phase": data.get("phase", ""),
+            "elapsed_secs": elapsed,
+        }
+    except (json.JSONDecodeError, OSError, KeyError):
+        return None
+
+
+
 
 def _check_stories(project_root: Path) -> dict[str, Any]:
     """Load prd.json + retry-counts.json, classify stories, return counts."""
@@ -148,6 +172,7 @@ def _check_delta(current_passes: int, state_path: Path) -> dict[str, Any]:
         "previous": previous,
         "current": current_passes,
         "new_passed": max(new_passed, 0),
+        # stalled is set at call site once we know log_age (see run_monitor)
         "stalled": new_passed <= 0 and previous > 0,
         "last_check": last_check,
     }
@@ -242,22 +267,42 @@ def _diagnose(project_root: Path, scratch_dir: Path) -> list[dict[str, Any]]:
                 }
             )
 
-    # 2. Recent crash logs
+    # 2. Recent crash logs — use entry timestamp (not file mtime) to avoid
+    # permanent noise from an index.json that accumulates entries across sessions.
     crash_dir = scratch_dir / "crashes"
-    if crash_dir.is_dir():
-        crashes = sorted(crash_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
-        if crashes:
-            latest = crashes[0]
-            age_secs = time.time() - latest.stat().st_mtime
-            if age_secs < 3600:  # Crashed in last hour
-                diags.append(
-                    {
-                        "severity": "error",
-                        "check": "recent_crash",
-                        "message": f"Crash log found: {latest.name} ({round(age_secs)}s ago)",
-                        "remediation": f"Read {latest} for error details",
-                    }
-                )
+    index_file = crash_dir / "index.json"
+    if index_file.is_file():
+        try:
+            with open(index_file, encoding="utf-8") as _f:
+                _crash_data = json.load(_f)
+            _entries: list[dict[str, Any]] = (
+                _crash_data if isinstance(_crash_data, list)
+                else _crash_data.get("crashes", [])
+            )
+            _latest_ts: float = 0.0
+            for _entry in _entries:
+                _ts = str(_entry.get("ts") or _entry.get("timestamp") or "")
+                if _ts:
+                    try:
+                        from datetime import datetime as _dt
+                        _parsed = _dt.fromisoformat(_ts.replace("Z", "+00:00"))
+                        _latest_ts = max(_latest_ts, _parsed.timestamp())
+                    except (ValueError, TypeError):
+                        pass
+            if _latest_ts > 0:
+                age_secs = round(time.time() - _latest_ts)
+                if age_secs < 1800:  # Only alert within 30 min
+                    diags.append(
+                        {
+                            "severity": "error",
+                            "check": "recent_crash",
+                            "message": f"Recent crash ({age_secs}s ago)",
+                            "age_secs": age_secs,
+                            "remediation": f"Read {index_file} for error details",
+                        }
+                    )
+        except (json.JSONDecodeError, OSError):
+            pass
 
     # 3. Corrupt story titles (title == id)
     prd_path = project_root / "prd.json"
@@ -367,6 +412,12 @@ def run_monitor(*, project_root: Path, ui_port: int = 5299) -> dict[str, Any]:
     except Exception:
         diagnostics = []
 
+    # Fix 5: only mark stalled if log is actually stale (> 300s) or SPIRAL stopped.
+    # A story actively being implemented (log age < 60s) should not appear stalled.
+    log_age = run_health.get("log_age_secs", -1)
+    if delta.get("stalled") and run_health.get("running") and log_age >= 0 and log_age < 300:
+        delta = {**delta, "stalled": False}
+
     needs_attn = _needs_attention(delta, run_health, ui_health, diagnostics)
 
     # Save state for next comparison
@@ -375,7 +426,12 @@ def run_monitor(*, project_root: Path, ui_port: int = 5299) -> dict[str, Any]:
     except Exception:
         pass
 
-    return {
+    try:
+        current_story = _check_current_story(scratch_dir)
+    except Exception:
+        current_story = None
+
+    result: dict[str, Any] = {
         "schema": "monitor-v1",
         "timestamp": now,
         "needs_attention": needs_attn,
@@ -385,3 +441,6 @@ def run_monitor(*, project_root: Path, ui_port: int = 5299) -> dict[str, Any]:
         "ui_health": ui_health,
         "diagnostics": diagnostics,
     }
+    if current_story is not None:
+        result["current_story"] = current_story
+    return result
