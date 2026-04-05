@@ -1699,7 +1699,6 @@ ACTION: Fix the critical issues listed above before marking passes=true."
             --model "${SPIRAL_ADR_MODEL:-haiku}" \
             2>&1) || true
           # _adr_out last line is the file path when exit 0; warn on empty
-          _adr_path
           _adr_path=$(echo "$_adr_out" | tail -1 | tr -d '\r\n' || true)
           if [[ -n "$_adr_path" && -f "$_adr_path" ]]; then
             git add "$_adr_path" 2>/dev/null || true
