@@ -286,6 +286,14 @@ SPIRAL_MAX_AI_SUGGEST=5
 # Default 40 filters out infrastructure-only and poorly-scoped stories.
 SPIRAL_AI_SUGGEST_MIN_SCORE=40
 
+# ── Completed story history limit for Phase A dedup (US-1133) ──────────────────
+# Number of most-recent completed stories (passes=true) to inject into the Phase A
+# AI suggest prompt under "Already Done" section. Helps the LLM avoid suggesting
+# duplicates of completed work. Grouped by epicId for compactness.
+# Set to 0 to disable injection (all completed stories excluded from prompt).
+# Default: 50 completed stories (token cost < 500 per iteration).
+SPIRAL_AI_SUGGEST_HISTORY_LIMIT=50
+
 # ── Dead weight detection: auto-archive stories stuck 5+ iterations ─────────────
 # Tracks _pending_iterations counter per story. Stories exceeding this threshold
 # are marked _archived: true with _archiveReason to prevent backlog bloat.
