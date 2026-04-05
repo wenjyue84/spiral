@@ -744,7 +744,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "sonnet"
     },
     {
@@ -876,6 +876,26 @@
         "Run: uv run pytest tests/ -k us_460 -v"
       ],
       "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1151",
+      "title": "[Security Test] Cost Predictor CLI: KNN-based token/cost estimation from results.tsv",
+      "priority": "high",
+      "description": "Write security tests for auth/permission logic in US-529. Story description: Create lib/predict_cost.py implementing a K-nearest-neighbors estimator over results.tsv. The CLI `spiral predict-cost` parses story attributes, finds similar historical stories, and outputs a JSON estimate with tokens, cost, confidence, and matched stories.",
+      "acceptanceCriteria": [
+        "Security test covers access control introduced by US-529",
+        "Test verifies unauthorized access is blocked (401/403 responses)",
+        "No sensitive data (tokens, passwords) leaked in error responses"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_529 -v"
+      ],
+      "dependencies": [
+        "US-529"
+      ],
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "sonnet"

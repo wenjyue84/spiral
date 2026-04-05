@@ -407,7 +407,7 @@
         "Setting SPIRAL_AUTO_ARCHIVE_THRESHOLD=0 disables auto-archive",
         "uv run pytest tests/test_auto_archive.py covers threshold trigger and git commit"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [],
       "filesTouch": [
         "spiral.sh",
@@ -421,7 +421,8 @@
         "archive",
         "maintenance"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1133",
@@ -435,7 +436,7 @@
         "Phase A output has measurably lower overlap with completed story titles (test: TF-IDF similarity < 0.7 avg)",
         "Token cost increase for the Phase A call is < 500 tokens per iteration at the default limit"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [],
       "filesTouch": [
         "spiral.sh",
@@ -464,7 +465,7 @@
         "Counter resets to 0 after any iteration where at least 1 story is merged",
         "uv run pytest tests/test_merge_stories.py covers the fallback threshold logic"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [
         "US-1131"
       ],
@@ -479,7 +480,8 @@
         "dedup",
         "observability"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1135",
@@ -521,7 +523,7 @@
         "Running 3 workers simultaneously for 10 stories produces a results.tsv with exactly N clean tab-separated rows (no garbled lines)",
         "Append latency overhead < 50 ms per call on Windows (verified with timing test)"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [],
       "filesTouch": [
         "lib/core/locked_append_tsv.sh",
@@ -548,7 +550,7 @@
         "Concurrent calls to atomic_patch_prd on the same file serialise correctly (test: 10 parallel appends to ._antiPatterns produce all 10 entries)",
         "Lock acquisition timeout is 30s with clear error message on expiry"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [],
       "filesTouch": [
         "lib/core/prd_lock.sh",
@@ -563,7 +565,8 @@
         "data-integrity",
         "prd"
       ],
-      "model": "sonnet"
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-1138",
@@ -603,7 +606,7 @@
         "Successful full runs are NOT rolled back (rollback only on failure)",
         "Test: inject a deliberately bad patch mid-sequence and verify earlier patches are reverted"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [],
       "filesTouch": [
         "lib/run_parallel_ralph.sh"
@@ -774,6 +777,103 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_734 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1146",
+      "title": "[Security Test] CLI: validate-federated — Circular Dependency Detection with Cycle Paths",
+      "priority": "high",
+      "description": "Write security tests for auth/permission logic in US-515. Story description: Extend `lib/commands/validate_federated.py` with a cycle-detection pass that builds a directed dependency graph from story `depends_on` fields and reports all cycles with their full traversal path. Cycles are appended to the existing JSON report under key `cycles`.",
+      "acceptanceCriteria": [
+        "Security test covers access control introduced by US-515",
+        "Test verifies unauthorized access is blocked (401/403 responses)",
+        "No sensitive data (tokens, passwords) leaked in error responses"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_515 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1147",
+      "title": "[Integration Test] Phase I: File-Aware Retry Strategy — Only Re-Implement Failed Files",
+      "priority": "high",
+      "description": "Write integration tests for the feature implemented in US-597. Story description: When a story fails during Phase I, track which files caused the failure. On retry, only re-implement those specific files to reduce token cost and iteration time.",
+      "acceptanceCriteria": [
+        "Integration tests exist covering the core behaviour of US-597",
+        "Tests cover the happy path and at least one error/edge case",
+        "Tests run without requiring external services or manual setup"
+      ],
+      "technicalNotes": [
+        "Source files from US-597: lib/impl/file_aware_retry.py, lib/results_tsv.py, lib/impl/retry.sh, tests/test_file_aware_retry.py",
+        "Suggested test files: tests/test_file_aware_retry.py, tests/test_results_tsv.py, tests/test_test_file_aware_retry.py",
+        "Run: uv run pytest tests/ -k us_597 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1148",
+      "title": "[Integration Test] Implement: Implement SPIRAL Phase G: auto-generate CHANGELOG.md and API docs from",
+      "priority": "high",
+      "description": "Write integration tests for the feature implemented in US-458. Story description: Story to address low-coverage project goal: Implement SPIRAL Phase G: auto-generate CHANGELOG.md and API docs from story commits using git-cliff and pdoc",
+      "acceptanceCriteria": [
+        "Integration tests exist covering the core behaviour of US-458",
+        "Tests cover the happy path and at least one error/edge case",
+        "Tests run without requiring external services or manual setup"
+      ],
+      "technicalNotes": [
+        "Source files from US-458: .github/actions/lint-shell/action.yml, .github/actions/setup-uv/action.yml, .github/workflows/ci.yml, .github/workflows/release.yml, .github/workflows/spiral.yml",
+        "Suggested test files: tests/test_auto_release.py, tests/test_batch_validate.py",
+        "Run: uv run pytest tests/ -k us_458 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1149",
+      "title": "[Integration Test] Implement: Add comprehensive integration test suite that runs SPIRAL end-to-end w",
+      "priority": "high",
+      "description": "Write integration tests for the feature implemented in US-459. Story description: Story to address low-coverage project goal: Add comprehensive integration test suite that runs SPIRAL end-to-end with mock Claude API responses",
+      "acceptanceCriteria": [
+        "Integration tests exist covering the core behaviour of US-459",
+        "Tests cover the happy path and at least one error/edge case",
+        "Tests run without requiring external services or manual setup"
+      ],
+      "technicalNotes": [
+        "Source files from US-459: .github/actions/lint-shell/action.yml, .github/actions/setup-uv/action.yml, .github/workflows/ci.yml, .github/workflows/release.yml, .github/workflows/spiral.yml",
+        "Run: uv run pytest tests/ -k us_459 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1150",
+      "title": "[Integration Test] Implement: Build SPIRAL self-monitoring dashboard: live token burn rate, story th",
+      "priority": "high",
+      "description": "Write integration tests for the feature implemented in US-460. Story description: Story to address low-coverage project goal: Build SPIRAL self-monitoring dashboard: live token burn rate, story throughput, model escalation heatmap",
+      "acceptanceCriteria": [
+        "Integration tests exist covering the core behaviour of US-460",
+        "Tests cover the happy path and at least one error/edge case",
+        "Tests run without requiring external services or manual setup"
+      ],
+      "technicalNotes": [
+        "Source files from US-460: .github/actions/lint-shell/action.yml, .github/actions/setup-uv/action.yml, .github/workflows/ci.yml, .github/workflows/release.yml, .github/workflows/spiral.yml",
+        "Suggested test files: tests/test_batch_validate.py",
+        "Run: uv run pytest tests/ -k us_460 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
