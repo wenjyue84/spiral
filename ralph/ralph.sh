@@ -1099,13 +1099,19 @@ Story JSON: $STORY_JSON"
             --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null
         } || true
       fi
+      # Write prompts to temp files via printf builtin — avoids ARG_MAX on Windows when
+      # file context is large (printf is a bash builtin, no exec() call, no arg length limit).
+      _USER_PROMPT_FILE="${SPIRAL_SCRATCH_DIR}/_user_prompt_$$.txt"
+      _SYS_PROMPT_FILE="${SPIRAL_SCRATCH_DIR}/_sys_prompt_$$.txt"
+      printf '%s' "$RALPH_USER_PROMPT" > "$_USER_PROMPT_FILE"
+      printf '%s' "$RALPH_SYSTEM_PROMPT" > "$_SYS_PROMPT_FILE"
       (
         unset CLAUDECODE
         export SPIRAL_WORKER_ACTIVE=1 # Tell PreToolUse hook this is a Ralph worker
-        "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" claude -p "$RALPH_USER_PROMPT" \
+        "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" claude -p \
           $CLAUDE_MODEL_FLAG \
           $CLAUDE_EFFORT_FLAG \
-          --append-system-prompt "$RALPH_SYSTEM_PROMPT" \
+          --append-system-prompt-file "$_SYS_PROMPT_FILE" \
           ${_CACHE_BETAS:+--betas "$_CACHE_BETAS"} \
           $_DEFERRED_TOOLS_FLAG \
           --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task,ToolSearch" \
@@ -1113,8 +1119,9 @@ Story JSON: $STORY_JSON"
           --verbose \
           --output-format stream-json \
           --dangerously-skip-permissions \
-          </dev/null 2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
+          < "$_USER_PROMPT_FILE" 2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
       ) || true
+      rm -f "$_USER_PROMPT_FILE" "$_SYS_PROMPT_FILE" 2>/dev/null || true
       # ── Connection failure detection for Ollama fallback (US-144) ──────────────
       # Detect ECONNREFUSED / ETIMEDOUT patterns — claude CLI unreachable.
       # After _CLAUDE_API_FAIL_STREAK >= 3, switch to Ollama for the current story.
