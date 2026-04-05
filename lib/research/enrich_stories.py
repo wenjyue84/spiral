@@ -327,11 +327,9 @@ def get_git_diff_summary(story_id: str, max_chars: int = 8000, lines_per_file: i
         # Truncate: collect lines up to lines_per_file per file (identified by diff --git lines)
         truncated: list[str] = []
         current_file_lines = 0
-        current_file = ""
 
         for line in lines:
             if line.startswith("diff --git"):
-                current_file = line
                 current_file_lines = 0
 
             if current_file_lines < lines_per_file:
@@ -344,9 +342,10 @@ def get_git_diff_summary(story_id: str, max_chars: int = 8000, lines_per_file: i
 
         result_str = "\n".join(truncated)
 
-        # Cap total length
+        # Cap total length (reserve space for truncation marker)
+        truncation_marker = "\n... (truncated)"
         if len(result_str) > max_chars:
-            result_str = result_str[:max_chars] + "\n... (truncated)"
+            result_str = result_str[: max_chars - len(truncation_marker)] + truncation_marker
 
         return result_str
     except (subprocess.TimeoutExpired, FileNotFoundError, Exception):

@@ -703,6 +703,33 @@
       "model": "haiku"
     },
     {
+      "id": "US-1143",
+      "title": "Parallel workers: add timeout and respawn for idle worker pool processes",
+      "description": "Worker pool processes (pre-warming) wait indefinitely for task files to appear in .worker-pool/worker-N/task. If the main coordinator fails to write the task file (disk full, crash, permission error), the pool worker hangs forever consuming memory with no visibility. Add: (1) a configurable SPIRAL_POOL_TASK_TIMEOUT (default 120s) after which an idle pool worker logs a warning and exits cleanly, (2) when a pool worker exits due to timeout, write a pool_worker_timeout event to spiral_events.jsonl with worker_id and waited_seconds, (3) the main coordinator detects timed-out pool workers and respawns them up to SPIRAL_POOL_RESPAWN_LIMIT (default 3) times before giving up and falling back to non-pooled execution.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Pool workers exit after SPIRAL_POOL_TASK_TIMEOUT seconds of idle waiting (default 120)",
+        "On timeout exit, pool_worker_timeout event written to spiral_events.jsonl",
+        "Main coordinator detects pool worker exit and respawns up to SPIRAL_POOL_RESPAWN_LIMIT times",
+        "After exhausting respawn limit, fallback to non-pooled worker launch with a warning log",
+        "SPIRAL_POOL_TASK_TIMEOUT and SPIRAL_POOL_RESPAWN_LIMIT configurable in spiral.config.sh",
+        "No change in behavior when task files are delivered on time"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh",
+        "spiral.config.sh"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "parallel-workers",
+        "worker-pool",
+        "reliability"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-1152",
       "title": "Phase E: Inject Top-3 Similar Passing Stories as Ralph Reference Implementations",
       "priority": "high",
@@ -726,8 +753,7 @@
         "ralph/CLAUDE.md",
         "tests/test_enrich_stories.py"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-04-05T21:20:34Z"
+      "model": "haiku"
     },
     {
       "id": "US-1153",
@@ -833,6 +859,85 @@
         "ralph/CLAUDE.md",
         "ralph/ralph.sh",
         "tests/test_phase_v_integration.py"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1157",
+      "title": "Phase A: Failure-Pattern-Informed Story Generation — Seed AI Suggest from results.tsv Weak Spots",
+      "priority": "medium",
+      "description": "Phase A generates story candidates without considering where SPIRAL is failing. Add a pre-Phase-A analysis step that reads results.tsv, groups failures by story domain (from filesTouch top-level dirs), and computes failure rate per domain. Phase A prompt includes a WEAK_SPOTS section for domains >40% failure rate, instructing AI to generate infrastructure-improvement stories in those areas.",
+      "acceptanceCriteria": [
+        "lib/analyze_failures.py: compute_domain_failure_rates(results_tsv) -> dict[domain, failure_rate]; domain = first path segment of filesTouch",
+        "Domains with failure_rate > SPIRAL_WEAK_SPOT_THRESHOLD (default 0.4) and >= 3 attempts passed to Phase A prompt as WEAK_SPOTS",
+        "Phase A prompt addition: 'Domains with high failure rates: {weak_spots}. Generate stories to improve tooling/patterns in these areas.'",
+        "spiral.config.sh: SPIRAL_WEAK_SPOT_THRESHOLD=0.4",
+        "tests/test_analyze_failures.py: test_domain_failure_rate_computation, test_weak_spot_threshold_filter, test_injected_in_phase_a_prompt"
+      ],
+      "technicalNotes": [
+        "Only domains with >= 3 story attempts included to avoid noise",
+        "results.tsv column for domain inferred at write time from story filesTouch"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "filesTouch": [
+        "lib/analyze_failures.py",
+        "spiral.config.sh",
+        "tests/test_analyze_failures.py"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1158",
+      "title": "Phase E: Pre-Inject Failing Test Names as Must-Fix Hints Before Phase I",
+      "priority": "medium",
+      "description": "When a story has filesTouch overlapping with test files, run those tests in dry-run mode before Phase I and inject currently-failing test names as _mustFixTests hints. Ralph receives: 'These tests are currently failing and must pass after your implementation: [test_foo, test_bar].' This converts vague stories into concrete pass/fail contracts Ralph can verify locally during self-test.",
+      "acceptanceCriteria": [
+        "lib/enrich_stories.py: preflight_test_scan(story, root) finds test files matching story.filesTouch globs, runs pytest --collect-only -q then pytest -x --tb=no, returns failing_test_ids list",
+        "story._hints._mustFixTests populated with failing test IDs; empty list if no relevant tests or all passing",
+        "Ralph prompt includes 'Must-fix tests (currently failing): {mustFixTests}' when list is non-empty",
+        "SPIRAL_PREFLIGHT_TESTS=true default in spiral.config.sh; false skips preflight",
+        "Preflight timeout: 30s; skip with WARNING log if exceeded",
+        "tests/test_enrich_stories.py: test_preflight_scan_finds_failing, test_mustfix_empty_when_all_pass, test_preflight_timeout_skip"
+      ],
+      "technicalNotes": [
+        "Preflight is read-only — no code changes, test collection + run only",
+        "Only triggers if story.filesTouch is non-empty"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "filesTouch": [
+        "lib/enrich_stories.py",
+        "ralph/CLAUDE.md",
+        "spiral.config.sh",
+        "tests/test_enrich_stories.py"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1159",
+      "title": "Phase T: Root-Cause Categorization of Test Failures — Targeted Fix Strategy in Generated Stories",
+      "priority": "medium",
+      "description": "Phase T creates generic test-fix stories. Add root-cause categorization: parse pytest failure output to assign a failure_category (missing_import, assertion_mismatch, file_not_found, timeout, type_error, attribute_error). Each category maps to a preferred fix_strategy injected into the generated story hints. Ralph receives a concrete starting point instead of an open-ended 'fix this test' directive.",
+      "acceptanceCriteria": [
+        "lib/phases/phase_t.sh (or spiral.sh Phase T): categorize_test_failure(test_output) -> {failure_category, fix_strategy, confidence} for each failed test",
+        "Categories: ImportError->add_import, AssertionError->fix_logic, FileNotFoundError->create_file, TimeoutError->increase_timeout, TypeError->fix_type_annotation, AttributeError->check_interface, Unknown->investigate",
+        "story._hints.fix_strategy populated from categorization; Ralph prompt includes 'Suggested fix approach: {fix_strategy}'",
+        "estimatedComplexity mapped from category: ImportError/AssertionError->small, others->medium",
+        "tests/test_phase_t_error_categorization.py: test_import_error_cat, test_assertion_cat, test_unknown_fallback, test_complexity_mapping"
+      ],
+      "technicalNotes": [
+        "Categorization via regex on pytest --tb=short output — no LLM call needed",
+        "confidence=high if single pattern matched; confidence=low if multiple or Unknown"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "filesTouch": [
+        "lib/phases/phase_t.sh",
+        "tests/test_phase_t_error_categorization.py"
       ],
       "model": "haiku"
     }
