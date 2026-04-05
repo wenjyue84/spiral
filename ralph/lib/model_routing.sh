@@ -151,33 +151,78 @@ budget_to_effort() {
   fi
 }
 
+# should_skip_escalation <failure_type>
+# Returns 0 (true) if the failure type indicates that model escalation won't help.
+# These are errors fixable by retrying the same model with the error message.
+should_skip_escalation() {
+  local failure_type="${1:-}"
+  case "$failure_type" in
+    syntax_error | type_error | test_assertion | missing_dependency | context_overflow)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 # Resolve the effective model: prd.json annotation > CLI override > auto-classify+escalate
+# Optional 4th arg: failure_type from failure_categorizer.py. When set to a "fixable"
+# category (syntax_error, type_error, etc.), model escalation is skipped — the same
+# model retries with the error appended to anti-patterns.
 resolve_model() {
   local story_id="$1" retry_count="$2" escalation_count="$3"
+  local failure_type="${4:-}"
 
   # Per-story .model annotation in prd.json overrides everything (including --model flag)
   local prd_model
   prd_model=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .model // empty" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo '')
   if [[ -n "$prd_model" ]]; then
-    local escalated_model
-    escalated_model=$(escalate_model_by_retry "$prd_model" "$retry_count")
-    escalate_model_by_quality_failure "$escalated_model" "$escalation_count"
+    if [[ -n "$failure_type" ]] && should_skip_escalation "$failure_type"; then
+      echo "$prd_model"
+    else
+      local escalated_model
+      escalated_model=$(escalate_model_by_retry "$prd_model" "$retry_count")
+      escalate_model_by_quality_failure "$escalated_model" "$escalation_count"
+    fi
     return
   fi
 
   # CLI --model wins next
   if [[ -n "$RALPH_MODEL" ]]; then
-    local escalated
-    escalated=$(escalate_model_by_retry "$RALPH_MODEL" "$retry_count")
-    escalate_model_by_quality_failure "$escalated" "$escalation_count"
-    echo "$escalated"
+    if [[ -n "$failure_type" ]] && should_skip_escalation "$failure_type"; then
+      echo "$RALPH_MODEL"
+    else
+      local escalated
+      escalated=$(escalate_model_by_retry "$RALPH_MODEL" "$retry_count")
+      escalate_model_by_quality_failure "$escalated" "$escalation_count"
+      echo "$escalated"
+    fi
     return
+  fi
+
+  # Historical model routing: query results.tsv for pass rates by complexity band
+  if [[ "${SPIRAL_HISTORY_ROUTING:-false}" == "true" && "$retry_count" -eq 0 ]]; then
+    local complexity
+    complexity=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .estimatedComplexity // \"medium\"" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo 'medium')
+    local hist_model
+    hist_model=$(uv run python "$(dirname "${BASH_SOURCE[0]}")/../../lib/routing/complexity_scorer.py" \
+        --recommend --complexity "$complexity" 2>/dev/null || echo "")
+    if [[ -n "$hist_model" ]]; then
+      echo "[model_routing] History recommends $hist_model for complexity=$complexity" >&2
+      echo "$hist_model"
+      return
+    fi
   fi
 
   # Auto-classify from story metadata + escalate on retry
   local base_model
   base_model=$(classify_model "$story_id")
-  local escalated_model
-  escalated_model=$(escalate_model_by_retry "$base_model" "$retry_count")
-  escalate_model_by_quality_failure "$escalated_model" "$escalation_count"
+  if [[ -n "$failure_type" ]] && should_skip_escalation "$failure_type"; then
+    echo "$base_model"
+  else
+    local escalated_model
+    escalated_model=$(escalate_model_by_retry "$base_model" "$retry_count")
+    escalate_model_by_quality_failure "$escalated_model" "$escalation_count"
+  fi
 }

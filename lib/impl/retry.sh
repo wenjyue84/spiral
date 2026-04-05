@@ -149,6 +149,93 @@ handle_story_failure() {
   return 0
 }
 
+# get_failure_type <stderr_file>
+# Calls failure_categorizer.py on stderr output and returns one of 8 categories:
+#   missing_dependency, syntax_error, type_error, test_assertion,
+#   timeout, oom, context_overflow, other
+# Returns "other" on any error or if stderr file is missing.
+get_failure_type() {
+  local stderr_file="${1:-}"
+  local categorizer
+  categorizer="$(dirname "${BASH_SOURCE[0]}")/../../lib/failure_categorizer.py"
+
+  if [[ ! -f "$categorizer" || ! -f "$stderr_file" ]]; then
+    echo "other"
+    return 0
+  fi
+
+  local result
+  result=$(uv run python -c "
+from lib.failure_categorizer import categorize_failure
+import sys
+with open(sys.argv[1], encoding='utf-8', errors='replace') as f:
+    stderr = f.read()
+ftype, _ = categorize_failure(stderr, '')
+print(ftype)
+" "$stderr_file" 2>/dev/null) || result="other"
+  echo "${result:-other}"
+}
+
+# select_retry_strategy <failure_type> <retry_count>
+# Returns a retry strategy string based on failure classification.
+# Strategies:
+#   same_model    - retry with same model tier (error appended to prompt via anti-patterns)
+#   scope_reduce  - call try_scope_reduction before retrying
+#   extend_timeout - double the timeout for next attempt
+#   decompose     - trigger story decomposition
+#   skip          - mark story as skipped
+#   escalate_model - escalate to next model tier (default/legacy behavior)
+select_retry_strategy() {
+  local failure_type="${1:-other}"
+  local retry_count="${2:-0}"
+
+  case "$failure_type" in
+    missing_dependency | syntax_error | type_error)
+      if [[ "$retry_count" -lt 2 ]]; then
+        echo "same_model"
+      else
+        echo "escalate_model"
+      fi
+      ;;
+    test_assertion)
+      if [[ "$retry_count" -lt 1 ]]; then
+        echo "same_model"
+      elif [[ "$retry_count" -lt 2 ]]; then
+        echo "escalate_model"
+      else
+        echo "skip"
+      fi
+      ;;
+    context_overflow)
+      if [[ "$retry_count" -lt 2 ]]; then
+        echo "scope_reduce"
+      else
+        echo "skip"
+      fi
+      ;;
+    timeout)
+      if [[ "$retry_count" -lt 1 ]]; then
+        echo "extend_timeout"
+      elif [[ "$retry_count" -lt 2 ]]; then
+        echo "decompose"
+      else
+        echo "skip"
+      fi
+      ;;
+    oom)
+      echo "skip"
+      ;;
+    *)
+      # 'other' or unknown: use legacy escalation behavior
+      if [[ "$retry_count" -lt 2 ]]; then
+        echo "escalate_model"
+      else
+        echo "skip"
+      fi
+      ;;
+  esac
+}
+
 # get_failed_files_for_story <story_id> [results_tsv_path]
 # Reads results.tsv and returns a JSON array string of failed files from the
 # most recent failed attempt for the given story. Returns "" if none found.
