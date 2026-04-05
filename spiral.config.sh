@@ -172,6 +172,9 @@ SPIRAL_STORY_MAX_FILES_TOUCH="${SPIRAL_STORY_MAX_FILES_TOUCH:-8}"
 SPIRAL_STORY_MIN_AC_COUNT="${SPIRAL_STORY_MIN_AC_COUNT:-2}"
 # Quality score gate: reject stories scoring below this (0-100). 0 = disabled.
 SPIRAL_STORY_MIN_QUALITY_SCORE="${SPIRAL_STORY_MIN_QUALITY_SCORE:-35}"
+# AC quality threshold (US-1154): Rewrite ACs when measurability score < threshold (0-1).
+# 0 = disabled. Default 0.5: rewrite vague ACs and reject if <2 measurable ACs remain.
+SPIRAL_AC_QUALITY_THRESHOLD="${SPIRAL_AC_QUALITY_THRESHOLD:-0.5}"
 # Batch size for enrichment (US-1101) — groups multiple stories into single Claude call.
 # Default: 5. Reduces N enrichment calls to ceil(N/5) calls. Set to 1 to disable batching.
 SPIRAL_ENRICH_BATCH_SIZE="${SPIRAL_ENRICH_BATCH_SIZE:-5}"
