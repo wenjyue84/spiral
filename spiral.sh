@@ -466,6 +466,7 @@ fi
 
 # Apply config with defaults
 SPIRAL_PYTHON="${SPIRAL_PYTHON:-python3}"
+export SPIRAL_PYTHON # Required: ralph.sh and sub-scripts use this
 
 # Ensure lib/ is on PYTHONPATH so subdirectory scripts can import spiral_io etc.
 export PYTHONPATH="${SPIRAL_HOME}/lib${PYTHONPATH:+:$PYTHONPATH}"
@@ -625,6 +626,14 @@ validate_config() {
   : "${SPIRAL_MERGE_MODEL:=haiku}"
   : "${SPIRAL_MAX_PENDING:=50}"
   : "${SPIRAL_MEMORY_LIMIT:=1024}"
+  : "${SPIRAL_AI_SUGGEST_MIN_SCORE:=0}"
+  : "${SPIRAL_FULL_TEST_EVERY_N:=5}"
+
+  # Verify SPIRAL_PYTHON actually resolves
+  if ! "$SPIRAL_PYTHON" --version >/dev/null 2>&1; then
+    echo "[config] ERROR: SPIRAL_PYTHON='$SPIRAL_PYTHON' not found in PATH"
+    exit $ERR_CONFIG
+  fi
 
   echo "[config] OK — SPIRAL_PYTHON=$SPIRAL_PYTHON SPIRAL_VALIDATE_CMD=$SPIRAL_VALIDATE_CMD"
 }
@@ -646,6 +655,23 @@ validate_env() {
   fi
 }
 validate_env
+
+# ── Platform detection — apply Windows-safe defaults ─────────────────────────
+# shellcheck disable=SC2153
+if [[ "${OSTYPE:-}" == "msys" || "${OSTYPE:-}" == "cygwin" || -n "${WINDIR:-}" ]]; then
+  : "${SPIRAL_MEMORY_WATCHDOG:=0}"
+  : "${SPIRAL_STORY_ENRICHMENT:=false}"
+  : "${SPIRAL_LOW_POWER_MODE:=1}"
+  MONITOR_TERMINALS=0
+  echo "[platform] Windows detected — safe defaults (watchdog=0, enrichment=false, low_power=1, monitor=off)"
+fi
+
+# ── Startup .gitignore check ─────────────────────────────────────────────────
+if [[ -f "$REPO_ROOT/.gitignore" ]]; then
+  if ! grep -q '\.spiral/' "$REPO_ROOT/.gitignore" 2>/dev/null; then
+    echo "[startup] WARNING: .spiral/ not in .gitignore — run: echo '.spiral/' >> .gitignore"
+  fi
+fi
 
 # ── US-354: Phase-specific model override parsing ────────────────────────────
 # SPIRAL_PHASE_MODEL_OVERRIDE=R:haiku,S:haiku,M:sonnet  → per-phase overrides
@@ -1094,6 +1120,41 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     echo ""
     echo "  [CAPACITY] $PENDING pending stories exceed limit of $CAPACITY_LIMIT."
     echo "  [CAPACITY] Skipping Phase R only (no web research for new stories) — T/M still run to catch regressions."
+  fi
+
+  # ── Auto-archive completed stories (US-1132) ───────────────────────────────
+  # At iteration start, if completed story count >= SPIRAL_AUTO_ARCHIVE_THRESHOLD,
+  # automatically archive them to prd-archive.json and commit.
+  if [[ "$SPIRAL_AUTO_ARCHIVE_THRESHOLD" -gt 0 ]]; then
+    _COMPLETED_COUNT=$("$SPIRAL_PYTHON" -c "
+import json, sys
+with open('$PRD_FILE', 'r', encoding='utf-8') as f:
+    prd = json.load(f)
+stories = prd.get('userStories', [])
+completed = [s for s in stories if s.get('passes') is True and not s.get('_decomposed', False)]
+print(len(completed))
+" 2>/dev/null || echo 0)
+    if [[ "$_COMPLETED_COUNT" -ge "$SPIRAL_AUTO_ARCHIVE_THRESHOLD" ]]; then
+      echo ""
+      echo "  [auto-archive] Completed stories ($_COMPLETED_COUNT) >= threshold ($SPIRAL_AUTO_ARCHIVE_THRESHOLD) — archiving..."
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/archive_prd.py" \
+        --prd "$PRD_FILE" \
+        --archive "$REPO_ROOT/prd-archive.json" || {
+        echo "  [auto-archive] ERROR: archive failed" >&2
+        spiral_exit E501 "archive_failed"
+      }
+      # Commit archive changes to git
+      if git -C "$REPO_ROOT" add prd.json prd-archive.json 2>/dev/null; then
+        if git -C "$REPO_ROOT" commit -m "chore: auto-archive $_COMPLETED_COUNT completed stories" 2>/dev/null; then
+          echo "  [auto-archive] Archived $_COMPLETED_COUNT completed stories (threshold: $SPIRAL_AUTO_ARCHIVE_THRESHOLD)"
+        else
+          echo "  [auto-archive] WARNING: git commit failed (may be nothing to commit)" >&2
+        fi
+      else
+        echo "  [auto-archive] WARNING: git add failed" >&2
+      fi
+      echo ""
+    fi
   fi
 
   # ══════════════════════════════════════════════════════════════════════════

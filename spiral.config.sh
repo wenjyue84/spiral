@@ -579,6 +579,12 @@ SPIRAL_STRICT_DEAD_FEATURE=false
 # Default is soft warning (logs but does not block). Set to true to hard-block.
 SPIRAL_STRICT_REACHABILITY=false
 
+# ── Auto-archive completed stories (US-1132) ───────────────────────────────
+# At iteration start, if completed story count >= threshold, automatically
+# run archive-done (move stories with passes:true to prd-archive.json).
+# Default: 100 completed stories. Set to 0 to disable auto-archive.
+SPIRAL_AUTO_ARCHIVE_THRESHOLD="${SPIRAL_AUTO_ARCHIVE_THRESHOLD:-100}"
+
 # ── Dashboard port allocation ────────────────────────────────────────────────
 # Two servers run side-by-side. NEVER swap these ports.
 #   Port 5299: Vite React dashboard (spiral-ui/) — full 11-tab UI
