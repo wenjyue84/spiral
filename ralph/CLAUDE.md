@@ -251,5 +251,15 @@ Now, read `prd.json` and `progress.txt`, find the story ID from your task prompt
 
 
 <claude-mem-context>
+# Recent Activity
 
+### Apr 5, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #2827 | 11:45 PM | 🔵 | Fix Preparation Phase — Reading All Target Code Sections Before Implementation | ~706 |
+| #2826 | 11:44 PM | 🔵 | Comprehensive Audit Complete — Subagent Compiled Full Report Across 8 Key Areas | ~785 |
+| #2786 | 11:33 PM | 🔵 | SPIRAL_AI_SUGGEST_MIN_SCORE Missing Default — Used Without Assignment at Lines 1152, 1166 | ~764 |
+| #2780 | 11:32 PM | 🔵 | SPIRAL Auto-Stash Already Implemented — Phase I Has Full Dirty Tree Guard | ~718 |
+| #2779 | 11:31 PM | 🔵 | SPIRAL Issue Audit — Export, Defaults, and Platform Detection Gaps Confirmed | ~601 |
 </claude-mem-context>

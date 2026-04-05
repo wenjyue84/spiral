@@ -27,3 +27,36 @@ Here is a technical brief for implementing story US-1134.
 *   **Threshold Floor:** The fallback threshold must not go below `0.60`.
 *   **One-Time Fallback:** The lowered threshold is temporary for one iteration only; it should not permanently alter the base threshold.
 *   **Disabling:** The fallback logic should be skipped if `SPIRAL_DEDUP_FALLBACK_ITERS` is set to 0.
+
+## Pre-analysis for US-1136 (Gemini 2.5 Pro)
+Based on the user story, here is a technical brief for the agent:
+
+### **To-Do: Implement Locked TSV Appending (US-1136)**
+
+This brief outlines the plan to fix a race condition where parallel workers corrupt `results.tsv`. The user story content overrides the initial prompt's mention of Frappe; this is a Python/shell script task.
+
+**1. Primary Files to Modify:**
+*   `ralph/ralph.sh`: The core worker script likely containing the `>> results.tsv` redirection that needs replacement.
+*   `lib/run_parallel_ralph.sh`: The orchestrator script that runs multiple `ralph.sh` workers; may also contain result-handling logic.
+
+**2. Key Concepts & New Files:**
+*   **New File:** Create a new shell script helper: `lib/core/locked_append_tsv.sh`.
+*   **Core Logic:** This script will use `flock` for exclusive file locking to prevent concurrent writes from interleaving.
+
+**3. Recommended Implementation Approach:**
+1.  **Create `lib/core/locked_append_tsv.sh`:**
+    *   It should accept the target file path and the data to append as arguments.
+    *   Use `flock -x <lock_file> -c "printf '%s\\n' ... >> <target_file>"` to wrap the append operation.
+    *   The lock file path should be derived from the target file (e.g., `results.tsv.lock`) and be local to the worker's environment to avoid cross-run contention.
+2.  **Refactor `ralph.sh`:**
+    *   Find all instances of `printf ... >> results.tsv` or `echo ... >> results.tsv`.
+    *   Replace them with a call to the new helper, e.g., `lib/core/locked_append_tsv.sh "$RESULTS_TSV_PATH" "$tsv_data_row"`.
+3.  **Verification:**
+    *   Create a temporary test script that launches several background workers to append lines simultaneously and verify the output TSV file has no garbled lines.
+
+**4. Edge Cases & Gotchas:**
+*   **`flock` Availability:** Ensure `flock` is available in the target execution environment (it is standard on Linux).
+*   **Lock Scope:** The lock must be worker-local (per worktree), not global. Do not use a single lock file in `/tmp`. The path to the lock should be relative to the worker's output directory.
+*   **Performance:** The lock should be held for the shortest possible duration. The `flock -c` pattern is efficient and handles this well.
+*   **Error Handling:** While `flock` automatically releases the lock on exit, ensure the calling script (`ralph.sh`) is robust to failures during the append.
+

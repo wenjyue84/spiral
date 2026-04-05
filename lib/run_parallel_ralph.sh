@@ -62,6 +62,12 @@ if [[ "${SPIRAL_MEMORY_POOL:-false}" == "true" && -f "$_POOL_HELPER" ]]; then
   _POOL_ENABLED=1
 fi
 
+# ── Source locked TSV append helper (US-1136) ──────────────────────────────────
+_LOCKED_APPEND_HELPER="$SPIRAL_HOME/lib/core/locked_append_tsv.sh"
+if [[ -f "$_LOCKED_APPEND_HELPER" ]]; then
+  source "$_LOCKED_APPEND_HELPER"
+fi
+
 WORKER_DIR="$SCRATCH_DIR/workers"
 WORKTREE_BASE="$REPO_ROOT/.spiral-workers"
 # Note: HEARTBEAT_DIR is set per-worker in _launch_worker_i() to $WORKTREE_BASE/worker-${i}
@@ -1505,9 +1511,9 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           for _sid in $_PENDING_IDS; do
             _title=$("$JQ" -r ".userStories[] | select(.id == \"$_sid\") | .title" \
               "$WTREE/prd.json" 2>/dev/null | tr '\t\n' '  ' | tr -d '\r' || echo "unknown")
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-              "$_TIMEOUT_TS" "-" "-" "$_sid" "$_title" "timeout" "-" "-" "-" "-" \
-              >>"$WTREE/results.tsv" 2>/dev/null || true
+            _timeout_row=$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' \
+              "$_TIMEOUT_TS" "-" "-" "$_sid" "$_title" "timeout" "-" "-" "-" "-")
+            locked_append_tsv "$WTREE/results.tsv" "$_timeout_row" 2>/dev/null || true
           done
           # Timed-out stories remain passes=false in main prd.json — merge_worker_results.py
           # only promotes passes=true entries, so no retry_count increment occurs.
