@@ -7364,7 +7364,8 @@
         "spiral-ui"
       ],
       "model": "haiku",
-      "_passedCommit": "7db61adf20a1179a551c58ae7f4bae042137f06e"
+      "_passedCommit": "7db61adf20a1179a551c58ae7f4bae042137f06e",
+      "_scopeCreep": true
     },
     {
       "id": "US-1112",
@@ -7380,7 +7381,7 @@
         "analyticsApi.ts exposes a costTrend array: [{iter, cumulativeCost, cumulativePassed}]",
         "Chart is hidden when fewer than 2 iterations of data exist"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [
         "US-1111"
       ],
@@ -7395,7 +7396,8 @@
         "spiral-ui",
         "charts"
       ],
-      "model": "sonnet"
+      "model": "sonnet",
+      "_passedCommit": "7db61adf20a1179a551c58ae7f4bae042137f06e"
     },
     {
       "id": "US-1113",
