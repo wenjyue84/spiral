@@ -46,7 +46,8 @@
         "module-claude",
         "module-hypothesis"
       ],
-      "_validation_confidence": 100
+      "_validation_confidence": 100,
+      "_decomposedInto": []
     },
     {
       "id": "US-529",
