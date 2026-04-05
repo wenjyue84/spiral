@@ -82,8 +82,8 @@ Phase E: ENRICHMENT   → Populate hints & context on validated stories
 Phase M: MERGE        → Patch prd.json (capped by SPIRAL_MAX_PENDING)
 Phase X: CONTEXT BUILD→ Dependency inference
 Phase G: GATE         → Human checkpoint (default: auto-proceed; --gate interactive for manual)
-Phase I: IMPLEMENT    → Decompose → Ralph workers → Retry (haiku→sonnet→opus) → Commit/Revert
-Phase V: VALIDATE     → Run SPIRAL_VALIDATE_CMD (pytest) + optional screenshots
+Phase I: IMPLEMENT    → Decompose → Ralph workers → Failure-aware retry → Commit/Revert
+Phase V: VALIDATE     → Per-story verification contracts or SPIRAL_VALIDATE_CMD (pytest)
 Phase C: CHECK DONE   → All pass? Exit. Else continue.
 Phase L: LEARNING     → Episodic memory extraction (optional, SPIRAL_EPISODIC_MEMORY)
 → Loop back to Phase A
@@ -119,6 +119,14 @@ Each worker gets an isolated git worktree, a PRD slice (`lib/slice_prd.py`), and
 ### Model Routing
 
 `SPIRAL_MODEL_ROUTING=auto` starts with haiku, escalates to sonnet on retry 1, opus on retry 2, skip on retry 3. Optional multi-tool routing (`--tool auto`) tries Qwen/Codex before Claude.
+
+**Failure-aware retry** (`lib/impl/retry.sh`): Instead of always escalating, `select_retry_strategy()` maps failure type to action — syntax/type/import errors retry same model with error as hint, context overflow triggers scope reduction, timeout extends then decomposes, OOM skips immediately.
+
+**Historical routing** (`SPIRAL_HISTORY_ROUTING=true`): Queries results.tsv pass rates per complexity band to pick the cheapest model tier with >= 60% success rate. Falls back to classify_model() with < 3 matching stories.
+
+### Per-Story Verification
+
+Stories can declare a `verification` field in prd.json with `testFiles`, `testMarker`, or `command`. Phase V uses these directly instead of the filesTouch heuristic. Stories without verification fall through to existing behavior.
 
 ## Configuration
 
