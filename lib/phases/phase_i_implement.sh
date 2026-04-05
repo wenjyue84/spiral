@@ -203,6 +203,29 @@ run_phase_gate_and_implement() {
           fi
         fi
 
+        # ── Auto-clean orphaned deps before DAG validation ───────────────
+        # New stories from Phase M may reference archived/removed stories.
+        # Strip orphaned deps in-place so DAG validator never fires purely
+        # due to stale references (avoids trap crash on Windows bash).
+        _ORPHAN_SCRIPT="$SCRATCH_DIR/_strip_orphan_deps.py"
+        printf '%s\n' \
+          'import json,sys' \
+          'path=sys.argv[1]' \
+          'prd=json.load(open(path,encoding="utf-8"))' \
+          'valid={s["id"] for s in prd["userStories"]}' \
+          'fixed=0' \
+          'for s in prd["userStories"]:' \
+          '    old=s.get("dependencies",[])' \
+          '    new=[d for d in old if d in valid]' \
+          '    if len(new)!=len(old):s["dependencies"]=new;fixed+=1' \
+          'fixed and json.dump(prd,open(path,"w",encoding="utf-8"),indent=2,ensure_ascii=False)' \
+          'print(fixed)' \
+          > "$_ORPHAN_SCRIPT" 2>/dev/null
+        _ORPHAN_FIXED=$("$SPIRAL_PYTHON" "$_ORPHAN_SCRIPT" "$PRD_FILE" 2>/dev/null || echo "0")
+        if [[ "${_ORPHAN_FIXED:-0}" -gt 0 ]]; then
+          echo "  [Phase I] Auto-cleaned $_ORPHAN_FIXED story dep(s) referencing archived/missing stories"
+        fi
+
         # ── US-1089: DAG validation (cycles, orphans, deadlock ratio) ──────
         DAG_SKIP_IMPL=0
         DAG_VALIDATOR_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/dag_validator.py" "$PRD_FILE" 2>&1)
