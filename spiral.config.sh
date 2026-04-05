@@ -57,6 +57,12 @@ SPIRAL_ESCALATION_RETRY_OPUS="${SPIRAL_ESCALATION_RETRY_OPUS:-1}"
 # Default 2 splits too early for complex stories. 3 = give opus a full attempt first.
 SPIRAL_DECOMPOSE_THRESHOLD="${SPIRAL_DECOMPOSE_THRESHOLD:-3}"
 
+# ── Plan file limit (Phase I: Pre-implementation plan gate — US-1153) ──────────
+# Maximum number of files (files_to_create + files_to_modify) in a story's plan.
+# Plans exceeding this limit are rejected and auto-decomposed before coding.
+# Default 8: prevents scope overrun before coding tokens are spent.
+SPIRAL_PLAN_FILE_LIMIT="${SPIRAL_PLAN_FILE_LIMIT:-8}"
+
 # ── Context budget tokens (pre-flight overflow check) ───────────────────────
 # Increase from 150k default to give complex stories more room before trimming.
 export SPIRAL_CONTEXT_BUDGET_TOKENS="${SPIRAL_CONTEXT_BUDGET_TOKENS:-180000}"
