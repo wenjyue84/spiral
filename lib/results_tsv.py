@@ -52,6 +52,7 @@ class ResultsRecord:
     phase_timing: str = ""  # US-1086: JSON dict of phase durations (e.g. '{"R": 1.5, "M": 0.8}')
     failure_type: str = ""  # US-1090: failure category from failure_categorizer (e.g. 'timeout', 'oom')
     failure_message: str = ""  # US-1090: extracted error message for debugging
+    estimated_complexity: str = ""  # Story complexity from prd.json (small/medium/large)
 
 
 def _keep_quota_fields_in_sync() -> None:
@@ -108,6 +109,7 @@ HEADER = [
     "phase_timing",
     "failure_type",
     "failure_message",
+    "estimated_complexity",
 ]
 
 

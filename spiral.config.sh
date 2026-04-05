@@ -38,6 +38,12 @@ export SPIRAL_TEST_BASELINE_CMD='echo 2900'
 # auto = cheapest model that can handle the story; escalates on retry
 SPIRAL_MODEL_ROUTING="auto"
 
+# ── Historical model routing (opt-in) ──────────────────────────────────────
+# When true, resolve_model() queries results.tsv for similar past stories and picks
+# the cheapest model tier with >= 60% pass rate. Falls back to classify_model() when
+# insufficient history (< 3 matching stories). Requires estimated_complexity in results.tsv.
+SPIRAL_HISTORY_ROUTING="${SPIRAL_HISTORY_ROUTING:-false}"
+
 # Context-window safety margin: upgrade model if prompt exceeds this fraction of the limit (US-295)
 # Default 0.85 = upgrade when prompt > 85% of the 200k context window (~170k tokens)
 SPIRAL_CONTEXT_WINDOW_MARGIN="${SPIRAL_CONTEXT_WINDOW_MARGIN:-0.85}"

@@ -2,11 +2,17 @@
 
 US-642: Predict story complexity by analyzing semantic similarity to past stories
 and deriving a complexity score (1-10) from retry patterns and token usage.
+
+Also provides recommend_model_from_history() for historical model routing:
+query results.tsv pass rates per model tier and recommend the cheapest model
+with sufficient pass rate for similar stories.
 """
 
 from __future__ import annotations
 
+import argparse
 import csv
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -240,3 +246,119 @@ def predict_story_complexity(
         "label": label,
         "similar": similar,
     }
+
+
+# ── Historical model routing ────────────────────────────────────────
+
+# Model tiers ordered cheapest to most expensive
+_MODEL_TIERS = ["haiku", "sonnet", "opus"]
+
+
+def _normalize_model_tier(model: str) -> str:
+    """Normalize a model string to its tier name (haiku/sonnet/opus)."""
+    model_lower = model.lower()
+    for tier in _MODEL_TIERS:
+        if tier in model_lower:
+            return tier
+    return ""
+
+
+def recommend_model_from_history(
+    estimated_complexity: str,
+    results_tsv_path: Path = Path("results.tsv"),
+    pass_rate_threshold: float = 0.60,
+    min_sample_size: int = 3,
+) -> str | None:
+    """Recommend the cheapest model tier with sufficient pass rate for a complexity band.
+
+    Queries results.tsv for stories with matching estimated_complexity,
+    groups by model tier, and returns the cheapest tier where
+    pass_rate >= threshold. Returns None if insufficient data.
+
+    Args:
+        estimated_complexity: Complexity band to match (small/medium/large)
+        results_tsv_path: Path to results.tsv
+        pass_rate_threshold: Minimum pass rate to consider a model viable (0.0-1.0)
+        min_sample_size: Minimum number of matching stories required
+
+    Returns:
+        Model tier string ('haiku', 'sonnet', 'opus') or None if insufficient data
+    """
+    if not results_tsv_path.exists():
+        return None
+
+    # Load results with model and status, filtered by complexity
+    tier_stats: dict[str, dict[str, int]] = {}  # tier -> {pass: N, total: N}
+
+    try:
+        with open(results_tsv_path, encoding="utf-8", errors="replace") as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            for row in reader:
+                if not row:
+                    continue
+
+                # Filter by complexity band
+                row_complexity = row.get("estimated_complexity", "")
+                if row_complexity != estimated_complexity:
+                    continue
+
+                # Only count terminal statuses
+                status = row.get("status", "")
+                if status not in ("pass", "reject", "keep"):
+                    continue
+
+                # Normalize model to tier
+                model = row.get("model", "")
+                tier = _normalize_model_tier(model)
+                if not tier:
+                    continue
+
+                if tier not in tier_stats:
+                    tier_stats[tier] = {"pass": 0, "total": 0}
+                tier_stats[tier]["total"] += 1
+                if status == "pass":
+                    tier_stats[tier]["pass"] += 1
+
+    except (OSError, csv.Error):
+        return None
+
+    # Check if we have enough total samples
+    total_samples = sum(s["total"] for s in tier_stats.values())
+    if total_samples < min_sample_size:
+        return None
+
+    # Find cheapest tier with pass_rate >= threshold
+    for tier in _MODEL_TIERS:
+        stats = tier_stats.get(tier)
+        if not stats or stats["total"] == 0:
+            continue
+        pass_rate = stats["pass"] / stats["total"]
+        if pass_rate >= pass_rate_threshold:
+            return tier
+
+    return None
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Complexity scorer and model recommender")
+    parser.add_argument("--recommend", action="store_true", help="Recommend model from history")
+    parser.add_argument("--story-id", default="", help="Story ID")
+    parser.add_argument("--complexity", default="medium", help="Estimated complexity (small/medium/large)")
+    parser.add_argument("--results-tsv", default="results.tsv", help="Path to results.tsv")
+    parser.add_argument("--threshold", type=float, default=0.60, help="Pass rate threshold")
+    parser.add_argument("--min-samples", type=int, default=3, help="Minimum sample size")
+
+    args = parser.parse_args()
+
+    if args.recommend:
+        result = recommend_model_from_history(
+            estimated_complexity=args.complexity,
+            results_tsv_path=Path(args.results_tsv),
+            pass_rate_threshold=args.threshold,
+            min_sample_size=args.min_samples,
+        )
+        if result:
+            print(result)
+            sys.exit(0)
+        else:
+            sys.exit(1)  # No recommendation available
