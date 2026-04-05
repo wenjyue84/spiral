@@ -7412,7 +7412,7 @@
         "Stories with only 1 attempt show a message indicating single attempt",
         "analyticsApi.ts exposes per-attempt detail under storyAttempts keyed by story_id"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [
         "US-1110"
       ],
@@ -7427,7 +7427,8 @@
         "ui",
         "spiral-ui"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_passedCommit": "7db61adf20a1179a551c58ae7f4bae042137f06e"
     },
     {
       "id": "US-1114",
