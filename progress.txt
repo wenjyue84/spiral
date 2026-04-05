@@ -316,3 +316,61 @@ This brief outlines the implementation plan for enriching the Ralph agent's prom
 *   **Git Failures:** The `git log` command may find no matching commit. The code must handle this gracefully by returning an empty result for that story.
 *   **No Prior Examples:** If no passed stories exist, the `<reference_implementations>` section should be omitted from the prompt entirely.
 *   **Security:** Use `subprocess.run` with a list of arguments (e.g., `['git', 'log', ...]`) rather than a formatted string with `shell=True` to prevent injection risks.
+
+## Pre-analysis for US-1153 (Gemini 2.5 Pro)
+### Technical Brief: US-1153 - Pre-Implementation Plan Gate
+
+This story concerns the SPIRAL agent's core workflow, not a Frappe application. The implementation is centered on shell scripts and Python tests.
+
+**1. Python/Shell Files to Modify:**
+*   `ralph/CLAUDE.md`: Update the core prompt to instruct the agent to output a `<plan>` JSON block before code.
+*   `lib/impl/decompose.sh`: This is the main implementation file. A new `validate_plan` shell function will be added here.
+*   `spiral.config.sh`: Add the `SPIRAL_PLAN_FILE_LIMIT` environment variable.
+*   `tests/test_phase_i_decompose.py`: Create this new file to test the plan validation and decomposition logic.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This user story does not involve the Frappe framework.
+
+**3. Implementation Approach:**
+1.  In `spiral.config.sh`, define and export `SPIRAL_PLAN_FILE_LIMIT=8`.
+2.  In `lib/impl/decompose.sh`, create a `validate_plan` function that uses `jq` to parse the plan JSON. It should sum the number of files in `.files_to_create` and `.files_to_modify`.
+3.  The function will compare the count to `$SPIRAL_PLAN_FILE_LIMIT`. It should `echo "REJECT"` if the limit is exceeded, otherwise `echo "OK"`.
+4.  The main script orchestrating the agent must be modified to extract the `<plan>` block, call `validate_plan`, and trigger existing decomposition logic upon receiving a "REJECT" status.
+5.  In `tests/test_phase_i_decompose.py`, add tests mocking oversized and compliant plans to verify the rejection and approval paths.
+
+**4. Edge Cases & Gotchas:**
+*   The script must reliably extract the JSON block from the agent's output, even with surrounding text.
+*   JSON parsing in shell is error-prone. The implementation **must** use a robust tool like `jq`.
+*   Ensure the existing decomposition logic is correctly invoked on rejection without attempting to execute the coding step.
+
+
+## Pre-analysis for US-1153 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-1153: Pre-Implementation Plan Gate**
+
+This user story introduces a plan validation gate into the SPIRAL development loop. It is **not** related to Frappe or the `lhdn_payroll_integration` app; it concerns the internal tooling of the SPIRAL agent itself.
+
+**1. Python/Shell Files to Modify:**
+
+*   `ralph/CLAUDE.md`: Update the core prompt to instruct the agent ("Ralph") to emit a `<plan>` JSON object before generating code.
+*   `lib/impl/decompose.sh`: The primary logic will be here. A new shell function, `validate_plan`, needs to be created.
+*   `spiral.config.sh`: Add the new environment variable `SPIRAL_PLAN_FILE_LIMIT=8`.
+*   `tests/test_phase_i_decompose.py`: Add new `pytest` tests to validate the plan rejection and approval scenarios.
+*   `spiral.sh` (Likely): The main execution script will need to be modified to call `validate_plan` after the planning phase and before the coding phase.
+
+**2. Frappe DocTypes / Hooks:**
+
+*   None. This story is unrelated to the Frappe framework.
+
+**3. Implementation Approach:**
+
+1.  Modify `ralph/CLAUDE.md` to ensure the `<plan>` block is the first output.
+2.  In `lib/impl/decompose.sh`, implement `validate_plan` to parse the input JSON (using `jq` is recommended), count the files in `files_to_create` and `files_to_modify`, and compare the total against `$SPIRAL_PLAN_FILE_LIMIT`.
+3.  Integrate this validation step into the main orchestrator script (e.g., `spiral.sh`). If validation fails, it should trigger the existing story decomposition logic.
+4.  Add unit tests in `tests/test_phase_i_decompose.py` to cover both plan rejection and acceptance cases.
+
+**4. Edge Cases & Gotchas:**
+
+*   Ensure the `validate_plan` function is robust against malformed JSON from the AI.
+*   The logic must correctly find and call the existing "auto-decompose" function upon plan rejection.
+*   The drift check (comparing plan files vs. `filesTouch` heuristic) should be implemented within the `validate_plan` function to emit the specified warning.
+

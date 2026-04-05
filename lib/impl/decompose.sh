@@ -124,3 +124,74 @@ decompose_story() {
     --model "$model" \
     --progress "$progress_file"
 }
+
+# validate_plan <plan_json> <story_id> [files_to_touch]
+# US-1153: Validates a plan block emitted by Ralph before code is written.
+# Returns 0 if plan is within scope limits, 1 if oversized and should be decomposed.
+# On oversizing, triggers auto-decomposition immediately.
+#
+# Inputs:
+#   plan_json       — JSON string: {files_to_create, files_to_modify, functions_to_add, estimated_loc}
+#   story_id        — Story ID for decomposition
+#   files_to_touch  — Space-separated list of expected files (optional, for drift detection)
+#
+# Environment:
+#   SPIRAL_PLAN_FILE_LIMIT  — max file count (default 8)
+#   Other: PRD_FILE, SPIRAL_HOME, SPIRAL_PYTHON (from parent)
+#
+# Example:
+#   plan='{"files_to_create":["a.py"],"files_to_modify":["b.py"],"functions_to_add":["f"],"estimated_loc":50}'
+#   validate_plan "$plan" "US-123" "a.py b.py"
+validate_plan() {
+  local plan_json="$1"
+  local story_id="$2"
+  local files_to_touch="${3:-}"
+
+  local plan_limit="${SPIRAL_PLAN_FILE_LIMIT:-8}"
+  local spiral_home="${SPIRAL_HOME:-.}"
+  local jq="$spiral_home/ralph/jq"
+
+  # Fallback to jq if ralph/jq doesn't exist
+  if [[ ! -f "$jq" ]]; then
+    jq="jq"
+  fi
+
+  # Parse plan
+  local files_to_create
+  local files_to_modify
+  files_to_create=$(echo "$plan_json" | "$jq" -r '.files_to_create | length // 0' 2>/dev/null || echo "0")
+  files_to_modify=$(echo "$plan_json" | "$jq" -r '.files_to_modify | length // 0' 2>/dev/null || echo "0")
+
+  if [[ ! "$files_to_create" =~ ^[0-9]+$ ]] || [[ ! "$files_to_modify" =~ ^[0-9]+$ ]]; then
+    echo "[Phase I / plan-gate] ERROR: invalid plan JSON" >&2
+    return 1
+  fi
+
+  local total_files=$((files_to_create + files_to_modify))
+
+  # Check against limit
+  if (( total_files > plan_limit )); then
+    echo "[Phase I / plan-gate] PLAN_REJECTED: $story_id touches $total_files files (limit: $plan_limit)" >&2
+    echo "[Phase I / plan-gate] Triggering auto-decomposition..."
+    decompose_story "$story_id" "sonnet"
+    return 1
+  fi
+
+  # Plan drift detection: check if plan touches files not in filesTouch
+  if [[ -n "$files_to_touch" ]]; then
+    local plan_files
+    plan_files=$(echo "$plan_json" | "$jq" -r '(.files_to_create // []) + (.files_to_modify // []) | .[]' 2>/dev/null)
+
+    while read -r plan_file; do
+      [[ -z "$plan_file" ]] && continue
+
+      # Check if this file is in the filesTouch list
+      if ! echo "$files_to_touch" | grep -qw "$plan_file"; then
+        echo "[Phase I / plan-gate] plan_drift: $plan_file not in filesTouch; proceeding with warning" >&2
+      fi
+    done <<< "$plan_files"
+  fi
+
+  echo "[Phase I / plan-gate] Plan accepted: $total_files files (limit: $plan_limit)"
+  return 0
+}

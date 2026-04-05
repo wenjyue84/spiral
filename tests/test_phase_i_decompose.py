@@ -226,3 +226,93 @@ def test_decompose_children_state(decompose_setup: Path) -> None:
         assert story["estimatedComplexity"] == "small", (
             f"{sid}: estimatedComplexity should be 'small', got {story['estimatedComplexity']!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Plan Gate Tests (US-1153)
+# ---------------------------------------------------------------------------
+
+
+def test_plan_gate_triggers_decompose() -> None:
+    """Verify that a plan exceeding SPIRAL_PLAN_FILE_LIMIT triggers decomposition.
+
+    When validate_plan() receives a plan with 10 files total and
+    SPIRAL_PLAN_FILE_LIMIT=8, it should reject the plan.
+    """
+    import subprocess
+
+    # Oversized plan: 10 files total (exceeds limit of 8)
+    # Using a simpler inline approach with heredoc
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            r"""
+            . lib/impl/decompose.sh
+
+            # Inline plan JSON with 10 files
+            plan_json='{"files_to_create":["new1.py","new2.py"],"files_to_modify":["lib/a.py","lib/b.py","lib/c.py","lib/d.py","lib/e.py","lib/f.py","lib/g.py","lib/h.py"],"functions_to_add":["validate_plan","decompose"],"estimated_loc":150}'
+
+            export SPIRAL_PLAN_FILE_LIMIT=8
+            export SPIRAL_HOME=.
+            validate_plan "$plan_json" 'US-999'
+            """,
+        ],
+        capture_output=True,
+        text=True,
+        cwd=Path.cwd(),
+    )
+
+    # Plan should be rejected (non-zero exit code)
+    assert result.returncode == 1, (
+        f"Expected non-zero exit code for oversized plan, got {result.returncode}. "
+        f"stdout: {result.stdout}\nstderr: {result.stderr}"
+    )
+
+    # Check that rejection message is in output
+    combined_output = (result.stdout + result.stderr).lower()
+    assert "plan_rejected" in combined_output or "touch" in combined_output, (
+        f"Expected plan rejection message, got:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )
+
+
+def test_plan_within_limit_proceeds() -> None:
+    """Verify that a plan within SPIRAL_PLAN_FILE_LIMIT passes validation.
+
+    When validate_plan() receives a plan with 5 total files and SPIRAL_PLAN_FILE_LIMIT=8,
+    it should accept the plan and return 0.
+    """
+    import subprocess
+
+    # Compliant plan: 5 files total (within limit of 8)
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            r"""
+            . lib/impl/decompose.sh
+
+            # Inline plan JSON with 5 files
+            plan_json='{"files_to_create":["new1.py","new2.py"],"files_to_modify":["lib/a.py","lib/b.py","lib/c.py"],"functions_to_add":["validate_plan"],"estimated_loc":80}'
+
+            export SPIRAL_PLAN_FILE_LIMIT=8
+            export SPIRAL_HOME=.
+            validate_plan "$plan_json" 'US-888'
+            """,
+        ],
+        capture_output=True,
+        text=True,
+        cwd=Path.cwd(),
+    )
+
+    # Plan should be accepted (zero exit code)
+    assert result.returncode == 0, (
+        f"Expected zero exit code for compliant plan, got {result.returncode}. "
+        f"stdout: {result.stdout}\nstderr: {result.stderr}"
+    )
+
+    # Check that acceptance message is in output
+    combined_output = (result.stdout + result.stderr).lower()
+    assert "accepted" in combined_output, (
+        f"Expected plan acceptance message, got:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )

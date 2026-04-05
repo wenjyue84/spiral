@@ -86,6 +86,42 @@ Every input you receive has a trust level:
 18. **Port allocation**: Port 5299 = Vite React dashboard (spiral-ui/). Port 5300 = Python SSE server (spiral_live_server.py). NEVER start spiral_live_server.py on port 5299 — it shadows the full React dashboard and breaks the UI. If you need to launch the server, omit `--port` to use the default (5300).
 19. **Reference implementations**: If the story JSON contains a `_reference_implementations` array (injected by Phase E), each entry shows a semantically similar story that already passed, with fields `id`, `title`, `score` (0–1 similarity), and `diff_summary` (truncated git diff showing implementation style). Use these as concrete examples of how similar problems were solved in this codebase. Reference implementations help you follow established patterns and avoid introducing new anti-patterns. If the array is empty or absent, no similar passed stories were found (e.g., first story in a new area of the codebase).
 
+## Plan Gate (Required Before Any Code)
+
+**BEFORE writing ANY code**, you MUST emit a `<plan>` JSON block. SPIRAL will validate the plan's scope and reject it if it touches too many files. Rejected plans trigger automatic story decomposition — **no coding tokens are spent**.
+
+### Plan Block Format
+
+Emit a JSON block in this format **immediately after the diagnosis block**:
+
+```
+<plan>
+{
+  "files_to_create": ["path/to/new_file.py", "another/file.js"],
+  "files_to_modify": ["existing/file.py", "config.sh"],
+  "functions_to_add": ["validate_plan", "decompose_story"],
+  "estimated_loc": 150
+}
+</plan>
+```
+
+**Fields:**
+- `files_to_create`: Array of new files you will create (not yet in repo)
+- `files_to_modify`: Array of existing files you will edit
+- `functions_to_add`: Array of new top-level functions/classes you will introduce
+- `estimated_loc`: Total lines of code (new + modified) you expect to add
+
+**SPIRAL will:**
+1. Count total files: `len(files_to_create) + len(files_to_modify)`
+2. Reject the plan if total > `SPIRAL_PLAN_FILE_LIMIT` (default 8)
+3. If rejected: decompose the story into smaller sub-stories and retry
+4. If accepted: proceed with your implementation as planned
+
+**Key Rules:**
+- Do NOT include files in `filesTouch` if you're not touching them
+- List only files you will actually read/write
+- If the plan is rejected, do NOT write any code — exit cleanly
+
 ## Diagnosis Block (Required Before File Edits)
 
 Before making ANY file edits (Edit, Write, or Bash commands that modify files), you MUST output a diagnosis block with these exact section headers:
