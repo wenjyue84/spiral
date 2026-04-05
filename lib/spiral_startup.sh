@@ -281,34 +281,8 @@ export DRY_RUN
 export ALLOW_UNSAFE_STORIES
 export SPIRAL_ALLOW_EXEC_WRITES="${ALLOW_EXEC_WRITES}"
 
-<<<<<<< Updated upstream
-if load_checkpoint; then
-  echo "  [checkpoint] Resuming from iter=$CKPT_ITER phase=$CKPT_PHASE"
-  SPIRAL_ITER=$((CKPT_ITER - 1)) # loop will increment to CKPT_ITER on first pass
-  # Restore run_id from checkpoint so all events share the same correlation ID
-  if [[ -n "$CKPT_RUN_ID" ]]; then
-    SPIRAL_RUN_ID="$CKPT_RUN_ID"
-    export SPIRAL_RUN_ID
-  fi
-
-  # ── Warn if checkpoint is older than 24 hours ────────────────────────────
-  CKPT_AGE=$(($(date +%s) - ${CKPT_TS%.*}))
-  if [[ "$CKPT_AGE" -gt 86400 ]]; then
-    CKPT_AGE_HOURS=$((CKPT_AGE / 3600))
-    echo "  [spiral] WARNING: Resuming from checkpoint written ${CKPT_AGE_HOURS}h ago. Pass --reset to start fresh." >&2
-  fi
-
-  # ── Warn if SPIRAL version changed since checkpoint was written ───────────
-  if [[ -n "$CKPT_SPIRAL_VERSION" && "$CKPT_SPIRAL_VERSION" != "${SPIRAL_VERSION:-unknown}" ]]; then
-    echo "  [checkpoint] WARNING: checkpoint written by SPIRAL $CKPT_SPIRAL_VERSION, current is ${SPIRAL_VERSION:-unknown}" >&2
-  fi
-
-  echo ""
-fi
-=======
 # AC2 (US-1106): load_checkpoint() validates JSON and falls back to iter 1 on malformed data
 load_checkpoint || true
->>>>>>> Stashed changes
 
 # ── Auto-generate progress.txt skeleton on first run ─────────────────────────
 if [[ ! -f "$REPO_ROOT/progress.txt" ]]; then

@@ -1870,3 +1870,4 @@ Based on the user story, the request appears to concern a Bash script for proces
 *   **Zombie Processes:** Ensure the parent script correctly terminates all child workers upon exit to avoid leaving zombie processes.
 *   **Stale Pipes:** The cleanup trap is critical to remove named pipes; otherwise, subsequent runs may fail or behave incorrectly.
 *   **Worker Crashes:** The main script should have a mechanism to detect and potentially restart a worker if it dies unexpectedly.
+

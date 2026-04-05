@@ -128,18 +128,6 @@ write_checkpoint() {
     >"$_ckpt_tmp" 2>/dev/null && mv "$_ckpt_tmp" "$CHECKPOINT_FILE" 2>/dev/null || true
 }
 
-<<<<<<< Updated upstream
-# ── load_checkpoint: validate and load checkpoint with fallback to iter 1 ────
-# Reads $CHECKPOINT_FILE, validates JSON structure, and populates CKPT_* vars.
-# Returns 0 on success, 1 if no checkpoint exists or JSON is malformed.
-# On malformed JSON, logs a warning and removes the corrupt file.
-load_checkpoint() {
-  [[ -f "$CHECKPOINT_FILE" ]] || return 1
-
-  # Validate that the file contains parseable JSON
-  if ! "$JQ" -e '.' "$CHECKPOINT_FILE" >/dev/null 2>&1; then
-    echo "  [checkpoint] WARNING: Malformed JSON in checkpoint — starting fresh from iter 1" >&2
-=======
 # ── Helper: load and validate checkpoint (AC2 of US-1106) ────────────────────
 # Reads $CHECKPOINT_FILE, validates JSON structure, and sets globals.
 # Returns 0 on success (sets CKPT_ITER, CKPT_PHASE, SPIRAL_ITER, SPIRAL_RUN_ID).
@@ -157,42 +145,20 @@ load_checkpoint() {
   # Validate JSON — reject truncated/corrupt files (simulated crash scenario)
   if ! echo "$_raw" | "$JQ" -e . >/dev/null 2>&1; then
     echo "  [checkpoint] WARNING: Malformed JSON in checkpoint — resetting to iteration 1" >&2
->>>>>>> Stashed changes
     rm -f "$CHECKPOINT_FILE"
     return 1
   fi
 
-<<<<<<< Updated upstream
-  CKPT_ITER=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE" 2>/dev/null) || CKPT_ITER=""
-  CKPT_PHASE=$("$JQ" -r '.phase // ""' "$CHECKPOINT_FILE" 2>/dev/null) || CKPT_PHASE=""
-
-  # Validate iter is a non-negative integer
-  if [[ ! "$CKPT_ITER" =~ ^[0-9]+$ ]]; then
-    echo "  [checkpoint] WARNING: Checkpoint has invalid iter ('$CKPT_ITER') — starting fresh from iter 1" >&2
-=======
   # Validate required 'iter' field is a non-negative integer
   local _ckpt_iter _ckpt_phase
   _ckpt_iter=$(echo "$_raw" | "$JQ" -r '.iter // empty' 2>/dev/null) || _ckpt_iter=""
   _ckpt_phase=$(echo "$_raw" | "$JQ" -r '.phase // empty' 2>/dev/null) || _ckpt_phase=""
   if [[ -z "$_ckpt_iter" ]] || ! [[ "$_ckpt_iter" =~ ^[0-9]+$ ]]; then
     echo "  [checkpoint] WARNING: Checkpoint missing 'iter' field — resetting to iteration 1" >&2
->>>>>>> Stashed changes
     rm -f "$CHECKPOINT_FILE"
     return 1
   fi
 
-<<<<<<< Updated upstream
-  # Validate phase is non-empty
-  if [[ -z "$CKPT_PHASE" ]]; then
-    echo "  [checkpoint] WARNING: Checkpoint has empty phase field — starting fresh from iter 1" >&2
-    rm -f "$CHECKPOINT_FILE"
-    return 1
-  fi
-
-  CKPT_RUN_ID=$("$JQ" -r '.run_id // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
-  CKPT_TS=$("$JQ" -r '.ts // 0' "$CHECKPOINT_FILE" 2>/dev/null || echo 0)
-  CKPT_SPIRAL_VERSION=$("$JQ" -r '.spiralVersion // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
-=======
   # Valid checkpoint — export globals
   CKPT_ITER="$_ckpt_iter"
   CKPT_PHASE="${_ckpt_phase:-}"
@@ -224,7 +190,6 @@ load_checkpoint() {
   fi
 
   echo ""
->>>>>>> Stashed changes
   return 0
 }
 

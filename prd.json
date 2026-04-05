@@ -7351,7 +7351,7 @@
         "Column header renamed from Kept to Passed in the model performance table",
         "iterationVelocity data in API counts status in (pass,keep) not just keep"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [],
       "filesTouch": [
         "spiral-ui/src/server/analyticsApi.ts",
@@ -7363,7 +7363,8 @@
         "bugfix",
         "spiral-ui"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_passedCommit": "7db61adf20a1179a551c58ae7f4bae042137f06e"
     },
     {
       "id": "US-1112",
