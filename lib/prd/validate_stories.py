@@ -22,12 +22,13 @@ import json
 import os
 import re
 import sys
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
-from spiral_io import atomic_write_json, configure_utf8_stdout
+from spiral_io import atomic_write_json, configure_utf8_stdout, locked_append_jsonl
 
 configure_utf8_stdout()
 
@@ -408,6 +409,109 @@ def _all_acs_vague(ac_list: list) -> bool:
     return bool(ac_list) and all(bool(_VAGUE_AC_RE.match(str(ac).strip())) for ac in ac_list)
 
 
+def score_ac_measurability(ac_list: list[str]) -> float:
+    """Score acceptance criteria for measurability (0-1).
+
+    An AC is measurable if it contains:
+    - CLI command (backticks)
+    - File path/extension (.py, .sh, etc.)
+    - Number + unit (e.g., "100ms", "5 seconds")
+    - Test keywords (assert, verify, test, check, should)
+
+    Returns ratio of measurable ACs to total count. Empty list returns 0.0.
+    """
+    if not ac_list:
+        return 0.0
+
+    measurable_count = 0
+    for ac in ac_list:
+        ac_str = str(ac).strip()
+        if not ac_str:
+            continue
+
+        # Check for CLI command (backticks)
+        if "`" in ac_str:
+            measurable_count += 1
+            continue
+
+        # Check for file extension pattern (.py, .sh, .json, etc.)
+        if re.search(r"\.\w{2,4}\b", ac_str):  # matches .py, .sh, .json, etc.
+            measurable_count += 1
+            continue
+
+        # Check for number + unit pattern (5ms, 100 seconds, etc.)
+        if re.search(r"\d+\s*(s|ms|sec|seconds|minutes|hours|mb|kb|gb|%|bytes|lines|ms)", ac_str, re.IGNORECASE):
+            measurable_count += 1
+            continue
+
+        # Check for test/assertion keywords
+        if re.search(
+            r"\b(assert|verify|test|check|should|run|pass|fail|validate|confirm|match)\b",
+            ac_str,
+            re.IGNORECASE,
+        ):
+            measurable_count += 1
+            continue
+
+    return measurable_count / len(ac_list) if ac_list else 0.0
+
+
+def _rewrite_acs_via_haiku(story: dict[str, Any], api_key: str) -> dict[str, Any] | None:
+    """Rewrite vague ACs via Haiku with temperature=0.2.
+
+    Parameters
+    ----------
+    story: dict
+        Story with acceptanceCriteria to rewrite.
+    api_key: str
+        Anthropic API key.
+
+    Returns
+    -------
+    dict or None
+        Rewritten story with _ac_rewrite_used=True, or None on failure.
+    """
+    try:
+        from anthropic import Anthropic
+    except ImportError:
+        return None
+
+    ac_list = story.get("acceptanceCriteria", [])
+    if not ac_list:
+        return None
+
+    client = Anthropic(api_key=api_key)
+    prompt = f"""Rewrite the following vague acceptance criteria to be more measurable and testable.
+Each AC should specify what can be verified, measured, or tested.
+
+Current ACs:
+{chr(10).join(f"- {ac}" for ac in ac_list)}
+
+Rewritten ACs (same number, more measurable):"""
+
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=500,
+            temperature=0.2,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        if response.content and len(response.content) > 0:
+            rewritten_text = response.content[0].text
+            # Parse rewritten ACs from response (one per line, starting with -)
+            new_acs = [line.strip("- ").strip() for line in rewritten_text.split("\n") if line.strip().startswith("-")]
+            if new_acs and len(new_acs) == len(ac_list):
+                story_copy = dict(story)
+                story_copy["acceptanceCriteria"] = new_acs
+                story_copy["_ac_rewrite_used"] = True
+                return story_copy
+    except Exception as exc:  # noqa: BLE001
+        print(f"  [S] WARNING: AC rewrite failed ({exc}) — keeping original ACs", file=sys.stderr)
+
+    return None
+
+
 def validate_stories(
     research_path: str,
     test_stories_path: str,
@@ -635,6 +739,43 @@ def validate_stories(
                 if not tech_notes:
                     _empty_tech_notes_count += 1
 
+        # 4.5. AC Measurability gate — score, rewrite, and check minimum measurability (US-1154)
+        if rejection_reason is None and not _skip_alignment:
+            _ac_threshold = float(os.environ.get("SPIRAL_AC_QUALITY_THRESHOLD", "0.5"))
+            ac_list = story.get("acceptanceCriteria", [])
+            if _ac_threshold > 0 and isinstance(ac_list, list) and ac_list:
+                ac_score = score_ac_measurability(ac_list)
+                # Try to rewrite vague ACs if score is below threshold
+                if ac_score < _ac_threshold and not story.get("_ac_rewrite_used"):
+                    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+                    if api_key:
+                        rewritten = _rewrite_acs_via_haiku(story, api_key)
+                        if rewritten:
+                            story = rewritten
+                            title = story.get("title", "").strip()
+                            ac_list = story.get("acceptanceCriteria", [])
+                            ac_score = score_ac_measurability(ac_list)
+                            print(f"  [S] AC REWRITE: {title[:60]!r} (score {ac_score:.2f})")
+
+                # Check minimum measurable ACs after potential rewrite
+                ac_list = story.get("acceptanceCriteria", [])
+                measurable_count = 0
+                for ac in ac_list:
+                    ac_str = str(ac).strip()
+                    if re.search(
+                        r"(`|\.py|\.sh|\.json|\d+\s*(s|ms|sec|seconds|minutes|hours|mb|kb|gb|%|bytes|lines)|"
+                        r"\b(assert|verify|test|check|should|run|pass|fail|validate|confirm|match)\b)",
+                        ac_str,
+                        re.IGNORECASE,
+                    ):
+                        measurable_count += 1
+
+                if measurable_count < 2:
+                    rejection_reason = (
+                        f"too_simple: only {measurable_count} measurable ACs"
+                        f" -- specify test commands, file paths, or numeric thresholds"
+                    )
+
         # 5. Floor gate — hard-reject stories too trivial for Ralph
         # test-fix and test-story sources are exempt (repair tasks may be minimal by design)
         if rejection_reason is None and not _skip_alignment:
@@ -689,9 +830,11 @@ def validate_stories(
 
     # Batch summary for empty technicalNotes (instead of per-story spam)
     if _empty_tech_notes_count > 0:
-        print(
-            f"  [S] WARNING: {_empty_tech_notes_count} stories have empty technicalNotes (Phase E enrichment will fill these)"
+        msg = (
+            f"  [S] WARNING: {_empty_tech_notes_count} stories have empty technicalNotes"
+            f" (Phase E enrichment will fill these)"
         )
+        print(msg)
 
     # Write outputs
     atomic_write_json(validated_out, {"stories": accepted})

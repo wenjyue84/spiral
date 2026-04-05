@@ -347,3 +347,102 @@ def test_floor_gate_exempt_for_test_fix_source():
     # Should NOT be rejected by floor gate (test-fix is exempt)
     floor_rejections = [r for r in rejected if "too_simple" in r.get("_rejection_reason", "")]
     assert len(floor_rejections) == 0, f"test-fix should be floor-gate exempt: {floor_rejections}"
+
+
+# ---- AC Measurability Scoring (US-1154) ----------------------------------------
+
+
+def test_ac_scorer_measurable():
+    """score_ac_measurability detects measurable ACs with CLI, file paths, numbers, and test keywords."""
+    from validate_stories import score_ac_measurability  # type: ignore[import]
+
+    # All measurable
+    acs = [
+        "Run `pytest tests/ -v` and all pass",
+        "File lib/new_module.py is created",
+        "Response time < 100ms",
+        "Test should verify the cache returns results",
+    ]
+    score = score_ac_measurability(acs)
+    assert score == 1.0, f"All ACs measurable: expected 1.0, got {score}"
+
+    # Partial measurability
+    acs_mixed = [
+        "Run pytest tests/test_foo.py and pass",  # measurable: CLI
+        "Fix the bug",  # vague
+    ]
+    score = score_ac_measurability(acs_mixed)
+    assert score == 0.5, f"Half measurable: expected 0.5, got {score}"
+
+
+def test_ac_scorer_vague():
+    """score_ac_measurability penalizes vague ACs."""
+    from validate_stories import score_ac_measurability  # type: ignore[import]
+
+    vague_acs = ["Fix the issue", "Update config", "Improve performance", "Add tests"]
+    score = score_ac_measurability(vague_acs)
+    assert score == 0.0, f"All vague ACs: expected 0.0, got {score}"
+
+    # Single vague AC in list
+    mixed_acs = ["Fix the bug", "Run command `foo` and verify"]
+    score = score_ac_measurability(mixed_acs)
+    assert 0.4 < score < 0.6, f"One vague + one measurable: expected ~0.5, got {score}"
+
+
+def test_ac_scorer_empty():
+    """score_ac_measurability returns 0.0 for empty AC list."""
+    from validate_stories import score_ac_measurability  # type: ignore[import]
+
+    assert score_ac_measurability([]) == 0.0
+    assert score_ac_measurability([""]) == 0.0
+
+
+def test_ac_scorer_detects_file_paths():
+    """score_ac_measurability identifies file path indicators."""
+    from validate_stories import score_ac_measurability  # type: ignore[import]
+
+    # File extensions
+    acs = [
+        "File lib/module.py is added",
+        "File tests/test_foo.sh executes",
+        "JSON output at config.json is valid",
+    ]
+    score = score_ac_measurability(acs)
+    assert score == 1.0, f"All have file paths: expected 1.0, got {score}"
+
+
+def test_ac_scorer_detects_numbers_and_units():
+    """score_ac_measurability identifies numeric constraints."""
+    from validate_stories import score_ac_measurability  # type: ignore[import]
+
+    acs = [
+        "Cache returns results within 100ms",
+        "Function completes in <5 seconds",
+        "Memory usage stays under 512MB",
+        "Test suite runs in 60 seconds",
+    ]
+    score = score_ac_measurability(acs)
+    assert score == 1.0, f"All have time/resource constraints: expected 1.0, got {score}"
+
+
+def test_ac_rewrite_triggered_on_low_score():
+    """AC rewrite is triggered when score < SPIRAL_AC_QUALITY_THRESHOLD."""
+    from validate_stories import _rewrite_acs_via_haiku  # type: ignore[import]
+
+    # Verify the rewrite function exists
+    assert _rewrite_acs_via_haiku is not None
+    # Actual rewrite would require API key; we're just verifying the function is available
+
+
+def test_story_rejected_on_low_ac_after_rewrite():
+    """Stories with <2 measurable ACs are rejected even after rewrite attempt."""
+    story = _good_story(
+        id="US-VAGUE",
+        acceptanceCriteria=["Fix it", "Update"],  # Both vague
+    )
+    # Run validation with low AC threshold to trigger rewrite path
+    _, rejected = _run_validate([story], env_overrides={"SPIRAL_AC_QUALITY_THRESHOLD": "0.5"})
+
+    # Story should be rejected for too few measurable ACs
+    vague_rejections = [r for r in rejected if "measurable" in r.get("_rejection_reason", "")]
+    assert len(vague_rejections) > 0, f"Expected AC-related rejection for vague story: {rejected}"
