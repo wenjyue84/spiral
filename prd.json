@@ -149,8 +149,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "haiku",
-      "last_attempted": "2026-04-05T11:21:34Z"
+      "model": "haiku"
     },
     {
       "id": "US-534",
