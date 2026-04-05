@@ -25,7 +25,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "_decomposed": true,
+      "_decomposed": false,
       "filesTouch": [
         ".claude/hooks/verify_story_acceptance.py",
         ".coverage",
@@ -46,8 +46,7 @@
         "module-claude",
         "module-hypothesis"
       ],
-      "_validation_confidence": 100,
-      "_decomposedInto": []
+      "_validation_confidence": 100
     },
     {
       "id": "US-529",

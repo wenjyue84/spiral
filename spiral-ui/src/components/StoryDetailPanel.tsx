@@ -104,6 +104,11 @@ export default function StoryDetailPanel({ story, allStories, attempts, onClose 
               {story.passes
                 ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 font-medium">✓ Complete</span>
                 : <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">○ Pending</span>}
+              {story.passes && completingModel && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-mono font-medium" title="Model used in passing attempt">
+                  {completingModel}
+                </span>
+              )}
               {story.priority && (
                 <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${PRIORITY_COLOR[story.priority] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
                   {story.priority}

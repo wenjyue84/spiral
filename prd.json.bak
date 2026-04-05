@@ -345,7 +345,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
       "model": "sonnet"
     },
@@ -739,6 +739,24 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_759 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1144",
+      "title": "[Security Test] [Security Test] Create validate_results_tsv.py data integrity validator",
+      "priority": "high",
+      "description": "Write security tests for auth/permission logic in US-769. Story description: Create lib/spiral/validate_results_tsv.py with a validate() function that checks results.tsv for data quality issues: missing story_ids, duplicate rows, out-of-range token counts, invalid phase durations, and unknown model names. The function returns a structured dict with keys 'errors', 'warnings', and 'check_counts'. Ensures no sensitive data is leaked in validation output.",
+      "acceptanceCriteria": [
+        "Security test covers access control introduced by US-769",
+        "Test verifies unauthorized access is blocked (401/403 responses)",
+        "No sensitive data (tokens, passwords) leaked in error responses"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_769 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
