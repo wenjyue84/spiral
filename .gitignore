@@ -1,8 +1,14 @@
 # SPIRAL runtime scratch (lives in project root)
 .spiral/
 
-# SPIRAL runtime telemetry log (append-only, causes merge conflicts during auto-stash)
+# SPIRAL runtime files (transient state, causes merge conflicts during auto-stash)
 spiral_events.jsonl
+spiral-run.log
+ralph-run.log
+progress.txt
+results.tsv
+retry-counts.json
+prd.json.bak
 
 # Python
 *.pyc

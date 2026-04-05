@@ -40,9 +40,9 @@ powered by a small/cheap model (haiku or sonnet), so stories must be crystal-cle
 
 Review the story JSON below and do EXACTLY ONE of the following:
 
-**ACTION A — SPLIT**: If this story touches 3 or more source files OR would take a
-senior engineer more than 15 minutes to implement cleanly, split it into exactly
-2 smaller atomic stories.
+**ACTION A — SPLIT**: If this story touches 4 or more source files, has 6 or more
+acceptance criteria, OR would take a senior engineer more than 15 minutes to
+implement cleanly, split it into exactly 2 smaller atomic stories.
 
 **ACTION B — ENRICH**: Otherwise, enrich this story:
   1. Rewrite any acceptance criteria that are not independently verifiable by a single command.
@@ -95,9 +95,9 @@ powered by a small/cheap model (haiku or sonnet), so stories must be crystal-cle
 
 Review each story JSON below and do EXACTLY ONE of the following for EACH story:
 
-**ACTION A — SPLIT**: If a story touches 3 or more source files OR would take a
-senior engineer more than 15 minutes to implement cleanly, split it into exactly
-2 smaller atomic stories.
+**ACTION A — SPLIT**: If a story touches 4 or more source files, has 6 or more
+acceptance criteria, OR would take a senior engineer more than 15 minutes to
+implement cleanly, split it into exactly 2 smaller atomic stories.
 
 **ACTION B — ENRICH**: Otherwise, enrich the story:
   1. Rewrite any acceptance criteria that are not independently verifiable by a single command.

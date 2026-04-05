@@ -421,8 +421,7 @@
         "archive",
         "maintenance"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-04-05T16:09:48Z"
+      "model": "haiku"
     },
     {
       "id": "US-1133",
@@ -567,6 +566,31 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1138",
+      "title": "Parallel workers: use millisecond-precision timestamps to prevent branch name collisions",
+      "description": "Branch names for worker worktrees are derived from TIMESTAMP=$(date +%s) which has 1-second granularity. Two Spiral runs starting within the same second produce identical branch names (e.g. spiral-worker-1-1712345600), causing git to reject the second creation and fall back to detached HEAD â€” silently losing patch tracking. Fix: replace date +%s with date +%s%3N (epoch milliseconds) everywhere TIMESTAMP is used for branch naming. Also append a short random suffix ($RANDOM) to guarantee uniqueness even on systems where date lacks %N support (Windows Git Bash). Update the branch-name regex in run_parallel_ralph.sh cleanup code to match the new format.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "TIMESTAMP variable uses millisecond precision (date +%s%3N) with $RANDOM fallback for Windows Git Bash compatibility",
+        "Worker branch names include the ms timestamp: spiral-worker-1-1712345600123-12345",
+        "Two Spiral runs launched within 500 ms of each other produce distinct branch names",
+        "Cleanup regex in run_parallel_ralph.sh matches branches with the new format",
+        "No regressions in single-worker mode"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "parallel-workers",
+        "git",
+        "worktree"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-1139",
       "title": "Parallel workers: transactional patch application with rollback on partial failure",
       "description": "Patches from completed workers are applied sequentially in run_parallel_ralph.sh (Step 7). If patch N fails (disk full, conflict, git error), patches 1..N-1 are already committed with no rollback, leaving the codebase in a broken intermediate state. Add a savepoint before patch application: (1) record current HEAD SHA, (2) apply all patches in sequence, (3) if ANY patch fails, revert to the saved SHA (git reset --hard to savepoint) and emit a structured error listing which patches succeeded and which failed. Workers whose patches were rolled back have their story status reset to pending in prd.json. Log the rollback event to spiral_events.jsonl as patch_rollback with the list of affected story IDs.",
@@ -588,6 +612,116 @@
       "tags": [
         "parallel-workers",
         "git",
+        "reliability"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1140",
+      "title": "Parallel workers: validate partition completeness and disjointness before worker launch",
+      "description": "After partition_prd.py generates per-worker story slices, run_parallel_ralph.sh calls spiral_assert_worker_disjoint to check for overlaps, but does NOT verify that every pending story appears in exactly one slice (coverage gaps). A bug in rebalancing logic or circular-dependency resolution can silently drop stories â€” they never get assigned to any worker and are missed for the entire iteration. Add a second assertion: spiral_assert_worker_coverage that computes the union of all worker story IDs and compares against the set of pending story IDs in the main prd.json. Fail fast with a clear error if any pending story is absent from all slices or appears in more than one.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "spiral_assert_worker_coverage function implemented in lib/run_parallel_ralph.sh or lib/prd/partition_prd.py",
+        "Function computes union of all worker slice IDs and diffs against pending stories in main prd.json",
+        "Emits clear error: PARTITION ERROR: stories missing from all slices: US-XXX, US-YYY and aborts",
+        "Emits clear error: PARTITION ERROR: stories duplicated across slices: US-ZZZ and aborts",
+        "Assertion runs after disjoint check and before worker processes are launched",
+        "Test: manually craft overlapping and incomplete partitions, verify assertion fires"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh",
+        "lib/prd/partition_prd.py"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "parallel-workers",
+        "partition",
+        "reliability"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1141",
+      "title": "Parallel workers: run ruff + mypy on merged diff before committing to catch semantic conflicts",
+      "description": "git merge-tree detects textual conflicts but misses semantic ones: Worker A changes a function signature in api.py while Worker B adds a call-site using the old signature in a non-overlapping line. The patch applies cleanly, but the code is broken at runtime. After all worker patches are applied (Step 7) and before the final commit, run a fast static analysis pass: (1) ruff check on changed Python files (git diff --name-only HEAD~1..HEAD filtered to *.py), (2) mypy --no-error-summary on the same files. If either tool reports errors, emit a semantic_conflict event to spiral_events.jsonl, rollback the merge, mark conflicting workers stories as pending, and log the linter output. Add SPIRAL_SEMANTIC_CHECK=true/false toggle in spiral.config.sh (default true).",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "After patch application, ruff and mypy run on Python files touched by the merge",
+        "Any ruff or mypy error triggers rollback and story status reset",
+        "spiral_events.jsonl gets a semantic_conflict event with tool, errors, and affected_stories fields",
+        "SPIRAL_SEMANTIC_CHECK in spiral.config.sh controls the check (default true)",
+        "Non-Python file changes are not checked (avoids false positives)",
+        "Check completes in < 30s for typical story diffs (enforced with timeout)"
+      ],
+      "passes": false,
+      "dependencies": [
+        "US-1139"
+      ],
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh",
+        "spiral.config.sh"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "parallel-workers",
+        "code-quality",
+        "semantic-conflict"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1142",
+      "title": "Parallel workers: replace hardcoded docker lock timeout with adaptive PID-aware backoff",
+      "description": "The docker mutex in run_parallel_ralph.sh uses a hardcoded 120-iteration wait loop (1s sleep each = 120s max). On slow systems or during heavy I/O, legitimate docker pull/build operations exceed 120s, causing a healthy worker to assume lock-holder crash and break the mutex â€” allowing two workers to run docker commands simultaneously and corrupt container state. Replace the fixed loop with: (1) exponential backoff (1s, 2s, 4s... capped at 30s), (2) detect if lock-holder PID (stored in the lock directory as a pid file) is still alive (kill -0 $pid), (3) only break the lock if the PID is dead AND the lock is older than SPIRAL_DOCKER_LOCK_TIMEOUT (default 300s). Store the PID in a file inside the lock directory on acquisition.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Docker lock acquisition writes holder PID to $LOCK_DIR/pid file",
+        "Wait loop uses exponential backoff (1, 2, 4, 8, 16, 30s) instead of fixed 1s sleep",
+        "Lock is only broken if holder PID is dead AND lock age > SPIRAL_DOCKER_LOCK_TIMEOUT (default 300)",
+        "SPIRAL_DOCKER_LOCK_TIMEOUT configurable in spiral.config.sh",
+        "If a live PID holds the lock past SPIRAL_DOCKER_LOCK_TIMEOUT, emit a warning but keep waiting",
+        "Test: simulate a stale lock with dead PID and verify cleanup after timeout"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh",
+        "spiral.config.sh"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "parallel-workers",
+        "docker",
+        "reliability"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1143",
+      "title": "Parallel workers: add timeout and respawn for idle worker pool processes",
+      "description": "Worker pool processes (pre-warming) wait indefinitely for task files to appear in .worker-pool/worker-N/task. If the main coordinator fails to write the task file (disk full, crash, permission error), the pool worker hangs forever consuming memory with no visibility. Add: (1) a configurable SPIRAL_POOL_TASK_TIMEOUT (default 120s) after which an idle pool worker logs a warning and exits cleanly, (2) when a pool worker exits due to timeout, write a pool_worker_timeout event to spiral_events.jsonl with worker_id and waited_seconds, (3) the main coordinator detects timed-out pool workers and respawns them up to SPIRAL_POOL_RESPAWN_LIMIT (default 3) times before giving up and falling back to non-pooled execution.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Pool workers exit after SPIRAL_POOL_TASK_TIMEOUT seconds of idle waiting (default 120)",
+        "On timeout exit, pool_worker_timeout event written to spiral_events.jsonl",
+        "Main coordinator detects pool worker exit and respawns up to SPIRAL_POOL_RESPAWN_LIMIT times",
+        "After exhausting respawn limit, fallback to non-pooled worker launch with a warning log",
+        "SPIRAL_POOL_TASK_TIMEOUT and SPIRAL_POOL_RESPAWN_LIMIT configurable in spiral.config.sh",
+        "No change in behavior when task files are delivered on time"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh",
+        "spiral.config.sh"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "parallel-workers",
+        "worker-pool",
         "reliability"
       ],
       "model": "haiku"

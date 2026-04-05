@@ -1904,3 +1904,70 @@ mypy --strict: No issues ✓
 ruff check: All checks passed ✓
 Diff size: 203 lines (within budget) ✓
 
+
+
+## Pre-analysis for US-1132 (Gemini 2.5 Pro)
+This brief is for a Python/Shell-based command-line tool, not a Frappe application. The "Frappe" and "lhdn_payroll_integration" references in the prompt seem incorrect based on the story JSON and file listing.
+
+**Technical Brief for US-1132**
+
+**1. Files to Modify:**
+*   `spiral.sh`: The main entry point where the iteration loop starts. This is where the primary logic will be added.
+*   `spiral.config.sh`: To add the new configuration variable.
+*   `lib/archive_prd.py`: This likely contains the core Python logic for archiving; it will be invoked by `spiral.sh`.
+*   `tests/test_auto_archive.py`: A new test file to verify the feature.
+
+**2. Involved DocTypes/Hooks:**
+*   None. This is a shell and Python application, not a Frappe app. The core data is managed in `prd.json` and `prd-archive.json`.
+
+**3. Implementation Approach:**
+*   In `spiral.config.sh`, define `SPIRAL_AUTO_ARCHIVE_THRESHOLD` with a default of `100`.
+*   In `spiral.sh`, at the start of the main processing loop (before Phase A), implement the check.
+*   Use `jq` or a small Python script to count completed stories in `prd.json` (`.[] | select(.passes == true) | length`).
+*   If the count is `>= SPIRAL_AUTO_ARCHIVE_THRESHOLD` (and threshold is not 0), echo the log message and call the archive logic (e.g., a function that wraps `uv run python lib/archive_prd.py`).
+*   Immediately after a successful archive, execute `git add prd.json prd-archive.json` and `git commit -m "chore: auto-archive <N> completed stories"`.
+
+**4. Gotchas & Edge Cases:**
+*   Ensure the feature is disabled when `SPIRAL_AUTO_ARCHIVE_THRESHOLD` is set to `0`.
+*   The `git commit` must execute before any potential `git stash` operations in the main script to prevent the archive from being reverted.
+*   The script should handle `prd.json` not existing or being empty gracefully.
+*   Tests will need to mock `prd.json`, the config variable, and shell out to `git` to verify the commit was created with the correct message.
+
+
+## Pre-analysis for US-1132 (Gemini 2.5 Pro)
+Here is a technical brief for the Claude agent.
+
+**Project:** Spiral - AI-driven Project Management CLI (Python/Shell)
+**Story:** US-1132 - Auto-archive completed stories
+
+**1. Python/Shell Files to Modify:**
+
+*   **`spiral.sh`**: This is the main entry point. The core logic will be added here to run at the start of each iteration, before other phases begin. It will read the config, count completed stories, and trigger the archive and commit process.
+*   **`spiral.config.sh`**: Add the new `SPIRAL_AUTO_ARCHIVE_THRESHOLD` configuration variable with its default value (100).
+*   **`lib/archive_done.py`**: (Or a similar existing archive script). This script likely contains the Python logic for archiving. It will be invoked by `spiral.sh`. No changes should be needed if it's already a self-contained command.
+*   **`tests/test_auto_archive.py`**: A new Python test file using `pytest` to validate the new functionality.
+
+**2. Key Frappe Entities (Project Correction):**
+
+This is a Python/Shell CLI tool, not a Frappe application. The key entities are:
+*   **`prd.json`**: The main file containing user story objects.
+*   **`prd-archive.json`**: The destination for archived stories.
+*   **`spiral.config.sh`**: A shell script for environment variables, acting as the configuration file.
+
+**3. Recommended Implementation Approach:**
+
+1.  In `spiral.sh`, create a new function `run_auto_archive()`.
+2.  Call this function early in the script's main execution flow.
+3.  Inside `run_auto_archive()`:
+    *   Read `SPIRAL_AUTO_ARCHIVE_THRESHOLD` from the config.
+    *   If the threshold is `> 0`, count completed stories in `prd.json` using `jq`: `jq 'map(select(.passes == true)) | length' prd.json`.
+    *   If the count meets the threshold, execute the existing archive command (e.g., `uv run python lib/archive_done.py`).
+    *   Immediately follow up with `git add prd.json prd-archive.json` and `git commit -m "chore: auto-archive N completed stories"`.
+
+**4. Edge Cases & Gotchas:**
+
+*   **Git State**: The auto-commit must be specific to `prd.json` and `prd-archive.json` to avoid committing unrelated work-in-progress files.
+*   **Disabled State**: Ensure the logic correctly handles `SPIRAL_AUTO_ARCHIVE_THRESHOLD=0` as a disabled state.
+*   **Atomicity**: The function should be placed before any "auto-stash" logic in `spiral.sh` to prevent the archive commit from being reverted.
+*   **Testing**: The `pytest` file will need to mock shell commands (`git`) and file system interactions (`prd.json`) to test the trigger condition and commit side-effect reliably.
+

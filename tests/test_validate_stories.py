@@ -180,3 +180,171 @@ def test_semantic_dedup_threshold_zero_disables():
     kept, rejected = _semantic_dedup_pass([candidate], existing, threshold=0.0)
     assert len(kept) == 1
     assert len(rejected) == 0
+
+
+# ---- Complexity gating: _all_acs_vague helper --------------------------------
+
+def test_all_acs_vague_detects_single_verb_phrases():
+    from validate_stories import _all_acs_vague  # type: ignore[import]
+
+    assert _all_acs_vague(["Fix the bug"]) is True
+    assert _all_acs_vague(["Update config"]) is True
+    assert _all_acs_vague(["Add tests"]) is True
+
+
+def test_all_acs_vague_passes_specific_acs():
+    from validate_stories import _all_acs_vague  # type: ignore[import]
+
+    assert _all_acs_vague(["Run pytest tests/test_validate_stories.py and all pass"]) is False
+    assert _all_acs_vague(["Add unit tests for atomic_write_json covering edge cases"]) is False
+
+
+def test_all_acs_vague_requires_all_to_be_vague():
+    from validate_stories import _all_acs_vague  # type: ignore[import]
+
+    # One specific AC makes the whole list NOT all-vague
+    assert _all_acs_vague(["Fix the bug", "Run pytest tests/ and all pass"]) is False
+
+
+def test_all_acs_vague_empty_list_is_not_vague():
+    from validate_stories import _all_acs_vague  # type: ignore[import]
+
+    assert _all_acs_vague([]) is False
+
+
+# ---- Complexity gating: ceiling & floor integration tests --------------------
+
+import json
+import os
+import tempfile
+
+
+def _write_temp_json(data: dict) -> str:
+    """Write data to a temp JSON file and return the path."""
+    fd, path = tempfile.mkstemp(suffix=".json")
+    with os.fdopen(fd, "w") as f:
+        json.dump(data, f)
+    return path
+
+
+def _run_validate(candidates, goals=None, source="research", env_overrides=None):
+    """Run validate_stories with minimal fixtures. Returns (accepted, rejected)."""
+    from validate_stories import validate_stories  # type: ignore[import]
+
+    prd = {"goals": goals or ["improve SPIRAL story quality"], "userStories": []}
+    research = {"stories": [dict(s, _source=source) for s in candidates]}
+
+    prd_path = _write_temp_json(prd)
+    research_path = _write_temp_json(research)
+    validated_out = tempfile.mktemp(suffix=".json")
+    rejected_out = tempfile.mktemp(suffix=".json")
+
+    old_env = {}
+    for k, v in (env_overrides or {}).items():
+        old_env[k] = os.environ.get(k)
+        os.environ[k] = v
+    try:
+        accepted, rejected = validate_stories(
+            research_path=research_path,
+            test_stories_path="/dev/null",
+            prd_path=prd_path,
+            validated_out=validated_out,
+            rejected_out=rejected_out,
+            min_overlap=0,  # disable goal-alignment check for focused testing
+        )
+    finally:
+        for k, old in old_env.items():
+            if old is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = old
+        for p in (prd_path, research_path, validated_out, rejected_out):
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+    return accepted, rejected
+
+
+def _good_story(**overrides):
+    base = {
+        "id": "US-999",
+        "title": "Add file-level caching to spiral_io.atomic_write_json",
+        "description": (
+            "The atomic_write_json helper currently re-opens the file on every call. "
+            "Adding an in-memory cache keyed by path will reduce redundant I/O. "
+            "This affects every phase that writes intermediate JSON blobs."
+        ),
+        "acceptanceCriteria": [
+            "Run uv run pytest tests/test_spiral_io.py -v and all pass",
+            "atomic_write_json returns cached content on second call within same process",
+        ],
+        "technicalNotes": [
+            "File to edit: lib/spiral_io.py (atomic_write_json)",
+            "Test command: uv run pytest tests/test_spiral_io.py::test_atomic_write_json -v",
+        ],
+        "filesTouch": ["lib/spiral_io.py", "tests/test_spiral_io.py"],
+        "estimatedComplexity": "small",
+        "priority": "medium",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_ceiling_gate_rejects_story_with_too_many_acs():
+    story = _good_story(
+        acceptanceCriteria=[f"AC {i}" for i in range(7)],
+    )
+    _, rejected = _run_validate([story], env_overrides={"SPIRAL_STORY_MAX_AC_COUNT": "6"})
+    assert any("too_complex" in r.get("_rejection_reason", "") for r in rejected), rejected
+
+
+def test_ceiling_gate_accepts_story_at_ac_limit():
+    story = _good_story(
+        acceptanceCriteria=[
+            "Run uv run pytest tests/ -v and all 6 pass",
+            "File is created at lib/cache.py",
+            "Cache size does not exceed 100 entries",
+            "atomic_write_json returns cached value on second call",
+            "Cache is invalidated on write",
+            "Cache key is the absolute file path",
+        ],
+    )
+    accepted, _ = _run_validate([story], env_overrides={"SPIRAL_STORY_MAX_AC_COUNT": "6"})
+    assert any(s["id"] == "US-999" for s in accepted), "Should accept story with exactly 6 ACs"
+
+
+def test_ceiling_gate_rejects_medium_story_with_no_technical_notes():
+    story = _good_story(estimatedComplexity="medium", technicalNotes=[])
+    _, rejected = _run_validate([story])
+    assert any("too_complex" in r.get("_rejection_reason", "") for r in rejected), rejected
+
+
+def test_floor_gate_rejects_story_with_too_few_acs():
+    story = _good_story(acceptanceCriteria=["It works"])
+    _, rejected = _run_validate([story], env_overrides={"SPIRAL_STORY_MIN_AC_COUNT": "2"})
+    assert any("too_simple" in r.get("_rejection_reason", "") for r in rejected), rejected
+
+
+def test_floor_gate_rejects_story_with_all_vague_acs():
+    story = _good_story(acceptanceCriteria=["Fix the issue", "Update the config"])
+    _, rejected = _run_validate([story])
+    assert any("too_simple" in r.get("_rejection_reason", "") for r in rejected), rejected
+
+
+def test_floor_gate_rejects_story_with_short_description():
+    story = _good_story(description="Fix the bug.")
+    _, rejected = _run_validate([story])
+    assert any("too_simple" in r.get("_rejection_reason", "") for r in rejected), rejected
+
+
+def test_floor_gate_exempt_for_test_fix_source():
+    """test-fix stories bypass the floor gate even if ACs are sparse."""
+    story = _good_story(acceptanceCriteria=["It works"])
+    accepted, rejected = _run_validate(
+        [story], source="test-fix", env_overrides={"SPIRAL_STORY_MIN_AC_COUNT": "2"}
+    )
+    # Should NOT be rejected by floor gate (test-fix is exempt)
+    floor_rejections = [r for r in rejected if "too_simple" in r.get("_rejection_reason", "")]
+    assert len(floor_rejections) == 0, f"test-fix should be floor-gate exempt: {floor_rejections}"

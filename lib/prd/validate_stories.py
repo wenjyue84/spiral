@@ -394,6 +394,20 @@ def _write_batch_summary(
         print(f"  [S] WARNING: could not write batch summary to {batch_out}: {exc}")
 
 
+_VAGUE_VERBS = frozenset(
+    {"fix", "update", "improve", "add", "change", "ensure", "make", "handle", "support", "implement"}
+)
+_VAGUE_AC_RE = re.compile(
+    r"^(" + "|".join(sorted(_VAGUE_VERBS)) + r")(\s+\w+){0,2}\.?$",
+    re.IGNORECASE,
+)
+
+
+def _all_acs_vague(ac_list: list) -> bool:
+    """Return True when every AC is a vague single-verb phrase with no measurable specifics."""
+    return bool(ac_list) and all(bool(_VAGUE_AC_RE.match(str(ac).strip())) for ac in ac_list)
+
+
 def validate_stories(
     research_path: str,
     test_stories_path: str,
@@ -595,14 +609,79 @@ def validate_stories(
             if complexity == "large":
                 rejection_reason = "complexity_too_large: split into small/medium stories before submitting"
 
-        # 4. AC and technicalNotes quality warnings (non-blocking — logged but do not reject)
+        # 4. Ceiling gate — hard-reject stories too complex for Ralph
         if rejection_reason is None:
             ac_list = story.get("acceptanceCriteria", [])
-            if isinstance(ac_list, list) and len(ac_list) > 4:
-                print(f"  [S] WARNING: {title[:60]!r} has {len(ac_list)} ACs (recommended <=4)")
+            files_list = story.get("filesTouch", [])
             tech_notes = story.get("technicalNotes", [])
-            if not tech_notes:
-                _empty_tech_notes_count += 1
+            _max_ac = int(os.environ.get("SPIRAL_STORY_MAX_AC_COUNT", "6"))
+            _max_files = int(os.environ.get("SPIRAL_STORY_MAX_FILES_TOUCH", "8"))
+            if isinstance(ac_list, list) and len(ac_list) > _max_ac:
+                rejection_reason = (
+                    f"too_complex: {len(ac_list)} ACs exceeds limit of {_max_ac}"
+                    " -- reduce scope or split into smaller stories"
+                )
+            elif isinstance(files_list, list) and len(files_list) > _max_files:
+                rejection_reason = (
+                    f"too_complex: touches {len(files_list)} files (limit {_max_files})"
+                    " -- split into smaller stories"
+                )
+            elif story.get("estimatedComplexity") == "medium" and not tech_notes:
+                rejection_reason = (
+                    "too_complex: medium-complexity stories must include at least one"
+                    " file path in technicalNotes"
+                )
+            else:
+                if isinstance(ac_list, list) and len(ac_list) > 4:
+                    print(f"  [S] WARNING: {title[:60]!r} has {len(ac_list)} ACs (recommended <=4)")
+                if not tech_notes:
+                    _empty_tech_notes_count += 1
+
+        # 5. Floor gate — hard-reject stories too trivial for Ralph
+        # test-fix and test-story sources are exempt (repair tasks may be minimal by design)
+        if rejection_reason is None and not _skip_alignment:
+            ac_list = story.get("acceptanceCriteria", [])
+            description = story.get("description", "")
+            tech_notes = story.get("technicalNotes", [])
+            _min_ac = int(os.environ.get("SPIRAL_STORY_MIN_AC_COUNT", "2"))
+            if isinstance(ac_list, list) and len(ac_list) < _min_ac:
+                rejection_reason = (
+                    f"too_simple: only {len(ac_list)}"
+                    f" {'criterion' if len(ac_list) == 1 else 'criteria'}"
+                    " -- add measurable, independently verifiable ACs"
+                )
+            elif isinstance(ac_list, list) and ac_list and _all_acs_vague(ac_list):
+                rejection_reason = (
+                    "too_simple: all acceptance criteria use vague language"
+                    " -- specify file paths, commands, or test assertions"
+                )
+            elif len(description.split()) < 20:
+                rejection_reason = (
+                    f"too_simple: description has only {len(description.split())} words"
+                    " -- explain what, why, and which files"
+                )
+            elif not story.get("estimatedComplexity") and not tech_notes:
+                rejection_reason = (
+                    "too_simple: no estimatedComplexity and no technicalNotes"
+                    " -- add implementation details before submitting"
+                )
+
+        # 6. Quality score gate -- reject structurally weak stories
+        if rejection_reason is None and not _skip_alignment:
+            _min_score = float(os.environ.get("SPIRAL_STORY_MIN_QUALITY_SCORE", "35"))
+            if _min_score > 0:
+                try:
+                    from story_quality_scorer import score_story as _score_story  # type: ignore[import]
+
+                    _breakdown = _score_story(story)
+                    if _breakdown["total_score"] < _min_score:
+                        rejection_reason = (
+                            f"quality_score_too_low: {_breakdown['total_score']:.0f}/100"
+                            f" (min {_min_score:.0f})"
+                            f" -- {'; '.join(_breakdown['reasons'][:2])}"
+                        )
+                except ImportError:
+                    pass  # scorer unavailable; skip gate
 
         if rejection_reason:
             rejected.append({**story, "_rejection_reason": rejection_reason})

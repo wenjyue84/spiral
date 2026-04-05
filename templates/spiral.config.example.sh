@@ -128,9 +128,29 @@
 # SPIRAL_REPORTS_DIR="test-reports"
 
 # ── Story ID prefix ─────────────────────────────────────────────────────────
-# Prefix for story IDs in prd.json. Default: US
-# E.g., US-001, US-002, ...
+# Prefix for story IDs in prd.json. Only US and UT are valid schema values.
+# BE- and FE- prefixes are NOT supported and will be auto-mapped to US-.
+# E.g., US-001, US-002, UT-001 (test stories)
+# Default: US
 # SPIRAL_STORY_PREFIX="US"
+
+# ── AI suggestion quality filter (Phase A) ──────────────────────────────────
+# Minimum quality score (0-100) for AI-suggested and test stories to pass
+# through the quality filter before merging into prd.json. 0 = accept all.
+# Default: 0
+# SPIRAL_AI_SUGGEST_MIN_SCORE=0
+
+# ── Full test frequency (Phase V) ──────────────────────────────────────────
+# Run the full test suite every N iterations as a safety net, even when
+# incremental validation would otherwise be sufficient.
+# Default: 5
+# SPIRAL_FULL_TEST_EVERY_N=5
+
+# ── Auto-stash dirty working tree (Phase I) ────────────────────────────────
+# When true, Phase I stashes prd.json before launching workers and pops
+# after. Required when Phase M modifies prd.json each iteration.
+# Default: true
+# SPIRAL_AUTO_STASH=true
 
 # ── Patch directories (parallel mode) ───────────────────────────────────────
 # Space-separated directories to include in git diff patches when merging
@@ -773,3 +793,15 @@
 # Larger values show more history; smaller values focus on recent changes.
 # Default: 3
 # SPIRAL_DIFF_DEPTH="3"
+
+# ── Windows-specific settings ────────────────────────────────────────────────
+# On Windows (MSYS2/Git Bash), SPIRAL auto-detects the platform and applies
+# safe defaults. You can override any of these explicitly:
+#
+# SPIRAL_MEMORY_WATCHDOG=0            # PowerShell watchdog disabled (TTY issues)
+# SPIRAL_STORY_ENRICHMENT=false       # Phase E skipped (memory risk on Windows)
+# SPIRAL_LOW_POWER_MODE=1             # Graduated pressure enabled
+# MONITOR_TERMINALS=0                 # No worker terminal windows (no TTY)
+#
+# Recommended Windows launch command:
+#   bash spiral.sh 10 --gate proceed --no-monitor

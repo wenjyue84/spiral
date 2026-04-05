@@ -1089,12 +1089,15 @@ Story JSON: $STORY_JSON"
       apply_local_fallback_policy "local-only policy: bypassing cloud" "$_RL_TMP" && _OLLAMA_USED=1 || true
     else
       # ── US-397: Emit OTel gen_ai.content.prompt Event before API call ────────────
+      # Wrapped in fire-and-forget block — observability must never kill the story
       if [[ "${SPIRAL_OTEL_ENABLED:-false}" == "true" ]]; then
-        "$SPIRAL_PYTHON" lib/observability/otel_content_events.py emit-prompt \
-          --system-prompt "$RALPH_SYSTEM_PROMPT" \
-          --user-prompt "$RALPH_USER_PROMPT" \
-          --model "${EFFECTIVE_MODEL:-unknown}" \
-          --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
+        {
+          "${SPIRAL_PYTHON:-python3}" lib/observability/otel_content_events.py emit-prompt \
+            --system-prompt "$RALPH_SYSTEM_PROMPT" \
+            --user-prompt "$RALPH_USER_PROMPT" \
+            --model "${EFFECTIVE_MODEL:-unknown}" \
+            --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null
+        } || true
       fi
       (
         unset CLAUDECODE
@@ -1211,17 +1214,20 @@ Story JSON: $STORY_JSON"
   # ── Record OTel metrics for token usage (US-232) ──────────────────────────
   # Record gen_ai.client.token.usage and gen_ai.client.operation.duration metrics
   # Includes model as an attribute for per-model analytics
+  # Wrapped in fire-and-forget block — observability must never kill the story
   if [[ "$EFFECTIVE_TOOL" == "claude" && ("$_CALL_TOKENS_INPUT" -gt 0 || "$_CALL_TOKENS_OUTPUT" -gt 0) ]]; then
     _DURATION_MS=$(printf "%.0f" "$(echo "$_WALL_SEC * 1000" | bc 2>/dev/null || echo 0)")
     _OTEL_MODEL="${EFFECTIVE_MODEL:-unknown}"
-    "$SPIRAL_PYTHON" lib/observability/otel_metrics.py record-tokens \
-      --story-id "$NEXT_STORY" \
-      --phase I \
-      --input-tokens "$_CALL_TOKENS_INPUT" \
-      --output-tokens "$_CALL_TOKENS_OUTPUT" \
-      --duration-ms "$_DURATION_MS" \
-      --model "$_OTEL_MODEL" \
-      --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
+    {
+      "${SPIRAL_PYTHON:-python3}" lib/observability/otel_metrics.py record-tokens \
+        --story-id "$NEXT_STORY" \
+        --phase I \
+        --input-tokens "$_CALL_TOKENS_INPUT" \
+        --output-tokens "$_CALL_TOKENS_OUTPUT" \
+        --duration-ms "$_DURATION_MS" \
+        --model "$_OTEL_MODEL" \
+        --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null
+    } || true
   fi
 
   # ── US-397: Emit OTel gen_ai.content.completion Event after API call ────────────
@@ -1253,10 +1259,13 @@ COMPLETION_EXTRACTOR_EOF
       2>/dev/null || true
     )
     if [[ -n "$_COMPLETION_TEXT" ]]; then
-      "$SPIRAL_PYTHON" lib/observability/otel_content_events.py emit-completion \
-        --completion "$_COMPLETION_TEXT" \
-        --model "${EFFECTIVE_MODEL:-unknown}" \
-        --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
+      # Fire-and-forget — observability must never kill the story
+      {
+        "${SPIRAL_PYTHON:-python3}" lib/observability/otel_content_events.py emit-completion \
+          --completion "$_COMPLETION_TEXT" \
+          --model "${EFFECTIVE_MODEL:-unknown}" \
+          --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null
+      } || true
     fi
   fi
 
