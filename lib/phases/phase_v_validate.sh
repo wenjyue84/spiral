@@ -99,9 +99,74 @@ run_phase_validate() {
           ] | .[] | .id' "$PRD_FILE" 2>/dev/null
         ) || true
         if [[ ${#_NEWLY_PASSED_IDS[@]} -gt 0 ]]; then
-          # Collect filesTouch entries from newly passed stories
-          _FILES_TOUCHED=()
+          # ── Per-story verification contracts ──
+          # If a story has a `verification` field, use it directly instead of
+          # the filesTouch heuristic. Supports testFiles, testMarker, and command.
+          _VERIFICATION_PYTEST_TARGETS=()
+          _VERIFICATION_MARKERS=()
+          _VERIFICATION_COMMANDS=()
+          _STORIES_WITH_CONTRACT=()
           for _sid in "${_NEWLY_PASSED_IDS[@]}"; do
+            _HAS_VERIFICATION=$("$JQ" -r --arg id "$_sid" \
+              '.userStories[] | select(.id == $id) | .verification // empty | type' \
+              "$PRD_FILE" 2>/dev/null || echo '')
+            if [[ "$_HAS_VERIFICATION" == "object" ]]; then
+              _STORIES_WITH_CONTRACT+=("$_sid")
+              # Extract testFiles
+              while IFS= read -r _tf; do
+                [[ -n "$_tf" && -f "$REPO_ROOT/$_tf" ]] && _VERIFICATION_PYTEST_TARGETS+=("$_tf")
+              done < <("$JQ" -r --arg id "$_sid" \
+                '.userStories[] | select(.id == $id) | .verification.testFiles // [] | .[]' \
+                "$PRD_FILE" 2>/dev/null || true)
+              # Extract testMarker
+              _MARKER=$("$JQ" -r --arg id "$_sid" \
+                '.userStories[] | select(.id == $id) | .verification.testMarker // empty' \
+                "$PRD_FILE" 2>/dev/null || echo '')
+              [[ -n "$_MARKER" ]] && _VERIFICATION_MARKERS+=("$_MARKER")
+              # Extract command
+              _CMD=$("$JQ" -r --arg id "$_sid" \
+                '.userStories[] | select(.id == $id) | .verification.command // empty' \
+                "$PRD_FILE" 2>/dev/null || echo '')
+              [[ -n "$_CMD" ]] && _VERIFICATION_COMMANDS+=("$_CMD")
+            fi
+          done
+
+          # Apply verification contracts: testFiles and markers override filesTouch
+          if [[ ${#_VERIFICATION_PYTEST_TARGETS[@]} -gt 0 || ${#_VERIFICATION_MARKERS[@]} -gt 0 ]]; then
+            _INCREMENTAL_RUN=1
+            if [[ ${#_VERIFICATION_PYTEST_TARGETS[@]} -gt 0 ]]; then
+              _PYTEST_TARGETS_STR="${_VERIFICATION_PYTEST_TARGETS[*]}"
+              _EFFECTIVE_VALIDATE_CMD="${SPIRAL_VALIDATE_CMD/tests\//${_PYTEST_TARGETS_STR} }"
+            fi
+            for _m in "${_VERIFICATION_MARKERS[@]}"; do
+              _EFFECTIVE_VALIDATE_CMD="$_EFFECTIVE_VALIDATE_CMD -m $_m"
+            done
+            echo "  [V] Verification contract: files=[${_VERIFICATION_PYTEST_TARGETS[*]}] markers=[${_VERIFICATION_MARKERS[*]}]"
+            log_spiral_event "phase_v_verification_contract" \
+              "\"stories\":[$(printf '"%s",' "${_STORIES_WITH_CONTRACT[@]}" | sed 's/,$//')],\"test_files\":${#_VERIFICATION_PYTEST_TARGETS[@]},\"markers\":${#_VERIFICATION_MARKERS[@]},\"iteration\":$SPIRAL_ITER"
+          fi
+
+          # Run standalone verification commands (non-pytest)
+          for _vcmd in "${_VERIFICATION_COMMANDS[@]}"; do
+            echo "  [V] Running verification command: $_vcmd"
+            if ! eval "$_vcmd" 2>&1; then
+              echo "  [V] Verification command FAILED: $_vcmd"
+            fi
+          done
+
+          # Filter stories without contracts for filesTouch heuristic
+          _STORIES_WITHOUT_CONTRACT=()
+          for _sid in "${_NEWLY_PASSED_IDS[@]}"; do
+            local _has_contract=false
+            for _csid in "${_STORIES_WITH_CONTRACT[@]}"; do
+              [[ "$_sid" == "$_csid" ]] && _has_contract=true && break
+            done
+            [[ "$_has_contract" == "false" ]] && _STORIES_WITHOUT_CONTRACT+=("$_sid")
+          done
+
+          # Collect filesTouch entries from newly passed stories WITHOUT verification contracts
+          _FILES_TOUCHED=()
+          for _sid in "${_STORIES_WITHOUT_CONTRACT[@]}"; do
             while IFS= read -r _ft_entry; do
               [[ -n "$_ft_entry" ]] && _FILES_TOUCHED+=("$_ft_entry")
             done < <("$JQ" -r --arg id "$_sid" \

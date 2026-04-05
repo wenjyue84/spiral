@@ -216,6 +216,35 @@ def validate_prd(prd: dict) -> list[str]:
             if not isinstance(story["epicId"], str) or not story["epicId"].strip():
                 errors.append(f"{sp}/epicId — epicId must be a non-empty string")
 
+        if "verification" in story:
+            v = story["verification"]
+            if not isinstance(v, dict):
+                errors.append(f"{sp}/verification — verification must be an object")
+            else:
+                has_field = False
+                if "testFiles" in v:
+                    if not isinstance(v["testFiles"], list):
+                        errors.append(f"{sp}/verification/testFiles — must be a list")
+                    else:
+                        has_field = True
+                        for ti, tf in enumerate(v["testFiles"]):
+                            if not isinstance(tf, str):
+                                errors.append(f"{sp}/verification/testFiles/{ti} — must be a string")
+                if "testMarker" in v:
+                    if not isinstance(v["testMarker"], str):
+                        errors.append(f"{sp}/verification/testMarker — must be a string")
+                    else:
+                        has_field = True
+                if "command" in v:
+                    if not isinstance(v["command"], str):
+                        errors.append(f"{sp}/verification/command — must be a string")
+                    else:
+                        has_field = True
+                if not has_field:
+                    errors.append(
+                        f"{sp}/verification — must have at least one of testFiles, testMarker, command"
+                    )
+
     # ── Cross-story checks (only if IDs were valid) ──────────────────────────
     for i, story in enumerate(stories):
         if not isinstance(story, dict):

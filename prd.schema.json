@@ -293,6 +293,26 @@
         "_validation_confidence": {
           "type": "number",
           "description": "Confidence score from story validation (0.0-1.0)"
+        },
+        "verification": {
+          "type": "object",
+          "description": "Per-story verification contract. When present, Phase V uses this instead of the filesTouch heuristic.",
+          "properties": {
+            "testFiles": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Explicit test files to run (overrides filesTouch heuristic)"
+            },
+            "testMarker": {
+              "type": "string",
+              "description": "pytest marker for story-specific tests (e.g. 'US_1086')"
+            },
+            "command": {
+              "type": "string",
+              "description": "Arbitrary verification command (exit 0 = pass)"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
