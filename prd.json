@@ -720,7 +720,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "lib/enrich_stories.py",
         "ralph/CLAUDE.md",
