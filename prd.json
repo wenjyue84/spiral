@@ -495,7 +495,7 @@
         "Running 3 workers simultaneously for 10 stories produces a results.tsv with exactly N clean tab-separated rows (no garbled lines)",
         "Append latency overhead < 50 ms per call on Windows (verified with timing test)"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [],
       "filesTouch": [
         "lib/core/locked_append_tsv.sh",
