@@ -7323,7 +7323,7 @@
         "Column is present in both Most Recent and Most Retried sort views",
         "analyticsApi.ts exposes failure_root_cause in the retryHistory payload"
       ],
-      "passes": false,
+      "passes": true,
       "dependencies": [],
       "filesTouch": [
         "spiral-ui/src/components/AnalyticsTab.tsx",
@@ -7335,7 +7335,9 @@
         "analytics",
         "ui",
         "spiral-ui"
-      ]
+      ],
+      "model": "haiku",
+      "_passedCommit": "7db61adf20a1179a551c58ae7f4bae042137f06e"
     },
     {
       "id": "US-1111",
@@ -7360,7 +7362,8 @@
         "analytics",
         "bugfix",
         "spiral-ui"
-      ]
+      ],
+      "model": "haiku"
     },
     {
       "id": "US-1112",
@@ -7390,7 +7393,8 @@
         "ui",
         "spiral-ui",
         "charts"
-      ]
+      ],
+      "model": "sonnet"
     },
     {
       "id": "US-1113",
@@ -7419,7 +7423,8 @@
         "analytics",
         "ui",
         "spiral-ui"
-      ]
+      ],
+      "model": "haiku"
     },
     {
       "id": "US-1114",
@@ -7442,7 +7447,8 @@
         "analytics",
         "bugfix",
         "spiral-ui"
-      ]
+      ],
+      "model": "haiku"
     },
     {
       "id": "US-1115",
@@ -7473,7 +7479,8 @@
         "analytics",
         "ui",
         "spiral-ui"
-      ]
+      ],
+      "model": "haiku"
     }
   ]
 }
