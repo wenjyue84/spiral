@@ -374,3 +374,197 @@ This user story introduces a plan validation gate into the SPIRAL development lo
 *   The logic must correctly find and call the existing "auto-decompose" function upon plan rejection.
 *   The drift check (comparing plan files vs. `filesTouch` heuristic) should be implemented within the `validate_plan` function to emit the specified warning.
 
+
+## Pre-analysis for US-1154 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent.
+
+**Subject: Technical Brief for US-1154: Implement AC Completeness Scorer**
+
+This brief outlines the plan for implementing an automated story acceptance criteria (AC) scorer. The goal is to improve story quality by programmatically identifying, rewriting, and rejecting stories with vague ACs.
+
+**1. Python Files to Modify**
+*   `lib/validate_stories.py`: This is the core file. It will house the new scoring, rewriting, and rejection logic.
+*   `tests/test_validate_stories.py`: New unit tests are required to validate the scorer, the rewrite trigger, and the rejection mechanism.
+
+**2. System Components Involved**
+*   **Process Hook:** The "Phase S" CI/CD validation step, which will execute the `validate_stories.py` script against story files.
+*   **Configuration:** `spiral.config.sh` will be modified to add the quality threshold.
+*   **Data/DocType:** The input is a Story JSON object. The process may add a `_ac_rewrite_used` field to it.
+*   **Logging:** Rejection events must be logged as new entries in `spiral_events.jsonl`.
+
+**3. Implementation Approach**
+1.  **Config (`spiral.config.sh`):** Add the shell variable `SPIRAL_AC_QUALITY_THRESHOLD=0.5`.
+2.  **Scoring (`lib/validate_stories.py`):**
+    *   Implement `score_ac_measurability(ac_list)`.
+    *   Inside, use regex to check each AC string for "measurability patterns": CLI commands (in backticks), file paths (e.g., `*.py`), numeric values, or keywords like `assert`, `verify`, `test`.
+    *   The function should return the ratio of measurable ACs to the total count.
+3.  **Rewrite & Reject Logic (`lib/validate_stories.py`):**
+    *   Create a main validation function that checks if the story's score is below `SPIRAL_AC_QUALITY_THRESHOLD`.
+    *   If the score is low, call the Haiku model to rewrite vague ACs and set `story._ac_rewrite_used = True`.
+    *   After the potential rewrite, re-evaluate. If the story has fewer than 2 measurable ACs, log the failure to `spiral_events.jsonl` and cause the script to exit with a non-zero status code.
+
+**4. Edge Cases & Gotchas**
+*   **Mocking:** The Haiku API call should be mocked in `tests/test_validate_stories.py` to test the rewrite trigger logic without making real API calls.
+*   **Regex Precision:** The pattern matching for measurability should be effective but not overly complex. Start with the specific patterns mentioned in the technical notes.
+*   **Environment:** The validation script must correctly read `SPIRAL_AC_QUALITY_THRESHOLD` from the shell environment.
+*   **State:** The validation logic operates on the story *after* a rewrite is attempted. Be clear about this state progression in the code.
+
+
+## Pre-analysis for US-1154 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent.
+
+**Subject: Technical Brief for US-1154: Implement AC Completeness Scorer**
+
+This brief outlines the plan for implementing an automated story acceptance criteria (AC) scorer. The goal is to improve story quality by programmatically identifying, rewriting, and rejecting stories with vague ACs.
+
+**1. Python Files to Modify**
+*   `lib/validate_stories.py`: This is the core file. It will house the new scoring, rewriting, and rejection logic.
+*   `tests/test_validate_stories.py`: New unit tests are required to validate the scorer, the rewrite trigger, and the rejection mechanism.
+
+**2. System Components Involved**
+*   **Process Hook:** The "Phase S" CI/CD validation step, which will execute the `validate_stories.py` script against story files.
+*   **Configuration:** `spiral.config.sh` will be modified to add the quality threshold.
+*   **Data/DocType:** The input is a Story JSON object. The process may add a `_ac_rewrite_used` field to it.
+*   **Logging:** Rejection events must be logged as new entries in `spiral_events.jsonl`.
+
+**3. Implementation Approach**
+1.  **Config (`spiral.config.sh`):** Add the shell variable `SPIRAL_AC_QUALITY_THRESHOLD=0.5`.
+2.  **Scoring (`lib/validate_stories.py`):**
+    *   Implement `score_ac_measurability(ac_list)`.
+    *   Inside, use regex to check each AC string for "measurability patterns": CLI commands (in backticks), file paths (e.g., `*.py`), numeric values, or keywords like `assert`, `verify`, `test`.
+    *   The function should return the ratio of measurable ACs to the total count.
+3.  **Rewrite & Reject Logic (`lib/validate_stories.py`):**
+    *   Create a main validation function that checks if the story's score is below `SPIRAL_AC_QUALITY_THRESHOLD`.
+    *   If the score is low, call the Haiku model to rewrite vague ACs and set `story._ac_rewrite_used = True`.
+    *   After the potential rewrite, re-evaluate. If the story has fewer than 2 measurable ACs, log the failure to `spiral_events.jsonl` and cause the script to exit with a non-zero status code.
+
+**4. Edge Cases & Gotchas**
+*   **Mocking:** The Haiku API call should be mocked in `tests/test_validate_stories.py` to test the rewrite trigger logic without making real API calls.
+*   **Regex Precision:** The pattern matching for measurability should be effective but not overly complex. Start with the specific patterns mentioned in the technical notes.
+*   **Environment:** The validation script must correctly read `SPIRAL_AC_QUALITY_THRESHOLD` from the shell environment.
+*   **State:** The validation logic operates on the story *after* a rewrite is attempted. Be clear about this state progression in the code.
+
+
+## Pre-analysis for US-1154 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent.
+
+**Subject: Technical Brief for US-1154: Implement AC Completeness Scorer**
+
+This brief outlines the plan for implementing an automated story acceptance criteria (AC) scorer. The goal is to improve story quality by programmatically identifying, rewriting, and rejecting stories with vague ACs.
+
+**1. Python Files to Modify**
+*   `lib/validate_stories.py`: This is the core file. It will house the new scoring, rewriting, and rejection logic.
+*   `tests/test_validate_stories.py`: New unit tests are required to validate the scorer, the rewrite trigger, and the rejection mechanism.
+
+**2. System Components Involved**
+*   **Process Hook:** The "Phase S" CI/CD validation step, which will execute the `validate_stories.py` script against story files.
+*   **Configuration:** `spiral.config.sh` will be modified to add the quality threshold.
+*   **Data/DocType:** The input is a Story JSON object. The process may add a `_ac_rewrite_used` field to it.
+*   **Logging:** Rejection events must be logged as new entries in `spiral_events.jsonl`.
+
+**3. Implementation Approach**
+1.  **Config (`spiral.config.sh`):** Add the shell variable `SPIRAL_AC_QUALITY_THRESHOLD=0.5`.
+2.  **Scoring (`lib/validate_stories.py`):**
+    *   Implement `score_ac_measurability(ac_list)`.
+    *   Inside, use regex to check each AC string for "measurability patterns": CLI commands (in backticks), file paths (e.g., `*.py`), numeric values, or keywords like `assert`, `verify`, `test`.
+    *   The function should return the ratio of measurable ACs to the total count.
+3.  **Rewrite & Reject Logic (`lib/validate_stories.py`):**
+    *   Create a main validation function that checks if the story's score is below `SPIRAL_AC_QUALITY_THRESHOLD`.
+    *   If the score is low, call the Haiku model to rewrite vague ACs and set `story._ac_rewrite_used = True`.
+    *   After the potential rewrite, re-evaluate. If the story has fewer than 2 measurable ACs, log the failure to `spiral_events.jsonl` and cause the script to exit with a non-zero status code.
+
+**4. Edge Cases & Gotchas**
+*   **Mocking:** The Haiku API call should be mocked in `tests/test_validate_stories.py` to test the rewrite trigger logic without making real API calls.
+*   **Regex Precision:** The pattern matching for measurability should be effective but not overly complex. Start with the specific patterns mentioned in the technical notes.
+*   **Environment:** The validation script must correctly read `SPIRAL_AC_QUALITY_THRESHOLD` from the shell environment.
+*   **State:** The validation logic operates on the story *after* a rewrite is attempted. Be clear about this state progression in the code.
+
+
+## Pre-analysis for US-1154 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent.
+
+**Subject: Technical Brief for US-1154: Implement AC Completeness Scorer**
+
+This brief outlines the plan for implementing an automated story acceptance criteria (AC) scorer. The goal is to improve story quality by programmatically identifying, rewriting, and rejecting stories with vague ACs.
+
+**1. Python Files to Modify**
+*   `lib/validate_stories.py`: This is the core file. It will house the new scoring, rewriting, and rejection logic.
+*   `tests/test_validate_stories.py`: New unit tests are required to validate the scorer, the rewrite trigger, and the rejection mechanism.
+
+**2. System Components Involved**
+*   **Process Hook:** The "Phase S" CI/CD validation step, which will execute the `validate_stories.py` script against story files.
+*   **Configuration:** `spiral.config.sh` will be modified to add the quality threshold.
+*   **Data/DocType:** The input is a Story JSON object. The process may add a `_ac_rewrite_used` field to it.
+*   **Logging:** Rejection events must be logged as new entries in `spiral_events.jsonl`.
+
+**3. Implementation Approach**
+1.  **Config (`spiral.config.sh`):** Add the shell variable `SPIRAL_AC_QUALITY_THRESHOLD=0.5`.
+2.  **Scoring (`lib/validate_stories.py`):**
+    *   Implement `score_ac_measurability(ac_list)`.
+    *   Inside, use regex to check each AC string for "measurability patterns": CLI commands (in backticks), file paths (e.g., `*.py`), numeric values, or keywords like `assert`, `verify`, `test`.
+    *   The function should return the ratio of measurable ACs to the total count.
+3.  **Rewrite & Reject Logic (`lib/validate_stories.py`):**
+    *   Create a main validation function that checks if the story's score is below `SPIRAL_AC_QUALITY_THRESHOLD`.
+    *   If the score is low, call the Haiku model to rewrite vague ACs and set `story._ac_rewrite_used = True`.
+    *   After the potential rewrite, re-evaluate. If the story has fewer than 2 measurable ACs, log the failure to `spiral_events.jsonl` and cause the script to exit with a non-zero status code.
+
+**4. Edge Cases & Gotchas**
+*   **Mocking:** The Haiku API call should be mocked in `tests/test_validate_stories.py` to test the rewrite trigger logic without making real API calls.
+*   **Regex Precision:** The pattern matching for measurability should be effective but not overly complex. Start with the specific patterns mentioned in the technical notes.
+*   **Environment:** The validation script must correctly read `SPIRAL_AC_QUALITY_THRESHOLD` from the shell environment.
+*   **State:** The validation logic operates on the story *after* a rewrite is attempted. Be clear about this state progression in the code.
+## Iteration 1 - Mon, Apr  6, 2026  7:57:56 AM
+FAILED diagnosis-block gate: Phase S: Acceptance Criteria Completeness Scorer with Auto-Rewrite for Vague ACs (ID: US-1154) — no diagnosis block found — attempt 1/3
+
+
+## Pre-analysis for US-1154 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent.
+
+**Subject: Technical Brief for US-1154: Implement AC Completeness Scorer**
+
+This brief outlines the plan for implementing an automated story acceptance criteria (AC) scorer. The goal is to improve story quality by programmatically identifying, rewriting, and rejecting stories with vague ACs.
+
+**1. Python Files to Modify**
+*   `lib/validate_stories.py`: This is the core file. It will house the new scoring, rewriting, and rejection logic.
+*   `tests/test_validate_stories.py`: New unit tests are required to validate the scorer, the rewrite trigger, and the rejection mechanism.
+
+**2. System Components Involved**
+*   **Process Hook:** The "Phase S" CI/CD validation step, which will execute the `validate_stories.py` script against story files.
+*   **Configuration:** `spiral.config.sh` will be modified to add the quality threshold.
+*   **Data/DocType:** The input is a Story JSON object. The process may add a `_ac_rewrite_used` field to it.
+*   **Logging:** Rejection events must be logged as new entries in `spiral_events.jsonl`.
+
+**3. Implementation Approach**
+1.  **Config (`spiral.config.sh`):** Add the shell variable `SPIRAL_AC_QUALITY_THRESHOLD=0.5`.
+2.  **Scoring (`lib/validate_stories.py`):**
+    *   Implement `score_ac_measurability(ac_list)`.
+    *   Inside, use regex to check each AC string for "measurability patterns": CLI commands (in backticks), file paths (e.g., `*.py`), numeric values, or keywords like `assert`, `verify`, `test`.
+    *   The function should return the ratio of measurable ACs to the total count.
+3.  **Rewrite & Reject Logic (`lib/validate_stories.py`):**
+    *   Create a main validation function that checks if the story's score is below `SPIRAL_AC_QUALITY_THRESHOLD`.
+    *   If the score is low, call the Haiku model to rewrite vague ACs and set `story._ac_rewrite_used = True`.
+    *   After the potential rewrite, re-evaluate. If the story has fewer than 2 measurable ACs, log the failure to `spiral_events.jsonl` and cause the script to exit with a non-zero status code.
+
+**4. Edge Cases & Gotchas**
+*   **Mocking:** The Haiku API call should be mocked in `tests/test_validate_stories.py` to test the rewrite trigger logic without making real API calls.
+*   **Regex Precision:** The pattern matching for measurability should be effective but not overly complex. Start with the specific patterns mentioned in the technical notes.
+*   **Environment:** The validation script must correctly read `SPIRAL_AC_QUALITY_THRESHOLD` from the shell environment.
+*   **State:** The validation logic operates on the story *after* a rewrite is attempted. Be clear about this state progression in the code.
+
+
+## Iteration - Story: US-1154 - Phase S: Acceptance Criteria Completeness Scorer with Auto-Rewrite for Vague ACs
+
+### What was implemented
+- **lib/prd/validate_stories.py**:
+  - Added `score_ac_measurability(ac_list) -> float` scoring ACs for measurability via regex (CLI backticks, file extensions, number+units, test keywords)
+  - Added `_rewrite_acs_via_haiku(story, api_key)` to rewrite vague ACs via claude-haiku-4-5-20251001 at temperature=0.2; sets `_ac_rewrite_used=True`
+  - Integrated AC measurability gate at step 4.5 in validate_stories(): scores ACs, triggers rewrite if score < SPIRAL_AC_QUALITY_THRESHOLD, rejects if fewer than 2 measurable ACs remain
+- **spiral.config.sh**: Added `SPIRAL_AC_QUALITY_THRESHOLD="${SPIRAL_AC_QUALITY_THRESHOLD:-0.5}"` default
+- **tests/test_validate_stories.py**: Added test_ac_scorer_measurable, test_ac_scorer_vague, test_ac_scorer_empty, test_ac_scorer_detects_file_paths, test_ac_scorer_detects_numbers_and_units, test_ac_rewrite_triggered_on_low_score, test_story_rejected_on_low_ac_after_rewrite
+
+### Patterns discovered
+- Measurability detection via simple regex is deterministic and fast — no ML needed
+- The AC gate runs at step 4.5, after the complexity ceiling gate but before the floor gate; test-fix stories bypass it via `_skip_alignment`
+
+### Gotchas
+- Previous attempt failed ONLY due to missing diagnosis block gate (code was complete) — the diagnosis block must appear as plain text BEFORE any Edit/Write/Bash file modification calls

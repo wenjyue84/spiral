@@ -407,7 +407,7 @@
         "Setting SPIRAL_AUTO_ARCHIVE_THRESHOLD=0 disables auto-archive",
         "uv run pytest tests/test_auto_archive.py covers threshold trigger and git commit"
       ],
-      "passes": true,
+      "passes": false,
       "dependencies": [],
       "filesTouch": [
         "spiral.sh",
@@ -421,8 +421,7 @@
         "archive",
         "maintenance"
       ],
-      "model": "haiku",
-      "_scopeCreep": true
+      "model": "haiku"
     },
     {
       "id": "US-1133",
@@ -436,7 +435,7 @@
         "Phase A output has measurably lower overlap with completed story titles (test: TF-IDF similarity < 0.7 avg)",
         "Token cost increase for the Phase A call is < 500 tokens per iteration at the default limit"
       ],
-      "passes": true,
+      "passes": false,
       "dependencies": [],
       "filesTouch": [
         "spiral.sh",
@@ -465,7 +464,7 @@
         "Counter resets to 0 after any iteration where at least 1 story is merged",
         "uv run pytest tests/test_merge_stories.py covers the fallback threshold logic"
       ],
-      "passes": true,
+      "passes": false,
       "dependencies": [
         "US-1131"
       ],
@@ -480,8 +479,7 @@
         "dedup",
         "observability"
       ],
-      "model": "haiku",
-      "_scopeCreep": true
+      "model": "haiku"
     },
     {
       "id": "US-1135",
@@ -523,7 +521,7 @@
         "Running 3 workers simultaneously for 10 stories produces a results.tsv with exactly N clean tab-separated rows (no garbled lines)",
         "Append latency overhead < 50 ms per call on Windows (verified with timing test)"
       ],
-      "passes": true,
+      "passes": false,
       "dependencies": [],
       "filesTouch": [
         "lib/core/locked_append_tsv.sh",
@@ -550,7 +548,7 @@
         "Concurrent calls to atomic_patch_prd on the same file serialise correctly (test: 10 parallel appends to ._antiPatterns produce all 10 entries)",
         "Lock acquisition timeout is 30s with clear error message on expiry"
       ],
-      "passes": true,
+      "passes": false,
       "dependencies": [],
       "filesTouch": [
         "lib/core/prd_lock.sh",
@@ -565,8 +563,7 @@
         "data-integrity",
         "prd"
       ],
-      "model": "sonnet",
-      "_scopeCreep": true
+      "model": "sonnet"
     },
     {
       "id": "US-1138",
@@ -606,7 +603,7 @@
         "Successful full runs are NOT rolled back (rollback only on failure)",
         "Test: inject a deliberately bad patch mid-sequence and verify earlier patches are reverted"
       ],
-      "passes": true,
+      "passes": false,
       "dependencies": [],
       "filesTouch": [
         "lib/run_parallel_ralph.sh"
@@ -676,151 +673,71 @@
       "model": "haiku"
     },
     {
-      "id": "US-1152",
-      "title": "Phase E: Inject Top-3 Similar Passing Stories as Ralph Reference Implementations",
-      "priority": "high",
-      "description": "During Phase E enrichment, find the 3 most semantically similar stories that have already passed (using TF-IDF / SequenceMatcher on title+description). Retrieve their git diffs and inject them as a <reference_implementations> block in the Ralph prompt. Ralph uses these as concrete examples of correct implementation style for this codebase, reducing misunderstood scope and wrong patterns.",
+      "id": "US-1142",
+      "title": "Parallel workers: replace hardcoded docker lock timeout with adaptive PID-aware backoff",
+      "description": "The docker mutex in run_parallel_ralph.sh uses a hardcoded 120-iteration wait loop (1s sleep each = 120s max). On slow systems or during heavy I/O, legitimate docker pull/build operations exceed 120s, causing a healthy worker to assume lock-holder crash and break the mutex â€” allowing two workers to run docker commands simultaneously and corrupt container state. Replace the fixed loop with: (1) exponential backoff (1s, 2s, 4s... capped at 30s), (2) detect if lock-holder PID (stored in the lock directory as a pid file) is still alive (kill -0 $pid), (3) only break the lock if the PID is dead AND the lock is older than SPIRAL_DOCKER_LOCK_TIMEOUT (default 300s). Store the PID in a file inside the lock directory on acquisition.",
+      "priority": "medium",
       "acceptanceCriteria": [
-        "lib/enrich_stories.py: find_similar_passed_stories(story, prd, top_k=3) returns list of (story_id, score, git_diff_summary)",
-        "git diff for each similar story is retrieved via git log --all --grep=<story_id> -p and truncated to 60 lines per file",
-        "Ralph prompt receives a <reference_implementations> section listing top-3 similar passed stories with diffs; absent if none exist yet",
-        "Total injected diff capped at ~8000 chars to avoid context overflow",
-        "tests/test_enrich_stories.py: test_find_similar_passed_stories, test_reference_injection_in_prompt, test_empty_when_no_passed_stories"
+        "Docker lock acquisition writes holder PID to $LOCK_DIR/pid file",
+        "Wait loop uses exponential backoff (1, 2, 4, 8, 16, 30s) instead of fixed 1s sleep",
+        "Lock is only broken if holder PID is dead AND lock age > SPIRAL_DOCKER_LOCK_TIMEOUT (default 300)",
+        "SPIRAL_DOCKER_LOCK_TIMEOUT configurable in spiral.config.sh",
+        "If a live PID holds the lock past SPIRAL_DOCKER_LOCK_TIMEOUT, emit a warning but keep waiting",
+        "Test: simulate a stale lock with dead PID and verify cleanup after timeout"
       ],
-      "technicalNotes": [
-        "Use difflib.SequenceMatcher on concatenated title+description (no external deps)",
-        "Fall back to empty list if git log finds no matching commit"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "filesTouch": [
-        "lib/enrich_stories.py",
-        "ralph/CLAUDE.md",
-        "tests/test_enrich_stories.py"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-1153",
-      "title": "Phase I: Structured Pre-Implementation Plan Gate — Scope Validation Before Coding",
-      "priority": "high",
-      "description": "Add a planning stage before Ralph writes code. Ralph emits a <plan> JSON block listing files_to_create, files_to_modify, and functions_to_add. SPIRAL validates: if the plan touches more than SPIRAL_PLAN_FILE_LIMIT files (default 8), it rejects the plan and auto-decomposes the story before any coding tokens are spent. This eliminates scope overrun at the root.",
-      "acceptanceCriteria": [
-        "ralph/CLAUDE.md: Ralph emits <plan>{files_to_create, files_to_modify, functions_to_add, estimated_loc}</plan> before any code block",
-        "lib/impl/decompose.sh: validate_plan(plan_json, story) returns OK or REJECT with reason; rejects if total file count > SPIRAL_PLAN_FILE_LIMIT",
-        "On plan rejection: story is decomposed via existing auto-decompose logic; no coding tokens spent",
-        "Plans touching files outside filesTouch heuristic emit a plan_drift WARNING to results.tsv",
-        "spiral.config.sh: SPIRAL_PLAN_FILE_LIMIT=8 (default)",
-        "tests/test_phase_i_decompose.py: test_plan_gate_triggers_decompose, test_plan_within_limit_proceeds"
-      ],
-      "technicalNotes": [
-        "SPIRAL_PLAN_FILE_LIMIT defaults to 8 in spiral.config.sh",
-        "Ralph prompt addition: BEFORE writing any code, output a <plan> JSON block; SPIRAL will validate scope."
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
       "passes": false,
-      "filesTouch": [
-        "ralph/CLAUDE.md",
-        "lib/impl/decompose.sh",
-        "spiral.config.sh",
-        "tests/test_phase_i_decompose.py"
-      ],
-      "model": "haiku",
-      "last_attempted": "2026-04-05T22:31:25Z"
-    },
-    {
-      "id": "US-1154",
-      "title": "Phase S: Acceptance Criteria Completeness Scorer with Auto-Rewrite for Vague ACs",
-      "priority": "high",
-      "description": "Stories with vague ACs are a primary cause of failed implementations. Phase S now scores each AC for measurability (does it contain a command, file path, numeric threshold, or testable assertion?). ACs below threshold get auto-rewritten via haiku before acceptance. Stories with fewer than 2 measurable ACs are rejected from the merge queue.",
-      "acceptanceCriteria": [
-        "lib/validate_stories.py: score_ac_measurability(ac_list) -> float 0-1; AC is measurable if it contains a CLI command, file path, number+unit, or test/assert keyword",
-        "AC score < SPIRAL_AC_QUALITY_THRESHOLD triggers auto-rewrite via haiku (temperature=0.2); result cached in story._ac_rewrite_used",
-        "Stories with fewer than 2 measurable ACs after rewrite are rejected in Phase S; rejection logged to spiral_events.jsonl",
-        "spiral.config.sh: SPIRAL_AC_QUALITY_THRESHOLD=0.5",
-        "tests/test_validate_stories.py: test_ac_scorer_measurable, test_ac_scorer_vague, test_ac_rewrite_triggered, test_story_rejected_on_low_ac"
-      ],
-      "technicalNotes": [
-        "Measurability via simple regex: backtick, file extension (.py/.sh), number+unit, assert/verify/test keywords",
-        "No semantic model needed — pattern matching is deterministic and fast"
-      ],
       "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
       "filesTouch": [
-        "lib/validate_stories.py",
-        "spiral.config.sh",
-        "tests/test_validate_stories.py"
+        "lib/run_parallel_ralph.sh",
+        "spiral.config.sh"
       ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-1155",
-      "title": "Phase I Retry: Error-Signature-Aware Hint Injection — Targeted Fix Guidance on Re-Attempt",
-      "priority": "high",
-      "description": "Current retry logic escalates the model but does not change the prompt. When a story fails, extract the structured error signature (ImportError, SyntaxError, TestFailure, etc.) and inject a targeted anti-pattern hint: 'Last attempt failed with <error_type>. Do NOT use <failed_pattern>. Try <alternative>.' Same error on retry 2 triggers model escalation; different error resets the escalation counter.",
-      "acceptanceCriteria": [
-        "lib/impl/retry.sh: extract_error_signature(log_file) -> {error_type, error_message} covering ImportError, SyntaxError, TestFailure, TimeoutError, ScopeOverrun, Unknown",
-        "Retry prompt includes: PREVIOUS_FAILURE_TYPE, PREVIOUS_FAILURE_MSG, DO_NOT_REPEAT hint from type-lookup table",
-        "Same error_type on retry 2 triggers model escalation; different error_type resets escalation counter",
-        "results.tsv: new column error_signature populated on every failed attempt",
-        "tests/test_retry_strategy.py: test_error_signature_extraction, test_hint_injection_on_retry, test_escalation_reset_on_different_error"
-      ],
-      "technicalNotes": [
-        "Error extracted from last 50 lines of ralph stdout/stderr log",
-        "Lookup table in retry.sh maps error_type to hint string; ImportError -> 'add missing import at top of file'"
-      ],
-      "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "filesTouch": [
-        "lib/impl/retry.sh",
-        "tests/test_retry_strategy.py"
+      "tags": [
+        "parallel-workers",
+        "docker",
+        "reliability"
       ],
       "model": "haiku"
     },
     {
-      "id": "US-1156",
-      "title": "Phase V: Ralph Self-Test Loop — Run Acceptance Tests Before Committing",
-      "priority": "high",
-      "description": "Ralph currently commits code and waits for SPIRAL Phase V to test it externally, wasting a full iteration on test failures. Add a self-test step: Ralph runs pytest on relevant tests before git commit. If tests fail, Ralph gets one self-correction pass (re-reads errors, patches code) then re-runs once. SPIRAL Phase V is the final arbiter but receives pre-validated code, dramatically increasing pass rate.",
+      "id": "US-1143",
+      "title": "Parallel workers: add timeout and respawn for idle worker pool processes",
+      "description": "Worker pool processes (pre-warming) wait indefinitely for task files to appear in .worker-pool/worker-N/task. If the main coordinator fails to write the task file (disk full, crash, permission error), the pool worker hangs forever consuming memory with no visibility. Add: (1) a configurable SPIRAL_POOL_TASK_TIMEOUT (default 120s) after which an idle pool worker logs a warning and exits cleanly, (2) when a pool worker exits due to timeout, write a pool_worker_timeout event to spiral_events.jsonl with worker_id and waited_seconds, (3) the main coordinator detects timed-out pool workers and respawns them up to SPIRAL_POOL_RESPAWN_LIMIT (default 3) times before giving up and falling back to non-pooled execution.",
+      "priority": "medium",
       "acceptanceCriteria": [
-        "ralph/CLAUDE.md: before git commit, run tests; if FAILED, attempt one self-correction then re-run once",
-        "Self-test command priority: story.verification.command > story.verification.testMarker > SPIRAL_VALIDATE_CMD > 'pytest tests/ -x -q --tb=short'",
-        "Self-correction limited to files already in implementation diff (no new files introduced in self-correction)",
-        "ralph/ralph.sh: RALPH_SELF_TEST=true flag (default); RALPH_SELF_TEST=false disables for speed",
-        "tests/test_phase_v_integration.py: test_ralph_self_test_passes, test_ralph_self_correction_fixes_failure, test_self_test_disabled_flag"
+        "Pool workers exit after SPIRAL_POOL_TASK_TIMEOUT seconds of idle waiting (default 120)",
+        "On timeout exit, pool_worker_timeout event written to spiral_events.jsonl",
+        "Main coordinator detects pool worker exit and respawns up to SPIRAL_POOL_RESPAWN_LIMIT times",
+        "After exhausting respawn limit, fallback to non-pooled worker launch with a warning log",
+        "SPIRAL_POOL_TASK_TIMEOUT and SPIRAL_POOL_RESPAWN_LIMIT configurable in spiral.config.sh",
+        "No change in behavior when task files are delivered on time"
       ],
-      "technicalNotes": [
-        "Self-test must complete within SPIRAL_RALPH_TIMEOUT/3 to leave budget for commit",
-        "Test output injected as <test_output> block in self-correction prompt"
-      ],
-      "dependencies": [
-        "US-1153"
+      "passes": false,
+      "dependencies": [],
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh",
+        "spiral.config.sh"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "filesTouch": [
-        "ralph/CLAUDE.md",
-        "ralph/ralph.sh",
-        "tests/test_phase_v_integration.py"
+      "tags": [
+        "parallel-workers",
+        "worker-pool",
+        "reliability"
       ],
       "model": "haiku"
     },
     {
-      "id": "US-1160",
-      "title": "[Security Test] [Regression Test] US-553 Phase Completion: I→V→C Workers Finish and Story Passes",
+      "id": "US-1129",
+      "title": "[Security Test] [Integration Test] File-Aware Retry: Verify Failed-File Tracking and Selective Re-im",
       "priority": "high",
-      "description": "Write security tests for auth/permission logic in US-1037. Story description: Write a regression test verifying that SPIRAL's last three phases (Implement, Validate, Check-Done) complete successfully, workers exit cleanly, and the seeded story reaches 'done' status. Guards against regressions in the implementation engine and completion-check logic.",
+      "description": "Write security tests for auth/permission logic in US-759. Story description: Write integration tests for the file-aware retry strategy introduced in US-597. Tests must verify that failed files are recorded after a story failure and that subsequent retries only re-implement those specific files. This guards against regressions in the token-saving behaviour.",
       "acceptanceCriteria": [
-        "Security test covers access control introduced by US-1037",
+        "Security test covers access control introduced by US-759",
         "Test verifies unauthorized access is blocked (401/403 responses)",
         "No sensitive data (tokens, passwords) leaked in error responses"
       ],
       "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_1037 -v"
+        "Run: uv run pytest tests/ -k us_759 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
@@ -828,18 +745,35 @@
       "model": "sonnet"
     },
     {
-      "id": "US-1161",
-      "title": "[Integration Test] Enhance: Enable SPIRAL to support multi-repo projects: federated prd.json with su",
+      "id": "US-1144",
+      "title": "[Security Test] [Security Test] Create validate_results_tsv.py data integrity validator",
       "priority": "high",
-      "description": "Write integration tests for the feature implemented in US-457. Story description: Continuous-improvement story for goal: Enable SPIRAL to support multi-repo projects: federated prd.json with sub-project story namespacing. All current stories pass — pushing coverage higher (54% → target 70%).",
+      "description": "Write security tests for auth/permission logic in US-769. Story description: Create lib/spiral/validate_results_tsv.py with a validate() function that checks results.tsv for data quality issues: missing story_ids, duplicate rows, out-of-range token counts, invalid phase durations, and unknown model names. The function returns a structured dict with keys 'errors', 'warnings', and 'check_counts'. Ensures no sensitive data is leaked in validation output.",
       "acceptanceCriteria": [
-        "Integration tests exist covering the core behaviour of US-457",
-        "Tests cover the happy path and at least one error/edge case",
-        "Tests run without requiring external services or manual setup"
+        "Security test covers access control introduced by US-769",
+        "Test verifies unauthorized access is blocked (401/403 responses)",
+        "No sensitive data (tokens, passwords) leaked in error responses"
       ],
       "technicalNotes": [
-        "Source files from US-457: .claude/hooks/protect-spiral-files.sh, .claude/hooks/worktree_audit.sh, .claude/scheduled_tasks.lock, .claude/settings.json, .claude/worktrees/exciting-bell",
-        "Run: uv run pytest tests/ -k us_457 -v"
+        "Run: uv run pytest tests/ -k us_769 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1145",
+      "title": "[Security Test] Integration Tests: CHANGELOG Generation Logic in gen_changelog.py",
+      "priority": "high",
+      "description": "Write security tests for auth/permission logic in US-734. Story description: Write integration tests for lib/gen_changelog.py covering commit parsing, story ID extraction, type categorisation, and markdown output. These tests validate the core CHANGELOG generation behaviour introduced in US-604 without requiring external services.",
+      "acceptanceCriteria": [
+        "Security test covers access control introduced by US-734",
+        "Test verifies unauthorized access is blocked (401/403 responses)",
+        "No sensitive data (tokens, passwords) leaked in error responses"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_734 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

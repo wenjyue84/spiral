@@ -170,7 +170,7 @@ validate_plan() {
   local total_files=$((files_to_create + files_to_modify))
 
   # Check against limit
-  if (( total_files > plan_limit )); then
+  if ((total_files > plan_limit)); then
     echo "[Phase I / plan-gate] PLAN_REJECTED: $story_id touches $total_files files (limit: $plan_limit)" >&2
     echo "[Phase I / plan-gate] Triggering auto-decomposition..."
     decompose_story "$story_id" "sonnet"
@@ -189,7 +189,7 @@ validate_plan() {
       if ! echo "$files_to_touch" | grep -qw "$plan_file"; then
         echo "[Phase I / plan-gate] plan_drift: $plan_file not in filesTouch; proceeding with warning" >&2
       fi
-    done <<< "$plan_files"
+    done <<<"$plan_files"
   fi
 
   echo "[Phase I / plan-gate] Plan accepted: $total_files files (limit: $plan_limit)"

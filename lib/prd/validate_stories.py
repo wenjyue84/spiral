@@ -22,13 +22,12 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
-from spiral_io import atomic_write_json, configure_utf8_stdout, locked_append_jsonl
+from spiral_io import atomic_write_json, configure_utf8_stdout
 
 configure_utf8_stdout()
 
@@ -843,6 +842,35 @@ def validate_stories(
     return accepted, rejected
 
 
+def _log_ac_rejections(rejected: list[dict]) -> None:
+    """Log AC-related rejections to spiral_events.jsonl (US-1154).
+
+    Filters rejected stories where rejection_reason contains "measurable"
+    and logs them as story_validation_rejected events.
+    """
+    events_path = os.path.join(os.path.dirname(__file__), "..", "..", "spiral_events.jsonl")
+    # Fallback to cwd if relative path doesn't exist
+    if not os.path.exists(os.path.dirname(events_path)):
+        events_path = "spiral_events.jsonl"
+
+    for story in rejected:
+        reason = story.get("_rejection_reason", "")
+        # Only log AC-related rejections (those mentioning measurable/ACs)
+        if "measurable" in reason.lower():
+            event = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "event_type": "story_validation_rejected",
+                "story_id": story.get("id", ""),
+                "story_title": story.get("title", ""),
+                "rejection_reason": reason,
+                "source": story.get("_source", "unknown"),
+            }
+            try:
+                locked_append_jsonl(events_path, event)
+            except Exception as exc:  # noqa: BLE001
+                print(f"  [S] WARNING: Could not log AC rejection event: {exc}", file=sys.stderr)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Phase S: validate story candidates against project goals")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
@@ -946,6 +974,9 @@ def main() -> int:
     total = len(accepted) + len(rejected)
     rate = (len(accepted) / total * 100) if total > 0 else 100.0
     print(f"  [S] Validated {total} stories: {len(accepted)} accepted ({rate:.0f}%), {len(rejected)} rejected")
+
+    # Log AC-related rejections to spiral_events.jsonl (US-1154)
+    _log_ac_rejections(rejected)
 
     # Source breakdown
     src_stats: dict[str, list[int]] = {}  # source -> [accepted_count, total_count]
