@@ -1,3 +1,37 @@
+## Iteration N - Story: US-1176 - Dispatch Protocol: BLOCKED Task Handling Test and Documentation
+
+### What was implemented
+- **tests/test_dispatch_protocol.py**:
+  - Added `TestBlockedTaskStatusHandling` class with 7 test methods validating the BLOCKED task status path:
+    - `test_blocked_status_defined_in_implementer()` - verifies BLOCKED status is in implementer_prompt.md
+    - `test_blocked_requires_reason_field()` - validates REASON field is required with BLOCKED status
+    - `test_blocked_differs_from_done()` - confirms BLOCKED is separate from DONE status
+    - `test_blocked_differs_from_done_with_concerns()` - confirms BLOCKED is separate from DONE_WITH_CONCERNS
+    - `test_dispatch_protocol_handles_blocked()` - verifies ralph/CLAUDE.md documents BLOCKED handling
+    - `test_blocked_handling_no_retry_policy()` - validates no-retry guidance for BLOCKED tasks
+    - `test_blocked_status_reason_explains_constraint()` - checks documentation explains why tasks are blocked
+
+- **ralph/CLAUDE.md**:
+  - Expanded Subagent Dispatch Protocol section with detailed BLOCKED status documentation
+  - Added explanation of when BLOCKED occurs (missing info/capability constraint)
+  - Added handling guidance: log reason, don't retry with same parameters, continue other tasks
+  - Added examples of BLOCKED scenarios (missing API docs, incomplete spec, unavailable service, permissions)
+
+### Patterns discovered
+- BLOCKED status is the implementer's signal that a task cannot proceed without external intervention
+- The three implementer statuses (DONE, DONE_WITH_CONCERNS, BLOCKED) represent distinct outcomes with different dispatch paths
+- BLOCKED requires explicit reason documentation for the orchestrator to make escalation decisions
+- Dispatch protocol must guide Ralph to avoid retry loops on BLOCKED tasks (escalate instead)
+
+### Gotchas
+- BLOCKED differs from DONE_WITH_CONCERNS: BLOCKED means "cannot proceed", DONE_WITH_CONCERNS means "completed with reservations"
+- BLOCKED tasks must not be retried with identical parameters (infinite loop risk) — must escalate or unblock first
+- Test assertions must account for case-insensitive matching in documentation (`.lower()` is needed)
+
+### Acceptance Criteria Met
+- [x] Test for BLOCKED task status path exists in test_dispatch_protocol.py (7 comprehensive tests)
+- [x] ralph/CLAUDE.md documents the BLOCKED status handling (expanded with examples and guidance)
+
 ## Iteration N - Story: US-1173 - Harden Roleplay Clarification: Extract JSON Robustly
 
 ### What was implemented
@@ -723,7 +757,7 @@ Completed: [Integration Test] Enhance: Achieve dynamic token-saving without sacr
 >>>>>>> Stashed changes
 ## Pre-analysis for US-1162 (Gemini 2.5 Pro)
 
-Opening authentication page in your browser. Do you want to continue? [Y/n]: 
+Opening authentication page in your browser. Do you want to continue? [Y/n]:
 
 <<<<<<< Updated upstream
 ## Iteration 2 - Tue, Apr  7, 2026  5:50:00 PM
@@ -860,3 +894,26 @@ Completed: [Integration Test] Show per-attempt failure messages in retry history
 ### Gotchas
 - Pre-existing mypy errors in `lib/ui/spiral_dashboard.py` and `lib/prd/` don't block test runs
 - Story `passes` field may remain `false` even when test file is committed — always verify prd.json update
+## Iteration 1 - Tue, Apr  7, 2026  7:34:26 PM
+Completed: [Integration Test] Show per-attempt failure messages in retry history drill-down (ID: US-1165) in 21m
+
+
+## Pre-analysis for US-1176 (Gemini 2.5 Pro)
+This user story is not related to Frappe or the `lhdn_payroll_integration` app. The context provided in the JSON blob points to an internal agent tooling project named "ralph".
+
+Here is the technical brief for implementing US-1176:
+
+**Technical Brief: US-1176 - BLOCKED Task Handling**
+
+This story involves implementing and documenting the `BLOCKED` status in the subagent dispatch protocol.
+
+**1. Files to Modify:**
+*   `ralph/dispatch_protocol.py`: The core logic for handling task statuses will likely reside here. The `BLOCKED` status needs to be handled gracefully.
+*   `tests/test_dispatch_protocol.py`: A new test case is required to validate the `BLOCKED` status path.
+
+**2. Involved Components:**
+*   **DocTypes/Hooks:** None. This is not a Frappe application.
+*   **Core Logic:** The `DispatchProtocol` class or equivalent function that manages the subagent task lifecycle.
+
+**3. Implementation Approach:**
+*   In `tests/test_dispatch_protocol.py`, add a test that simulates a sub

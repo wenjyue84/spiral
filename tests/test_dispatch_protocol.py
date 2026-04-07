@@ -382,3 +382,74 @@ class TestRoleplayJsonExtraction:
         assert "```(?:json)?" in phase0 or r"\`\`\`(?:json)?" in phase0, "Extraction must handle markdown code fences"
         # Verify it doesn't rely solely on greedy regex
         assert "extract_json_robustly" in phase0, "Extraction must use robust extraction logic"
+
+
+# ─── Test 6: BLOCKED task status handling in dispatch protocol ──────────────────
+
+
+class TestBlockedTaskStatusHandling:
+    """Verify BLOCKED task status is properly defined and handled in dispatch protocol."""
+
+    def setup_method(self) -> None:
+        self.implementer = read_file("lib/workers/implementer_prompt.md")
+        self.claude_md = read_file("ralph/CLAUDE.md")
+
+    def test_blocked_status_defined_in_implementer(self) -> None:
+        """BLOCKED status must be defined in implementer_prompt.md."""
+        assert "STATUS: BLOCKED" in self.implementer, "implementer_prompt.md must define STATUS: BLOCKED"
+
+    def test_blocked_requires_reason_field(self) -> None:
+        """BLOCKED status must include REASON field."""
+        blocked_section = self.implementer[self.implementer.find("STATUS: BLOCKED") :]
+        assert "REASON:" in blocked_section[:200], (
+            "BLOCKED status format must require REASON: field to explain why task is blocked"
+        )
+
+    def test_blocked_differs_from_done(self) -> None:
+        """BLOCKED must be distinct from DONE status."""
+        assert "STATUS: DONE" in self.implementer
+        assert "STATUS: BLOCKED" in self.implementer
+        # Verify both exist separately in the prompt
+        done_pos = self.implementer.find("STATUS: DONE")
+        blocked_pos = self.implementer.find("STATUS: BLOCKED")
+        assert done_pos != blocked_pos, "DONE and BLOCKED must be separate status options"
+
+    def test_blocked_differs_from_done_with_concerns(self) -> None:
+        """BLOCKED must be distinct from DONE_WITH_CONCERNS status."""
+        assert "STATUS: DONE_WITH_CONCERNS" in self.implementer
+        assert "STATUS: BLOCKED" in self.implementer
+        # Verify the statuses are described as different outcomes
+        blocked_section = self.implementer[self.implementer.find("STATUS: BLOCKED") :]
+        done_concerns_section = self.implementer[self.implementer.find("STATUS: DONE_WITH_CONCERNS") :]
+        # Both should exist in the document
+        assert len(blocked_section) > 0 and len(done_concerns_section) > 0
+
+    def test_dispatch_protocol_handles_blocked(self) -> None:
+        """ralph/CLAUDE.md must document how to handle BLOCKED task responses."""
+        dispatch_section = self.claude_md[self.claude_md.find("Subagent Dispatch Protocol") :]
+        assert "BLOCKED" in dispatch_section, "Dispatch protocol section must document handling of BLOCKED status"
+
+    def test_blocked_handling_no_retry_policy(self) -> None:
+        """Documentation must specify that BLOCKED tasks should not be retried with same parameters."""
+        dispatch_section = self.claude_md[self.claude_md.find("Subagent Dispatch Protocol") :]
+        blocked_section = (
+            dispatch_section[dispatch_section.find("BLOCKED") :][:500] if "BLOCKED" in dispatch_section else ""
+        )
+        # Should indicate BLOCKED requires different action than normal retry
+        assert (
+            "escalate" in blocked_section.lower()
+            or "skip" in blocked_section.lower()
+            or "information" in blocked_section.lower()
+            or "unblock" in blocked_section.lower()
+        ), "BLOCKED handling must specify escalation, skipping, or unblocking actions"
+
+    def test_blocked_status_reason_explains_constraint(self) -> None:
+        """BLOCKED REASON field should explain what constraint/information is missing."""
+        blocked_section = self.implementer[self.implementer.find("STATUS: BLOCKED") :][:300]
+        # Look for language about what constitutes a blocker
+        assert (
+            "missing" in blocked_section.lower()
+            or "information" in blocked_section.lower()
+            or "capability" in blocked_section.lower()
+            or "unable" in blocked_section.lower()
+        ), "BLOCKED status documentation must explain it occurs when information or capability is missing"

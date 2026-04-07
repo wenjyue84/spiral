@@ -305,7 +305,14 @@ Implementer reports status: `DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 - `DONE` → proceed to Gate 1
 - `DONE_WITH_CONCERNS` → log concern, proceed to Gate 1 if non-correctness issue
 - `NEEDS_CONTEXT` → provide the missing context, re-dispatch implementer once only
-- `BLOCKED` → log as blocked, continue other tasks, report as partial failure to spiral.sh
+- `BLOCKED` → task cannot proceed due to missing information or capability. Log the REASON field, do NOT retry with same parameters, and continue other tasks. Report as partial story failure to spiral.sh for escalation
+
+**BLOCKED Status Handling:** When a task returns `BLOCKED`, it means the implementer encountered a constraint that cannot be overcome with the current task configuration:
+- Examples: "API documentation not provided", "Feature specification incomplete", "Dependent service not available", "Insufficient permissions to modify file"
+- Do NOT retry the blocked task — re-dispatching with same parameters will fail identically
+- Log the BLOCKED reason clearly for spiral.sh to analyze
+- Continue with other tasks in the task list (don't abort entire story)
+- Report the partial failure to spiral.sh; the orchestrator will decide whether to escalate, unblock, or skip the story
 
 Before re-dispatching any task, run `git status` and `git checkout -- .` to clean partial edits.
 
