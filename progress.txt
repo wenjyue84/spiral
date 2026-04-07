@@ -794,3 +794,47 @@ Based on the user story JSON, here is a technical brief for the agent.
 ### Gotchas
 - Previous attempt hit 166-line diff limit; solved by using class-based test grouping and compact assertions
 - Lesson system is CLI-based (no API endpoint) — test the nearest dashboard endpoint for data leakage instead
+## Iteration 2 - Tue, Apr  7, 2026  7:12:44 PM
+Completed: [Security Test] Phase L injects learned lessons into Phase E enrichment for similar stories (ID: US-1164) in 5m
+
+
+## Pre-analysis for US-1165 (Gemini 2.5 Pro)
+Based on the user story and project structure, this appears to be a Python/React application, not a Frappe project. The task is to write backend integration tests using `pytest`.
+
+**Technical Brief: US-1165 Integration Tests**
+
+**1. Python Files to Create/Modify:**
+*   **Create:** A new test file `tests/test_us1113_retry_history.py`. The name will be picked up by the `pytest -k us_1113` command.
+*   **Target for Testing (No Modifications):** The tests will target existing functions that serve data to the frontend. Likely candidates are in `lib/analyze_results.py` or a related analytics module that processes `results.tsv`.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. The components are API-centric. The test will validate the data structure returned by the backend function that supplies the retry history, simulating a call from `spiral-ui/src/server/analyticsApi.ts`.
+
+**3. Recommended Implementation Approach:**
+*   Use `pytest` to define test cases within the new file.
+*   Create mock data representing the contents of `results.tsv` for various scenarios. Use fixtures to provide this data to the tests, satisfying the "no external services" requirement.
+*   **Happy Path:** Test a story with multiple retries (e.g., fail, fail, pass). Assert that the function output contains a list of all attempts, including correct failure messages for the failed attempts.
+*   **Edge Case:** Test a story with no retries (passed on first attempt). Assert the function returns an empty or null history.
+
+**4. Edge Cases & Gotchas:**
+*   The test data must accurately mimic the structure of the `results.tsv` file, especially the `failure_root_cause` column.
+*   Ensure the test asserts against the specific data structure the frontend component (`FailureRetryDashboard.tsx`) expects.
+*   Handle cases where the `failure_root_cause` might be empty or missing for a failed attempt; the function should not crash.
+
+
+## Iteration - Story: US-1165 - [Integration Test] Show per-attempt failure messages in retry history drill-down
+
+### What was implemented
+- **tests/test_us1113_retry_failure_messages.py**: 4 integration tests (class TestUS1113PerAttemptFailureMessages)
+  - `test_us_1113_failure_messages_captured_per_attempt`: happy path — 3-attempt sequence with syntax_error/test_assertion failure causes
+  - `test_us_1113_model_sequence_matches_attempts`: haiku→sonnet→opus escalation captured
+  - `test_us_1113_empty_failure_cause_excluded`: empty failure_root_cause strings excluded from reasons (no crash)
+  - `test_us_1113_missing_column_no_crash`: TSV without failure_root_cause column doesn't crash
+
+### Patterns discovered
+- Tests discoverable via `pytest -k us_1113` when function names contain `us_1113` substring
+- `extract_failed_stories` already handles failure_root_cause via `a.get("failure_root_cause", "").strip()`; no code changes needed, only tests
+- TSV fixture needs failure_root_cause in header for DictReader to map it correctly
+
+### Gotchas
+- The ruff/format checks pass; pre-existing mypy errors in unrelated lib/ files don't block story completion
