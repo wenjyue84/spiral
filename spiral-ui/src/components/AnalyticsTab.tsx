@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AgentTelemetryTable, PhaseTimingBars, StoriesListAccordion, RecentActivityFeed, CollapsibleSection, FailureRetryDashboard, StuckStoriesPanel } from './analytics';
+import { AgentTelemetryTable, PhaseTimingBars, PhaseTimelineChart, StoriesListAccordion, RecentActivityFeed, CollapsibleSection, FailureRetryDashboard, StuckStoriesPanel } from './analytics';
 import StoryDetailPanel, { type StoryForPanel, type StoryAttempt } from './StoryDetailPanel';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -187,6 +187,11 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
         )}
         <PhaseTimingBars data={phaseTimings} />
       </div>
+
+      {/* ── TIER 2b: Phase Duration Timeline (bottleneck identification) ──── */}
+      {phaseTimings.length > 0 && (
+        <PhaseTimelineChart timings={phaseTimings} />
+      )}
 
       {/* ── TIER 3: Collapsible sections ──────────────────────────────────── */}
 
