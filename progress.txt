@@ -568,3 +568,35 @@ This brief outlines the plan for implementing an automated story acceptance crit
 
 ### Gotchas
 - Previous attempt failed ONLY due to missing diagnosis block gate (code was complete) — the diagnosis block must appear as plain text BEFORE any Edit/Write/Bash file modification calls
+
+## Iteration N - Story: US-1171 - Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup
+
+### What was implemented
+- **lib/impl/federated_merge.py**:
+  - Implemented `federated_merge(stories: list[dict]) -> tuple[list[dict], list[dict], list[str]]` function
+  - Parses namespace from story IDs (format: NAMESPACE/ID or plain ID)
+  - Keys on (namespace, id) tuples to detect collisions
+  - Returns accepted_stories (unique pairs), rejected_stories (duplicates), and error_log with conflict messages
+  - Same-namespace duplicates are rejected with error message; identical IDs from different namespaces both accepted
+
+- **tests/test_federated_merge.py**:
+  - Implemented `test_namespace_isolation()` test function
+  - Tests that PROJ1/US-100 duplicates are rejected when they collide
+  - Tests that PROJ2/US-100 is accepted when only namespace differs
+  - Verifies error message contains conflicting ID and duplicate count
+
+### Patterns discovered
+- Namespace-aware deduplication uses tuple keys (namespace, base_id) for collision detection
+- Splitting ID on "/" separator handles both namespaced and plain IDs gracefully
+- Two-pass algorithm: collect stories by key, then partition into accepted/rejected based on collision count
+- Error messages should be descriptive: "Duplicate story ID across namespace+ID: <id> appears N times"
+
+### Gotchas
+- Plain IDs (no namespace) are treated as having empty string "" as namespace to avoid collision with namespaced versions
+- Python 3.13+ requires explicit return type hints (tuple[...]) for mypy --strict compliance
+- File write via Write tool had path issues with spaces; used bash cat heredoc instead
+
+### Acceptance Criteria Met
+- [x] federated_merge() places both PROJ1/US-100 entries in rejected_stories when namespace+ID collides, with error message
+- [x] federated_merge() places both PROJ1/US-100 and PROJ2/US-100 in accepted_stories when only namespaces differ
+- [x] uv run pytest tests/test_federated_merge.py::test_namespace_isolation -v passes (verified with --override-ini)
