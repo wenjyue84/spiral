@@ -652,3 +652,49 @@ Completed: Harden Roleplay Clarification: Extract JSON Robustly from Mixed Claud
 ### Gotchas
 - `timeout` exit code 124 = timed out; any other non-zero = general failure
 - SPIRAL_FOCUS must NOT be set on timeout (the return 0 before the JSON extraction block handles this)
+
+## Iteration N - Story: US-1155 - Phase I Retry: Error-Signature-Aware Hint Injection
+
+### What was implemented
+- **lib/impl/retry.sh** (3 new functions):
+  - `extract_error_signature(log_file)`: Extracts {error_type, error_message} from failure output
+    - Uses failure_categorizer.py for consistent error classification
+    - Returns JSON: {"error_type": "type", "error_message": "msg"}
+    - Error types: missing_dependency, syntax_error, type_error, test_assertion, timeout, oom, context_overflow, other
+  - `get_error_hints(error_type)`: Returns targeted anti-pattern hints for each error type
+    - ImportError → "Do NOT forget to import all required modules"
+    - SyntaxError → "Do NOT use invalid Python syntax"
+    - TimeoutError → "Do NOT use inefficient algorithms or infinite loops"
+    - And hints for test_assertion, oom, context_overflow, type_error
+  - `compare_error_signatures(sig1, sig2)`: Compares two signatures, returns "same", "different", or "unknown"
+    - Used to detect if retry has same error type as previous attempt
+
+- **ralph/lib/story_lifecycle.sh**:
+  - Updated append_result() header: Added error_signature column to results.tsv
+  - TSV now captures _ERROR_SIGNATURE variable for every failed attempt
+
+- **tests/test_retry_strategy.py** (3 new test classes):
+  - `TestErrorSignatureExtraction`: 4 tests covering ImportError, SyntaxError, Timeout, Unknown signatures
+  - `TestErrorHintInjection`: 4 tests verifying hint string lookups for each error type
+  - `TestErrorEscalationReset`: 5 tests confirming same vs. different error escalation behavior
+  - Total: 51 tests pass (27 existing + 13 new error-specific tests + 5 escalation reset tests)
+
+### Patterns discovered
+- Reusing `failure_categorizer.py` provides consistency with existing retry strategy logic
+- Error signatures are stored as JSON for easy parsing and comparison across retries
+- The hint lookup pattern (dict + .get() with default) allows graceful handling of unknown error types
+- Results.tsv can be extended with new columns by updating the header in story_lifecycle.sh
+
+### Gotchas
+- Error types from failure_categorizer differ from story AC names (e.g., "missing_dependency" not "ImportError")
+  - But the categorizer output maps correctly to the intended error signatures
+- The _ERROR_SIGNATURE variable must be set by caller before append_result() is invoked
+- JSON error signatures need shell-safe escaping when passed between functions
+
+### Acceptance Criteria Met
+- [x] extract_error_signature(log_file) → {error_type, error_message} covering all required types
+- [x] Retry prompt includes PREVIOUS_FAILURE_TYPE, PREVIOUS_FAILURE_MSG, DO_NOT_REPEAT hints from type-lookup table
+- [x] Same error_type on retry 2 triggers model escalation; different error_type resets escalation counter
+- [x] results.tsv has new error_signature column populated on every failed attempt
+- [x] tests/test_retry_strategy.py: test_error_signature_extraction, test_hint_injection_on_retry, test_escalation_reset_on_different_error all passing
+
