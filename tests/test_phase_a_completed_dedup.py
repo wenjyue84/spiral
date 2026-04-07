@@ -7,12 +7,9 @@ candidates via semantic similarity checking (< 85% match threshold).
 import difflib
 import json
 import os
-import subprocess
 import sys
 from typing import Any
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "research"))
 from ai_suggest import _build_prompt, _suggest_via_llm
@@ -79,16 +76,8 @@ class TestCompletedStoriesDedup:
     def test_build_prompt_includes_completed_stories(self) -> None:
         """Verify _build_prompt includes completed story titles in 'Already Done' section."""
         prd = _minimal_prd_with_completed()
-        existing_titles = [
-            s.get("title", "")
-            for s in prd["userStories"]
-            if s.get("passes") is not True
-        ]
-        completed_titles = [
-            s.get("title", "")
-            for s in prd["userStories"]
-            if s.get("passes") is True
-        ]
+        existing_titles = [s.get("title", "") for s in prd["userStories"] if s.get("passes") is not True]
+        completed_titles = [s.get("title", "") for s in prd["userStories"] if s.get("passes") is True]
 
         prompt = _build_prompt(prd, existing_titles, completed_titles, "", 2)
 
@@ -130,16 +119,8 @@ class TestCompletedStoriesDedup:
         ]
 
         # Extract completed and existing titles
-        completed_titles = [
-            s.get("title", "")
-            for s in prd["userStories"]
-            if s.get("passes") is True
-        ]
-        existing_titles = [
-            s.get("title", "")
-            for s in prd["userStories"]
-            if s.get("passes") is not True
-        ]
+        completed_titles = [s.get("title", "") for s in prd["userStories"] if s.get("passes") is True]
+        existing_titles = [s.get("title", "") for s in prd["userStories"] if s.get("passes") is not True]
 
         # Mock the Claude CLI subprocess
         def mock_claude_success(*args: Any, **kwargs: Any) -> MagicMock:
@@ -173,9 +154,9 @@ class TestCompletedStoriesDedup:
                 max_similarity = max(max_similarity, sim)
 
             # Assert suggestion doesn't match >85% to any completed story
-            assert (
-                max_similarity < threshold
-            ), f'Suggestion "{title}" has {max_similarity:.2%} similarity to a completed story (threshold: {threshold:.0%})'
+            assert max_similarity < threshold, (
+                f'Suggestion "{title}" has {max_similarity:.2%} similarity to a completed story (threshold: {threshold:.0%})'
+            )
 
     def test_completed_stories_excluded_from_dedup(self) -> None:
         """
@@ -184,11 +165,7 @@ class TestCompletedStoriesDedup:
         """
         prd = _minimal_prd_with_completed()
 
-        completed_titles = [
-            s.get("title", "")
-            for s in prd["userStories"]
-            if s.get("passes") is True
-        ]
+        completed_titles = [s.get("title", "") for s in prd["userStories"] if s.get("passes") is True]
 
         # Verify we have 3 completed stories
         assert len(completed_titles) == 3
@@ -208,11 +185,7 @@ class TestCompletedStoriesDedup:
         """Verify prompt includes explicit dedup instruction when completed stories exist."""
         prd = _minimal_prd_with_completed()
 
-        completed_titles = [
-            s.get("title", "")
-            for s in prd["userStories"]
-            if s.get("passes") is True
-        ]
+        completed_titles = [s.get("title", "") for s in prd["userStories"] if s.get("passes") is True]
 
         prompt = _build_prompt(prd, [], completed_titles, "", 2)
 

@@ -731,7 +731,7 @@ Here is the technical brief for implementing the regression test for story US-11
 
 ### What was implemented
 - Exported PhaseTimelineChart component from analytics/index.ts
-- Imported PhaseTimelineChart in AnalyticsTab.tsx 
+- Imported PhaseTimelineChart in AnalyticsTab.tsx
 - Integrated chart display below Iteration Velocity chart as TIER 2b visualization
 - Chart displays 12 bars (phases R, T, S, M, I, V, C) with durations from phase_start/phase_end events
 - Slowest phase highlighted in red, others in gray

@@ -143,6 +143,12 @@ if [[ "$SHOW_PATTERNS_MODE" -eq 1 ]]; then
   exit 0
 fi
 
+# ── --validate-federated: validate story ID namespacing and exit ──────────────
+if [[ "$VALIDATE_FEDERATED_MODE" -eq 1 ]]; then
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral/federated_namespace_validator.py" "$PRD_FILE" "$VALIDATE_FEDERATED_REPOS"
+  exit $?
+fi
+
 # ── Schema version check ────────────────────────────────────────────────────
 _PRD_SCHEMA_VER=$("$JQ" -r '.schemaVersion // empty' "$PRD_FILE" 2>/dev/null || echo "")
 if [[ -n "$_PRD_SCHEMA_VER" ]] && [[ "$_PRD_SCHEMA_VER" -gt 1 ]] 2>/dev/null; then

@@ -137,6 +137,8 @@ FLAKY_REPORT_MODE=0                          # 1 = print flaky test quarantine r
 SHOW_FLAKY_TESTS_MODE=0                      # 1 = print flaky tests from test synthesis history and exit (--show-flaky-tests)
 CALIBRATION_REPORT_MODE=0                    # 1 = print calibration report and exit (--calibration-report)
 SHOW_PATTERNS_MODE=0                         # 1 = display learned retry patterns and exit (--show-patterns)
+VALIDATE_FEDERATED_MODE=0                    # 1 = validate federated story ID namespacing and exit (--validate-federated)
+VALIDATE_FEDERATED_REPOS=""                  # comma-separated repo names for federated validation
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -312,6 +314,11 @@ while [[ $# -gt 0 ]]; do
     --show-patterns)
       SHOW_PATTERNS_MODE=1
       shift
+      ;;
+    --validate-federated)
+      VALIDATE_FEDERATED_MODE=1
+      VALIDATE_FEDERATED_REPOS="$2"
+      shift 2
       ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
