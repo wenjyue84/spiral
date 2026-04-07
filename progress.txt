@@ -1,3 +1,41 @@
+## Iteration N - Story: US-1173 - Harden Roleplay Clarification: Extract JSON Robustly
+
+### What was implemented
+- **lib/phases/phase_0_clarify.sh** `_run_roleplay_clarification()` function:
+  - Replaced simple inline Python regex with robust `extract_json_robustly()` function
+  - Step 1: Extract `.result` field from Claude JSON envelope (handles response wrapping)
+  - Step 2: Extract JSON from markdown code fences (```json ... ```)
+  - Step 3: Find valid JSON objects using `json.loads()` validation (not regex) with two patterns:
+    - Balanced brace pattern: `\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}` (handles nested structures)
+    - Greedy fallback: `\{.*\}` (catches simple JSON)
+  - Graceful field extraction with safe defaults (focus, avoid, constraints)
+  - Ensures SPIRAL_FOCUS is set when focus field exists, even if avoid/constraints are missing
+
+- **tests/test_dispatch_protocol.py**:
+  - Added `TestRoleplayJsonExtraction` class with 5 test methods:
+    - `test_json_in_markdown_fences()` - validates ```json code fence extraction
+    - `test_prose_before_json()` - validates extraction with prose preamble
+    - `test_malformed_json_missing_constraints()` - validates partial JSON handling
+    - `test_json_with_claude_envelope()` - validates Claude response envelope handling
+    - `test_roleplay_function_uses_robust_extraction()` - verifies shell script contains robust logic
+
+### Patterns discovered
+- `json.loads()` validation is more robust than regex for finding valid JSON objects
+- Markdown code fence extraction needs explicit handling of both opening/closing markers with newlines
+- Field extraction should use `.get()` with defaults rather than direct access to handle missing fields
+- Balanced brace pattern `[^{}]*(?:\{[^{}]*\}[^{}]*)*` works for single-level nested JSON
+
+### Gotchas
+- Python regex in bash heredoc requires proper escaping of backticks (`` ` `` → `` \` ``)
+- Using `json.loads()` as a validator (try/except) is safer than complex regex patterns
+- Field extraction must handle both string and list types for avoid/constraints fields
+
+### Acceptance Criteria Met
+- [x] Given Claude output with JSON inside ```json fences, extraction succeeds
+- [x] Given Claude output with prose before JSON, extraction succeeds
+- [x] Given malformed JSON missing avoid/constraints, SPIRAL_FOCUS is still set from focus field
+- [x] Unit tests cover all three scenarios and pass (plus envelope and robustness checks)
+
 ## Iteration N - Story: US-1152 - Phase E: Inject Top-3 Similar Passing Stories as Ralph Reference Implementations
 
 ### What was implemented
@@ -595,3 +633,6 @@ Based on the user story `US-1173`, here is a technical brief for the implementat
 *   **Partial JSON:** The script should successfully extract the `.focus` field's value even if the `avoid` and `constraints` fields are missing from the JSON object.
 *   **No JSON:** If no JSON is found in the input, the script should exit cleanly with no output, resulting in an empty `SPIRAL_FOCUS` variable.
 *   **Testing:** Ensure the new unit tests in `test_dispatch_protocol.py` specifically cover all acceptance criteria scenarios.
+## Iteration 1 - Tue, Apr  7, 2026  1:44:29 PM
+Completed: Harden Roleplay Clarification: Extract JSON Robustly from Mixed Claude Output (ID: US-1173) in 22m
+
