@@ -1055,7 +1055,7 @@
       "title": "Ralph Self-Test: Add RALPH_SELF_TEST flag to ralph.sh",
       "description": "Add RALPH_SELF_TEST=true env var to ralph/ralph.sh. When false skip self-test. Just the flag, export, and a log line.",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "dependencies": [
         "US-1153"
       ],
@@ -1192,6 +1192,29 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1191",
+      "title": "[Security Test] Auth/Permission for context_guard.py Token Logic (US-529)",
+      "priority": "high",
+      "description": "Write security-focused tests for lib/context_guard.py (implemented in US-529) verifying that estimate_phase_i_tokens and trim_prompt_sections do not expose sensitive data in outputs and that inputs are validated before processing. Confirms no token/password leakage in trimmed prompt output.",
+      "acceptanceCriteria": [
+        "trim_prompt_sections with a prompt containing a fake API key string does not include that key in the returned trimmed output",
+        "estimate_phase_i_tokens raises ValueError (not leaks content) when given a non-string or None input",
+        "uv run pytest tests/ -k us_529 -v exits 0 with at least 2 passing security test cases"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_context_guard_security.py (add test_no_sensitive_data_in_trim and test_invalid_input_raises)",
+        "Import: from lib.context_guard import estimate_phase_i_tokens, trim_prompt_sections",
+        "Sensitive data pattern to test: prompt containing 'sk-ant-FAKEKEY123' must not appear in trim_prompt_sections return value",
+        "Test command: uv run pytest tests/test_context_guard_security.py -v"
+      ],
+      "dependencies": [
+        "US-529"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }
