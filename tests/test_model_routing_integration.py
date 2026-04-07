@@ -63,8 +63,11 @@ def _small_story(story_id: str = "US-TEST") -> dict:
 # ---------------------------------------------------------------------------
 
 
-class TestSmartModelRoutingIntegration:
-    """Integration tests for US-452 smart model routing auto-escalation."""
+class TestUS452SmartModelRouting:
+    """Integration tests for US-452 smart model routing auto-escalation.
+
+    Named TestUS452* so ``pytest -k us_452`` selects this class.
+    """
 
     def setup_method(self) -> None:
         # Ensure clean env — no CLI or fixed-routing overrides
@@ -77,7 +80,7 @@ class TestSmartModelRoutingIntegration:
         for key in ("SPIRAL_CLI_MODEL", "SPIRAL_MODEL_ROUTING"):
             os.environ.pop(key, None)
 
-    def test_auto_routing_escalation_haiku_sonnet_opus(self) -> None:
+    def test_us_452_auto_routing_escalation_haiku_sonnet_opus(self) -> None:
         """retry=0 → haiku, retry=1 → sonnet, retry=2 → opus (SPIRAL_MODEL_ROUTING=auto).
 
         Verifies the full escalation ladder for a small story.
@@ -89,13 +92,13 @@ class TestSmartModelRoutingIntegration:
         assert router.route(s, retry_count=1) == _SONNET, "retry=1 must escalate to sonnet"
         assert router.route(s, retry_count=2) == _OPUS, "retry=2 must escalate to opus"
 
-    def test_retry_3_returns_skip_sentinel(self) -> None:
+    def test_us_452_retry_3_returns_skip_sentinel(self) -> None:
         """retry=3 must return SKIP_SENTINEL — story is exhausted and skipped."""
         s = _small_story()
         result = route_or_skip(s, retry_count=3)
         assert result == SKIP_SENTINEL, f"Expected {SKIP_SENTINEL!r}, got {result!r}"
 
-    def test_retry_below_max_does_not_skip(self) -> None:
+    def test_us_452_retry_below_max_does_not_skip(self) -> None:
         """retry=0,1,2 must return model IDs, not the skip sentinel."""
         s = _small_story()
         for retry in (0, 1, 2):
@@ -103,7 +106,7 @@ class TestSmartModelRoutingIntegration:
             assert result != SKIP_SENTINEL, f"retry={retry} should not skip"
             assert result in (_HAIKU, _SONNET, _OPUS), f"retry={retry} returned unknown model {result!r}"
 
-    def test_no_network_calls_required(self) -> None:
+    def test_us_452_no_network_calls_required(self) -> None:
         """Routing decisions must be computable offline (no subprocess or HTTP)."""
         # If LlmRouter raises any connection-related error, this test fails.
         # A clean call with no mock/patch proves no network I/O is needed.
@@ -111,3 +114,27 @@ class TestSmartModelRoutingIntegration:
         router = LlmRouter()
         model = router.route(s, retry_count=0)
         assert model == _HAIKU
+
+    def test_us_452_missing_complexity_defaults_to_medium_tier(self) -> None:
+        """Edge case: story with no estimatedComplexity field defaults to medium (sonnet at retry=0)."""
+        story: dict[str, str] = {"id": "US-NOCOMPLEXITY"}  # no estimatedComplexity key
+        router = LlmRouter()
+        model = router.route(story, retry_count=0)
+        # medium complexity base tier is PRODUCTION (sonnet)
+        assert model == _SONNET, f"Missing complexity must default to sonnet, got {model!r}"
+
+    def test_us_452_unknown_complexity_value_defaults_to_medium_tier(self) -> None:
+        """Edge case: unrecognised complexity string falls back to medium (sonnet at retry=0)."""
+        story = {"id": "US-BADCOMPLEXITY", "estimatedComplexity": "unknown_value"}
+        router = LlmRouter()
+        model = router.route(story, retry_count=0)
+        assert model == _SONNET, f"Unknown complexity must default to sonnet, got {model!r}"
+
+    def test_us_452_cli_model_override_takes_priority(self) -> None:
+        """Error/override case: SPIRAL_CLI_MODEL env var overrides auto-routing at any retry."""
+        os.environ["SPIRAL_CLI_MODEL"] = "opus"
+        story = _small_story()
+        router = LlmRouter()
+        # Even at retry=0 (which would normally be haiku), CLI override wins
+        model = router.route(story, retry_count=0)
+        assert model == _OPUS, f"SPIRAL_CLI_MODEL=opus must override auto-routing, got {model!r}"

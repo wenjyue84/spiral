@@ -698,3 +698,16 @@ Completed: Harden Roleplay Clarification: Extract JSON Robustly from Mixed Claud
 - [x] results.tsv has new error_signature column populated on every failed attempt
 - [x] tests/test_retry_strategy.py: test_error_signature_extraction, test_hint_injection_on_retry, test_escalation_reset_on_different_error all passing
 
+
+## Iteration - Story: US-1162 - [Integration Test] Enhance: Dynamic token-saving model routing
+
+### What was implemented
+- **tests/test_model_routing_integration.py**: Renamed `TestSmartModelRoutingIntegration` → `TestUS452SmartModelRouting` so `pytest -k us_452` finds them. Added 3 new tests: `test_us_452_missing_complexity_defaults_to_medium_tier`, `test_us_452_unknown_complexity_value_defaults_to_medium_tier`, `test_us_452_cli_model_override_takes_priority`. Total: 7 tests (4 renamed happy-path + 3 new edge-case).
+
+### Patterns discovered
+- `pytest -k <keyword>` matches class names and function names — renaming the test class is the simplest way to make an existing test file discoverable by keyword filter
+- Pre-existing mypy errors in unrelated files don't block story completion; only fix errors in files you touch
+
+### Gotchas
+- US-452 was decomposed into US-453/454/455/456; the integration test file already existed but wasn't discoverable with `-k us_452`
+- `story: dict` needs `dict[str, str]` or `dict[str, Any]` for mypy strict compliance in new lines
