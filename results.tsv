@@ -26,3 +26,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-03-23T03:47:31Z	5	1	US-1009	[Integration Test] gen_changelog.py: CHANGELOG generation from story commits	reject	722	haiku	1		69c0980a429	false	0	0	0	0	0	0	0		0	0	0	0
 2026-03-23T04:39:33Z	1	1	US-1010	[Security Test] Phase I: File-Aware Retry — Block Unauthorized Access	reject	293	sonnet	1		69c0c2314dcb	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-05T20:15:47Z	12	1	US-1137	Parallel workers: atomic compare-and-swap for prd.json updates in worker worktrees	keep	890	sonnet	0	dd32a8b36ce5dd5cf88d0168ad39de27a0068290	69d27afc3a2	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-07T05:44:29Z	3	1	US-1173	Harden Roleplay Clarification: Extract JSON Robustly from Mixed Claude Output	keep	1374	haiku	0	87c3e9e5dded6a93cfa0ea6ae20b2a8cdcf2e19a	69d48eff67c	false	0	0	0	0	0	0	0		0	0	0	0			
