@@ -826,7 +826,7 @@
         "diagnosisBlock": "## Current State\n`tests/test_model_routing_integration.py` already has 7 passing tests in `TestUS452SmartModelRouting` class (committed at `011362be`). Tests cover happy paths (4 tests) and edge cases (3 tests: missing complexity, unknown complexity, CLI override). `pytest -k us_452` finds and runs all 7 tests successfully. However, `prd.json` still has `passes: false`.\n\n## Problem Identified\nThe previous attempt implemented the code correctly but failed the orchestrator's diagnosis block gate (diagnosis must appear as plain text BEFORE any file edits). The tests are already complete and passing — only `passes: true` needs to be set in prd.json.\n\n## Planned Changes\n- `prd.json`: Set `passes: true` for US-1162\n- Commit the change\nUS-1162 is complete. The 7 integration tests were already implemented and passing from attempt 1 — only the `passes: true` flag needed to be set the prd.json. Committed."
       },
       "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
-      "_passedCommit": "011362be386692090a4eee99809cbe72f43425b2",
+      "_passedCommit": "a2c25eb089464e56649e8796af4a1e75d30dbb10",
       "_contextStats": {
         "tokensBeforeMasking": 505,
         "tokensAfterMasking": 504,
@@ -850,7 +850,8 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-04-07T09:50:02Z"
     },
     {
       "id": "US-1164",

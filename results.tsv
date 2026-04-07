@@ -29,3 +29,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-07T05:44:29Z	3	1	US-1173	Harden Roleplay Clarification: Extract JSON Robustly from Mixed Claude Output	keep	1374	haiku	0	87c3e9e5dded6a93cfa0ea6ae20b2a8cdcf2e19a	69d48eff67c	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-07T09:45:55Z	9	1	US-1162	[Integration Test] Enhance: Achieve dynamic token-saving without sacrificing output quality via smar	reject	410	sonnet	1		69d4a75446d0	false	0	0	0	0	0	0	0		0	0	0	0			
 2026-04-07T09:47:31Z	9	1	US-1162	[Integration Test] Enhance: Achieve dynamic token-saving without sacrificing output quality via smar	keep	592	sonnet	0	011362be386692090a4eee99809cbe72f43425b2	69d4a70f6be9	false	0	0	0	0	0	0	0		0	0	0	0			
+2026-04-07T09:50:00Z	9	2	US-1162	[Integration Test] Enhance: Achieve dynamic token-saving without sacrificing output quality via smar	keep	121	opus	1	a2c25eb089464e56649e8796af4a1e75d30dbb10	69d4a70f6be9	false	0	0	0	0	0	0	0		0	0	0	0			
