@@ -51,7 +51,6 @@ addopts = "-n auto --dist loadscope"
 pythonpath = [".", "lib"]
 markers = [
     "benchmark: marks tests as benchmark suite (deselect with '-m \"not benchmark\"')",
-    "us_1084: marks tests for regression coverage of US-1084 (Phase V architectural validators)",
 ]
 
 [tool.mutmut]
