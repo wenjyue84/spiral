@@ -1069,7 +1069,8 @@
         "RALPH_SELF_TEST=false logs [self-test] disabled and skips",
         "Existing tests still pass"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-07T11:42:04Z"
     },
     {
       "id": "US-1185",
