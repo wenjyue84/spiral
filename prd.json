@@ -704,7 +704,7 @@
         "US-1153"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "ralph/CLAUDE.md",
         "ralph/ralph.sh",
@@ -854,6 +854,126 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1168",
+      "title": "[Integration Test] Phase A Suggest Excludes Completed Story Titles from Dedup Set",
+      "priority": "medium",
+      "description": "Verify Phase A suggest prompt injection skips completed stories during semantic dedup, preventing near-duplicate suggestions. Mock 3 completed stories, run Phase A, assert suggested stories have <85% similarity to completed titles.",
+      "acceptanceCriteria": [
+        "Phase A prompt includes completed story titles as exclusion hints (injected from prd.json with status >= 'V')",
+        "Semantic dedup comparison ignores rows where story phase >= 'V' (completed)",
+        "Test: run Phase A with 3 completed stories + 2 AI suggestions, verify suggestions don't match >85% to any completed title"
+      ],
+      "technicalNotes": [
+        "File to modify: lib/spiral/phase_a.py (inject completed_stories_summary into system prompt, ~8 lines)",
+        "File to create: tests/test_phase_a_completed_dedup.py (mock Phase A with completed prd.json state, ~70 lines)",
+        "Test command: uv run pytest tests/test_phase_a_completed_dedup.py::test_completed_stories_excluded_from_dedup -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1169",
+      "title": "spiral-ui: Add Phase Duration Timeline Chart for Bottleneck Identification",
+      "priority": "medium",
+      "description": "Visualize how long each SPIRAL phase takes across iterations. Bar chart shows duration (ms) per phase (A, R, T, S, E, M, X, G, I, V, C, L). Highlights slowest phase in red for bottleneck detection.",
+      "acceptanceCriteria": [
+        "Chart renders 12 bars (one per phase), labeled with phase letter, duration in milliseconds",
+        "Slowest phase bar highlighted in red; others in gray",
+        "Chart updates after Phase L completes (once per iteration), pulling from .spiral/_checkpoint.json timing data"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/PhaseTimelineChart.tsx (Recharts bar chart, ~100 lines)",
+        "File to create: spiral-ui/src/hooks/usePhaseTimings.ts (parse checkpoint.json, calculate deltas, ~30 lines)",
+        "File to modify: spiral.sh (emit phase-timings event after Phase L checkpoint write, ~3 lines)",
+        "Manual test: run SPIRAL iteration, navigate to dashboard, verify 12 bars render with correct labels and bottleneck highlight"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1170",
+      "title": "CLI: spiral validate-federated -- Enforce Story ID Namespacing Across Sub-Projects",
+      "priority": "medium",
+      "description": "Extend spiral validate-federated to enforce story ID namespace rules for multi-repo projects. Each sub-project's stories must use prefix {REPO}_{STORYID}, and inter-repo story references are rejected.",
+      "acceptanceCriteria": [
+        "CLI command: spiral validate-federated --prd prd.json --repos backend,frontend validates all story IDs match pattern {REPO}_{TYPE}-{NUMBER}",
+        "Rejects stories missing repo prefix or referencing other repos' stories (e.g., backend story cannot depend on frontend_US-001)",
+        "Test: validate 3 repos (correct namespaces pass; one repo with incorrect namespace fails with clear error message)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/spiral/federated_namespace_validator.py (validation logic, ~60 lines)",
+        "File to modify: spiral.sh (add validate-federated subcommand handler dispatch, ~8 lines)",
+        "File to create: tests/test_federated_namespace_validation.py (test correct/incorrect namespace patterns, ~80 lines)",
+        "Test command: uv run pytest tests/test_federated_namespace_validation.py::test_namespace_enforcement_multi_repo -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1171",
+      "title": "Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup",
+      "priority": "high",
+      "description": "Implement federated_merge() that accepts stories with namespace-qualified IDs (e.g. PROJ1/US-100) and returns (accepted_stories, rejected_stories, error_log). Same-namespace duplicate IDs are rejected; identical IDs from different namespaces are both accepted.",
+      "acceptanceCriteria": [
+        "federated_merge() places both PROJ1/US-100 entries in rejected_stories when namespace+ID collides, with an error message naming the conflict",
+        "federated_merge() places both PROJ1/US-100 and PROJ2/US-100 in accepted_stories when only namespaces differ",
+        "uv run pytest tests/test_federated_merge.py::test_namespace_isolation -v passes"
+      ],
+      "technicalNotes": [
+        "File to create: lib/impl/federated_merge.py (federated_merge(stories: list[dict]) -> tuple[list[dict], list[dict], list[str]]; key on namespace+id pair)",
+        "Test command: uv run pytest tests/test_federated_merge.py::test_namespace_isolation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1172",
+      "title": "Phase M: Wire federated_merge() and Add Multi-Project Fixture",
+      "priority": "high",
+      "description": "Replace inline dedup logic in phase_m_federated_order.py with a call to federated_merge(). Add a JSON test fixture containing PROJ1/US-100 and PROJ2/US-100 to drive an integration assertion.",
+      "acceptanceCriteria": [
+        "phase_m_federated_order.py imports and calls federated_merge(); rejection errors from error_log are written to the SPIRAL log",
+        "tests/fixtures/federated_prd_multi_project.json contains two projects each with story US-100",
+        "uv run pytest tests/test_federated_merge.py::test_phase_m_integration -v passes"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/phase_m_federated_order.py (replace inline dedup block with: from lib.impl.federated_merge import federated_merge; accepted, rejected, errors = federated_merge(stories))",
+        "File to create: tests/fixtures/federated_prd_multi_project.json (minimal two-project fixture with US-100 in each)",
+        "Test command: uv run pytest tests/test_federated_merge.py::test_phase_m_integration -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1173",
+      "title": "Create lib/validation_errors.py: ValidationError Dataclass and Error Codes",
+      "priority": "high",
+      "description": "Define a ValidationError dataclass with fields error_code, story_id, expected_value, actual_value, file_path, and suggestion. Implement an ErrorCode enum covering MISSING_FILETOUCHES, INVALID_STORY_ID, and DUPLICATE_ID.",
+      "acceptanceCriteria": [
+        "ValidationError.to_dict() returns a dict containing all six required fields with correct types",
+        "ErrorCode enum contains MISSING_FILETOUCHES, INVALID_STORY_ID, and DUPLICATE_ID members",
+        "uv run pytest tests/test_validation_errors.py::test_suggestion_generation -v passes"
+      ],
+      "technicalNotes": [
+        "File to create: lib/validation_errors.py (use @dataclass and stdlib Enum only; add to_dict() method returning {error_code: str, story_id, expected_value, actual_value, file_path, suggestion})",
+        "Test command: uv run pytest tests/test_validation_errors.py::test_suggestion_generation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     }
