@@ -838,3 +838,25 @@ Based on the user story and project structure, this appears to be a Python/React
 
 ### Gotchas
 - The ruff/format checks pass; pre-existing mypy errors in unrelated lib/ files don't block story completion
+## Iteration 3 - Tue, Apr  7, 2026  7:27:57 PM
+Completed: [Integration Test] Show per-attempt failure messages in retry history drill-down (ID: US-1165) in 13m
+
+
+## Iteration - Story: US-1165 - [Integration Test] Show per-attempt failure messages in retry history drill-down
+
+### What was implemented
+- **tests/test_us1113_retry_history.py**: 3 integration tests (97 lines) using `parse_results_tsv` + `extract_failed_stories`
+  - Happy path: 3-attempt story (haiku/sonnet/opus) with per-attempt failure_root_cause
+  - Failure aggregation: extract_failed_stories collects all non-empty failure messages
+  - Edge case: empty failure_root_cause values produce empty failure_reasons list
+- Previous attempt had also created `tests/test_us1113_retry_failure_messages.py` with 4 tests (committed in prior iteration)
+- Total: 7 tests pass for `pytest -k us_1113`
+
+### Patterns discovered
+- When a story has a prior committed test file from a failed iteration, check for it before writing new tests
+- `write_results_tsv` + `parse_results_tsv` from `lib/results_tsv.py` provides a cleaner test approach than manually constructing TSV strings
+- Use `_BASE: dict[str, str] = {k: "" for k in HEADER}` to default all columns to empty for test records
+
+### Gotchas
+- Pre-existing mypy errors in `lib/ui/spiral_dashboard.py` and `lib/prd/` don't block test runs
+- Story `passes` field may remain `false` even when test file is committed — always verify prd.json update
