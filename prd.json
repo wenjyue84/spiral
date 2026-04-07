@@ -868,6 +868,42 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1175",
+      "title": "Dispatch Protocol: Attempt 3 Trigger Integration Test",
+      "description": "Add an integration test that verifies the subagent dispatch protocol fires correctly when RALPH_ATTEMPT=3.",
+      "priority": "critical",
+      "passes": false,
+      "retries": 0,
+      "dependencies": [
+        "US-1174"
+      ],
+      "filesTouch": [
+        "tests/test_dispatch_protocol.py",
+        "ralph/CLAUDE.md"
+      ],
+      "_source": "seed",
+      "complexity": "medium",
+      "hints": "Dispatch protocol documented in ralph/CLAUDE.md."
+    },
+    {
+      "id": "US-1176",
+      "title": "Dispatch Protocol: BLOCKED Task Handling Test and Documentation",
+      "description": "Add tests for BLOCKED task status path in subagent dispatch protocol and add inline documentation.",
+      "priority": "high",
+      "passes": false,
+      "retries": 0,
+      "dependencies": [
+        "US-1175"
+      ],
+      "filesTouch": [
+        "tests/test_dispatch_protocol.py",
+        "ralph/CLAUDE.md"
+      ],
+      "_source": "seed",
+      "complexity": "medium",
+      "hints": "BLOCKED status defined in implementer_prompt.md."
     }
   ]
 }

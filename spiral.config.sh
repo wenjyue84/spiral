@@ -186,6 +186,7 @@ SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"
 
 # ── Phase 0 Roleplay Clarification (Superpowers pattern) ─────────────────────
 SPIRAL_ROLEPLAY_CLARIFY="${SPIRAL_ROLEPLAY_CLARIFY:-true}"
+export SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT="${SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT:-60}"
 
 # ── Research focus prompt ────────────────────────────────────────────────────
 # Guides Gemini + Claude in Phase R toward relevant context
@@ -589,7 +590,8 @@ SPIRAL_OTEL_EMIT_MESSAGES="${SPIRAL_OTEL_EMIT_MESSAGES:-false}"
 #   redact (entire field removed, not pattern-matched).
 #   Default: gen_ai.input.messages,gen_ai.output.messages
 # SPIRAL_OTEL_SCRUB_FIELDS="gen_ai.input.messages,gen_ai.output.messages"
-export SPIRAL_MAX_DIFF_LINES=800
+export SPIRAL_MAX_DIFF_LINES=100
+export SPIRAL_DIFF_DEPTH=1
 
 # ── Phase V: AC Verification (US-1005) ───────────────────────────────────────
 # When true, Phase V runs AC verification after pytest passes.
