@@ -823,10 +823,16 @@
       "model": "sonnet",
       "last_attempted": "2026-04-07T09:47:33Z",
       "_phaseI": {
-        "diagnosisBlock": "## Current State\n`tests/test_model_routing_integration.py` has 4 passing tests in `TestSmartModelRoutingIntegration`. `pytest -k us_452` finds 0 tests (no names match the keyword). Only happy-path tests exist; no error/edge cases.\n\n## Problem Identified\n- `pytest -k us_452` finds nothing — test class/method names don't contain \"us_452\"\n- Missing edge case: unknown/missing `estimatedComplexity` field, CLI override env var\n\n## Planned Changes\n- `tests/test_model_routing_integration.py`:\n  - Rename `TestSmartModelRoutingIntegration` → `TestUS452SmartModelRouting` so `-k us_452` matches\n  - Add `test_us_452_missing_complexity_defaults_to_medium` (edge case: no `estimatedComplexity`)\n  - Add `test_us_452_cli_model_override_takes_priority` (edge case: `SPIRAL_CLI_MODEL` env var)\nAll 7 tests pass. Now verify the `-k us_452` filter works:\n7 passed with `-k us_452`. Now run pre-commit checks:\nThe mypy errors are pre-existing in unrelated files (`lib/ui/spiral_dashboard.py`, `lib/prd/validate_stories.py`, etc.) — not in my change. Let me verify the file-specific checks pass:\nLine 120 is new (I introduced it). Let me fix it:\nAll 7 pass. Now mark the story complete and commit:\nDone. US-1162 is complete.\n\n**What was done:**\n- Renamed `TestSmartModelRoutingIntegration` → `TestUS452SmartModelRouting` so `pytest -k us_452` finds the tests (was finding 0, now finds 7)\n- Added 3 edge-case tests:\n  - `test_us_452_missing_complexity_defaults_to_medium_tier` — story with no `estimatedComplexity` key\n  - `test_us_452_unknown_complexity_value_defaults_to_medium_tier` — unrecognised complexity string\n  - `test_us_452_cli_model_override_takes_priority` — `SPIRAL_CLI_MODEL` env var overrides auto-routing\n- All 7 tests pass, ruff clean, `passes: true` set in prd.json"
+        "diagnosisBlock": "## Current State\n`tests/test_model_routing_integration.py` already has 7 passing tests in `TestUS452SmartModelRouting` class (committed at `011362be`). Tests cover happy paths (4 tests) and edge cases (3 tests: missing complexity, unknown complexity, CLI override). `pytest -k us_452` finds and runs all 7 tests successfully. However, `prd.json` still has `passes: false`.\n\n## Problem Identified\nThe previous attempt implemented the code correctly but failed the orchestrator's diagnosis block gate (diagnosis must appear as plain text BEFORE any file edits). The tests are already complete and passing — only `passes: true` needs to be set in prd.json.\n\n## Planned Changes\n- `prd.json`: Set `passes: true` for US-1162\n- Commit the change\nUS-1162 is complete. The 7 integration tests were already implemented and passing from attempt 1 — only the `passes: true` flag needed to be set the prd.json. Committed."
       },
       "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
-      "_passedCommit": "011362be386692090a4eee99809cbe72f43425b2"
+      "_passedCommit": "011362be386692090a4eee99809cbe72f43425b2",
+      "_contextStats": {
+        "tokensBeforeMasking": 505,
+        "tokensAfterMasking": 504,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1163",
