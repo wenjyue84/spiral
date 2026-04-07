@@ -1017,6 +1017,23 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1183",
+      "title": "[Regression Test] Phase V: AC Assertion Extractor - Parse Acceptance Criteria into Executable Checks",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1004. Story description: Extract executable verification assertions from AC text (e.g. 'exits 0', 'file X exists', 'JSON contains field Y'). Generate per-story assertion files that can be programmatically verified, closing the gap between 'tests pass' and 'AC actually satisfied'.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1004",
+        "Test would reliably fail if the US-1004 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1004 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
