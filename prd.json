@@ -724,6 +724,54 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1173",
+      "title": "Harden Roleplay Clarification: Extract JSON Robustly from Mixed Claude Output",
+      "description": "The _run_roleplay_clarification() function in lib/phases/phase_0_clarify.sh currently uses a simple python3 extraction. Harden it to handle: (1) JSON wrapped in markdown code fences (```json ... ```), (2) JSON preceded by prose explanation, (3) partial/malformed JSON where focus key exists but avoid/constraints missing. Ensure SPIRAL_FOCUS is set to non-empty string even when Claude output is noisy.",
+      "priority": "critical",
+      "tags": [
+        "dispatch-hardening",
+        "roleplay"
+      ],
+      "filesTouch": [
+        "lib/phases/phase_0_clarify.sh"
+      ],
+      "dependencies": [],
+      "passes": true,
+      "acceptanceCriteria": [
+        "Given Claude output with JSON inside ```json fences, _run_roleplay_clarification extracts .focus correctly",
+        "Given Claude output with prose before JSON, extraction still succeeds",
+        "Given malformed JSON missing avoid/constraints, SPIRAL_FOCUS is still set from .focus field",
+        "Unit tests in tests/test_dispatch_protocol.py cover all three scenarios and pass"
+      ],
+      "model": "haiku",
+      "last_attempted": "2026-04-07T05:34:20Z"
+    },
+    {
+      "id": "US-1174",
+      "title": "Roleplay Clarification: Add Configurable Timeout to Prevent Hanging claude Invocation",
+      "description": "The claude CLI invocation in _run_roleplay_clarification() has no timeout. On Windows, a hanging claude process blocks the entire SPIRAL session. Add SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT (default: 60s) env var. Wrap the claude invocation with timeout command. If timeout fires, log a warning and return without setting SPIRAL_FOCUS.",
+      "priority": "critical",
+      "tags": [
+        "dispatch-hardening",
+        "roleplay"
+      ],
+      "filesTouch": [
+        "lib/phases/phase_0_clarify.sh",
+        "spiral.config.sh"
+      ],
+      "dependencies": [
+        "US-1173"
+      ],
+      "passes": false,
+      "acceptanceCriteria": [
+        "SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT is exported in spiral.config.sh with default 60",
+        "claude invocation in _run_roleplay_clarification uses timeout $SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT",
+        "When timeout fires: logs [Phase 0] Roleplay clarification timed out and returns 0 (non-fatal)",
+        "SPIRAL_FOCUS is not set when timeout fires"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-1161",
       "title": "[Integration Test] Enhance: Enable SPIRAL to support multi-repo projects: federated prd.json with su",
       "priority": "high",

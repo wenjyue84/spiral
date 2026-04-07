@@ -568,3 +568,30 @@ This brief outlines the plan for implementing an automated story acceptance crit
 
 ### Gotchas
 - Previous attempt failed ONLY due to missing diagnosis block gate (code was complete) — the diagnosis block must appear as plain text BEFORE any Edit/Write/Bash file modification calls
+
+## Pre-analysis for US-1173 (Gemini 2.5 Pro)
+Based on the user story `US-1173`, here is a technical brief for the implementation task.
+
+**Objective:** Harden the JSON extraction logic within the `_run_roleplay_clarification` shell function to robustly parse Claude's output, which may include markdown, prose, or be partially formed.
+
+**1. Primary Files to Modify:**
+*   `lib/phases/phase_0_clarify.sh`: The `_run_roleplay_clarification` function needs to be updated to use a more robust extraction method.
+*   `tests/test_dispatch_protocol.py`: Add new unit test cases to validate the specified scenarios.
+*   **(New Suggested File)** `lib/extract_focus.py`: Create a new, dedicated Python script to handle the extraction logic, keeping the shell script clean.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. The user story pertains to a shell script and Python helpers within the "Spiral" project, not a Frappe application.
+
+**3. Recommended Implementation Approach:**
+1.  Create `lib/extract_focus.py`. This script will read text from `stdin`.
+2.  Use a regular expression (e.g., `re.search(r'```json\s*(\{.*?\})\s*```|(\{.*?\})', content, re.DOTALL)`) to find and isolate the JSON string, whether it's in a markdown fence or not.
+3.  Wrap the JSON parsing (`json.loads()`) in a `try...except json.JSONDecodeError` block.
+4.  If parsing succeeds, use `data.get('focus')` to safely retrieve the focus value. This prevents errors if other keys like `avoid` or `constraints` are missing.
+5.  Print the retrieved focus value to `stdout`.
+6.  In `lib/phases/phase_0_clarify.sh`, replace the existing `python3 -c '...'` call with a call that pipes the Claude output to the new script: `SPIRAL_FOCUS=$(echo "$CLAUDE_OUTPUT" | python3 lib/extract_focus.py)`.
+
+**4. Edge Cases & Gotchas:**
+*   **Malformed JSON:** The script must not crash. The `try/except` block should handle `JSONDecodeError` gracefully, resulting in an empty output.
+*   **Partial JSON:** The script should successfully extract the `.focus` field's value even if the `avoid` and `constraints` fields are missing from the JSON object.
+*   **No JSON:** If no JSON is found in the input, the script should exit cleanly with no output, resulting in an empty `SPIRAL_FOCUS` variable.
+*   **Testing:** Ensure the new unit tests in `test_dispatch_protocol.py` specifically cover all acceptance criteria scenarios.

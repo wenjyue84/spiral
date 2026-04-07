@@ -598,33 +598,57 @@ _run_roleplay_clarification() {
     return 0
   }
 
-  # Extract .result field from Claude JSON envelope; fall back to raw if no envelope
-  local json_content
+  # Extract JSON robustly from Claude output, handling markdown fences and prose
+  local json_content focus avoid constraints
   json_content=$(echo "$raw_output" | python3 -c "
 import sys, json, re
-raw = sys.stdin.read()
-# Try Claude JSON envelope first
-try:
-    obj = json.loads(raw)
-    content = obj.get('result', raw)
-except Exception:
+
+def extract_json_robustly(raw):
+    \"\"\"Extract JSON from raw Claude output, handling fences and prose.\"\"\"
+    # Step 1: Extract .result field from Claude JSON envelope
     content = raw
-# Strip markdown fences if present
-content = re.sub(r'^\s*\`\`\`[a-z]*\s*', '', content, flags=re.MULTILINE)
-content = re.sub(r'\s*\`\`\`\s*$', '', content, flags=re.MULTILINE)
-# Find first valid JSON object
-match = re.search(r'\{.*\}', content, re.DOTALL)
-if match:
-    print(match.group(0))
-else:
-    print('{}')
+    try:
+        obj = json.loads(raw)
+        content = obj.get('result', raw)
+    except Exception:
+        pass
+
+    # Step 2: Try to extract JSON from markdown code fences
+    fence_match = re.search(r'\`\`\`(?:json)?\s*\n(.*?)\n\`\`\`', content, re.DOTALL)
+    if fence_match:
+        fence_content = fence_match.group(1).strip()
+        try:
+            parsed = json.loads(fence_content)
+            return parsed
+        except Exception:
+            pass
+
+    # Step 3: Find all potential JSON objects and validate them
+    # Try increasingly flexible patterns to find valid JSON
+    for pattern in [
+        r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}',  # Balanced braces
+        r'\{.*\}'  # Greedy fallback
+    ]:
+        for match in re.finditer(pattern, content, re.DOTALL):
+            try:
+                parsed = json.loads(match.group(0))
+                return parsed
+            except Exception:
+                continue
+
+    # Step 4: Fall back to empty object
+    return {}
+
+parsed = extract_json_robustly(sys.stdin.read())
+
+# Output JSON and fields
+print(json.dumps(parsed))
 " 2>/dev/null) || json_content="{}"
 
-  # Parse and export focus/avoid/constraints
-  local focus avoid constraints
+  # Parse and export focus/avoid/constraints with safe defaults
   focus=$(echo "$json_content" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('focus',''))" 2>/dev/null) || focus=""
-  avoid=$(echo "$json_content" | python3 -c "import sys,json; d=json.load(sys.stdin); print(', '.join(d.get('avoid',[])))" 2>/dev/null) || avoid=""
-  constraints=$(echo "$json_content" | python3 -c "import sys,json; d=json.load(sys.stdin); print(', '.join(d.get('constraints',[])))" 2>/dev/null) || constraints=""
+  avoid=$(echo "$json_content" | python3 -c "import sys,json; d=json.load(sys.stdin); avoid_list=d.get('avoid',[]); print(', '.join(avoid_list) if isinstance(avoid_list, list) else '')" 2>/dev/null) || avoid=""
+  constraints=$(echo "$json_content" | python3 -c "import sys,json; d=json.load(sys.stdin); constraints_list=d.get('constraints',[]); print(', '.join(constraints_list) if isinstance(constraints_list, list) else '')" 2>/dev/null) || constraints=""
 
   if [[ -n "$focus" ]]; then
     export SPIRAL_FOCUS="Goal: ${focus}${avoid:+ | Avoid: ${avoid}}${constraints:+ | Constraints: ${constraints}}"
@@ -634,7 +658,7 @@ else:
   fi
 
   # Save audit log
-  echo "$json_content" > "$output_file"
+  echo "$json_content" >"$output_file"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

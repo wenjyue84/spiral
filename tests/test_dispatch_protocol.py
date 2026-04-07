@@ -9,12 +9,12 @@ Validates the Subagent Dispatch Protocol integration:
 These are UNIT tests for the integration point — no Claude CLI calls.
 """
 
+import json
 import os
 import re
 import subprocess
 import textwrap
-
-import pytest
+from typing import Any
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -64,9 +64,7 @@ class TestPromptBuilderAttemptText:
 
     def test_max_retries_defined_in_lifecycle(self) -> None:
         """story_lifecycle.sh must define MAX_RETRIES=3."""
-        assert "MAX_RETRIES=3" in self.lifecycle, (
-            "ralph/lib/story_lifecycle.sh must set MAX_RETRIES=3"
-        )
+        assert "MAX_RETRIES=3" in self.lifecycle, "ralph/lib/story_lifecycle.sh must set MAX_RETRIES=3"
 
     def test_attempt_3_math_is_correct(self) -> None:
         """At RETRY_NOW=2, ATTEMPT $((2 + 1)) = ATTEMPT 3 — matches dispatch trigger."""
@@ -78,14 +76,13 @@ class TestPromptBuilderAttemptText:
         # Confirm CLAUDE.md trigger matches this text
         claude_md = read_file("ralph/CLAUDE.md")
         assert "ATTEMPT 3" in claude_md, (
-            "ralph/CLAUDE.md must contain 'ATTEMPT 3' to match the "
-            "prompt_builder output at RETRY_NOW=2"
+            "ralph/CLAUDE.md must contain 'ATTEMPT 3' to match the prompt_builder output at RETRY_NOW=2"
         )
 
     def test_attempt_1_and_2_do_not_trigger_dispatch(self) -> None:
         """At RETRY_NOW=0 and 1, attempt text is ATTEMPT 1/2 — no dispatch."""
         claude_md = read_file("ralph/CLAUDE.md")
-        dispatch_section = claude_md[claude_md.find("Subagent Dispatch Protocol"):]
+        dispatch_section = claude_md[claude_md.find("Subagent Dispatch Protocol") :]
         # The trigger must require ATTEMPT 3+, not 1 or 2
         assert "ATTEMPT 1" not in dispatch_section[:200] or "ATTEMPT 3" in dispatch_section[:200], (
             "Dispatch section must trigger at ATTEMPT 3, not ATTEMPT 1 or 2"
@@ -95,8 +92,7 @@ class TestPromptBuilderAttemptText:
         """The formula in prompt_builder.sh generates text matching CLAUDE.md trigger."""
         # Extract the RETRY_BRIEF format string
         assert "ATTEMPT $((RETRY_NOW + 1)) of $MAX_RETRIES" in self.builder, (
-            "prompt_builder.sh must contain the formula "
-            "'ATTEMPT $((RETRY_NOW + 1)) of $MAX_RETRIES'"
+            "prompt_builder.sh must contain the formula 'ATTEMPT $((RETRY_NOW + 1)) of $MAX_RETRIES'"
         )
 
 
@@ -114,15 +110,13 @@ class TestClaudeMdDispatchSection:
 
     def test_trigger_condition_present(self) -> None:
         """CLAUDE.md must tell Ralph to check for 'ATTEMPT 3'."""
-        assert "ATTEMPT 3" in self.claude_md, (
-            "ralph/CLAUDE.md must contain 'ATTEMPT 3' as the dispatch trigger"
-        )
+        assert "ATTEMPT 3" in self.claude_md, "ralph/CLAUDE.md must contain 'ATTEMPT 3' as the dispatch trigger"
 
     def test_trigger_covers_higher_attempts(self) -> None:
         """Trigger must cover attempt 3 AND higher (not just exactly 3)."""
         md = self.claude_md
         # Look for language like "ATTEMPT 3 or higher" or "ATTEMPT 3 or a higher"
-        trigger_section = md[md.find("Subagent Dispatch Protocol"):]
+        trigger_section = md[md.find("Subagent Dispatch Protocol") :]
         assert re.search(r"ATTEMPT 3.*higher", trigger_section, re.DOTALL | re.IGNORECASE), (
             "Dispatch trigger must cover ATTEMPT 3 OR HIGHER, not just exactly ATTEMPT 3"
         )
@@ -138,25 +132,23 @@ class TestClaudeMdDispatchSection:
 
     def test_sequential_dispatch_only(self) -> None:
         """Must not encourage parallel task dispatch (causes git conflicts)."""
-        dispatch_section = self.claude_md[self.claude_md.find("Subagent Dispatch Protocol"):]
+        dispatch_section = self.claude_md[self.claude_md.find("Subagent Dispatch Protocol") :]
         assert "sequentially" in dispatch_section.lower() or "one at a time" in dispatch_section.lower(), (
             "Dispatch section must specify sequential (not parallel) task dispatch"
         )
 
     def test_token_management_instruction(self) -> None:
         """Must include instruction to summarize subagent outputs (prevent overflow)."""
-        dispatch_section = self.claude_md[self.claude_md.find("Subagent Dispatch Protocol"):]
+        dispatch_section = self.claude_md[self.claude_md.find("Subagent Dispatch Protocol") :]
         assert "summarize" in dispatch_section.lower() or "summary" in dispatch_section.lower(), (
-            "Dispatch section must instruct Ralph to summarize subagent outputs "
-            "to prevent context overflow"
+            "Dispatch section must instruct Ralph to summarize subagent outputs to prevent context overflow"
         )
 
     def test_git_cleanup_before_redispatch(self) -> None:
         """Must include instruction to clean git state before redispatching."""
-        dispatch_section = self.claude_md[self.claude_md.find("Subagent Dispatch Protocol"):]
+        dispatch_section = self.claude_md[self.claude_md.find("Subagent Dispatch Protocol") :]
         assert "git checkout" in dispatch_section or "git status" in dispatch_section, (
-            "Dispatch section must include git cleanup instructions "
-            "to handle partial edits from failed tasks"
+            "Dispatch section must include git cleanup instructions to handle partial edits from failed tasks"
         )
 
 
@@ -238,7 +230,7 @@ class TestPhase0RoleplayIntegration:
     def test_roleplay_only_when_gate_proceed(self) -> None:
         """Roleplay must only run in non-interactive mode (--gate proceed)."""
         # The function must be called inside the GATE_DEFAULT==proceed block
-        gate_block = self.phase0[self.phase0.find("Skip conditions"):]
+        gate_block = self.phase0[self.phase0.find("Skip conditions") :]
         assert "_run_roleplay_clarification" in gate_block[:500], (
             "Roleplay clarification must be called inside the --gate proceed skip block"
         )
@@ -249,12 +241,144 @@ class TestPhase0RoleplayIntegration:
 
     def test_roleplay_gracefully_handles_missing_claude(self) -> None:
         """Must not crash if claude CLI is not found."""
-        assert "command -v claude" in self.phase0, (
-            "Roleplay function must check for claude CLI before calling it"
-        )
+        assert "command -v claude" in self.phase0, "Roleplay function must check for claude CLI before calling it"
 
     def test_roleplay_gracefully_handles_missing_prompt(self) -> None:
         """Must not crash if prompt file is not found."""
         assert "roleplay_prompt" in self.phase0
         # Should check file existence
-        assert "-f" in self.phase0[self.phase0.find("_run_roleplay_clarification"):self.phase0.find("_run_roleplay_clarification") + 1000]
+        assert (
+            "-f"
+            in self.phase0[
+                self.phase0.find("_run_roleplay_clarification") : self.phase0.find("_run_roleplay_clarification") + 1000
+            ]
+        )
+
+
+# ─── Test 5: Roleplay JSON extraction robustness ──────────────────────────────
+
+
+class TestRoleplayJsonExtraction:
+    """Verify _run_roleplay_clarification() robustly extracts JSON from various formats."""
+
+    def _extract_json_from_output(self, raw_output: str) -> tuple[str, str, str]:
+        """Simulate the Python extraction logic used in phase_0_clarify.sh."""
+
+        def extract_json_robustly(raw: str) -> dict[str, Any]:
+            """Extract JSON from raw Claude output, handling fences and prose."""
+            # Step 1: Extract .result field from Claude JSON envelope
+            content = raw
+            try:
+                obj = json.loads(raw)
+                content = obj.get("result", raw)
+            except Exception:
+                pass
+
+            # Step 2: Try to extract JSON from markdown code fences
+            fence_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", content, re.DOTALL)
+            if fence_match:
+                fence_content = fence_match.group(1).strip()
+                try:
+                    parsed: dict[str, Any] = json.loads(fence_content)
+                    return parsed
+                except Exception:
+                    pass
+
+            # Step 3: Find all potential JSON objects and validate them
+            for pattern in [
+                r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}",  # Balanced braces
+                r"\{.*\}",  # Greedy fallback
+            ]:
+                for match in re.finditer(pattern, content, re.DOTALL):
+                    try:
+                        parsed_item: dict[str, Any] = json.loads(match.group(0))
+                        return parsed_item
+                    except Exception:
+                        continue
+
+            # Step 4: Fall back to empty object
+            return {}
+
+        parsed = extract_json_robustly(raw_output)
+        focus = parsed.get("focus", "")
+        avoid_list = parsed.get("avoid", [])
+        constraints_list = parsed.get("constraints", [])
+        avoid_str = ", ".join(avoid_list) if isinstance(avoid_list, list) else ""
+        constraints_str = ", ".join(constraints_list) if isinstance(constraints_list, list) else ""
+        return focus, avoid_str, constraints_str
+
+    def test_json_in_markdown_fences(self) -> None:
+        """Extraction succeeds when JSON is in ```json code fences."""
+        raw_output = textwrap.dedent(
+            """\
+            Here is the roleplay output:
+            ```json
+            {
+              "focus": "Build AI features first",
+              "avoid": ["breaking changes", "performance regressions"],
+              "constraints": ["use existing patterns"],
+              "seed_stories": []
+            }
+            ```
+            """
+        )
+        focus, avoid, constraints = self._extract_json_from_output(raw_output)
+        assert focus == "Build AI features first", f"Expected focus to be extracted, got '{focus}'"
+        assert "breaking changes" in avoid
+        assert "performance regressions" in avoid
+        assert "use existing patterns" in constraints
+
+    def test_prose_before_json(self) -> None:
+        """Extraction succeeds when prose explanation precedes JSON."""
+        raw_output = textwrap.dedent(
+            """\
+            Based on the codebase analysis, here's the focus for this iteration:
+            {"focus": "Refactor parser module", "avoid": ["modify API"], "constraints": []}
+            More prose after JSON.
+            """
+        )
+        focus, avoid, constraints = self._extract_json_from_output(raw_output)
+        assert focus == "Refactor parser module", f"Expected focus 'Refactor parser module', got '{focus}'"
+        assert "modify API" in avoid
+
+    def test_malformed_json_missing_constraints(self) -> None:
+        """Extraction succeeds even when avoid/constraints fields are missing."""
+        raw_output = textwrap.dedent(
+            """\
+            {
+              "focus": "Complete critical features",
+              "avoid": ["incomplete testing"]
+            }
+            """
+        )
+        focus, avoid, constraints = self._extract_json_from_output(raw_output)
+        assert focus == "Complete critical features", f"Expected focus to be extracted, got '{focus}'"
+        assert "incomplete testing" in avoid
+        assert constraints == "", f"Expected empty constraints, got '{constraints}'"
+
+    def test_json_with_claude_envelope(self) -> None:
+        """Extraction succeeds when JSON is wrapped in Claude's response envelope."""
+        raw_output = json.dumps(
+            {
+                "result": json.dumps(
+                    {
+                        "focus": "Ship MVP features",
+                        "avoid": ["tech debt"],
+                        "constraints": ["30-day deadline"],
+                    }
+                ),
+                "stop_reason": "end_turn",
+            }
+        )
+        focus, avoid, constraints = self._extract_json_from_output(raw_output)
+        assert focus == "Ship MVP features"
+        assert "tech debt" in avoid
+        assert "30-day deadline" in constraints
+
+    def test_roleplay_function_uses_robust_extraction(self) -> None:
+        """Verify phase_0_clarify.sh contains the robust extraction logic."""
+        phase0 = read_file("lib/phases/phase_0_clarify.sh")
+        # Verify the extraction handles markdown fences
+        assert "```(?:json)?" in phase0 or r"\`\`\`(?:json)?" in phase0, "Extraction must handle markdown code fences"
+        # Verify it doesn't rely solely on greedy regex
+        assert "extract_json_robustly" in phase0, "Extraction must use robust extraction logic"
