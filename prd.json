@@ -704,7 +704,8 @@
         "ralph/ralph.sh",
         "tests/test_phase_v_integration.py"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_decomposed": true
     },
     {
       "id": "US-1160",
@@ -1033,6 +1034,68 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1184",
+      "title": "Ralph Self-Test: Add RALPH_SELF_TEST flag to ralph.sh",
+      "description": "Add RALPH_SELF_TEST=true env var to ralph/ralph.sh. When false skip self-test. Just the flag, export, and a log line.",
+      "priority": "high",
+      "passes": false,
+      "dependencies": [
+        "US-1153"
+      ],
+      "filesTouch": [
+        "ralph/ralph.sh"
+      ],
+      "_source": "seed",
+      "estimatedComplexity": "small",
+      "acceptanceCriteria": [
+        "ralph/ralph.sh exports RALPH_SELF_TEST defaulting to true",
+        "RALPH_SELF_TEST=false logs [self-test] disabled and skips",
+        "Existing tests still pass"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1185",
+      "title": "Ralph Self-Test: Add self-test loop instructions to CLAUDE.md",
+      "description": "Add Self-Test section to ralph/CLAUDE.md. Before git commit if RALPH_SELF_TEST=true: run test command; on FAILED do one self-correction pass (only files already in diff) then re-run once.",
+      "priority": "high",
+      "passes": false,
+      "dependencies": [
+        "US-1184"
+      ],
+      "filesTouch": [
+        "ralph/CLAUDE.md"
+      ],
+      "_source": "seed",
+      "estimatedComplexity": "small",
+      "acceptanceCriteria": [
+        "ralph/CLAUDE.md documents self-test step before commit",
+        "Self-correction limited to files already in diff",
+        "One self-correction pass maximum"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1186",
+      "title": "Ralph Self-Test: Write test_phase_v_integration.py",
+      "description": "Write tests/test_phase_v_integration.py with test_ralph_self_test_passes, test_ralph_self_correction_fixes_failure, test_self_test_disabled_flag.",
+      "priority": "high",
+      "passes": false,
+      "dependencies": [
+        "US-1185"
+      ],
+      "filesTouch": [
+        "tests/test_phase_v_integration.py"
+      ],
+      "_source": "seed",
+      "estimatedComplexity": "small",
+      "acceptanceCriteria": [
+        "tests/test_phase_v_integration.py exists with 3 passing tests",
+        "All existing tests pass"
+      ],
       "model": "haiku"
     }
   ]
