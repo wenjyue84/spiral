@@ -861,7 +861,16 @@
       "_antiPatterns": [
         "oversized_diff: produced 166 lines but limit is 100. Keep total insertions+deletions under 100 lines."
       ],
-      "last_attempted": "2026-04-07T11:06:49Z"
+      "last_attempted": "2026-04-07T11:06:49Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- Lesson injection (US-1096) is implemented in `lib/learned_lessons.py` and `lib/lesson_matcher.py`\n- Dashboard API has endpoints like `/api/dashboard/error-breakdown` that surface failure data related to lessons\n- Existing security tests (e.g. `test_security_us_1030.py`) follow a compact pattern: test auth + test data leakage on dashboard endpoints\n- Previous attempt failed with 166 lines — need to stay under 100\n\n## Problem Identified\nNeed security tests tagged `us_1096` that verify: auth enforcement on related endpoints, no lesson/sensitive data leakage in error responses — all within 100-line diff budget.\n\n## Planned Changes\n- Create `tests/test_security_us_1096.py` — compact security test (~65 lines) testing auth + lesson data leakage on error-breakdown endpoint\n- Update `prd.json` — mark US-1164 as passes: true\nAll 5 tests pass. Let me verify discoverability with `-k us_1096` and check the diff size.\n5 tests collected with `-k us_1096`. File is 59 lines — well under the 100-line budget. Now run pre-commit and update prd.json.\nRuff reformatted (expanded the list). Let me check the new line count.\n63 lines after ruff format — still safely under 100. Now update prd.json and commit.\n71 lines — well under the 100-line limit. Let me commit.\nNow update progress.txt.\nDone. US-1164 implemented and passing:\n\n- **Created** `tests/test_security_us_1096.py` (63 lines, 5 tests)\n- **Diff size**: 71 lines (under 100-line limit)\n- **All 5 tests pass** with `pytest -k us_1096`\n- **Acceptance criteria met**: auth enforcement (401/403), no lesson data leakage, no sensitive keys in error responses"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 281,
+        "tokensAfterMasking": 280,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1165",
@@ -880,7 +889,8 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-04-07T11:12:09Z"
     },
     {
       "id": "US-1175",
@@ -992,57 +1002,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1181",
-      "title": "[Regression Test] Phase I: Partial Victory Commit - Save Working ACs When Full Story Fails",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-787. Story description: When a story fails because 1 of N acceptance criteria cannot be met, commit the passing ACs and decompose only the failing ones into sub-stories.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-787",
-        "Test would reliably fail if the US-787 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_787 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1182",
-      "title": "[Regression Test] Phase I: Stuck Story Diagnosis - Classify Repeated Failures by Root Cause",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-788. Story description: After 3 identical failures, classify root cause: model-resolvable, scope-too-large, missing-knowledge, or external-dependency. Skip futile retries and suggest targeted action.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-788",
-        "Test would reliably fail if the US-788 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_788 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1183",
-      "title": "[Regression Test] Phase V: AC Assertion Extractor - Parse Acceptance Criteria into Executable Checks",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-1004. Story description: Extract executable verification assertions from AC text (e.g. 'exits 0', 'file X exists', 'JSON contains field Y'). Generate per-story assertion files that can be programmatically verified, closing the gap between 'tests pass' and 'AC actually satisfied'.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-1004",
-        "Test would reliably fail if the US-1004 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_1004 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1184",
       "title": "Ralph Self-Test: Add RALPH_SELF_TEST flag to ralph.sh",
       "description": "Add RALPH_SELF_TEST=true env var to ralph/ralph.sh. When false skip self-test. Just the flag, export, and a log line.",
@@ -1102,6 +1061,27 @@
         "tests/test_phase_v_integration.py exists with 3 passing tests",
         "All existing tests pass"
       ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1189",
+      "title": "Create E2E Integration Test Harness and Fixtures for SPIRAL",
+      "priority": "high",
+      "description": "Create the test infrastructure for SPIRAL end-to-end integration testing: a conftest.py with pytest fixtures that set up mocked environment variables and a mock ralph.sh script, plus a minimal prd.json fixture with one deterministic test story.",
+      "acceptanceCriteria": [
+        "tests/conftest.py defines fixtures for SPIRAL_VALIDATE_CMD, SPIRAL_MODEL_ROUTING=fixed, and injects a mock ralph.sh into PATH that exits 0",
+        "tests/fixtures/mock_spiral_prd.json contains exactly 1 story with status='pending' and deterministic id/title fields",
+        "uv run pytest tests/test_spiral_e2e_integration.py --collect-only exits 0 (fixtures load without error)"
+      ],
+      "technicalNotes": [
+        "File to create: tests/conftest.py (pytest fixtures: mock_ralph_env, mock_prd_fixture)",
+        "File to create: tests/fixtures/mock_spiral_prd.json (single story: id=UT-001, title=Mock Story, status=pending)",
+        "Mock ralph.sh must write a passing result to results.tsv and exit 0 — create as a tmpfile in the fixture",
+        "Test command: uv run pytest tests/test_spiral_e2e_integration.py --collect-only -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "haiku"
     }
   ]
