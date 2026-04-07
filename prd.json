@@ -883,7 +883,8 @@
       "model": "sonnet",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe US-1113 feature shows per-attempt `failure_root_cause` values in the retry history drill-down. The TypeScript backend (`analyticsApi.ts`) returns `failureRootCause` per attempt in `storyAttempts`. The Python-side data pipeline uses `parse_results_tsv` and `extract_failed_stories` to process the same data.\n\n## Problem Identified\nNo integration tests exist for US-1113. Tests need to verify the Python data pipeline correctly reads and exposes per-attempt `failure_root_cause` values from results.tsv.\n\n## Planned Changes\n- **Create**: `tests/test_us1113_retry_history.py` — 3 integration tests using `parse_results_tsv` + `extract_failed_stories`:\n  1. Happy path: 3-attempt story with failure messages on rejected attempts\n  2. Failure aggregation: `extract_failed_stories` collects all per-attempt failure messages\n  3. Edge case: empty `failure_root_cause` values don't crash the pipeline\nAll 3 tests pass. Now run with `-k us_1113` to verify discoverability:\nThe existing `test_us1113_retry_failure_messages.py` was from a previous attempt. My new `test_us1113_retry_history.py` adds direct `parse_results_tsv` coverage. All 7 tests pass. Let me run pre-commit and mark the story done.\nThe mypy errors are pre-existing (not from my file). Let me mark the story as passed and commit:\nNow update `progress.txt` with learnings:\nStory US-1165 is complete.\n\n**What was implemented:**\n- Created `tests/test_us1113_retry_history.py` with 3 integration tests for the US-1113 per-attempt failure message feature:\n  1. **Happy path**: 3-attempt story (haiku→sonnet→opus) — verifies `parse_results_tsv` preserves `failure_root_cause` per attempt\n  2. **Aggregation**: `extract_failed_stories` collects all non-empty failure messages from multi-retry stories\n  3. **Edge case**: Empty `failure_root_cause` values produce an empty `failure_reasons` list (no crash)\n- Fixed pre-existing prd.json schema errors (invalid deps `US-1112`, `US-1115`)\n- All 7 tests pass with `pytest -k us_1113`"
-      }
+      },
+      "_passedCommit": "07def79188f988b6b5e7812e56268250da789252"
     },
     {
       "id": "US-1175",
@@ -911,7 +912,7 @@
       "title": "Dispatch Protocol: BLOCKED Task Handling Test and Documentation",
       "description": "Add tests for BLOCKED task status path in subagent dispatch protocol and add inline documentation.",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "dependencies": [
         "US-1175"
       ],
@@ -924,7 +925,8 @@
         "Test for BLOCKED task status path exists in test_dispatch_protocol.py",
         "ralph/CLAUDE.md documents the BLOCKED status handling"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-07T11:34:28Z"
     },
     {
       "id": "US-1177",
@@ -1163,6 +1165,27 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1190",
+      "title": "Write E2E Test Asserting Phase Sequence and Story State Transitions",
+      "priority": "high",
+      "description": "Implement the actual pytest test that invokes spiral.sh with the mocked environment (from conftest.py fixtures) and asserts that .spiral/_checkpoint.json records correct phase progression and that the story status transitions from pending to done.",
+      "acceptanceCriteria": [
+        "test_single_iteration_phase_sequence invokes spiral.sh with --gate skip and captures exit code 0",
+        ".spiral/_checkpoint.json exists after the run and contains phase entries matching expected order [A, M, I, V, C]",
+        "prd.json story UT-001 status equals 'done' after the run"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_spiral_e2e_integration.py (test_single_iteration_phase_sequence)",
+        "Use subprocess.run(['bash', 'spiral.sh', '1', '--gate', 'skip'], env=mock_ralph_env, cwd=tmp_project_dir)",
+        "Assert checkpoint: json.loads(Path('.spiral/_checkpoint.json').read_text())['phase'] in EXPECTED_PHASES",
+        "Test command: uv run pytest tests/test_spiral_e2e_integration.py::test_single_iteration_phase_sequence -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
     }
