@@ -331,3 +331,91 @@ except Exception:
 " "$failed_files_json" 2>/dev/null) || files_str=""
   echo "$files_str"
 }
+
+# extract_error_signature <log_file>
+# Extracts structured error signature from ralph output.
+# Calls failure_categorizer.py and returns JSON string:
+#   '{"error_type":"timeout","error_message":"Error: execution timeout..."}'
+# Returns '{"error_type":"other","error_message":"unknown error"}' on error.
+extract_error_signature() {
+  local log_file="${1:-}"
+
+  if [[ ! -f "$log_file" ]]; then
+    echo '{"error_type":"other","error_message":"log file not found"}'
+    return 0
+  fi
+
+  local result
+  result=$(uv run python -c "
+import json, sys
+from lib.failure_categorizer import categorize_failure
+try:
+    with open(sys.argv[1], encoding='utf-8', errors='replace') as f:
+        output = f.read()
+    ftype, fmsg = categorize_failure(output, '')
+    print(json.dumps({'error_type': ftype, 'error_message': fmsg}))
+except Exception as e:
+    print(json.dumps({'error_type': 'other', 'error_message': str(e)[:200]}))
+" "$log_file" 2>/dev/null)
+
+  if [[ -z "$result" ]]; then
+    result='{"error_type":"other","error_message":"extraction failed"}'
+  fi
+  echo "$result"
+}
+
+# get_error_hints <error_type>
+# Returns targeted anti-pattern hint for a given error type.
+# Hints are designed to guide the agent toward correcting the specific error.
+get_error_hints() {
+  local error_type="${1:-other}"
+
+  case "$error_type" in
+    missing_dependency)
+      echo "Do NOT forget to import all required modules at the top of the file. Add missing imports before using them."
+      ;;
+    syntax_error)
+      echo "Do NOT use invalid Python syntax. Check for unmatched brackets, quotes, or indentation errors. Fix all syntax issues."
+      ;;
+    type_error)
+      echo "Do NOT pass arguments of incorrect types. Verify function signatures and ensure type compatibility. Use type hints to guide implementation."
+      ;;
+    test_assertion)
+      echo "Do NOT make assumptions about test expectations. Re-read the test code and acceptance criteria carefully. Ensure implementation matches expected behavior."
+      ;;
+    timeout)
+      echo "Do NOT use inefficient algorithms or infinite loops. Optimize performance and add timeouts to prevent hanging."
+      ;;
+    oom)
+      echo "Do NOT create large objects in memory. Optimize data structures and avoid loading entire datasets at once."
+      ;;
+    context_overflow)
+      echo "Do NOT provide overly verbose explanations or include unnecessary code. Keep implementation focused and concise."
+      ;;
+    *)
+      echo "Do NOT repeat the same approach. Try a fundamentally different implementation strategy."
+      ;;
+  esac
+}
+
+# compare_error_signatures <sig1_json> <sig2_json>
+# Compares two error signatures and returns:
+#   'same' if error_type is identical
+#   'different' if error_type differs
+#   'unknown' if either signature is malformed
+compare_error_signatures() {
+  local sig1="${1:-}"
+  local sig2="${2:-}"
+
+  local type1 type2
+  type1=$(echo "$sig1" | uv run python -c "import json,sys; d=json.load(sys.stdin); print(d.get('error_type','unknown'))" 2>/dev/null) || type1="unknown"
+  type2=$(echo "$sig2" | uv run python -c "import json,sys; d=json.load(sys.stdin); print(d.get('error_type','unknown'))" 2>/dev/null) || type2="unknown"
+
+  if [[ "$type1" == "unknown" || "$type2" == "unknown" ]]; then
+    echo "unknown"
+  elif [[ "$type1" == "$type2" ]]; then
+    echo "same"
+  else
+    echo "different"
+  fi
+}
