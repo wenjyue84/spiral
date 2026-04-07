@@ -9,6 +9,7 @@ Story: US-617
 
 from __future__ import annotations
 
+import logging
 import re
 import sys
 from pathlib import Path
@@ -18,6 +19,10 @@ from typing import Any
 _LIB_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_LIB_DIR))
 from story_reorder import build_dep_graph, topological_sort  # noqa: E402
+
+from lib.impl.federated_merge import federated_merge  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 # Pattern to detect cross-project story ID references in description text.
 # Matches: "depends on US-123", "requires US-B5", "after US-42", etc.
@@ -70,7 +75,8 @@ def order_federated_stories_by_dependency(stories: list[dict[str, Any]]) -> list
     """Order federated stories so dependencies are merged before dependents.
 
     Scans story descriptions for cross-project story ID references and builds
-    a dependency graph, then returns a topologically sorted list.
+    a dependency graph, then returns a topologically sorted list. First deduplicates
+    stories by namespace+ID using federated_merge().
 
     Args:
         stories: List of story dicts from prd.json.
@@ -86,12 +92,19 @@ def order_federated_stories_by_dependency(stories: list[dict[str, Any]]) -> list
     if not stories:
         return []
 
+    # Deduplicate stories by namespace+ID
+    accepted_stories, rejected_stories, errors = federated_merge(stories)
+
+    # Log rejection errors to SPIRAL log
+    for error in errors:
+        logger.warning(f"Story rejected during federated merge: {error}")
+
     # Separate stories with and without IDs; only sort those with IDs.
-    id_stories = [s for s in stories if s.get("id")]
-    no_id_stories = [s for s in stories if not s.get("id")]
+    id_stories = [s for s in accepted_stories if s.get("id")]
+    no_id_stories = [s for s in accepted_stories if not s.get("id")]
 
     if not id_stories:
-        return list(stories)
+        return accepted_stories
 
     graph = _build_dep_graph_with_descriptions(id_stories)
 

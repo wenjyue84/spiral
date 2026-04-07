@@ -899,7 +899,8 @@
       "last_attempted": "2026-04-07T19:45:15Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe Spiral codebase uses Python modules in `lib/impl/` for implementation of Phase I sub-tasks. Existing modules like `auto_decompose.py` follow a pattern of:\n- Type hints with `from __future__ import annotations`\n- Dictionary-based story representation\n- Clear separation of concerns\n- Proper error handling\n\nThe story US-1171 requires implementing namespace-aware story deduplication logic that:\n- Accepts stories with namespace-qualified IDs (e.g., `PROJ1/US-100`)\n- Returns a tuple of (accepted_stories, rejected_stories, error_log)\n- Rejects stories when the same namespace+ID pair appears twice\n- Accepts identical IDs from different namespaces\n\n## Problem Identified\n\nStory US-1171 needs a new function `federated_merge()` in `lib/impl/federated_merge.py` that:\n1. Deduplicates stories based on namespace+ID pairs\n2. Tracks errors when duplicates within the same namespace are found\n3. Allows same ID across different namespaces\n4. Is tested by `tests/test_federated_merge.py::test_namespace_isolation`\n\n## Planned Changes\n\n1. **Create `lib/impl/federated_merge.py`**:\n   - Implement `federated_merge(stories: list[dict]) -> tuple[list[dict], list[dict], list[str]]`\n   - Parse namespace from story IDs (format: `NAMESPACE/ID`)\n   - Key on (namespace, id) pairs\n   - Return accepted, rejected, and error list\n\n2. **Create `tests/test_federated_merge.py`**:\n   - Test that same-namespace duplicates are rejected with error message\n   - Test that different-namespace same-IDs are both accepted\n   - Test the `test_namespace_isolation` function\n\nNow implementing:\n## Summary"
-      }
+      },
+      "_passedCommit": "3e146d42a6f755d9cb2c3b406dc4516c086a8e6d"
     },
     {
       "id": "US-1172",
@@ -918,8 +919,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-07T20:00:54Z"
     },
     {
       "id": "US-1173",

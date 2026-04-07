@@ -600,3 +600,6 @@ This brief outlines the plan for implementing an automated story acceptance crit
 - [x] federated_merge() places both PROJ1/US-100 entries in rejected_stories when namespace+ID collides, with error message
 - [x] federated_merge() places both PROJ1/US-100 and PROJ2/US-100 in accepted_stories when only namespaces differ
 - [x] uv run pytest tests/test_federated_merge.py::test_namespace_isolation -v passes (verified with --override-ini)
+## Iteration 1 - Wed, Apr  8, 2026  4:00:52 AM
+Completed: Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup (ID: US-1171) in 15m
+

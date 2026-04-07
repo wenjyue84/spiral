@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "Multi-project fixture for federated_merge integration tests"
+  },
+  "userStories": [
+    {
+      "id": "PROJ1/US-100",
+      "title": "Story in project 1",
+      "description": "First project story",
+      "acceptanceCriteria": ["Criterion 1"],
+      "passes": false
+    },
+    {
+      "id": "PROJ2/US-100",
+      "title": "Story in project 2",
+      "description": "Second project story (same ID, different namespace)",
+      "acceptanceCriteria": ["Criterion 2"],
+      "passes": false
+    },
+    {
+      "id": "PROJ1/US-100",
+      "title": "Duplicate story in project 1",
+      "description": "This is a duplicate of PROJ1/US-100 that should be rejected",
+      "acceptanceCriteria": ["Criterion 3"],
+      "passes": false
+    }
+  ]
+}
