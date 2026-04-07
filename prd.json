@@ -865,7 +865,8 @@
       "last_attempted": "2026-04-07T20:27:35Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe test file `test_arch_validators.py` already has comprehensive tests for the arch validators (US-1084 feature). However, the tests are not marked with `@pytest.mark.us_1084`, which prevents them from being run with the command `pytest -k us_1084`. The architectural validators exist in `lib/arch_validators.py` and implement constraint checking (MaxFileSize, NoCircularImports, LayerAccess).\n\n## Problem Identified\nThe story requires a regression test that covers the core observable behavior of US-1084 and would fail if the feature were removed. Currently, tests exist but are unmarked, so they can't be selected with `-k us_1084`. Also need to ensure the marker is defined in pytest config.\n\n## Planned Changes\n1. Add `us_1084` marker definition to `pyproject.toml`\n2. Add `@pytest.mark.us_1084` to key test classes/functions in `tests/test_arch_validators.py` covering:\n   - Core validator violations (MaxFileSize, NoCircularImports, LayerAccess)\n   - Validator factory (load_validators)\n   - Integration with runner (arch_validation_failed flag)\n\n---\n\nLet me implement this:\n## Summary"
-      }
+      },
+      "_passedCommit": "8841fa53222e76b8f930e66e82ecb943c00c267c"
     },
     {
       "id": "US-1168",
@@ -884,8 +885,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-07T20:34:41Z"
     },
     {
       "id": "US-1169",
