@@ -795,3 +795,6 @@ Here is the technical brief for implementing the regression test for story US-11
 - ✓ CLI with valid namespaces: 3 stories pass (backend_US-001, frontend_US-001, services_UT-001)
 - ✓ CLI with invalid namespaces: 2 stories fail with clear errors
 - ✓ Cross-repo dependency: rejected with message "backend story cannot depend on frontend_US-002"
+## Iteration 1 - Wed, Apr  8, 2026  5:32:03 AM
+Completed: CLI: spiral validate-federated -- Enforce Story ID Namespacing Across Sub-Projects (ID: US-1170) in 10m
+
