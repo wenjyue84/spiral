@@ -1,3 +1,30 @@
+## Iteration N - Story: US-1166 - [Regression Test] Phase S Story Validation Confidence Scorer
+
+### What was implemented
+- **tests/test_validation_confidence_scorer.py**:
+  - Added pytest marker `pytestmark = pytest.mark.us_1062` to enable filtering with `pytest -k us_1062`
+  - Removed unused `type: ignore[import-untyped]` comment to satisfy mypy strict mode
+  - Tests verify core observable behavior: score_story() returns 0-100 values, simple stories > 80, complex < 50
+
+- **tests/pyproject.toml**:
+  - Added marker declaration: `"us_1062: regression tests for Phase S validation confidence scorer (US-1062)"`
+
+### Patterns discovered
+- Pytest markers allow filtering tests by story ID using `-k` flag
+- Existing comprehensive tests in `test_validation_confidence_scorer.py` cover all critical paths: scoring algorithm, file writes, low-confidence detection
+- Marker declared at module level via `pytestmark` variable affects all test classes/functions in that module
+- The `type: ignore` comment on third-party imports was unnecessary with proper lib path setup in sys.path
+
+### Gotchas
+- pyproject.toml in tests/ directory overrides root pyproject.toml, so marker must be declared in tests/pyproject.toml
+- Removing type: ignore comments requires verifying imports are actually typed (they were)
+
+### Acceptance Criteria Met
+- [x] Regression test covers core observable behaviour of US-1062 (9 comprehensive tests for scoring, file writes, accuracy)
+- [x] Test reliably fails if feature is removed/broken (tests verify exact scoring algorithm penalties)
+- [x] Can run with: `uv run pytest tests/ -k us_1062 -v` (9/9 tests pass)
+- [x] mypy strict mode passes
+
 ## Iteration N - Story: US-1152 - Phase E: Inject Top-3 Similar Passing Stories as Ralph Reference Implementations
 
 ### What was implemented
@@ -603,3 +630,34 @@ This brief outlines the plan for implementing an automated story acceptance crit
 ## Iteration 1 - Wed, Apr  8, 2026  4:00:52 AM
 Completed: Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup (ID: US-1171) in 15m
 
+
+## Pre-analysis for US-1166 (Gemini 2.5 Pro)
+Based on the user story, here is a technical brief for the implementation within a Frappe/LHDN integration context.
+
+**Project:** `lhdn_payroll_integration`
+**User Story:** US-1166 (adapted) - Payroll Submission Confidence Scorer
+
+### Technical Implementation Brief
+
+**1. Python Files to Modify:**
+*   Create `lhdn_payroll_integration/utils/submission_scorer.py`: This new file will house the core scoring logic in a whitelisted `calculate_confidence_score` function.
+*   Modify `erpnext/hr/doctype/payroll_entry/payroll_entry.js`: The client script will be updated to call the scoring function and display the result.
+*   Modify `erpnext/hr/doctype/payroll_entry/payroll_entry.py`: Potentially add a server-side call on the `validate` hook as a fallback.
+
+**2. Frappe DocTypes & Hooks:**
+*   **DocTypes:**
+    *   `Payroll Entry`: Add a new custom read-only integer field, "Submission Confidence Score", to its DocType.
+    *   `Employee`: The primary source of data for validation (tax ID, bank info).
+*   **Hooks:**
+    *   Utilize `doc_events` in `hooks.py` for `Payroll Entry`. The `validate` event is the best candidate to trigger the calculation, ensuring a score is present before submission.
+
+**3. Recommended Approach:**
+1.  The whitelisted `calculate_confidence_score` function will accept a `payroll_entry` docname.
+2.  It will fetch all employees in that run and iterate through them, checking for common data issues (missing LHDN number, incomplete bank details, etc.).
+3.  The logic will deduct points from a base score of 100 for each validation failure, with weights based on severity.
+4.  A client script on the `Payroll Entry` form will call this function via `frappe.call` and update the "Submission Confidence Score" field, providing immediate feedback to the user.
+
+**4. Edge Cases & Gotchas:**
+*   **Performance:** For large payroll runs, the synchronous calculation could time out. Consider moving the scoring to a background job triggered `on_update`.
+*   **Configuration:** Avoid hardcoding scoring weights. Introduce a custom DocType, "LHDN Integration Settings," to make the scoring logic configurable by the admin.
+*   **Data Integrity:** Ensure logic correctly handles pro-rated salaries for new hires and resigned employees.

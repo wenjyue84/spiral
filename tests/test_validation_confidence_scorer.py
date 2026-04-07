@@ -21,7 +21,9 @@ import pytest
 # Ensure lib/ is on path
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
-from validation_confidence_scorer import score_all_stories, score_story  # type: ignore[import-untyped]
+from validation_confidence_scorer import score_all_stories, score_story
+
+pytestmark = pytest.mark.us_1062  # Regression test for US-1062
 
 # ---------------------------------------------------------------------------
 # Curated test stories (10 stories with manual labels)

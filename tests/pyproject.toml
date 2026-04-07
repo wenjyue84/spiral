@@ -31,6 +31,7 @@ timeout_method = "thread"
 addopts = "-n 4 --dist loadscope -m 'not benchmark'"
 markers = [
     "benchmark: marks tests as benchmark suite (deselect with '-m \"not benchmark\"')",
+    "us_1062: regression tests for Phase S validation confidence scorer (US-1062)",
 ]
 
 [tool.coverage.run]

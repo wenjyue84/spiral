@@ -838,8 +838,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-07T20:13:36Z"
     },
     {
       "id": "US-1167",
@@ -879,6 +880,48 @@
       "model": "haiku"
     },
     {
+      "id": "US-1169",
+      "title": "spiral-ui: Add Phase Duration Timeline Chart for Bottleneck Identification",
+      "priority": "medium",
+      "description": "Visualize how long each SPIRAL phase takes across iterations. Bar chart shows duration (ms) per phase (A, R, T, S, E, M, X, G, I, V, C, L). Highlights slowest phase in red for bottleneck detection.",
+      "acceptanceCriteria": [
+        "Chart renders 12 bars (one per phase), labeled with phase letter, duration in milliseconds",
+        "Slowest phase bar highlighted in red; others in gray",
+        "Chart updates after Phase L completes (once per iteration), pulling from .spiral/_checkpoint.json timing data"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/PhaseTimelineChart.tsx (Recharts bar chart, ~100 lines)",
+        "File to create: spiral-ui/src/hooks/usePhaseTimings.ts (parse checkpoint.json, calculate deltas, ~30 lines)",
+        "File to modify: spiral.sh (emit phase-timings event after Phase L checkpoint write, ~3 lines)",
+        "Manual test: run SPIRAL iteration, navigate to dashboard, verify 12 bars render with correct labels and bottleneck highlight"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1170",
+      "title": "CLI: spiral validate-federated -- Enforce Story ID Namespacing Across Sub-Projects",
+      "priority": "medium",
+      "description": "Extend spiral validate-federated to enforce story ID namespace rules for multi-repo projects. Each sub-project's stories must use prefix {REPO}_{STORYID}, and inter-repo story references are rejected.",
+      "acceptanceCriteria": [
+        "CLI command: spiral validate-federated --prd prd.json --repos backend,frontend validates all story IDs match pattern {REPO}_{TYPE}-{NUMBER}",
+        "Rejects stories missing repo prefix or referencing other repos' stories (e.g., backend story cannot depend on frontend_US-001)",
+        "Test: validate 3 repos (correct namespaces pass; one repo with incorrect namespace fails with clear error message)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/spiral/federated_namespace_validator.py (validation logic, ~60 lines)",
+        "File to modify: spiral.sh (add validate-federated subcommand handler dispatch, ~8 lines)",
+        "File to create: tests/test_federated_namespace_validation.py (test correct/incorrect namespace patterns, ~80 lines)",
+        "Test command: uv run pytest tests/test_federated_namespace_validation.py::test_namespace_enforcement_multi_repo -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1171",
       "title": "Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup",
       "priority": "high",
@@ -895,12 +938,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-07T19:45:15Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe Spiral codebase uses Python modules in `lib/impl/` for implementation of Phase I sub-tasks. Existing modules like `auto_decompose.py` follow a pattern of:\n- Type hints with `from __future__ import annotations`\n- Dictionary-based story representation\n- Clear separation of concerns\n- Proper error handling\n\nThe story US-1171 requires implementing namespace-aware story deduplication logic that:\n- Accepts stories with namespace-qualified IDs (e.g., `PROJ1/US-100`)\n- Returns a tuple of (accepted_stories, rejected_stories, error_log)\n- Rejects stories when the same namespace+ID pair appears twice\n- Accepts identical IDs from different namespaces\n\n## Problem Identified\n\nStory US-1171 needs a new function `federated_merge()` in `lib/impl/federated_merge.py` that:\n1. Deduplicates stories based on namespace+ID pairs\n2. Tracks errors when duplicates within the same namespace are found\n3. Allows same ID across different namespaces\n4. Is tested by `tests/test_federated_merge.py::test_namespace_isolation`\n\n## Planned Changes\n\n1. **Create `lib/impl/federated_merge.py`**:\n   - Implement `federated_merge(stories: list[dict]) -> tuple[list[dict], list[dict], list[str]]`\n   - Parse namespace from story IDs (format: `NAMESPACE/ID`)\n   - Key on (namespace, id) pairs\n   - Return accepted, rejected, and error list\n\n2. **Create `tests/test_federated_merge.py`**:\n   - Test that same-namespace duplicates are rejected with error message\n   - Test that different-namespace same-IDs are both accepted\n   - Test the `test_namespace_isolation` function\n\nNow implementing:\n## Summary"
-      },
-      "_passedCommit": "3e146d42a6f755d9cb2c3b406dc4516c086a8e6d"
+      "model": "haiku"
     },
     {
       "id": "US-1172",
@@ -920,8 +958,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-07T20:00:54Z"
+      "model": "haiku"
     },
     {
       "id": "US-1173",
