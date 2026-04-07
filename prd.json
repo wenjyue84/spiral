@@ -648,9 +648,15 @@
       "model": "haiku",
       "last_attempted": "2026-04-05T23:58:01Z",
       "_phaseI": {
-        "diagnosisBlock": "## Current State\n\n1. **lib/prd/validate_stories.py**: Already contains `score_ac_measurability()` function (lines 411-455) and `_rewrite_acs_via_haiku()` function (lines 458-511)\n2. **validate_stories() function**: Already integrates AC measurability gate at lines 741-776, checking for at least 2 measurable ACs after potential rewrite\n3. **Tests**: Already added in tests/test_validate_stories.py (lines 350-457)\n4. **spiral.config.sh**: Missing `SPIRAL_AC_QUALITY_THRESHOLD` variable definition\n\n## Problem Identified\n\nThe story US-1154 is incomplete. While the core implementation exists, the configuration variable `SPIRAL_AC_QUALITY_THRESHOLD` is not defined in `spiral.config.sh`, which means the system has no default threshold for triggering AC rewrites.\n\n## Planned Changes\n\n1. Add `SPIRAL_AC_QUALITY_THRESHOLD=0.5` to `spiral.config.sh` in the complexity gating section\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"spiral.config.sh\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 3\n}\n</plan>\n\nNow let me execute the plan by reading the current spiral.config.sh section and adding the missing configuration:\nNow let me run the tests to verify the implementation works correctly:\nPerfect! All tests pass. Let me commit the changes:\n## Summary"
+        "diagnosisBlock": "## Current State\nThe full US-1154 implementation was completed in the previous attempt:\n1. `lib/prd/validate_stories.py` - contains `score_ac_measurability()` (lines 411-455), `_rewrite_acs_via_haiku()` (lines 458-511), and the AC measurability gate integrated at lines 741-776\n2. `spiral.config.sh` - already has `SPIRAL_AC_QUALITY_THRESHOLD=\"${SPIRAL_AC_QUALITY_THRESHOLD:-0.5}\"` at line 177\n3. `tests/test_validate_stories.py` - has all 4 required tests: `test_ac_scorer_measurable`, `test_ac_scorer_vague`, `test_ac_rewrite_triggered_on_low_score`, `test_story_rejected_on_low_ac_after_rewrite`\n\n## Problem Identified\nThe story was marked `passes: false` only because the previous attempt failed the diagnosis-block gate before any code edits were made. The implementation is complete and all tests pass.\n\n## Planned Changes\n- Run full test suite to confirm everything passes\n- Mark `passes: true` in prd.json\n- Commit and update progress.txt\nAll 28 tests pass. Now mark the story as `passes: true` and commit.\nUS-1154 is complete. All 28 tests pass, `passes: true` set in prd.json, committed. The implementation was already fully done in the previous attempt — this attempt only needed the diagnosis block output before proceeding."
       },
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files."
+      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
+      "_contextStats": {
+        "tokensBeforeMasking": 718,
+        "tokensAfterMasking": 717,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1155",
@@ -676,7 +682,7 @@
         "tests/test_retry_strategy.py"
       ],
       "model": "haiku",
-      "_scopeCreep": true
+      "last_attempted": "2026-04-06T00:38:14Z"
     },
     {
       "id": "US-1156",
@@ -698,14 +704,13 @@
         "US-1153"
       ],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "filesTouch": [
         "ralph/CLAUDE.md",
         "ralph/ralph.sh",
         "tests/test_phase_v_integration.py"
       ],
-      "model": "haiku",
-      "_decomposed": true
+      "model": "haiku"
     },
     {
       "id": "US-1160",
@@ -722,67 +727,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-04-07T09:14:58Z"
-    },
-    {
-      "id": "US-1173",
-      "title": "Harden Roleplay Clarification: Extract JSON Robustly from Mixed Claude Output",
-      "description": "The _run_roleplay_clarification() function in lib/phases/phase_0_clarify.sh currently uses a simple python3 extraction. Harden it to handle: (1) JSON wrapped in markdown code fences (```json ... ```), (2) JSON preceded by prose explanation, (3) partial/malformed JSON where focus key exists but avoid/constraints missing. Ensure SPIRAL_FOCUS is set to non-empty string even when Claude output is noisy.",
-      "priority": "critical",
-      "tags": [
-        "dispatch-hardening",
-        "roleplay"
-      ],
-      "filesTouch": [
-        "lib/phases/phase_0_clarify.sh"
-      ],
-      "dependencies": [],
-      "passes": true,
-      "acceptanceCriteria": [
-        "Given Claude output with JSON inside ```json fences, _run_roleplay_clarification extracts .focus correctly",
-        "Given Claude output with prose before JSON, extraction still succeeds",
-        "Given malformed JSON missing avoid/constraints, SPIRAL_FOCUS is still set from .focus field",
-        "Unit tests in tests/test_dispatch_protocol.py cover all three scenarios and pass"
-      ],
-      "model": "haiku",
-      "last_attempted": "2026-04-07T05:34:20Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe `_run_roleplay_clarification()` function (lines 568-638 of lib/phases/phase_0_clarify.sh) uses a simple inline Python extraction that:\n1. Tries to parse raw_output as JSON envelope, extracting .result field\n2. Strips markdown fences with basic regex\n3. Uses greedy regex `\\{.*\\}` to find first JSON object\n4. Parses individual fields (focus, avoid, constraints) separately\n\nThis approach fails in three scenarios the story specifies:\n1. JSON wrapped in ```json code fences (regex edge cases)\n2. Prose explanation before JSON (greedy `\\{.*\\}` matches too much)\n3. Malformed JSON missing avoid/constraints (silent failures, lose the focus field)\n\n## Problem Identified\n\nThe extraction logic needs hardening to:\n- Properly handle markdown code fences (```` ```json ... ``` ````)\n- Extract JSON from content with prose preamble\n- Gracefully parse partial/malformed JSON (extract what exists, provide defaults for missing fields)\n- Ensure SPIRAL_FOCUS is always set to non-empty value when focus key is present\n\n## Planned Changes\n\n1. **lib/phases/phase_0_clarify.sh** (lines 603-637): Replace embedded Python extraction with a call to a more robust helper function that:\n   - Handles Claude JSON envelope extraction\n   - Strips markdown fences correctly (capture content between ``` markers)\n   - Finds valid JSON objects using json.loads() validation (not regex)\n   - Handles malformed JSON by providing safe defaults for missing fields\n\n2. **tests/test_dispatch_protocol.py**: Add new test class `TestRoleplayJsonExtraction` with three test methods:\n   - `test_json_in_markdown_fences()` — validates extraction from ```json ... ```\n   - `test_prose_before_json()` — validates extraction with prose preamble\n   - `test_malformed_json_missing_constraints()` — validates partial JSON handling\n\n---\n\n## Diagnosis Block"
-      },
-      "_passedCommit": "87c3e9e5dded6a93cfa0ea6ae20b2a8cdcf2e19a"
-    },
-    {
-      "id": "US-1174",
-      "title": "Roleplay Clarification: Add Configurable Timeout to Prevent Hanging claude Invocation",
-      "description": "The claude CLI invocation in _run_roleplay_clarification() has no timeout. On Windows, a hanging claude process blocks the entire SPIRAL session. Add SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT (default: 60s) env var. Wrap the claude invocation with timeout command. If timeout fires, log a warning and return without setting SPIRAL_FOCUS.",
-      "priority": "critical",
-      "tags": [
-        "dispatch-hardening",
-        "roleplay"
-      ],
-      "filesTouch": [
-        "lib/phases/phase_0_clarify.sh",
-        "spiral.config.sh"
-      ],
-      "dependencies": [
-        "US-1173"
-      ],
-      "passes": true,
-      "acceptanceCriteria": [
-        "SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT is exported in spiral.config.sh with default 60",
-        "claude invocation in _run_roleplay_clarification uses timeout $SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT",
-        "When timeout fires: logs [Phase 0] Roleplay clarification timed out and returns 0 (non-fatal)",
-        "SPIRAL_FOCUS is not set when timeout fires"
-      ],
-      "model": "haiku",
-      "last_attempted": "2026-04-07T05:44:31Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`_run_roleplay_clarification()` invokes `claude` with no timeout, so a hanging claude process blocks the entire SPIRAL session. `spiral.config.sh` has `SPIRAL_ROLEPLAY_CLARIFY` but no timeout variable.\n\n## Problem Identified\nThe `claude` invocation on line 595-599 of `phase_0_clarify.sh` has no timeout guard. On Windows, a hung process hangs forever. Need to wrap it with `timeout $SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT` and handle exit code 124.\n\n## Planned Changes\n- **`spiral.config.sh`** line 188: Add `SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT=\"${SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT:-60}\"` after the existing `SPIRAL_ROLEPLAY_CLARIFY` line\n- **`lib/phases/phase_0_clarify.sh`** lines 594-599: Replace the bare `claude` invocation with `timeout \"$SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT\"` wrapper; capture exit code; if 124, log warning and return 0 without setting SPIRAL_FOCUS\nNow verify both changes look correct:\nBoth changes got reverted by formatters. Need to re-read and re-apply.\nThe formatter keeps reverting `phase_0_clarify.sh`. Let me check what's happening:\nLet me check the current state of both files right now:\nBoth files reverted. Let me use Bash with Python to bypass the Edit hook issue:\nThe multi-line continuation got corrupted. Let me fix it with a single-line command:\nNow verify both files:\nBoth changes are now in place. Let me verify the full logic block in phase_0_clarify.sh:\nBoth changes look correct. Now run quality checks:\nCRLF issue — Python's text mode added `\\r\\n`. Need to fix line endings:\nBoth shellcheck and shfmt pass. Now update prd.json and commit:\nNeed to fix pre-existing prd.json schema errors on US-1175/1176:\nUS-1174 is complete. Here's a summary of what was done:\n\n**`spiral.config.sh`** — Added `export SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT=\"${SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT:-60}\"` after the `SPIRAL_ROLEPLAY_CLARIFY` variable.\n\n**`lib/phases/phase_0_clarify.sh`** — Replaced the bare `claude` invocation with:\n```bash\nraw_output=$(timeout \"${SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT:-60}\" claude --dangerously-skip-permissions ...)\n_rc=$?\nif [[ $_rc -eq 124 ]]; then\n  echo \"  [Phase 0] Roleplay clarification timed out\"\n  return 0\nfi\n```\n`SPIRAL_FOCUS` is never set when timeout fires since `return 0` happens before the JSON extraction block.\n\n**Key gotchas encountered:**\n- The Edit tool triggers PostToolUse hooks that were reverting `.sh` files; used Bash+Python writes instead\n- Python text-mode writes add CRLF on Windows — needed binary-mode conversion to LF for shellcheck/shfmt\n- Shell line-continuation (`\\` + newline) gets corrupted by Python string list writes; used single-line command instead"
-      },
-      "_passedCommit": "b67dd4e63e874646adba4bbb0e269ff5c577aa8b",
-      "_scopeCreep": true
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-1161",
@@ -800,7 +746,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "model": "sonnet"
     },
     {
@@ -819,7 +765,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "model": "sonnet"
     },
     {
@@ -837,7 +783,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "model": "sonnet"
     },
     {
@@ -855,13 +801,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet",
-      "_failureReason": "oversized_diff: produced 166 lines but limit is 100. Keep total insertions+deletions under 100 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 166 lines but limit is 100. Keep total insertions+deletions under 100 lines."
-      ],
-      "last_attempted": "2026-04-07T11:06:49Z"
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-1165",
@@ -879,342 +820,42 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe US-1113 feature shows per-attempt `failure_root_cause` values in the retry history drill-down. The TypeScript backend (`analyticsApi.ts`) returns `failureRootCause` per attempt in `storyAttempts`. The Python-side data pipeline uses `parse_results_tsv` and `extract_failed_stories` to process the same data.\n\n## Problem Identified\nNo integration tests exist for US-1113. Tests need to verify the Python data pipeline correctly reads and exposes per-attempt `failure_root_cause` values from results.tsv.\n\n## Planned Changes\n- **Create**: `tests/test_us1113_retry_history.py` — 3 integration tests using `parse_results_tsv` + `extract_failed_stories`:\n  1. Happy path: 3-attempt story with failure messages on rejected attempts\n  2. Failure aggregation: `extract_failed_stories` collects all per-attempt failure messages\n  3. Edge case: empty `failure_root_cause` values don't crash the pipeline\nAll 3 tests pass. Now run with `-k us_1113` to verify discoverability:\nThe existing `test_us1113_retry_failure_messages.py` was from a previous attempt. My new `test_us1113_retry_history.py` adds direct `parse_results_tsv` coverage. All 7 tests pass. Let me run pre-commit and mark the story done.\nThe mypy errors are pre-existing (not from my file). Let me mark the story as passed and commit:\nNow update `progress.txt` with learnings:\nStory US-1165 is complete.\n\n**What was implemented:**\n- Created `tests/test_us1113_retry_history.py` with 3 integration tests for the US-1113 per-attempt failure message feature:\n  1. **Happy path**: 3-attempt story (haiku→sonnet→opus) — verifies `parse_results_tsv` preserves `failure_root_cause` per attempt\n  2. **Aggregation**: `extract_failed_stories` collects all non-empty failure messages from multi-retry stories\n  3. **Edge case**: Empty `failure_root_cause` values produce an empty `failure_reasons` list (no crash)\n- Fixed pre-existing prd.json schema errors (invalid deps `US-1112`, `US-1115`)\n- All 7 tests pass with `pytest -k us_1113`"
-      },
-      "_passedCommit": "07def79188f988b6b5e7812e56268250da789252"
-    },
-    {
-      "id": "US-1175",
-      "title": "Dispatch Protocol: Attempt 3 Trigger Integration Test",
-      "description": "Add an integration test that verifies the subagent dispatch protocol fires correctly when RALPH_ATTEMPT=3.",
-      "priority": "critical",
-      "passes": true,
-      "dependencies": [
-        "US-1174"
-      ],
-      "filesTouch": [
-        "tests/test_dispatch_protocol.py",
-        "ralph/CLAUDE.md"
-      ],
-      "_source": "seed",
-      "acceptanceCriteria": [
-        "Integration test passes: subagent dispatch fires when RALPH_ATTEMPT=3",
-        "Test file tests/test_dispatch_protocol.py contains the new test"
-      ],
-      "model": "sonnet",
-      "_scopeCreep": true
-    },
-    {
-      "id": "US-1176",
-      "title": "Dispatch Protocol: BLOCKED Task Handling Test and Documentation",
-      "description": "Add tests for BLOCKED task status path in subagent dispatch protocol and add inline documentation.",
-      "priority": "high",
-      "passes": true,
-      "dependencies": [
-        "US-1175"
-      ],
-      "filesTouch": [
-        "tests/test_dispatch_protocol.py",
-        "ralph/CLAUDE.md"
-      ],
-      "_source": "seed",
-      "acceptanceCriteria": [
-        "Test for BLOCKED task status path exists in test_dispatch_protocol.py",
-        "ralph/CLAUDE.md documents the BLOCKED status handling"
-      ],
-      "model": "haiku",
-      "last_attempted": "2026-04-07T11:34:28Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe test file `tests/test_dispatch_protocol.py` exists with comprehensive tests for the Subagent Dispatch Protocol, covering ATTEMPT text generation, CLAUDE.md dispatch section validation, worker prompt structure, roleplay integration, and JSON extraction. The implementer prompt defines three output statuses: `STATUS: DONE`, `STATUS: BLOCKED`, and `STATUS: DONE_WITH_CONCERNS`. The BLOCKED status allows implementers to signal when a task cannot proceed due to missing information or capability. However, there are no formal tests for the BLOCKED task status handling path, and ralph/CLAUDE.md lacks documentation about BLOCKED status behavior in the dispatch protocol.\n\n## Problem Identified\n\nStory US-1176 requires adding tests and documentation for the BLOCKED task status path. Currently:\n1. BLOCKED status is defined in implementer_prompt.md but not tested in test_dispatch_protocol.py\n2. ralph/CLAUDE.md does not document how to handle BLOCKED status responses from subagent tasks\n3. The dispatch protocol flow for BLOCKED tasks is not formally specified\n\n## Planned Changes\n\n- **tests/test_dispatch_protocol.py**: Add `TestBlockedTaskStatusHandling` class with tests validating:\n  - BLOCKED status is defined in implementer_prompt.md with required REASON field\n  - BLOCKED status output format matches the specification\n  - ralph/CLAUDE.md contains dispatch guidance for BLOCKED tasks\n  - BLOCKED differs from DONE and DONE_WITH_CONCERNS statuses\n\n- **ralph/CLAUDE.md**: Add documentation in the Subagent Dispatch Protocol section explaining:\n  - What BLOCKED status means and when it occurs\n  - How Ralph should handle BLOCKED task responses (don't retry, log reason, escalate)\n  - The decision tree for handling BLOCKED vs other statuses\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/test_dispatch_protocol.py\",\n    \"ralph/CLAUDE.md\"\n  ],\n  \"functions_to_add\": [\n    \"TestBlockedTaskStatusHandling (test class)\"\n  ],\n  \"estimated_loc\": 85\n}\n</plan>\n\nNow executing the implementation plan.\nPerfect! Story **US-1176** has been successfully implemented and committed.\n\n## Summary"
-      }
-    },
-    {
-      "id": "US-1177",
-      "title": "[Regression Test] Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-772. Story description: After Phase I completes a research-sourced story, tag it with implementation metrics (pass/fail, retry count, cost). Aggregate scores per research prompt to identify which strategies yield implementable stories.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-772",
-        "Test would reliably fail if the US-772 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_772 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1178",
-      "title": "[Regression Test] Phase T: Flaky Test Detection - Skip Story Generation for Intermittent Failures",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-774. Story description: Track test failure history across iterations. Tests failing <50% of the time across last 5 iterations are flagged flaky and excluded from story generation.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-774",
-        "Test would reliably fail if the US-774 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_774 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1179",
-      "title": "[Regression Test] Phase V: Blame Attribution - Correlate Failing Tests to the Story That Broke Them",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-782. Story description: After validation, diff test results against pre-implementation baseline. Attribute new failures to the specific story that caused them for targeted revert.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-782",
-        "Test would reliably fail if the US-782 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_782 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1180",
-      "title": "[Regression Test] Phase L: Retry Pattern Analysis - Extract What Makes Stories Easy vs Hard",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-785. Story description: Cluster completed stories by retry count and extract common traits of 1-try passes vs 5-retry failures. Store patterns in episodic memory for future runs.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-785",
-        "Test would reliably fail if the US-785 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_785 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1181",
-      "title": "[Regression Test] Phase I: Partial Victory Commit - Save Working ACs When Full Story Fails",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-787. Story description: When a story fails because 1 of N acceptance criteria cannot be met, commit the passing ACs and decompose only the failing ones into sub-stories.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-787",
-        "Test would reliably fail if the US-787 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_787 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1182",
-      "title": "[Regression Test] Phase I: Stuck Story Diagnosis - Classify Repeated Failures by Root Cause",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-788. Story description: After 3 identical failures, classify root cause: model-resolvable, scope-too-large, missing-knowledge, or external-dependency. Skip futile retries and suggest targeted action.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-788",
-        "Test would reliably fail if the US-788 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_788 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1183",
-      "title": "[Regression Test] Phase V: AC Assertion Extractor - Parse Acceptance Criteria into Executable Checks",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-1004. Story description: Extract executable verification assertions from AC text (e.g. 'exits 0', 'file X exists', 'JSON contains field Y'). Generate per-story assertion files that can be programmatically verified, closing the gap between 'tests pass' and 'AC actually satisfied'.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-1004",
-        "Test would reliably fail if the US-1004 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_1004 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1184",
-      "title": "Ralph Self-Test: Add RALPH_SELF_TEST flag to ralph.sh",
-      "description": "Add RALPH_SELF_TEST=true env var to ralph/ralph.sh. When false skip self-test. Just the flag, export, and a log line.",
-      "priority": "high",
-      "passes": true,
-      "dependencies": [
-        "US-1153"
-      ],
-      "filesTouch": [
-        "ralph/ralph.sh"
-      ],
-      "_source": "seed",
-      "estimatedComplexity": "small",
-      "acceptanceCriteria": [
-        "ralph/ralph.sh exports RALPH_SELF_TEST defaulting to true",
-        "RALPH_SELF_TEST=false logs [self-test] disabled and skips",
-        "Existing tests still pass"
-      ],
-      "model": "haiku",
-      "last_attempted": "2026-04-07T11:42:04Z"
-    },
-    {
-      "id": "US-1185",
-      "title": "Ralph Self-Test: Add self-test loop instructions to CLAUDE.md",
-      "description": "Add Self-Test section to ralph/CLAUDE.md. Before git commit if RALPH_SELF_TEST=true: run test command; on FAILED do one self-correction pass (only files already in diff) then re-run once.",
-      "priority": "high",
-      "passes": false,
-      "dependencies": [
-        "US-1184"
-      ],
-      "filesTouch": [
-        "ralph/CLAUDE.md"
-      ],
-      "_source": "seed",
-      "estimatedComplexity": "small",
-      "acceptanceCriteria": [
-        "ralph/CLAUDE.md documents self-test step before commit",
-        "Self-correction limited to files already in diff",
-        "One self-correction pass maximum"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-1186",
-      "title": "Ralph Self-Test: Write test_phase_v_integration.py",
-      "description": "Write tests/test_phase_v_integration.py with test_ralph_self_test_passes, test_ralph_self_correction_fixes_failure, test_self_test_disabled_flag.",
-      "priority": "high",
-      "passes": false,
-      "dependencies": [
-        "US-1185"
-      ],
-      "filesTouch": [
-        "tests/test_phase_v_integration.py"
-      ],
-      "_source": "seed",
-      "estimatedComplexity": "small",
-      "acceptanceCriteria": [
-        "tests/test_phase_v_integration.py exists with 3 passing tests",
-        "All existing tests pass"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-1187",
-      "title": "[E2E Test] Add cumulative cost and stories-passed trend chart to analytics",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-1112. Story description: The analytics summary only shows a single total cost number with no over-time view. Add a dual-axis line chart below the summary bar: x-axis = iteration number, left y-axis = cumulative API cost ($), right y-axis = cumulative stories passed. Both lines on the same chart show the economic efficiency curve. Data: group results.tsv by spiral_iter, accumulate cost and passed count per iteration.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-1112",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Source files from US-1112: spiral-ui/src/components/AnalyticsTab.tsx, spiral-ui/src/server/analyticsApi.ts",
-        "Run: uv run pytest tests/ -k us_1112 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1188",
-      "title": "[E2E Test] Add filter controls to analytics retry history table",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-1115. Story description: The retry history table has no way to slice the data. Add a filter bar above the table with three dropdowns: (1) Failure Type - filters by failure_root_cause value; (2) Model Tier - haiku/sonnet/opus/all; (3) Outcome - passed/skipped/decomposed/all. The existing Most Recent / Most Retried sort toggle should remain. Show empty state message when no rows match filters.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-1115",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Source files from US-1115: spiral-ui/src/components/analytics/FailureRetryDashboard.tsx, spiral-ui/src/components/AnalyticsTab.tsx",
-        "Run: uv run pytest tests/ -k us_1115 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1189",
-      "title": "Create E2E Integration Test Harness and Fixtures for SPIRAL",
-      "priority": "high",
-      "description": "Create the test infrastructure for SPIRAL end-to-end integration testing: a conftest.py with pytest fixtures that set up mocked environment variables and a mock ralph.sh script, plus a minimal prd.json fixture with one deterministic test story.",
-      "acceptanceCriteria": [
-        "tests/conftest.py defines fixtures for SPIRAL_VALIDATE_CMD, SPIRAL_MODEL_ROUTING=fixed, and injects a mock ralph.sh into PATH that exits 0",
-        "tests/fixtures/mock_spiral_prd.json contains exactly 1 story with status='pending' and deterministic id/title fields",
-        "uv run pytest tests/test_spiral_e2e_integration.py --collect-only exits 0 (fixtures load without error)"
-      ],
-      "technicalNotes": [
-        "File to create: tests/conftest.py (pytest fixtures: mock_ralph_env, mock_prd_fixture)",
-        "File to create: tests/fixtures/mock_spiral_prd.json (single story: id=UT-001, title=Mock Story, status=pending)",
-        "Mock ralph.sh must write a passing result to results.tsv and exit 0 — create as a tmpfile in the fixture",
-        "Test command: uv run pytest tests/test_spiral_e2e_integration.py --collect-only -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1190",
-      "title": "Write E2E Test Asserting Phase Sequence and Story State Transitions",
-      "priority": "high",
-      "description": "Implement the actual pytest test that invokes spiral.sh with the mocked environment (from conftest.py fixtures) and asserts that .spiral/_checkpoint.json records correct phase progression and that the story status transitions from pending to done.",
-      "acceptanceCriteria": [
-        "test_single_iteration_phase_sequence invokes spiral.sh with --gate skip and captures exit code 0",
-        ".spiral/_checkpoint.json exists after the run and contains phase entries matching expected order [A, M, I, V, C]",
-        "prd.json story UT-001 status equals 'done' after the run"
-      ],
-      "technicalNotes": [
-        "File to create: tests/test_spiral_e2e_integration.py (test_single_iteration_phase_sequence)",
-        "Use subprocess.run(['bash', 'spiral.sh', '1', '--gate', 'skip'], env=mock_ralph_env, cwd=tmp_project_dir)",
-        "Assert checkpoint: json.loads(Path('.spiral/_checkpoint.json').read_text())['phase'] in EXPECTED_PHASES",
-        "Test command: uv run pytest tests/test_spiral_e2e_integration.py::test_single_iteration_phase_sequence -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1191",
-      "title": "[Security Test] Auth/Permission for context_guard.py Token Logic (US-529)",
-      "priority": "high",
-      "description": "Write security-focused tests for lib/context_guard.py (implemented in US-529) verifying that estimate_phase_i_tokens and trim_prompt_sections do not expose sensitive data in outputs and that inputs are validated before processing. Confirms no token/password leakage in trimmed prompt output.",
-      "acceptanceCriteria": [
-        "trim_prompt_sections with a prompt containing a fake API key string does not include that key in the returned trimmed output",
-        "estimate_phase_i_tokens raises ValueError (not leaks content) when given a non-string or None input",
-        "uv run pytest tests/ -k us_529 -v exits 0 with at least 2 passing security test cases"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_context_guard_security.py (add test_no_sensitive_data_in_trim and test_invalid_input_raises)",
-        "Import: from lib.context_guard import estimate_phase_i_tokens, trim_prompt_sections",
-        "Sensitive data pattern to test: prompt containing 'sk-ant-FAKEKEY123' must not appear in trim_prompt_sections return value",
-        "Test command: uv run pytest tests/test_context_guard_security.py -v"
-      ],
-      "dependencies": [
-        "US-529"
-      ],
-      "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1166",
+      "title": "[Regression Test] Phase S Story Validation Confidence Scorer for Enrichment Prioritization",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1062. Story description: Score each story (0-100) for validation likelihood based on complexity signals, dependency graph depth, and description hints. Helps Phase E prioritize enrichment and Phase S make rewrite-vs-reject decisions.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1062",
+        "Test would reliably fail if the US-1062 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1062 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1167",
+      "title": "[Regression Test] Phase V: Architectural Constraint Validator - Enforce Design Rules",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1084. Story description: Add pluggable validators to Phase V that enforce project-specific architecture constraints (no circular imports, max file size, naming conventions, layer violations). Fail stories that violate rules instead of proceeding to Phase C.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1084",
+        "Test would reliably fail if the US-1084 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1084 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
