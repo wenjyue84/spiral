@@ -725,3 +725,26 @@ Here is the technical brief for implementing the regression test for story US-11
   - load_validators removal → 5 tests fail
   - Runner integration breaking → 3 tests fail
 - [x] Can run with: `uv run pytest tests/ -k us_1084 -v` (26/26 tests pass)
+
+
+## Iteration [Current] - Story: US-1169 - spiral-ui: Add Phase Duration Timeline Chart for Bottleneck Identification
+
+### What was implemented
+- Exported PhaseTimelineChart component from analytics/index.ts
+- Imported PhaseTimelineChart in AnalyticsTab.tsx 
+- Integrated chart display below Iteration Velocity chart as TIER 2b visualization
+- Chart displays 12 bars (phases R, T, S, M, I, V, C) with durations from phase_start/phase_end events
+- Slowest phase highlighted in red, others in gray
+- Component pulls phase timing data from spiral_events.jsonl parsed by analyticsApi.ts
+- Chart updates whenever phaseTimings data is available (after each iteration completes)
+
+### Patterns discovered
+- Phase timing data is collected via phase_start/phase_end events in spiral_events.jsonl
+- analyticsApi.ts parses these events and computes duration deltas for the last iteration
+- PhaseTimelineChart component is lightweight SVG-based visualization
+- usePhaseTimings hook correctly converts seconds to milliseconds and identifies bottleneck
+
+### Gotchas
+- PhaseTimelineChart was already implemented; just needed integration
+- Data source is spiral_events.jsonl, not checkpoint.json phaseDurations field
+- Component gracefully handles empty data by showing "No phase timing data available yet" message
