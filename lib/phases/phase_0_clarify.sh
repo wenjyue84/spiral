@@ -591,13 +591,17 @@ _run_roleplay_clarification() {
 
   echo "  [Phase 0] Roleplay clarification active — skipping interactive prompts"
 
-  local raw_output
-  raw_output=$(claude --dangerously-skip-permissions --output-format json \
-    -p "$(cat "$roleplay_prompt")" 2>/dev/null) || {
+  local raw_output _rc
+  raw_output=$(timeout "${SPIRAL_ROLEPLAY_CLARIFY_TIMEOUT:-60}" claude --dangerously-skip-permissions --output-format json -p "$(cat "$roleplay_prompt")" 2>/dev/null)
+  _rc=$?
+  if [[ $_rc -eq 124 ]]; then
+    echo "  [Phase 0] Roleplay clarification timed out"
+    return 0
+  fi
+  if [[ $_rc -ne 0 ]]; then
     echo "  [Phase 0] Roleplay clarification failed — proceeding without focus"
     return 0
-  }
-
+  fi
   # Extract JSON robustly from Claude output, handling markdown fences and prose
   local json_content focus avoid constraints
   json_content=$(echo "$raw_output" | python3 -c "
