@@ -748,3 +748,50 @@ Here is the technical brief for implementing the regression test for story US-11
 - PhaseTimelineChart was already implemented; just needed integration
 - Data source is spiral_events.jsonl, not checkpoint.json phaseDurations field
 - Component gracefully handles empty data by showing "No phase timing data available yet" message
+
+## Iteration N - Story: US-1170 - CLI: spiral validate-federated -- Enforce Story ID Namespacing Across Sub-Projects
+
+### What was implemented
+- **lib/spiral/federated_namespace_validator.py** (new, ~150 lines):
+  - `validate_federated_namespaces(prd, repos_list)` validates all story IDs match {REPO}_{TYPE}-{NUMBER} pattern
+  - `_validate_namespace_pattern(story_id, repos)` checks format and repo membership using regex
+  - `check_cross_repo_references()` rejects dependencies across repos
+  - CLI entry point with usage instructions and JSON load error handling
+
+- **spiral.sh** (modified, ~7 lines):
+  - Added VALIDATE_FEDERATED_MODE=0 flag and VALIDATE_FEDERATED_REPOS="" arguments
+  - Added --validate-federated case handler in argument parsing
+
+- **lib/cli_subcommands.sh** (modified, ~6 lines):
+  - Added validation mode dispatch that invokes federated_namespace_validator.py as CLI tool
+  - Prints validation results with passed/failed counts and clear error messages
+
+- **tests/test_federated_namespace_validation.py** (new, ~202 lines):
+  - 12 comprehensive tests covering: correct patterns, missing prefix, unknown repos, invalid types
+  - Cross-repo dependency validation, 3-repo scenarios, edge cases
+  - All tests pass with mypy strict mode and full type annotations
+
+### Patterns discovered
+- Federated multi-repo pattern: {REPO}_{TYPE}-{NUMBER} where REPO is validated against allowlist
+- CLI integration via spiral.sh flags and cli_subcommands.sh dispatch
+- Regex pattern r"^([a-z_]+)_(US|UT)-(\d+)$" effectively validates namespace format
+- Cross-repo dependency check requires both stories to parse successfully to detect conflicts
+
+### Acceptance Criteria Met
+- [x] CLI command: spiral validate-federated --prd prd.json --repos backend,frontend validates all story IDs
+- [x] Pattern enforcement: {REPO}_{TYPE}-{NUMBER} with validation of repo names and story types
+- [x] Rejects stories missing repo prefix (clear error message with expected format)
+- [x] Rejects cross-repo dependencies with clear "cannot depend on" error
+- [x] Test coverage: 3-repo validation, mixed correct/incorrect namespaces, edge cases
+- [x] All 12 tests pass; mypy strict mode compliance; CLI integration verified
+
+### Gotchas
+- Windows line ending handling: shell warnings on LF→CRLF conversion (expected, not an error)
+- mypy strict mode requires explicit type annotations (dict[str, Any]) on all test prd definitions
+- Error message construction: must use dep_id directly, not combine with repo prefix
+- CLI invocation: python script path relative to $SPIRAL_HOME/lib, with proper encoding
+
+### Integration Tests
+- ✓ CLI with valid namespaces: 3 stories pass (backend_US-001, frontend_US-001, services_UT-001)
+- ✓ CLI with invalid namespaces: 2 stories fail with clear errors
+- ✓ Cross-repo dependency: rejected with message "backend story cannot depend on frontend_US-002"
