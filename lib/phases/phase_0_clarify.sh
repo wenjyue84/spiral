@@ -570,6 +570,74 @@ _phase_0e_options() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ROLEPLAY CLARIFICATION (Superpowers pattern)
+# Spawns a subagent to auto-answer Phase 0 Socratic questions from codebase context
+# ─────────────────────────────────────────────────────────────────────────────
+
+_run_roleplay_clarification() {
+  local scratch="$1"
+  local roleplay_prompt="${SPIRAL_HOME:-}/lib/workers/clarification_roleplay.md"
+  local output_file="$scratch/_roleplay_clarify.json"
+
+  if [[ ! -f "$roleplay_prompt" ]]; then
+    echo "  [Phase 0] Roleplay prompt not found: $roleplay_prompt — skipping"
+    return 0
+  fi
+
+  if ! command -v claude &>/dev/null; then
+    echo "  [Phase 0] claude CLI not found — skipping roleplay clarification"
+    return 0
+  fi
+
+  echo "  [Phase 0] Roleplay clarification active — skipping interactive prompts"
+
+  local raw_output
+  raw_output=$(claude --dangerously-skip-permissions --output-format json \
+    -p "$(cat "$roleplay_prompt")" 2>/dev/null) || {
+    echo "  [Phase 0] Roleplay clarification failed — proceeding without focus"
+    return 0
+  }
+
+  # Extract .result field from Claude JSON envelope; fall back to raw if no envelope
+  local json_content
+  json_content=$(echo "$raw_output" | python3 -c "
+import sys, json, re
+raw = sys.stdin.read()
+# Try Claude JSON envelope first
+try:
+    obj = json.loads(raw)
+    content = obj.get('result', raw)
+except Exception:
+    content = raw
+# Strip markdown fences if present
+content = re.sub(r'^\s*\`\`\`[a-z]*\s*', '', content, flags=re.MULTILINE)
+content = re.sub(r'\s*\`\`\`\s*$', '', content, flags=re.MULTILINE)
+# Find first valid JSON object
+match = re.search(r'\{.*\}', content, re.DOTALL)
+if match:
+    print(match.group(0))
+else:
+    print('{}')
+" 2>/dev/null) || json_content="{}"
+
+  # Parse and export focus/avoid/constraints
+  local focus avoid constraints
+  focus=$(echo "$json_content" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('focus',''))" 2>/dev/null) || focus=""
+  avoid=$(echo "$json_content" | python3 -c "import sys,json; d=json.load(sys.stdin); print(', '.join(d.get('avoid',[])))" 2>/dev/null) || avoid=""
+  constraints=$(echo "$json_content" | python3 -c "import sys,json; d=json.load(sys.stdin); print(', '.join(d.get('constraints',[])))" 2>/dev/null) || constraints=""
+
+  if [[ -n "$focus" ]]; then
+    export SPIRAL_FOCUS="Goal: ${focus}${avoid:+ | Avoid: ${avoid}}${constraints:+ | Constraints: ${constraints}}"
+    echo "  [Phase 0] Focus set: $SPIRAL_FOCUS"
+  else
+    echo "  [Phase 0] Roleplay returned no focus — proceeding without"
+  fi
+
+  # Save audit log
+  echo "$json_content" > "$output_file"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # MAIN ENTRY POINT
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -581,7 +649,11 @@ run_phase_clarify() {
 
   # ── Skip conditions ────────────────────────────────────────────────────────
   if [[ "${GATE_DEFAULT:-}" == "proceed" || "${GATE_DEFAULT:-}" == "skip" ]]; then
-    echo "  [Phase 0] Skipping (--gate ${GATE_DEFAULT})"
+    if [[ "${SPIRAL_ROLEPLAY_CLARIFY:-false}" == "true" ]]; then
+      _run_roleplay_clarification "$scratch"
+    else
+      echo "  [Phase 0] Skipping (--gate ${GATE_DEFAULT})"
+    fi
     return 0
   fi
 

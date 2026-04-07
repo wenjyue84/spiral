@@ -182,7 +182,10 @@ SPIRAL_ENRICH_BATCH_SIZE="${SPIRAL_ENRICH_BATCH_SIZE:-5}"
 # ── Context injection mode (US-280) ──────────────────────────────────────────
 # diff = inject git diff of filesTouch paths (empty for new files)
 # full = inject complete file contents of filesTouch targets
-SPIRAL_CONTEXT_MODE="full"
+SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"
+
+# ── Phase 0 Roleplay Clarification (Superpowers pattern) ─────────────────────
+SPIRAL_ROLEPLAY_CLARIFY="${SPIRAL_ROLEPLAY_CLARIFY:-true}"
 
 # ── Research focus prompt ────────────────────────────────────────────────────
 # Guides Gemini + Claude in Phase R toward relevant context

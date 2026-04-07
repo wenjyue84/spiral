@@ -278,6 +278,56 @@ This is an intentional worker isolation measure: any tool or credential helper t
 to read from stdin will receive immediate EOF rather than hanging indefinitely. Do not remove
 this redirect — backgrounded worker subprocesses must never block on terminal input.
 
+## Subagent Dispatch Protocol (Attempt 3+)
+
+**Trigger:** If your user prompt contains "ATTEMPT 3" or a higher number in the retry context header, activate this protocol instead of monolithic implementation.
+
+### When in retry mode (Attempt 3+), Ralph becomes Controller:
+
+**Step 1 — Re-plan with task decomposition:**
+Produce a locked task list from the failed attempt's diagnosis:
+```
+TASK 1: <one-sentence description>
+  Files: <exact files to touch>
+  Acceptance: <verifiable criterion>
+  Test: <exact command + expected output fragment>
+TASK 2: ...
+```
+
+**Step 2 — Dispatch Implementer subagent per task (sequentially, never parallel):**
+Use the `Agent` tool with the contents of `lib/workers/implementer_prompt.md` as the base prompt, injecting:
+- This task's spec (files + acceptance + test)
+- Only the relevant file contents for this task
+- Constitution invariants (copy inline, not reference)
+- NO other tasks, NO session history, NO full prd.json
+
+Implementer reports status: `DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED`
+- `DONE` → proceed to Gate 1
+- `DONE_WITH_CONCERNS` → log concern, proceed to Gate 1 if non-correctness issue
+- `NEEDS_CONTEXT` → provide the missing context, re-dispatch implementer once only
+- `BLOCKED` → log as blocked, continue other tasks, report as partial failure to spiral.sh
+
+Before re-dispatching any task, run `git status` and `git checkout -- .` to clean partial edits.
+
+**Step 3 — Gate 1: Spec Compliance Review:**
+Spawn `Agent` with the contents of `lib/workers/spec_reviewer_prompt.md`, providing inline:
+- The original task spec (files + acceptance criteria)
+- The `git diff` output of the task's changes
+Output: `RESULT: PASS` or `RESULT: FAIL\nFINDINGS: ...`
+If FAIL → re-dispatch Implementer with findings (max 1 re-dispatch)
+
+**Step 4 — Gate 2: Code Quality Review (only if Gate 1 passes):**
+Spawn `Agent` with the contents of `lib/workers/code_reviewer_prompt.md`, providing:
+- Changed files only (read them inline)
+Output: `RESULT: PASS` or `RESULT: FAIL\nFINDINGS: ...`
+If FAIL → re-dispatch Implementer with findings (max 1 re-dispatch)
+
+**Step 5 — Aggregate and finalize:**
+- All tasks DONE + both gates PASS → commit changes, mark story passes:true
+- Any task BLOCKED or gate fails after re-dispatch → mark story failed, document in progress.txt
+
+**Token management:** After each subagent completes, summarize its output to 1-2 lines (status + key finding). Never accumulate raw subagent responses in your context.
+
 ## Remember
 
 - You are ONE iteration in an autonomous loop
