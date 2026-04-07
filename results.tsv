@@ -28,3 +28,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-05T20:15:47Z	12	1	US-1137	Parallel workers: atomic compare-and-swap for prd.json updates in worker worktrees	keep	890	sonnet	0	dd32a8b36ce5dd5cf88d0168ad39de27a0068290	69d27afc3a2	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-05T23:57:56Z	18	1	US-1154	Phase S: Acceptance Criteria Completeness Scorer with Auto-Rewrite for Vague ACs	reject	1375	haiku	1		69d27afc3a2	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-07T20:00:52Z	17	1	US-1171	Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup	keep	917	haiku	0	3e146d42a6f755d9cb2c3b406dc4516c086a8e6d	69d535933c95	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-07T20:27:33Z	18	1	US-1166	[Regression Test] Phase S Story Validation Confidence Scorer for Enrichment Prioritization	keep	817	haiku	0	ce95b59b3da92e291892f49ccdd485fb98399136	69d535933c95	false	0	0	0	0	0	0	0		0	0	0	0			

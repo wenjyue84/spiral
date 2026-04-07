@@ -661,3 +661,33 @@ Based on the user story, here is a technical brief for the implementation within
 *   **Performance:** For large payroll runs, the synchronous calculation could time out. Consider moving the scoring to a background job triggered `on_update`.
 *   **Configuration:** Avoid hardcoding scoring weights. Introduce a custom DocType, "LHDN Integration Settings," to make the scoring logic configurable by the admin.
 *   **Data Integrity:** Ensure logic correctly handles pro-rated salaries for new hires and resigned employees.
+## Iteration 1 - Wed, Apr  8, 2026  4:27:33 AM
+Completed: [Regression Test] Phase S Story Validation Confidence Scorer for Enrichment Prioritization (ID: US-1166) in 13m
+
+
+## Pre-analysis for US-1167 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the regression test for story US-1167.
+
+**Project:** Spiral (Python Application)
+**Objective:** Create a regression test for US-1084, which enforces architectural constraints.
+**Note:** The project is a Python application, not a Frappe app. Frappe DocTypes and hooks are not relevant.
+
+**1. Key Files to Analyze/Modify:**
+*   **Target of Test:** `lib/arch_validators.py`, `lib/dag_validator.py`. These likely contain the core logic for architectural validation introduced in US-1084.
+*   **Test Location:** A new test should be added in the `tests/` directory. To maintain consistency, locate existing tests for US-1084 (e.g., `tests/test_arch_validators.py` or similar) and add the new test there or in a new dedicated file like `tests/regression/test_us1167_arch_constraints.py`.
+
+**2. Implementation Approach:**
+1.  Create a new Pytest function decorated with `@pytest.mark.us_1167`.
+2.  Use the `tmp_path` fixture to create a temporary, isolated directory structure simulating a code change that violates a specific architectural rule.
+3.  **Violation Scenarios to Test:**
+    *   **Circular Import:** Create two Python files that import each other.
+    *   **Layer Violation:** Mock a project structure where a lower-level layer (e.g., `domain`) improperly imports from a higher-level layer (e.g., `application`).
+    *   **File Size:** Create a file larger than a configured maximum size.
+4.  Invoke the architectural validation process (the "Phase V" validator from US-1084) on the temporary project.
+5.  Assert that the validation process fails with an explicit error identifying the specific rule violation.
+
+**3. Gotchas & Edge Cases:**
+*   The validator likely relies on configuration. The test must provide mock configuration for the rules it intends to test (e.g., max file size, layer definitions).
+*   Isolate the validation logic as much as possible to avoid a slow, full end-to-end test.
+*   Ensure the test correctly simulates the data structure (e.g., a "story" object) that the validator expects as input.
+

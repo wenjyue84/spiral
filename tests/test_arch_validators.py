@@ -39,6 +39,7 @@ def _make_diff(*files: DiffFile) -> CodeDiff:
 # ── MaxFileSize ───────────────────────────────────────────────────────────────
 
 
+@pytest.mark.us_1084
 class TestMaxFileSize:
     def test_no_violation_under_limit(self) -> None:
         v = MaxFileSize(max_bytes=5 * MB)
@@ -97,6 +98,7 @@ class TestMaxFileSize:
 # ── AC3: Integration test ─────────────────────────────────────────────────────
 
 
+@pytest.mark.us_1084
 class TestAC3MaxFileSizeIntegration:
     """AC3: story adds 5MB file when MAX_FILE_SIZE=1MB -> arch_validation_failed=true."""
 
@@ -200,6 +202,7 @@ class TestAC3MaxFileSizeIntegration:
 # ── NoCircularImports ─────────────────────────────────────────────────────────
 
 
+@pytest.mark.us_1084
 class TestNoCircularImports:
     def test_no_cycle_linear(self) -> None:
         v = NoCircularImports()
@@ -243,6 +246,7 @@ class TestNoCircularImports:
 # ── LayerAccess ───────────────────────────────────────────────────────────────
 
 
+@pytest.mark.us_1084
 class TestLayerAccess:
     def test_no_violation_higher_imports_lower(self) -> None:
         # api (rank 0) importing service (rank 1) is allowed
@@ -285,6 +289,7 @@ class TestLayerAccess:
 # ── load_validators ───────────────────────────────────────────────────────────
 
 
+@pytest.mark.us_1084
 class TestLoadValidators:
     def test_load_max_file_size(self) -> None:
         validators = load_validators("MaxFileSize")
