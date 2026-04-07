@@ -670,7 +670,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "lib/impl/retry.sh",
         "tests/test_retry_strategy.py"
