@@ -945,7 +945,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "_passedCommit": "3e146d42a6f755d9cb2c3b406dc4516c086a8e6d"
+      "_passedCommit": "3e146d42a6f755d9cb2c3b406dc4516c086a8e6d",
+      "_scopeCreep": true
     },
     {
       "id": "US-1172",
@@ -962,8 +963,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_passedCommit": "e1f0cb1346b39659c1073c34a36c596aae4f8d56"
     },
     {
       "id": "US-1173",
