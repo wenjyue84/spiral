@@ -1071,8 +1071,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_passedCommit": "475297f6f059149bf130c236c820908e9c4dfa6f"
     },
     {
       "id": "US-1178",
