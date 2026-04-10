@@ -568,3 +568,22 @@ This brief outlines the plan for implementing an automated story acceptance crit
 
 ### Gotchas
 - Previous attempt failed ONLY due to missing diagnosis block gate (code was complete) — the diagnosis block must appear as plain text BEFORE any Edit/Write/Bash file modification calls
+
+## Iteration - Story: US-1160 - [Security Test] US-553 Phase Completion: I→V→C Workers Finish and Story Passes
+
+### What was implemented
+- **tests/test_security_us_1037.py**: New security test file with 5 tests in `TestUS1037Security` class targeting `/api/dashboard/worker-phase-swimlane` endpoint
+  - `test_us_1037_unauth_returns_401` — no X-API-Key header → 401/403
+  - `test_us_1037_wrong_key_returns_403` — wrong key → 403
+  - `test_us_1037_valid_key_allowed` — correct key → not blocked
+  - `test_us_1037_no_worker_internals_in_error` — error body must not leak worker_id, current_phase, etc.
+  - `test_us_1037_no_sensitive_keys_in_error` — error body must not contain password/secret/api_key/anthropic
+
+### Patterns discovered
+- All existing security test files follow the same pattern: monkeypatch env var via autouse fixture, use TestClient(app, raise_server_exceptions=False), test auth + data leakage
+- US-1037 no longer exists in prd.json (was an orphaned dependency), but the auth middleware it protected is `_APIKeyMiddleware` in `lib/dashboard/api.py`
+- The `-k us_1037` filter must match via test method names containing `us_1037`
+
+### Gotchas
+- Test names must include `us_1037` (not just the class or file name) for the `-k us_1037` pytest filter to work
+- Worker-phase-swimlane endpoint returns `{"workers": []}` (not 4xx) on errors — only auth middleware returns 401/403

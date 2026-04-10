@@ -728,8 +728,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-1161",
@@ -747,8 +748,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-1162",
@@ -766,8 +768,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-1163",
@@ -784,8 +787,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-1164",
@@ -802,8 +806,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-1165",
@@ -821,8 +826,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-1166",
@@ -838,8 +844,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_passedCommit": "ce95b59b3da92e291892f49ccdd485fb98399136",
+      "_scopeCreep": true
     },
     {
       "id": "US-1167",
@@ -855,8 +863,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_passedCommit": "8841fa53222e76b8f930e66e82ecb943c00c267c",
+      "_scopeCreep": true
     },
     {
       "id": "US-1168",
@@ -872,8 +882,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_passedCommit": "9cace2272849bf51ab5e563e14665338fb8f0928",
+      "_scopeCreep": true
     },
     {
       "id": "US-1169",
@@ -889,8 +901,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_passedCommit": "4f7b4587d58a7935079b685eba5a8c59a314e5be",
+      "_scopeCreep": true
     },
     {
       "id": "US-1170",
@@ -906,8 +920,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_passedCommit": "c65552bc7c7baf051ef90a298bb9567ce15b601e",
+      "_scopeCreep": true
     },
     {
       "id": "US-1171",
@@ -1033,6 +1049,60 @@
         "Test for BLOCKED task status path in test_dispatch_protocol.py",
         "ralph/CLAUDE.md documents BLOCKED status handling"
       ]
+    },
+    {
+      "id": "US-1177",
+      "title": "[Performance Test] Integration Test: Phase M Federated Merge with File Conflict Detection and Auto-R",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1072. Story description: Add integration test that validates Phase M correctly handles parallel stories from multiple sub-projects that modify overlapping files, with conflict detection and safe merge strategies.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1072",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1072 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1178",
+      "title": "[E2E Test] Integration Test: Phase Data Integrity Validator -- Verify Output Schemas and State Trans",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1070. Story description: Run SPIRAL loop iteration and assert each phase output conforms to expected schema. Catches data corruption, orphaned references, and invalid state transitions early. Validates R\u2192T\u2192S\u2192M\u2192I\u2192V\u2192C data flow.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1070",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1070 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1179",
+      "title": "[Performance Test] Integration Test: Federated Worker Isolation \u2014 Verify No Cross-Worker prd.json Co",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1064. Story description: Add integration test proving 3 parallel workers on different sub-projects maintain prd.json isolation and don't corrupt each other's story state. Critical for multi-project federation reliability.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1064",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1064 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
