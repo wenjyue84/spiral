@@ -1038,3 +1038,34 @@ Here is the technical brief for the agent:
 *   Test with a quota of zero (`SPIRAL_QUOTA_TESTPROJ=0`).
 *   The test must not have external dependencies and should rely entirely on mocked data and environment setup.
 
+## Iteration 1 - Sat, Apr 11, 2026  2:56:30 PM
+Completed: [Regression Test] Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits (ID: US-1189) in 22m
+
+
+## Pre-analysis for US-1190 (Gemini 2.5 Pro)
+### US-1190 Technical Implementation Brief
+
+This story is for a `pytest` and Playwright E2E test; the initial context about Frappe appears incorrect and should be disregarded. The focus is on testing a Python backend API and its corresponding frontend visualization.
+
+**1. Primary Files for Creation/Modification:**
+*   Create a new test file: `tests/test_e2e_dashboard_metrics.py`.
+*   This test will validate the functionality implemented in `lib/metrics_store.py` and the API endpoint (likely found in `main.py` or a related routes file), but will not modify them.
+
+**2. Involved DocTypes & Hooks:**
+*   None. This project is not a Frappe application. It's a Python web application using a custom API structure and `pytest` for testing.
+
+**3. Implementation Approach (Pytest/Playwright):**
+*   Create a test function `test_dashboard_metrics_e2e_flow` in the new file.
+*   Use a `pytest` fixture to prepare the test environment:
+    *   Create a temporary, known `results.tsv` file with sample cost/timing data.
+    *   Ensure the SQLite database used by `SQLiteMetricsStore` is cleared.
+*   The test should first trigger the data ingestion process from the TSV into the SQLite store.
+*   Using the Playwright `page` fixture, navigate to the dashboard UI page.
+*   Wait for the page to make the `GET /api/dashboard/metrics` call and render the trend data.
+*   Assert that the displayed charts or metrics correctly reflect the data from the initial `results.tsv`.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure tests are idempotent by clearing the SQLite DB and `results.tsv` on setup/teardown.
+*   The frontend is likely asynchronous; use Playwright's `expect()` and web-first assertions to wait for elements to stabilize before asserting.
+*   The test depends on the full stack (data store, API, UI). Confirm the API is running before the E2E test suite is initiated.
+

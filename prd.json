@@ -1331,11 +1331,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T06:33:34Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nUS-1050 (the feature) doesn't exist in prd.json but should implement sub-project story quota enforcement in Phase M merge logic with SPIRAL_QUOTA_<SUBPROJECT> environment variables.\n\n## Problem Identified\nThe story US-1189 requires regression tests that would:\n1. Verify quota enforcement works correctly (Phase M rejects merges exceeding quota)\n2. Ensure tests fail if the feature is removed or broken\n3. Confirm quota_exceeded events are logged to results.tsv\n\n## Planned Changes\n- Create `tests/test_merge_us_1050_quota_governor.py` with comprehensive regression tests\n- Tests will verify:\n  - Stories count toward their subproject quota (identified by ID prefix)\n  - Merge is rejected when adding stories would exceed SPIRAL_QUOTA_<SUBPROJECT>\n  - quota_exceeded event is logged to results.tsv\n  - Feature respects env var configuration\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_merge_us_1050_quota_governor.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_quota_enforcement_basic\", \"test_quota_exceeded_logged\", \"test_multiple_subprojects\"],\n  \"estimated_loc\": 180\n}\n</plan>\nPerfect! I've successfully implemented the regression test for US-1189. Here's what was completed:\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1190",
@@ -1491,6 +1487,75 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_749 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1199",
+      "title": "[Regression Test] Federation: Cross-Project Story Dependency Type Validation Rules Engine",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-729. Story description: Add phase-S validator that enforces story dependency type constraints (e.g., 'feature stories cannot depend on infrastructure'), with clear error messages and remediation guidance",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-729",
+        "Test would reliably fail if the US-729 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_729 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1200",
+      "title": "[Regression Test] CLI: spiral explain-retry <story_id> - Analyze Retry Pattern and Suggest Decomposi",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-728. Story description: Read results.tsv for a given story_id, show full retry sequence (model escalations, durations, error messages), analyze error patterns, and suggest atomic sub-story decomposition based on failed file patterns",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-728",
+        "Test would reliably fail if the US-728 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_728 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1201",
+      "title": "[Performance Test] Use Claude Message Batches API for Phase S multi-story validation",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-390. Story description: Phase S currently validates stories sequentially via individual Claude API calls. Submitting all pending story validation requests as a single Message Batches API request cuts cost by 50% and enables asynchronous processing of up to 10,000 stories per batch, completing in under 1 hour. This also unlocks stacking with prompt caching discounts for further savings.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-390",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_390 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1202",
+      "title": "[Regression Test] Implement worker crash recovery using git worktree state snapshots",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-461. Story description: Detect when Ralph workers crash with detached HEAD or incomplete commits and automatically recover by reverting to last known-good state on main branch",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-461",
+        "Test would reliably fail if the US-461 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_461 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
