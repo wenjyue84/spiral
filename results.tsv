@@ -41,3 +41,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T08:29:40Z	12	1	US-1192	[Performance Test] Test Phase R Research Cache Hit/Miss Counting and LRU Eviction	keep	570	haiku	0	7ddb7fd8001e12224a123332b0735f6cab27550b	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T08:42:51Z	12	2	US-1193	[Performance Test] Benchmark Phase R Research Cache Latency Savings (≥30% Target)	keep	728	haiku	0	db166ddef66b4943a8b1451eafe5725de6a46f9c	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T09:06:45Z	13	1	US-1194	[Regression Test] Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loo	keep	810	haiku	0	8d07ac29fe8c0140a97fca85ff3627736a4e73e3	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-11T09:59:31Z	14	1	US-1197	[Performance Test] Integration Test: Verify Worker Sub-Project Isolation Under 3-Worker Federated Lo	reject	993	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
