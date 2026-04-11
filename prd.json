@@ -1332,7 +1332,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-11T06:33:34Z"
+      "last_attempted": "2026-04-11T06:33:34Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nUS-1050 (the feature) doesn't exist in prd.json but should implement sub-project story quota enforcement in Phase M merge logic with SPIRAL_QUOTA_<SUBPROJECT> environment variables.\n\n## Problem Identified\nThe story US-1189 requires regression tests that would:\n1. Verify quota enforcement works correctly (Phase M rejects merges exceeding quota)\n2. Ensure tests fail if the feature is removed or broken\n3. Confirm quota_exceeded events are logged to results.tsv\n\n## Planned Changes\n- Create `tests/test_merge_us_1050_quota_governor.py` with comprehensive regression tests\n- Tests will verify:\n  - Stories count toward their subproject quota (identified by ID prefix)\n  - Merge is rejected when adding stories would exceed SPIRAL_QUOTA_<SUBPROJECT>\n  - quota_exceeded event is logged to results.tsv\n  - Feature respects env var configuration\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_merge_us_1050_quota_governor.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_quota_enforcement_basic\", \"test_quota_exceeded_logged\", \"test_multiple_subprojects\"],\n  \"estimated_loc\": 180\n}\n</plan>\nPerfect! I've successfully implemented the regression test for US-1189. Here's what was completed:\n\n## Summary"
+      }
     },
     {
       "id": "US-1190",
