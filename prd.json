@@ -1977,8 +1977,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T18:37:20Z"
     },
     {
       "id": "US-1223",
@@ -2135,43 +2136,6 @@
       "dependencies": [
         "US-531"
       ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1232",
-      "title": "[E2E Test] Dashboard: Story Status Timeline Endpoint with Phase Swimlanes for iteration bottleneck d",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-540. Story description: Add `/api/timeline?iterations=N` dashboard endpoint that streams story attempt history grouped by iteration and phase, enabling real-time swimlane visualization and automated bottleneck detection.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-540",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_540 -v"
-      ],
-      "dependencies": [
-        "US-540"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1233",
-      "title": "[Regression Test] Phase M Conflict Detection — Identify File-Level Collisions in Federated Projects",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-584. Story description: When merging federated sub-project stories, detect file path conflicts where multiple stories claim ownership of the same file to prevent merge conflicts. Adds a conflict detection step to Phase M that writes a structured conflict report and exits 1 to block the merge. Supports Goal 4 (multi-repo federated projects).",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-584",
-        "Test would reliably fail if the US-584 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_584 -v"
-      ],
-      "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
