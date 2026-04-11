@@ -2210,7 +2210,10 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nI've reviewed the repository structure and found:\n- Story US-1235 requires a performance test for the /profile endpoint (implemented in US-522)\n- The /profile endpoint is at `lib/dashboard/api.py` lines 68-156\n- It reads `results.tsv` and returns JSON with: mean phase durations, slowest 5 stories, escalation frequency\n- Similar performance tests exist in `tests/test_perf_*.py` following a consistent pattern\n- Tests use fixtures to create synthetic results.tsv, measure wall time, compare against baseline, and fail if degradation > 20%\n\n## Problem Identified\n\nNeed to write a performance benchmark test for the /profile endpoint that:\n1. Measures endpoint response time on baseline (100 rows) and threshold (1000 rows) datasets\n2. Captures baseline metrics\n3. Fails if response time degrades more than 20% between baseline and threshold datasets\n4. Is discoverable via `pytest tests/ -k us_522 -v`\n\n## Planned Changes\n\n- Create `tests/test_perf_us_522_profile_endpoint.py` with:\n  - Fixture: synthetic 100-row results.tsv (baseline)\n  - Fixture: synthetic 1000-row results.tsv (10x threshold)\n  - Test: baseline latency measurement and validation\n  - Test: degradation threshold check (20% max)\n  - Test: response data validation (structure and content)\n  - All tests marked with `@pytest.mark.us_522`\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_perf_us_522_profile_endpoint.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_profile_endpoint_baseline\", \"test_profile_endpoint_threshold_degradation\", \"test_profile_endpoint_response_structure\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow implementing...\n\n## Diagnosis Block"
+      }
     },
     {
       "id": "US-1236",
