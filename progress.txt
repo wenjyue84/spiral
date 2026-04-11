@@ -1324,3 +1324,30 @@ This is a Python/pytest-based project, not a Frappe app. The user story requires
     *   The test must handle file paths correctly, passing the temporary file paths to the validator function.
     *   Clean up all temporary files and directories created during the test run to prevent side effects.
 
+
+## Pre-analysis for US-1194 (Gemini 2.5 Pro)
+This is a Python/pytest-based project, not a Frappe app. The user story requires creating a regression test for US-1007, which ensures new "Phase X" features are correctly integrated into the `spiral.sh` script.
+
+**Technical Brief for US-1194 Implementation:**
+
+*   **Primary File to Modify:**
+    *   `tests/test_functional_reachability.py`: Create a new test file for this regression test. It should follow the pattern of other pytest files in the `tests/` directory.
+
+*   **Core Components Involved:**
+    *   `spiral.sh`: The test will need to analyze a mock version of this shell script to verify integration.
+    *   `prd.json`: The test will use a mock product requirements document to simulate a new "Phase X" story.
+    *   `lib/arch_validators.py`: This likely contains the original US-1007 implementation logic ("Functional Reachability Verifier") that needs to be tested. The test will call functions from this module.
+
+*   **Recommended Implementation Approach:**
+    1.  Use `pytest.fixture` to create temporary, mock versions of `spiral.sh` and `prd.json` for test isolation.
+    2.  Create a test case `test_us1007_regression_phase_v_feature_not_in_spiral_sh`.
+    3.  In the test, define a mock `prd.json` containing a new story, e.g., `{"id": "US-1234", "title": "Phase V: New Feature"}`.
+    4.  Define a mock `spiral.sh` that includes the `# PHASE V START` and `# PHASE V END` markers but *does not* call the script corresponding to US-1234 (e.g., `lib/new_feature.py`).
+    5.  Invoke the validator function from `lib/arch_validators.py` against these mock files.
+    6.  Assert that the validator correctly raises an exception or returns a failure status, proving the check works.
+
+*   **Gotchas & Edge Cases:**
+    *   Ensure the mock `spiral.sh` accurately reflects the phase comment structure (e.g., `# PHASE V START`).
+    *   The test must handle file paths correctly, passing the temporary file paths to the validator function.
+    *   Clean up all temporary files and directories created during the test run to prevent side effects.
+
