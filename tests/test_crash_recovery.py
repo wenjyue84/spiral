@@ -12,6 +12,8 @@ import tempfile
 from pathlib import Path
 from typing import Tuple
 
+import pytest
+
 
 def _find_git_bash() -> str:
     """Find git bash executable on Windows or return bash."""
@@ -32,6 +34,7 @@ _BASH = _find_git_bash()
 class TestDetachedHeadRecovery:
     """Tests for crash recovery with detached HEAD worktrees."""
 
+    @pytest.mark.us_461
     def test_detached_head_triggers_recovery(self) -> None:
         """Test that recovery function detects and recovers from detached HEAD state."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -80,6 +83,7 @@ class TestDetachedHeadRecovery:
             ).stdout.strip()
             assert current_branch == "main", "Worktree should be back on main branch after recovery"
 
+    @pytest.mark.us_461
     def test_recovery_leaves_clean_worktree(self) -> None:
         """Test that recovery leaves the worktree with a clean working tree."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -129,6 +133,7 @@ class TestDetachedHeadRecovery:
             ).stdout.strip()
             assert len(status_after) == 0, f"Worktree should be clean after recovery, but has: {status_after}"
 
+    @pytest.mark.us_461
     def test_recovery_noop_on_clean_branch(self) -> None:
         """Test that recovery returns 1 (no-op) when worktree is already on a clean branch."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -166,6 +171,7 @@ class TestDetachedHeadRecovery:
             # Return code 1 means "already on a branch — no recovery needed"
             assert result.returncode == 1, "Recovery should return 1 for clean branch (no-op case)"
 
+    @pytest.mark.us_461
     def test_recovery_fails_on_nonexistent_worktree(self) -> None:
         """Test that recovery fails gracefully with nonexistent worktree."""
         nonexistent = "/nonexistent/worktree/path"
