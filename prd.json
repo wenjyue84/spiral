@@ -1678,7 +1678,16 @@
       "_antiPatterns": [
         "oversized_diff: produced 4863 lines but limit is 800. Keep total insertions+deletions under 800 lines."
       ],
-      "last_attempted": "2026-04-11T14:43:27Z"
+      "last_attempted": "2026-04-11T14:43:27Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n`tests/benchmarks/` has only one file (`test_lib_benchmarks.py`) with benchmarks for merge/validate/slice. No benchmark exists for federated story distribution (`assign_stories`).\n\n## Problem Identified\nUS-1208 requires a performance benchmark for the federated worker distribution feature (US-636), specifically testing `assign_stories` in `lib/prd/partition_prd.py` with sub_project routing. Previous attempt produced 4863 lines - must stay under 800.\n\n## Planned Changes\n- **Create** `tests/benchmarks/test_federated_distribution.py` (~75 lines): 3 focused test functions covering all 3 acceptance criteria using `time.monotonic()` pattern (same as `test_perf_us752_isolation.py`)\n\n<plan>\n{\n  \"files_to_create\": [\"tests/benchmarks/test_federated_distribution.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"_make_federated_stories\", \"test_federated_distribution_performance\", \"test_federated_distribution_sub_project_isolation\", \"test_federated_distribution_regression_threshold\"],\n  \"estimated_loc\": 75\n}\n</plan>\nAll 3 tests pass. Now run pre-commit and check the diff size:\n134 lines total - well within the 800-line limit. Now run pre-commit:\nMy file has no mypy errors. The 57 errors are all pre-existing in other lib files. Now mark the story as passing and commit:\nDone. US-1208 implemented and committed:\n\n- **Created** `tests/benchmarks/test_federated_distribution.py` (97 lines)\n- Directly imports `assign_stories` from `lib/prd/partition_prd.py`\n- 3 tests pass covering all ACs:\n  - AC1+AC2: `test_federated_distribution_performance` — benchmarks distribution of 30 federated stories, captures baseline in `tmp_path`, enforces 20% threshold on rerun\n  - Isolation: `test_federated_distribution_sub_project_isolation` — verifies no cross-contamination between sub-projects\n  - AC3: `test_federated_distribution_regression_threshold` — validates the threshold logic itself (10% slowdown passes, 25% is caught)\n- Total diff: ~151 lines (vs. 4863 in the failed attempt)\nThe background mypy check also completed with exit code 0, confirming no errors in my file. The implementation is complete and committed."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 560,
+        "tokensAfterMasking": 559,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1209",
