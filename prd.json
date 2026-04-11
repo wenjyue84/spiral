@@ -1155,12 +1155,7 @@
         "bug-fix",
         "phase-p"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-04-11T04:45:45Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `phase_p_push.sh` exists but is a no-op with an empty `run_phase_push()` function\n- `phase_c_check_done.sh` contains Phase P push logic at lines 29-40 that doesn't implement git fetch + rebase\n- Phase P is called from spiral.sh:1374 before Phase C\n\n## Problem Identified\nPhase P doesn't implement `git fetch origin main` and `git rebase origin/main` before push. This causes non-fast-forward failures when origin/main has diverged. The current push in phase_c_check_done.sh simply tries to push and logs a warning if it fails, but doesn't attempt to rebase.\n\n## Planned Changes\n1. **lib/phases/phase_p_push.sh**: Implement `run_phase_push()` to:\n   - Run `git fetch origin main`\n   - Run `git rebase origin/main`  \n   - If rebase succeeds, run `git push origin main`\n   - If rebase fails (conflicts), log WARNING and skip push (continue without error)\n   - Never abort the SPIRAL loop\n\n2. **lib/phases/phase_c_check_done.sh**: Remove the duplicate Phase P push logic (lines 29-40) since run_phase_push is called before run_phase_check_done\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"lib/phases/phase_p_push.sh\",\n    \"lib/phases/phase_c_check_done.sh\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 45\n}\n</plan>\n\nNow implementing the story:\nPerfect! I've successfully implemented story **US-1181**. Here's a summary:\n\n## Implementation Complete: US-1181"
-      },
-      "_passedCommit": "e401119c4439072dd63d20c34a6724b0877b82d9"
+      "model": "haiku"
     },
     {
       "id": "US-1182",
@@ -1182,12 +1177,7 @@
         "bug-fix",
         "phase-t"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-04-11T04:51:28Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nStory **US-1182** reports that Phase T test synthesis fails with `unexpected argument --output-format` error. The spiral-core binary's CLI changed to use `--output` instead of `--output-format`, but the caller in phase_rt_parallel.sh still passes the old flag.\n\n## Problem Identified\nIn `lib/phases/phase_rt_parallel.sh`, when invoking the `$SPIRAL_CORE_BIN` synthesize command, the code passes `--output-format \"$SPIRAL_TEST_OUTPUT_FORMAT\"`, but spiral-core expects `--output` instead. The Python fallback script still expects `--output-format`.\n\n## Planned Changes\n- **File:** `lib/phases/phase_rt_parallel.sh`\n  - Lines ~108-114: Change `--output-format` to `--output` in `$SPIRAL_CORE_BIN` synthesize invocation (with timeout)\n  - Lines ~120-128: Change `--output-format` to `--output` in `$SPIRAL_CORE_BIN` synthesize invocation (without timeout)\n  - Keep `--output-format` in Python synthesize_tests.py calls unchanged\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"lib/phases/phase_rt_parallel.sh\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow let me read the actual file to identify the exact lines:\nNow I'll make the fix. The issue is on lines 176 and 184 where `--output-format` is passed to `spiral-core`. The spiral-core binary expects `--output` instead.\nPerfect! Now let me verify the changes:\nExcellent! The changes are correctly applied. Let me run quality checks:\nThe warnings are pre-existing and unrelated to my changes. Let me run the full pre-commit hooks:\nGood! The shell script checks passed. Let me verify my changes with git diff:\nPerfect! The changes are minimal and correct. Now let me commit:\nNow let me update prd.json to mark the story as passed:\nNow let me update progress.txt to document the implementation:\nPerfect! Let me verify the completion:\nExcellent! **Story US-1182 is now complete.** \n\n## Summary"
-      },
-      "_passedCommit": "9fa6a84d1596975dd9e1196169ec7419772caa7c"
+      "model": "haiku"
     },
     {
       "id": "US-1183",
@@ -1256,8 +1246,7 @@
         "phase-i",
         "quality-gates"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-04-11T04:56:50Z"
+      "model": "haiku"
     },
     {
       "id": "US-1186",
@@ -1372,6 +1361,94 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_1030 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1192",
+      "title": "[Performance Test] Test Phase R Research Cache Hit/Miss Counting and LRU Eviction",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1026. Story description: Write integration tests that verify Phase R's deduplication cache correctly counts Gemini API calls vs cache hits, and enforces LRU eviction when the cache reaches its size limit. Validates functional correctness of the research cache without any performance measurement.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1026",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1026 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1193",
+      "title": "[Performance Test] Benchmark Phase R Research Cache Latency Savings (≥30% Target)",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1027. Story description: Write a benchmark test that measures Phase R execution time with cache enabled (warm) versus a mocked uncached baseline and asserts at least 30% latency improvement for repeated queries. Results are printed to stdout so CI logs capture the savings.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1027",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1027 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1194",
+      "title": "[Regression Test] Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loo",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1007. Story description: For Phase-enhancement stories (title contains 'Phase X:'), verify that new Python modules are actually called from spiral.sh in the corresponding phase section. Catches implementations that exist but are never integrated into the autonomous loop.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1007",
+        "Test would reliably fail if the US-1007 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1007 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1195",
+      "title": "[Performance Test] Phase C: Phase Timing Baseline and Regression Detector",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1008. Story description: Record execution time baseline (P50/P90) for each SPIRAL phase from the last 10 iterations. After each iteration, check if any phase exceeded 2x its P90 baseline. Flags performance regression before it compounds across iterations.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1008",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1008 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1196",
+      "title": "[Regression Test] Phase V: Dead Feature Detector - Find Unreachable New Code After Implementation",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1006. Story description: After Phase V tests pass, scan new Python functions/classes added by the story. If a function is only defined but never imported or called from any entry point (spiral.sh, main.py, tests), flag it as a dead feature. Prevents 'code exists but does nothing' implementations.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1006",
+        "Test would reliably fail if the US-1006 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1006 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
