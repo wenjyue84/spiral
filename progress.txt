@@ -1,3 +1,44 @@
+## Iteration N - Story: US-1201 - [Performance Test] Use Claude Message Batches API for Phase S multi-story validation
+
+### What was implemented
+- **tests/test_performance_us_390.py** - Performance test file already existed with 6 comprehensive tests:
+  - `test_us_390_build_requests_performance_10_stories` - Measures build_batch_requests for 10 stories
+  - `test_us_390_build_requests_performance_100_stories` - Measures build_batch_requests for 100 stories
+  - `test_us_390_parse_results_performance_50_results` - Measures parse_batch_results for 50 results
+  - `test_us_390_parse_results_performance_200_results` - Measures parse_batch_results for 200 results
+  - `test_us_390_batch_throughput_e2e` - End-to-end throughput test (build + parse 50 stories)
+  - `test_us_390_baseline_capture` - Verifies baseline metrics are recorded
+- **Added pytest marker support**:
+  - Added `@pytest.mark.us_390` decorator to `TestUS390PerformanceBatch` class
+  - Added `us_390` marker definition to `tests/pyproject.toml` markers list
+  - Added `import pytest` to test file
+
+### Performance Baselines
+- Baseline metrics stored in `.spiral/us_390_baseline.json`:
+  - build_requests_10_ms: ~0.036ms
+  - build_requests_100_ms: ~0.200ms
+  - parse_results_50_ms: ~0.215ms
+  - parse_results_200_ms: ~0.878ms
+  - e2e_throughput_50_ms: ~0.305ms
+- All metrics have 20% acceptable degradation threshold (test fails if response time exceeds 1.2x baseline)
+
+### Acceptance Criteria Met
+- [x] Performance test measures key metrics for US-390 (build_batch_requests, parse_batch_results, E2E throughput)
+- [x] Baseline captured and acceptable threshold defined (20% degradation threshold in .spiral/us_390_baseline.json)
+- [x] Test fails if response time degrades more than 20% from baseline (assert elapsed <= max_allowed with 1.2x multiplier)
+- [x] Tests runnable with: `uv run pytest tests/ -k us_390 -v` (all 6 tests discovered and passing)
+
+### Files Changed
+- `tests/test_performance_us_390.py`: Added pytest import and @pytest.mark.us_390 decorator
+- `tests/pyproject.toml`: Added us_390 marker definition to markers list
+- `prd.json`: US-1201 marked passes=true
+
+### Patterns Discovered
+- Performance tests need pytest marker to be discoverable with `-k` filter (follows story naming pattern)
+- Baseline-based performance testing allows detection of regressions without hardcoded expectations
+- Using perf_counter() provides microsecond-level timing accuracy suitable for sub-millisecond operations
+- Tests pass on xdist parallel workers despite warning about benchmarks being disabled
+
 ## Iteration N - Story: US-1199 - [Regression Test] Federation: Cross-Project Story Dependency Type Validation Rules Engine
 
 ### What was implemented
@@ -1796,3 +1837,45 @@ This brief outlines the implementation strategy for creating a performance test 
 *   **Baseline Stability:** Performance benchmarks can be sensitive to the host machine's load. The baseline should be established in a controlled environment, and tests should be run with flags like `--benchmark-disable-gc` to improve result stability.
 *   **Asynchronous Behavior:** The test must correctly handle and measure the total time for the asynchronous batch operation, which may involve polling for a result. The mock should facilitate simulating this workflow.
 
+
+## Pre-analysis for US-1201 (Gemini 2.5 Pro)
+Based on the user story JSON and project context, this is a Python project, not a Frappe application. The request to analyze it for a "Frappe/Python user story in the lhdn_payroll_integration app" appears to be incorrect.
+
+Here is the technical brief for implementing the performance test as described in story US-1201.
+
+---
+
+### **Technical Brief: US-1201 Performance Benchmark**
+
+This brief outlines the implementation strategy for creating a performance test for the Claude Message Batches API integration used in multi-story validation.
+
+**1. Files to Modify / Create:**
+
+*   **`tests/performance/test_batch_validation_perf.py` (New File):** A new test file should be created to house the performance benchmark. Using a separate `performance` subdirectory keeps these specialized tests organized.
+*   **`lib/batch_validate.py` (Primary Target):** This is the most likely location for the core logic of US-390, which orchestrates the batching and submission of stories to the Claude API. The performance test will call functions within this file.
+*   **`tests/test_batch_validate.py`:** The existing functional test for US-390 (run with `-k us_390`) should be reviewed for existing mocks and fixtures that can be reused.
+
+**2. Involved Frappe/Python Components:**
+
+*   **Frappe Components:** None. This is not a Frappe project.
+*   **Python Components:**
+    *   **`pytest`:** The primary testing framework.
+    *   **`pytest-benchmark`:** The recommended library for creating and managing performance benchmarks.
+    *   **`unittest.mock`:** To mock the actual Claude API client, preventing real API calls during tests.
+
+**3. Recommended Implementation Approach:**
+
+1.  **Setup Benchmark:** In the new performance test file, use the `@pytest.mark.benchmark` group.
+2.  **Create Data Fixture:** Implement a pytest fixture that generates a large, configurable number of mock "story" objects (e.g., 1,000+) to simulate a realistic batch.
+3.  **Mock API Client:** Mock the Claude API client used in `lib/batch_validate.py`. The mock should simulate the asynchronous nature of the Batch API, returning a pre-canned successful response after a realistic delay without making a network call.
+4.  **Write Test Function:** Create a test function `test_batch_validation_performance(benchmark, mock_stories_fixture)`.
+5.  **Execute & Measure:** Inside the test, call the main batch validation function (e.g., `run_batch_validation(mock_stories_fixture)`) wrapped in the `benchmark()` callable.
+6.  **Establish Baseline:** Run the test once to establish a baseline execution time. Store this baseline value, for example, in a JSON file or directly in the test code.
+7.  **Assert Against Threshold:** Add an assertion to fail the test if `benchmark.stats.mean` exceeds the established baseline by more than the 20% acceptance criteria.
+
+**4. Edge Cases & Gotchas:**
+
+*   **API Mocking:** The mock must be robust. It should not only prevent egress calls but also accurately simulate the expected data structure in the response to ensure the code path is fully exercised.
+*   **Test Data Volume:** The volume of mock stories should be high enough to provide meaningful performance data but low enough to not excessively slow down the CI/CD pipeline or consume too much memory.
+*   **Baseline Stability:** Performance benchmarks can be sensitive to the host machine's load. The baseline should be established in a controlled environment, and tests should be run with flags like `--benchmark-disable-gc` to improve result stability.
+*   **Asynchronous Behavior:** The test must correctly handle and measure the total time for the asynchronous batch operation, which may involve polling for a result. The mock should facilitate simulating this workflow.
