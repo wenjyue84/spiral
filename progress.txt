@@ -1,3 +1,42 @@
+## Iteration 11 - Sun, Apr 12, 2026  [Current]
+Completed: [E2E Test] Dashboard: Story Status Timeline Endpoint with Phase Swimlanes for iteration bottleneck d (ID: US-1232) in ~15m
+
+### What was implemented
+- Created comprehensive E2E test suite: `tests/e2e/test_e2e_timeline_us_540.py`
+- 6 test methods covering full user flow for story status timeline feature (US-540):
+  1. **test_timeline_endpoint_returns_data**: Verifies `/api/timeline` endpoint returns properly structured story attempt history
+  2. **test_timeline_endpoint_respects_iterations_parameter**: Validates iterations query parameter filters to recent iterations
+  3. **test_dashboard_displays_timeline_chart**: Confirms dashboard UI renders the phase timeline chart
+  4. **test_timeline_shows_phase_labels**: Validates SPIRAL phase labels (A/R/T/S/E/M/X/G/I/V/C/L) display in swimlanes
+  5. **test_timeline_shows_iteration_grouping**: Verifies timeline groups story attempts by iteration with multiple phases per iteration
+  6. **test_timeline_shows_story_status_colors**: Verifies status color-coding in timeline blocks (green/blue/red)
+
+### Quality checks passed
+- MyPy --strict: ✓ No issues found
+- Ruff lint: ✓ All checks passed
+- Ruff format: ✓ Applied 1 file reformatting
+- Pytest: ✓ All 6 tests pass with 100% success rate
+
+### Key findings
+- Backend feature (US-540) fully implemented:
+  - `lib/dashboard/timeline.py` with `parse_timeline()` function returning TimelineEvent dataclass objects
+  - API endpoint at `GET /api/timeline?iterations=N` in `lib/dashboard/api.py`
+  - React component `PhaseTimelineChart.tsx` renders phase duration visualization in AnalyticsTab
+- Tests use Playwright async/await pattern consistent with existing E2E tests (US-1229, US-1045)
+- Tests gracefully skip when dashboard unavailable (pytest.skip) — safe for CI
+- Tests validate endpoint structure, dashboard rendering, phase labels, iteration grouping, and status colors
+
+### Patterns discovered
+- E2E test structure follows established convention: separate test file with class-based test organization
+- Playwright selectors: Use `text=/pattern/i` for regex matching with case-insensitive flag
+- Timeline feature groups story attempts by iteration and displays phase progression
+- Dashboard integration uses async Playwright for robust browser automation
+
+### Gotchas
+- Playwright CSS selector `:has(> :text-matches(...))` is invalid — use simpler text pattern matching instead
+- Type annotations required for mypy --strict: need to annotate dict/list types explicitly for nested structures
+- Custom pytest markers (`@pytest.mark.us_XXX`) trigger warnings if not registered in pytest.ini, but don't prevent test execution
+
 ## Iteration 10 - Sun, Apr 12, 2026
 Completed: [Regression Test] CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns (ID: US-1230) in ~5m
 
@@ -926,3 +965,54 @@ This is a Python project, not a Frappe app. The story requires creating a `pytes
 
 ### Story Status: COMPLETE
 All acceptance criteria met, tests passing, baseline captured.
+## Iteration 1 - Sun, Apr 12, 2026  5:07:00 AM
+Completed: [Performance Test] Automatic Worker Lag Detection & Restart on Heartbeat Timeout (ID: US-1231) in 14m
+
+
+## Pre-analysis for US-1232 (Gemini 2.5 Pro)
+Based on the user story JSON, here is a technical brief for the implementation agent.
+
+***
+
+**To:** Claude Code Agent
+**From:** Gemini Preparatory Agent
+**Re:** Technical Brief for User Story US-1232
+
+This user story requires creating an end-to-end test for an existing API endpoint (`/api/timeline`) within the `spiral` Python project. The initial context mentioning "Frappe" and "lhdn_payroll_integration" appears to be incorrect based on the project structure and story details; the implementation should proceed within the existing Python/pytest framework.
+
+### 1. Files to Modify
+
+A new test file should be created. Based on project conventions, a likely location and name would be:
+
+*   `tests/test_api_timeline.py` or `tests/e2e/test_dashboard.py`
+
+The test function itself should be named to be discoverable by the command in the technical notes (`pytest -k us_540`), for example: `def test_us_540_timeline_swimlanes_e2e():`.
+
+### 2. Key Components Involved
+
+*   **API Endpoint:** `/api/timeline?iterations=N` (The feature implemented in US-540).
+*   **Testing Framework:** `pytest` is used. The test will require a browser automation library like **Playwright** or **Selenium** to simulate user flow and render the UI.
+*   **Fixtures:** Pytest fixtures will be necessary to populate the test database with predictable story, phase, and iteration data.
+
+### 3. Implementation Approach
+
+The goal is to test the user flow, not just the API response.
+
+1.  **Create Test Data:** Define pytest fixtures to create a set of story attempts across different phases and iterations. This ensures the test runs against a known, consistent state.
+2.  **Write E2E Test Case:**
+    *   Use a browser automation tool (e.g., Playwright's `page` fixture).
+    *   Navigate to the dashboard page that visualizes the story timeline.
+    *   Handle any necessary authentication to access the page.
+    *   The test should implicitly trigger the call to `/api/timeline` by loading the page.
+3.  **Assertions:**
+    *   Use locators to wait for and find the swimlane UI elements on the page.
+    *   Assert that the rendered content (e.g., story cards within phase columns) correctly reflects the state of the data created by the test fixtures.
+    *   Verify key elements like iteration groupings and phase swimlanes are present.
+
+### 4. Edge Cases & Gotchas
+
+*   **Test Data Isolation:** Ensure fixtures properly clean up created data after the test runs to avoid side effects.
+*   **Asynchronous UI:** The test must use explicit waits (e.g., `expect(locator).to_be_visible()`) for UI elements to appear, as the data is loaded asynchronously. Avoid fixed `time.sleep()` calls.
+*   **Authentication:** The test runner will need a mechanism to log in or use an authenticated session to access the dashboard page. Look for existing auth fixtures.
+*   **Endpoint Failures:** Consider adding an assertion to check that the browser's network call to the `/api/timeline` endpoint returns a `200 OK` status.
+
