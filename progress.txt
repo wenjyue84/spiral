@@ -934,3 +934,32 @@ Completed: Phase M: Lower dedup threshold after 3 consecutive all-rejected merge
 ## Iteration 3 - Sat, Apr 11, 2026  1:40:53 PM
 FAILED diagnosis-block gate: Phase S: Replace bare except clauses with logged exceptions in batch_validate.py (ID: US-1187) — no diagnosis block found — attempt 1/3
 
+
+## Pre-analysis for US-1188 (Gemini 2.5 Pro)
+This is not a Frappe/ERPNext user story. The provided JSON describes an end-to-end test for a machine learning feature within the Spiral project. The brief below is based on the actual content of the story.
+
+**Technical Brief for US-1188**
+
+*   **Python Files to Modify:**
+    *   A new test file: `tests/e2e/test_us1058_escalation_dashboard.py`.
+    *   The test will interact with the web endpoint exposed by a file likely named `spiral/realtime/dashboards.py` or similar.
+    *   It will indirectly test the logic in `lib/escalation_predictor.py` by observing the UI output.
+    *   Test data fixtures may need to be added or modified in `tests/fixtures/`.
+
+*   **DocTypes & Hooks Involved:**
+    *   This is not a Frappe application. No DocTypes or Frappe hooks are involved. The feature is a standard Python web service with a frontend.
+
+*   **Recommended Implementation Approach:**
+    *   Use the existing Playwright E2E testing framework.
+    *   Create a new test function `test_escalation_prediction_dashboard_flow` in the new file.
+    *   The test should use fixtures to create a project or user with a known token spend history that will reliably trigger an escalation prediction.
+    *   Use Playwright to navigate to the relevant dashboard URL (e.g., `/dashboards/escalation-prediction`).
+    *   Assert that the UI correctly displays the predicted escalation (e.g., a specific "Opus" or "Sonnet" indicator is visible).
+    *   Include a second test case for a project that is *not* predicted to escalate and assert on the default/negative state.
+
+*   **Edge Cases & Gotchas:**
+    *   The test needs to handle authentication to access the dashboard page.
+    *   UI elements might load asynchronously; use Playwright's `expect(locator).to_be_visible()` to handle this gracefully.
+    *   Ensure test data is isolated and does not interfere with other tests.
+    *   The underlying prediction model might change; the test should be robust enough to handle minor variations in the prediction output as long as the core escalation/no-escalation state is correct.
+
