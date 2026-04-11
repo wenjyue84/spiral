@@ -1762,7 +1762,10 @@
         "shinka-evolve"
       ],
       "model": "haiku",
-      "last_attempted": "2026-04-11T11:18:31Z"
+      "last_attempted": "2026-04-11T11:18:31Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nThe learned patterns injection is partially implemented in `ralph/lib/prompt_builder.sh` (lines 170-199), but it's missing the critical **tag filtering** requirement from the AC. Currently it just sorts by frequency without checking if patterns match the story's tags.\n\n## Problem Identified\n\nStory US-1214 requires:\n1. Read latest learned_patterns file ✓ (done)\n2. **Filter patterns by tag overlap with story tags** ✗ (MISSING)\n3. Keep top 3 matching patterns ✓ (done, but without filtering)\n4. Format and inject them ✓ (done)\n5. Add bats test ✗ (MISSING)\n\nThe tag filtering is the core requirement that's missing. Additionally, a bats test is needed to verify the injection.\n\n## Planned Changes\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_learned_patterns_injection.bats\"],\n  \"files_to_modify\": [\"ralph/lib/prompt_builder.sh\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 65\n}\n</plan>\n\nNow let me implement the fix:\n\n## Current State"
+      }
     }
   ]
 }
