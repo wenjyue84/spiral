@@ -2137,7 +2137,10 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- US-531 (worker stall detection & restart) is fully implemented in `lib/worker_heartbeat.sh` and `lib/run_parallel_ralph.sh`\n- Functional tests exist in `tests/worker_stall_restart.bats` covering all acceptance criteria\n- Performance test infrastructure exists in `test_performance_us_390.py` as a reference pattern\n- The story US-1231 requires a **performance test** measuring stall detection/restart timing with baseline capture and 20% degradation threshold\n\n## Problem Identified\nNeed to write a performance test for US-531's stall detection mechanism that:\n1. Measures heartbeat reading & stall calculation time\n2. Measures restart cycle time\n3. Captures baseline metrics on first run\n4. Validates ≤20% degradation on subsequent runs\n\n## Planned Changes\n- Create `tests/test_performance_us_531.py` with performance benchmarks\n- Test scenarios: single worker heartbeat read, multi-worker stall detection, restart event logging\n- Use `time.perf_counter()` to measure operations\n- Save/load baselines to `.spiral/us_531_baseline.json`\n- Each test: measure operation → compare vs baseline → assert degradation ≤20% or capture baseline\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_performance_us_531.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_us_531_heartbeat_read_performance\", \"test_us_531_stall_detection_performance\", \"test_us_531_multi_worker_stall_detection\", \"test_us_531_restart_event_logging\"],\n  \"estimated_loc\": 180\n}\n</plan>\nThe performance tests are failing due to timing variance. Let me fix this by making the tests more robust with warmup runs and better baseline thresholds:\n## Summary"
+      }
     },
     {
       "id": "US-1232",

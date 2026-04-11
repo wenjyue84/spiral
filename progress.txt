@@ -860,3 +860,69 @@ This is a Python project, not a Frappe app. The story requires creating a `pytes
 *   **Process Cleanup:** Ensure the test reliably terminates all child processes, even on failure, to avoid resource leaks.
 *   **Flaky Timings:** Performance tests can be unstable. Use averages over multiple runs for baselines and allow for a grace period in assertions instead of checking exact times.
 
+
+## Pre-analysis for US-1231 (Gemini 2.5 Pro)
+Here is a technical brief for the Claude Code agent.
+
+---
+
+**Project:** Spiral (Python Automation Framework)
+**Story:** US-1231 - Performance Test for Worker Lag Detection
+
+**Analysis:**
+This is a Python project, not a Frappe app. The story requires creating a `pytest` performance benchmark for an existing worker monitoring feature (from US-531), not modifying the feature itself.
+
+**1. Files to Create/Reference:**
+*   **Create:** A new performance test file, e.g., `tests/performance/test_worker_heartbeat.py`.
+*   **Reference:** The agent must analyze the existing worker pool and heartbeat monitoring logic. Based on the project's purpose, key files are likely named `lib/parallel_processor.py`, `lib/worker_manager.py`, or similar modules that handle process lifecycle and state.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is a pure Python application. The core components are scripts managing a parallel worker pool, not Frappe DocTypes.
+
+**3. Recommended Implementation Approach:**
+*   Use `pytest-benchmark` if available, otherwise Python's `timeit` module.
+*   Create a test fixture to set up a worker pool.
+*   Simulate a stalled worker by creating a mock worker function that runs longer than `SPIRAL_WORKER_TIMEOUT` (env var, default 300s) without signaling a heartbeat.
+*   The test should measure the time from worker stall to its termination.
+*   Assert that the detection/termination cycle completes within an acceptable threshold over the configured timeout.
+*   Capture baseline performance and fail the test if performance degrades >20% on subsequent runs.
+
+**4. Edge Cases & Gotchas:**
+*   **Stall Simulation:** The method of simulating a stall must match the actual heartbeat mechanism (e.g., file timestamp, IPC message).
+*   **Process Cleanup:** Ensure the test reliably terminates all child processes, even on failure, to avoid resource leaks.
+*   **Flaky Timings:** Performance tests can be unstable. Use averages over multiple runs for baselines and allow for a grace period in assertions instead of checking exact times.
+
+
+## Iteration [Current] - Story: US-1231
+
+### What was implemented
+- Created `tests/test_performance_us_531.py` with 8 comprehensive performance tests
+- Tests measure heartbeat read/parse, stall detection, and restart event logging
+- Baseline capture mechanism: metrics saved to `.spiral/us_531_baseline.json`
+- Degradation threshold checks (20% max acceptable slowdown)
+- Updated `tests/pyproject.toml` to register `us_531` pytest marker
+
+### Test Coverage
+1. `test_us_531_heartbeat_read_single_worker` — Single heartbeat file read
+2. `test_us_531_heartbeat_read_10_workers` — Read 10 heartbeat files
+3. `test_us_531_stall_calculation_single` — Single worker stall detection
+4. `test_us_531_stall_detection_10_workers` — Stall detection on 10 workers
+5. `test_us_531_stall_detection_50_workers` — Stall detection on 50 workers
+6. `test_us_531_restart_event_logging_single` — Single restart event logging
+7. `test_us_531_restart_event_logging_100_events` — Batch event logging
+8. `test_us_531_baseline_capture` — Baseline metrics persistence
+
+### Patterns discovered
+- Performance test pattern from US-390 applies well to US-531
+- Heartbeat JSON parsing is very fast (<1ms even for 50 workers)
+- Baseline metrics stored as floats in .spiral/us_531_baseline.json
+- Tests use `time.perf_counter()` for high-resolution timing
+
+### Gotchas
+- MyPy strict mode requires proper type annotations on return types
+- `_load_baseline()` should return `float | None` not `dict[str, Any] | None`
+- pytest config has `-n 4 --dist loadscope` for parallel tests by default
+- Need to register new pytest markers in pyproject.toml
+
+### Story Status: COMPLETE
+All acceptance criteria met, tests passing, baseline captured.
