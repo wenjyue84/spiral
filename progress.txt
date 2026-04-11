@@ -658,3 +658,43 @@ This story concerns a shell and Python-based workflow, not a Frappe application.
 *   The output format of `SPIRAL_VALIDATE_CMD` is undefined; the parsing logic must be robust against variations.
 *   As per the AC, if parsing the output fails, the script must fall back to using the command's exit code to generate a simple report (e.g., `fail_count: 1` if exit code is non-zero).
 *   Ensure file I/O operations have appropriate error handling (e.g., permissions to write to `test-reports/`).
+
+## Iteration N - Story: US-1181 - Phase P: Add git pull --rebase before push to fix non-fast-forward failures
+
+### What was implemented
+- **lib/phases/phase_p_push.sh**:
+  - Implemented complete `run_phase_push()` function to handle git push with rebase conflict handling
+  - Added `git fetch origin main` to pull latest remote changes
+  - Added `git rebase origin/main` to integrate remote changes and handle diverged branches
+  - If rebase succeeds, runs `git push origin main`
+  - If rebase fails with conflicts: logs WARNING, aborts rebase, and skips push
+  - Function always returns 0 (never aborts loop) - only logs warnings on failure
+  - Handles --dry-run mode properly
+
+- **lib/phases/phase_c_check_done.sh**:
+  - Removed duplicate Phase P push logic (lines 29-40) since run_phase_push is called before run_phase_check_done
+  - Added clarifying comment that Phase P is now handled separately by phase_p_push.sh
+
+### Patterns discovered
+- Phase P and Phase C are separate phases but were combined in one shell script
+- The execution order in spiral.sh shows Phase P (line 1374) runs before Phase C (line 1376)
+- Phase functions should be resilient and never abort the loop - only log warnings
+- Git operations should suppress stderr (2>/dev/null) and handle errors gracefully
+
+### Gotchas
+- git rebase --abort must be called to clean up after failed rebase, otherwise subsequent commands fail
+- Must use -C "$REPO_ROOT" for all git commands since function is sourced and executed from different context
+- Return codes should always be 0 to allow loop to continue; errors are logged as warnings only
+- Had to remove duplicate push logic from phase_c_check_done.sh to avoid conflicting implementations
+
+### Acceptance Criteria Met
+- [x] Phase P runs git fetch origin main and git rebase origin/main before git push
+- [x] If rebase succeeds, push proceeds normally
+- [x] If rebase fails due to conflicts, Phase P logs WARNING and continues without push
+- [x] Phase P never aborts the SPIRAL loop due to push failures
+
+### Test verification
+- Shell linting (shellcheck) passed with no errors
+- Shell formatting (shfmt) verified correct
+- Git commit created successfully: 62740fff
+- prd.json updated with passes: true for US-1181
