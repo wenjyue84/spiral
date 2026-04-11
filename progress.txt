@@ -1407,3 +1407,34 @@ Here is the technical brief for user story US-1251.
 ### Gotchas
 - CRLF in bash scripts is the #1 cause of cryptic bash errors on Windows (e.g., `exit: 0: numeric argument required`)
 - Always use `write_bytes(...)` for shell scripts created in Python tests on Windows
+## Iteration 2 - Sun, Apr 12, 2026  7:29:59 AM
+Completed: Write E2E Test Asserting Phase Sequence and Story State Transitions (ID: US-1251) in 6m
+
+
+## Pre-analysis for US-1237 (Gemini 2.5 Pro)
+This user story describes a regression test for a Git worktree recovery mechanism. It is unrelated to Frappe or the `lhdn_payroll_integration` app; the context appears to be a Python-based automation agent named "Ralph".
+
+Here is the technical brief for the implementing agent:
+
+**Subject:** Technical Brief for US-1237: Git Worktree Crash Recovery Test
+
+**1. Primary Files for Modification:**
+*   **New File:** `tests/test_us_526_worktree_recovery.py`. This new pytest file will contain the regression test.
+*   **Likely Target for Testing:** The recovery logic is probably located in a file within the `lib/` directory. Key candidates to investigate and import into the test would be files named `lib/worktree_manager.py`, `lib/git_utils.py`, or `lib/crash_handler.py`. The test will call a function from one of these files.
+
+**2. Frappe Integration:**
+*   None. This project is a standard Python application using `pytest` for testing. There are no Frappe DocTypes or hooks involved.
+
+**3. Implementation Approach:**
+*   Use `pytest` and its `tmp_path` fixture to create an isolated temporary directory for a test Git repository.
+*   Use the `subprocess` module to initialize a Git repository, commit a file, and create a new worktree within `tmp_path`.
+*   Simulate the "detached HEAD" state by running `git checkout --detach HEAD` in the worktree.
+*   Invoke the target recovery function (e.g., `recover_worktree(worktree_path)`) from the production code.
+*   Use `subprocess` to run `git status` and `git branch --show-current` to assert that the worktree is on the `main` branch with no uncommitted changes.
+
+**4. Edge Cases & Gotchas:**
+*   **State Simulation:** Ensure the "detached HEAD" is correctly established before calling the recovery logic.
+*   **Dependency Mocking:** The recovery function might have external dependencies (e.g., logging, notifications) that need to be mocked using `unittest.mock.patch`.
+*   **Environment:** The test environment requires the `git` executable to be available in the system's `PATH`.
+*   **Clean Assertions:** The test must explicitly check for both the correct branch (`main`) and a clean working directory (no modified or untracked files).
+

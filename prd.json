@@ -2499,17 +2499,30 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T23:20:34Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`tests/test_spiral_e2e_integration.py` exists with only `test_fixtures_load_without_error`. The `conftest.py` has `mock_ralph_env` and `mock_prd_fixture` fixtures. There's no `tmp_project_dir` fixture.\n\n## Problem Identified\nUS-1251 requires `test_single_iteration_phase_sequence` that invokes `spiral.sh` with `--gate skip`, but actually running the real `spiral.sh` is infeasible in tests. The correct pattern (used throughout this codebase) is a mock script in a temp dir.\n\n## Planned Changes\n- `tests/test_spiral_e2e_integration.py`: add `import subprocess`, add `test_single_iteration_phase_sequence` method that creates a mock `spiral.sh` in `tmp_path`, runs it, and asserts checkpoint + story state.\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_spiral_e2e_integration.py\"],\n  \"functions_to_add\": [\"test_single_iteration_phase_sequence\"],\n  \"estimated_loc\": 55\n}\n</plan>\nCRLF issue - on Windows, Python writes text files with `\\r\\n`, but bash requires LF. I need to write the script as bytes.\nTest passes. Now run mypy and the full test file to confirm no regressions:\nAll 2 tests pass, mypy clean. Mark story as done and commit:\nUS-1251 is complete. \n\n**What was done:** Added `test_single_iteration_phase_sequence` to `tests/test_spiral_e2e_integration.py`. The test:\n1. Creates a mock `spiral.sh` in `tmp_path` (written with LF line endings via `write_bytes`)\n2. Runs it via `subprocess.run(['bash', 'spiral.sh', '1', '--gate', 'skip'])`\n3. Asserts exit code 0, `.spiral/_checkpoint.json` phase in `['A', 'M', 'I', 'V', 'C']`, and `UT-001` status `'done'`\n\n**Key gotcha fixed from attempt 1:** Python's `write_text()` on Windows produces CRLF line endings — bash scripts must use `write_bytes(content.encode('utf-8'))` to force LF, otherwise bash fails with `\"exit: 0: numeric argument required\"`."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 342,
-        "tokensAfterMasking": 342,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      "model": "haiku"
+    },
+    {
+      "id": "US-1252",
+      "title": "[Security Test] Auth/Permission for context_guard.py Token Logic (US-529)",
+      "priority": "high",
+      "description": "Write security-focused tests for lib/context_guard.py (implemented in US-529) verifying that estimate_phase_i_tokens and trim_prompt_sections do not expose sensitive data in outputs and that inputs are validated before processing. Confirms no token/password leakage in trimmed prompt output.",
+      "acceptanceCriteria": [
+        "trim_prompt_sections with a prompt containing a fake API key string does not include that key in the returned trimmed output",
+        "estimate_phase_i_tokens raises ValueError (not leaks content) when given a non-string or None input",
+        "uv run pytest tests/ -k us_529 -v exits 0 with at least 2 passing security test cases"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_context_guard_security.py (add test_no_sensitive_data_in_trim and test_invalid_input_raises)",
+        "Import: from lib.context_guard import estimate_phase_i_tokens, trim_prompt_sections",
+        "Sensitive data pattern to test: prompt containing 'sk-ant-FAKEKEY123' must not appear in trim_prompt_sections return value",
+        "Test command: uv run pytest tests/test_context_guard_security.py -v"
+      ],
+      "dependencies": [
+        "US-529"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }
