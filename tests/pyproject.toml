@@ -43,6 +43,7 @@ markers = [
     "us_497: E2E tests for WebSocket /ws/cost real-time cost delta streaming (US-1204)",
     "us_697: Regression tests for Phase G federated CHANGELOG generation with cross-project dependencies (US-697)",
     "us_791: regression tests for Phase A constitution-aware story quality scoring (US-791)",
+    "us_782: regression tests for Phase V blame attribution - correlate failing tests to story (US-782)",
 ]
 
 [tool.coverage.run]

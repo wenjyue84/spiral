@@ -11,6 +11,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 from test_blame import (
     attribute_test_to_file,
@@ -22,6 +24,7 @@ from test_blame import (
 )
 
 
+@pytest.mark.us_782
 class TestExtractTestFile:
     """Tests for extract_test_file()."""
 
@@ -42,6 +45,7 @@ class TestExtractTestFile:
         assert extract_test_file("tests/unit/test_parser.py::test_parse") == "parser"
 
 
+@pytest.mark.us_782
 class TestExtractSourceFile:
     """Tests for extract_source_file()."""
 
@@ -58,6 +62,7 @@ class TestExtractSourceFile:
         assert extract_source_file("lib/baz") == "baz"
 
 
+@pytest.mark.us_782
 class TestParseTestResults:
     """Tests for parse_test_results()."""
 
@@ -91,6 +96,7 @@ class TestParseTestResults:
         assert result == {}
 
 
+@pytest.mark.us_782
 class TestFindNewlyFailedTests:
     """Tests for find_newly_failed_tests()."""
 
@@ -123,6 +129,7 @@ class TestFindNewlyFailedTests:
         assert result == []
 
 
+@pytest.mark.us_782
 class TestAttributeTestToFile:
     """Tests for attribute_test_to_file()."""
 
@@ -155,6 +162,7 @@ class TestAttributeTestToFile:
         assert confidence == "low"
 
 
+@pytest.mark.us_782
 class TestBlameTests:
     """Tests for the main blame_tests() function."""
 
@@ -199,6 +207,7 @@ class TestBlameTests:
         assert result["attribution"] == []
 
 
+@pytest.mark.us_782
 class TestIntegration:
     """Integration tests with file I/O."""
 
