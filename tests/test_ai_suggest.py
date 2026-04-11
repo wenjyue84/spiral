@@ -236,9 +236,7 @@ class TestLoadLearnedPatterns:
     def test_extracts_top_5_patterns(self, tmp_path: Any) -> None:
         patterns_data = {
             "iteration": 1,
-            "patterns": [
-                {"pattern": f"Pattern {i}", "frequency": 10 - i} for i in range(10)
-            ],
+            "patterns": [{"pattern": f"Pattern {i}", "frequency": 10 - i} for i in range(10)],
         }
         (tmp_path / "learned_patterns_iter_1.json").write_text(json.dumps(patterns_data), encoding="utf-8")
 
@@ -297,7 +295,10 @@ class TestSuggestViaLlmWithPatterns:
 
     def test_patterns_in_llm_prompt(self) -> None:
         """Verify that patterns appear in the prompt sent to LLM."""
-        patterns = ["- Small stories pass 80% of the time (frequency: 42)", "- Always test before commit (frequency: 35)"]
+        patterns = [
+            "- Small stories pass 80% of the time (frequency: 42)",
+            "- Always test before commit (frequency: 35)",
+        ]
         captured_prompt = None
 
         def mock_run(*args: Any, **kwargs: Any) -> MagicMock:

@@ -167,10 +167,13 @@ $_EPISODIC_BLOCK"
     fi
   fi
 
-  # ── US-1214: Phase L learned patterns injection ─────────────────────────
+  # ── US-1214: Phase L learned patterns injection with tag filtering ──────────
   # Read latest learned_patterns_iter_*.json, filter by tag overlap with current story,
   # and inject top 3 matching patterns into the user prompt.
   if [[ -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then
+    # Extract story tags from STORY_JSON
+    _STORY_TAGS=$($JQ -r '.tags // [] | join(",")' <<<"$STORY_JSON" 2>/dev/null || echo "")
+
     # Find latest learned_patterns file (bash portable, no dependency on find)
     _LP_LATEST=""
     if [[ -d "${SPIRAL_SCRATCH_DIR:-.spiral}" ]]; then
@@ -180,9 +183,27 @@ $_EPISODIC_BLOCK"
 
     if [[ -n "$_LP_LATEST" ]]; then
       _LP_PATH="${SPIRAL_SCRATCH_DIR:-.spiral}/$_LP_LATEST"
-      # Extract top 3 patterns by frequency and format for injection
-      _LP_FILTERED=$($JQ -r '.patterns // [] | sort_by(.frequency) | reverse | .[0:3] |
-        map("- Pattern: " + (.pattern // "") + " (observed \(.frequency)x)") | join("\n")' \
+      # Filter patterns by tag overlap with story tags, then get top 3 by frequency
+      _LP_FILTERED=$($JQ -r \
+        --arg story_tags "$_STORY_TAGS" \
+        '.patterns // [] |
+         if ($story_tags | length) > 0 then
+           map(
+             .pattern_tags as $pt |
+             {
+               pattern: .pattern,
+               frequency: .frequency,
+               tag_match: (
+                 ($story_tags | split(",")) as $st |
+                 ($pt // [] | map(. as $x | $st | index($x)) | map(select(. != null)) | length) > 0
+               )
+             }
+           ) | map(select(.tag_match)) | sort_by(.frequency) | reverse | .[0:3] |
+           map("- " + .pattern + " (frequency: \(.frequency))")
+         else
+           sort_by(.frequency) | reverse | .[0:3] |
+           map("- " + .pattern + " (frequency: \(.frequency))")
+         end | join("\n")' \
         "$_LP_PATH" 2>/dev/null || echo "")
 
       if [[ -n "$_LP_FILTERED" ]]; then
@@ -192,8 +213,8 @@ $_EPISODIC_BLOCK"
 ## Learned Patterns from Phase L
 
 $_LP_FILTERED"
-        echo "  [learned-patterns] Top 3 patterns injected from $_LP_LATEST"
-        log_ralph_event "learned_patterns_injected" "\"story_id\":\"$NEXT_STORY\",\"pattern_file\":\"$_LP_LATEST\""
+        echo "  [learned-patterns] Top 3 patterns injected from $_LP_LATEST (filtered by tag overlap)"
+        log_ralph_event "learned_patterns_injected" "\"story_id\":\"$NEXT_STORY\",\"pattern_file\":\"$_LP_LATEST\",\"story_tags\":\"$_STORY_TAGS\""
       fi
     fi
   fi

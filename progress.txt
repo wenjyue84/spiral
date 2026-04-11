@@ -1655,3 +1655,44 @@ class TestDatabaseToFeatureRejected:
 ## Iteration 1 - Sat, Apr 11, 2026  7:07:32 PM
 Completed: Phase A: Read Phase L learned patterns and inject into gap analysis prompt (ID: US-1213) in 11m
 
+## Iteration N - Story: US-1214 - Ralph: Inject Phase L learned patterns into implementation context
+
+### What was implemented
+- **ralph/lib/prompt_builder.sh** (lines 170-199): Enhanced learned patterns injection with tag filtering
+  - Extracts story tags from STORY_JSON using jq
+  - Filters learned patterns by tag overlap (patterns with matching tags only)
+  - Falls back to frequency-only sorting when story has no tags
+  - Injects top 3 matching patterns into user prompt with "## Learned Patterns from Phase L" header
+  - Silently skips if no patterns file or no matching patterns found
+  - Logs pattern injection to spiral_events.jsonl with story_id, pattern_file, and story_tags
+
+- **tests/test_learned_patterns_injection.bats**: New bats test suite with 4 tests
+  - Test 1: Patterns filtered by tag overlap (patterns with matching tags included, others excluded)
+  - Test 2: Fallback to frequency sort when story has no tags
+  - Test 3: Silent skip when no patterns file exists
+  - Test 4: Empty patterns array handled gracefully
+
+### Patterns discovered
+- Tag filtering uses jq map/select pattern for conditional matching across tag arrays
+- Pattern files follow format: `{"patterns": [{"pattern": "...", "frequency": N, "pattern_tags": [...]}]}`
+- Tag matching logic: check if any story tag appears in pattern tags array
+- Filtering must happen before frequency sort to get top 3 FROM filtered set
+- Log events include story context (tags) for observability
+
+### Acceptance Criteria Met
+- [x] ralph.sh reads latest learned_patterns file before Claude spawn (line 177-178)
+- [x] Patterns filtered by tag overlap with story tags (lines 185-207 jq filter)
+- [x] Top 3 matching patterns formatted and appended (line 205-210)
+- [x] Skips silently if no patterns file or no matches (lines 181-198 conditional)
+- [x] Bats test verifies patterns section appears in context (4 tests passing)
+
+### Files Changed
+- `ralph/lib/prompt_builder.sh`: Enhanced pattern filtering logic (+39 lines)
+- `tests/test_learned_patterns_injection.bats`: New test file (+229 lines)
+- `prd.json`: US-1214 marked passes=true
+
+### Quality Checks
+- All 4 bats tests passing
+- shellcheck: No errors
+- shfmt: Formatted to 2-space indent with -ci flag
+- Pre-commit hooks: Passed

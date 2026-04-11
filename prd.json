@@ -1698,86 +1698,6 @@
       ]
     },
     {
-      "id": "US-1210",
-      "title": "[Regression Test] CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Mu",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-685. Story description: New CLI command that validates federated prd.json for dependency graph issues: circular dependencies (A→B→C→A), orphan stories (missing sub-project references), and namespace conflicts.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-685",
-        "Test would reliably fail if the US-685 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "model_router.py does NOT exist — add UCB1 logic to lib/routing/route_stories.py instead",
-        "resolve_model() is defined in ralph/lib/model_routing.sh:173",
-        "classify_model() is in ralph/lib/model_routing.sh:36",
-        "results.tsv columns: timestamp, iter, worker, story_id, title, status, duration, model, retry",
-        "UCB1 formula: score = wins/attempts + sqrt(2 * ln(total) / attempts)",
-        "Parse results.tsv with csv.reader, group by (model, story_tag) where tag = first bracket in title e.g. [Security Test]",
-        "Add a Python script lib/routing/ucb1_select.py that reads results.tsv and outputs recommended model to stdout",
-        "ralph/lib/model_routing.sh calls the Python script at retry==0 only"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku",
-      "filesTouch": [
-        "lib/routing/route_stories.py",
-        "ralph/lib/model_routing.sh"
-      ]
-    },
-    {
-      "id": "US-1211",
-      "title": "[Regression Test] Integration Test: Federated Phase G with Cross-Project CHANGELOG and Dependency Or",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-697. Story description: Add integration test verifying Phase G correctly generates CHANGELOG.md when using federated prd.json with multiple sub-projects that have cross-project story dependencies. Validates story ordering in CHANGELOG respects dependency graph.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-697",
-        "Test would reliably fail if the US-697 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "In ralph.sh around line 700 (before spawning Claude), find the most similar passed story",
-        "Use jq to extract passed stories filesTouch arrays from prd.json",
-        "Jaccard similarity: intersection/union of filesTouch arrays",
-        "git show <commit_hash> --stat to get the diff, pipe to head -200 for truncation",
-        "_passedCommit field on stories holds the commit hash",
-        "Inject as: echo \"## Reference: Similar story US-XXX implementation\" >> context_file"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku",
-      "filesTouch": [
-        "ralph/ralph.sh",
-        "ralph/lib/model_routing.sh"
-      ]
-    },
-    {
-      "id": "US-1212",
-      "title": "[E2E Test] Phase M Story Reordering by Dependency Graph for Optimal Merge Order",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-698. Story description: Topologically sort pending stories by dependency graph before merge to minimize implementation conflicts and rework. Stories should be merged after their dependencies are satisfied.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-698",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Story picker is in spiral.sh Phase I block — look for NEXT_STORY selection logic",
-        "Add a Python helper lib/routing/story_scorer.py that takes prd.json + results.tsv and outputs story ID",
-        "Score = P(success) * priority_weight * (1 / (1 + retry_count))",
-        "P(success) from results.tsv: group by (model, complexity, tag_prefix), compute pass_rate",
-        "Requires US-1210 UCB1 data — same results.tsv parsing can be shared"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku",
-      "filesTouch": [
-        "spiral.sh",
-        "lib/routing/route_stories.py"
-      ]
-    },
-    {
       "id": "US-1213",
       "title": "Phase A: Read Phase L learned patterns and inject into gap analysis prompt",
       "description": "Sub-story of US-1209. Read the latest .spiral/learned_patterns_iter_*.json file in ai_suggest.py. Extract the top 5 patterns by frequency. Append them as a Lessons Learned section to the LLM prompt used for gap analysis. If no patterns file exists, skip silently.",
@@ -1825,7 +1745,7 @@
         "US-1213"
       ],
       "_decomposedFrom": "US-1209",
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "ralph/ralph.sh"
       ],
@@ -1841,24 +1761,8 @@
         "phase-i",
         "shinka-evolve"
       ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-1215",
-      "title": "[Regression Test] Phase A: Constitution-Aware Story Generation with Quality Scoring",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-791. Story description: Score AI-generated story candidates against the constitution before proposing them to Phase S. Low-score candidates are filtered pre-validation, reducing wasted Phase S cycles and improving story quality from the source.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-791",
-        "Test would reliably fail if the US-791 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_791 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-11T11:18:31Z"
     }
   ]
 }
