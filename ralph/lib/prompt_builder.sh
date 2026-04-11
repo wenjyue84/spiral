@@ -167,6 +167,37 @@ $_EPISODIC_BLOCK"
     fi
   fi
 
+  # ── US-1214: Phase L learned patterns injection ─────────────────────────
+  # Read latest learned_patterns_iter_*.json, filter by tag overlap with current story,
+  # and inject top 3 matching patterns into the user prompt.
+  if [[ -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then
+    # Find latest learned_patterns file (bash portable, no dependency on find)
+    _LP_LATEST=""
+    if [[ -d "${SPIRAL_SCRATCH_DIR:-.spiral}" ]]; then
+      _LP_LATEST=$(cd "${SPIRAL_SCRATCH_DIR:-.spiral}" 2>/dev/null &&
+        ls -1 learned_patterns_iter_*.json 2>/dev/null | sort -V | tail -1 || echo "")
+    fi
+
+    if [[ -n "$_LP_LATEST" ]]; then
+      _LP_PATH="${SPIRAL_SCRATCH_DIR:-.spiral}/$_LP_LATEST"
+      # Extract top 3 patterns by frequency and format for injection
+      _LP_FILTERED=$($JQ -r '.patterns // [] | sort_by(.frequency) | reverse | .[0:3] |
+        map("- Pattern: " + (.pattern // "") + " (observed \(.frequency)x)") | join("\n")' \
+        "$_LP_PATH" 2>/dev/null || echo "")
+
+      if [[ -n "$_LP_FILTERED" ]]; then
+        RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+
+
+## Learned Patterns from Phase L
+
+$_LP_FILTERED"
+        echo "  [learned-patterns] Top 3 patterns injected from $_LP_LATEST"
+        log_ralph_event "learned_patterns_injected" "\"story_id\":\"$NEXT_STORY\",\"pattern_file\":\"$_LP_LATEST\""
+      fi
+    fi
+  fi
+
   # ── US-280: File context injection (diff or full) ────────────────────────
   if [[ -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then
     _FILE_CTX=$(build_files_context "$STORY_JSON" 2>/dev/null || true)

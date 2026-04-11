@@ -1655,6 +1655,27 @@
       "model": "haiku"
     },
     {
+      "id": "US-1208",
+      "title": "[Performance Test] Phase I: Distribute Federated Stories to Workers by Sub-Project with Isolated Wor",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-636. Story description: Extend Phase I parallel worker distribution to respect sub_project field in federated prd.json. Route stories to dedicated sub-project workers, prevent cross-project file contamination, ensure each worktree is isolated to its sub-project namespace.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-636",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Reuse TfidfVectorizer pattern from lib/prd/validate_stories.py:130-157",
+        "Add the pre-filter BEFORE the LLM call in ai_suggest.py, not after",
+        "Import sklearn TfidfVectorizer — already a dependency in pyproject.toml",
+        "Log rejected candidates: print(f\"[A] Pre-filter rejected: {title[:60]} (sim={max_sim:.2f})\")"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1209",
       "title": "[Regression Test] CLI: spiral trace-dependencies <story-id> - Federated Cross-Project Dependency Res",
       "priority": "medium",
@@ -1674,6 +1695,86 @@
       "_decomposedInto": [
         "US-1213",
         "US-1214"
+      ]
+    },
+    {
+      "id": "US-1210",
+      "title": "[Regression Test] CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Mu",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-685. Story description: New CLI command that validates federated prd.json for dependency graph issues: circular dependencies (A→B→C→A), orphan stories (missing sub-project references), and namespace conflicts.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-685",
+        "Test would reliably fail if the US-685 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "model_router.py does NOT exist — add UCB1 logic to lib/routing/route_stories.py instead",
+        "resolve_model() is defined in ralph/lib/model_routing.sh:173",
+        "classify_model() is in ralph/lib/model_routing.sh:36",
+        "results.tsv columns: timestamp, iter, worker, story_id, title, status, duration, model, retry",
+        "UCB1 formula: score = wins/attempts + sqrt(2 * ln(total) / attempts)",
+        "Parse results.tsv with csv.reader, group by (model, story_tag) where tag = first bracket in title e.g. [Security Test]",
+        "Add a Python script lib/routing/ucb1_select.py that reads results.tsv and outputs recommended model to stdout",
+        "ralph/lib/model_routing.sh calls the Python script at retry==0 only"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku",
+      "filesTouch": [
+        "lib/routing/route_stories.py",
+        "ralph/lib/model_routing.sh"
+      ]
+    },
+    {
+      "id": "US-1211",
+      "title": "[Regression Test] Integration Test: Federated Phase G with Cross-Project CHANGELOG and Dependency Or",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-697. Story description: Add integration test verifying Phase G correctly generates CHANGELOG.md when using federated prd.json with multiple sub-projects that have cross-project story dependencies. Validates story ordering in CHANGELOG respects dependency graph.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-697",
+        "Test would reliably fail if the US-697 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "In ralph.sh around line 700 (before spawning Claude), find the most similar passed story",
+        "Use jq to extract passed stories filesTouch arrays from prd.json",
+        "Jaccard similarity: intersection/union of filesTouch arrays",
+        "git show <commit_hash> --stat to get the diff, pipe to head -200 for truncation",
+        "_passedCommit field on stories holds the commit hash",
+        "Inject as: echo \"## Reference: Similar story US-XXX implementation\" >> context_file"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku",
+      "filesTouch": [
+        "ralph/ralph.sh",
+        "ralph/lib/model_routing.sh"
+      ]
+    },
+    {
+      "id": "US-1212",
+      "title": "[E2E Test] Phase M Story Reordering by Dependency Graph for Optimal Merge Order",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-698. Story description: Topologically sort pending stories by dependency graph before merge to minimize implementation conflicts and rework. Stories should be merged after their dependencies are satisfied.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-698",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Story picker is in spiral.sh Phase I block — look for NEXT_STORY selection logic",
+        "Add a Python helper lib/routing/story_scorer.py that takes prd.json + results.tsv and outputs story ID",
+        "Score = P(success) * priority_weight * (1 / (1 + retry_count))",
+        "P(success) from results.tsv: group by (model, complexity, tag_prefix), compute pass_rate",
+        "Requires US-1210 UCB1 data — same results.tsv parsing can be shared"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku",
+      "filesTouch": [
+        "spiral.sh",
+        "lib/routing/route_stories.py"
       ]
     },
     {
@@ -1706,11 +1807,7 @@
         "phase-a",
         "shinka-evolve"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-04-11T10:52:58Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `ai_suggest.py` generates AI story suggestions via Claude CLI\n- It currently injects completed stories for dedup but does not use learned patterns from Phase L\n- Learned patterns files exist at `.spiral/learned_patterns_iter_*.json` but Phase L hasn't written patterns with frequency yet\n- Tests for ai_suggest.py exist in `tests/test_ai_suggest.py`\n\n## Problem Identified\nUS-1213 requires ai_suggest.py to read the latest learned_patterns file and inject top 5 patterns into the LLM prompt for better gap analysis. Currently, this integration doesn't exist.\n\n## Planned Changes\n1. **lib/research/ai_suggest.py**\n   - Add `glob` import\n   - Add `load_learned_patterns()` function to find and read latest patterns file\n   - Modify `_build_prompt()` to accept patterns and inject \"Lessons Learned\" section\n   - Update `main()` to load patterns and pass to prompt builder\n\n2. **tests/test_ai_suggest.py**\n   - Add test class `TestLearnedPatterns` with tests for pattern loading, extraction, and prompt injection\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"lib/research/ai_suggest.py\",\n    \"tests/test_ai_suggest.py\"\n  ],\n  \"functions_to_add\": [\n    \"load_learned_patterns\",\n    \"test_load_patterns_missing_file\",\n    \"test_load_patterns_extracts_top_5\",\n    \"test_patterns_in_prompt\",\n    \"test_empty_patterns_no_prompt_change\"\n  ],\n  \"estimated_loc\": 110\n}\n</plan>\nNow I'll implement the changes:\nNow I'll add the glob import:\nI see the issue - the existing tests were calling `_build_prompt()` with an old signature. Let me fix the test calls to match the actual function signature:\nPerfect! All tests pass. Now let me verify the implementation with mypy and linting:\nPerfect! The implementation is complete and working correctly. Let me verify the summary:\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1214",
@@ -1744,6 +1841,23 @@
         "phase-i",
         "shinka-evolve"
       ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1215",
+      "title": "[Regression Test] Phase A: Constitution-Aware Story Generation with Quality Scoring",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-791. Story description: Score AI-generated story candidates against the constitution before proposing them to Phase S. Low-score candidates are filtered pre-validation, reducing wasted Phase S cycles and improving story quality from the source.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-791",
+        "Test would reliably fail if the US-791 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_791 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     }
   ]

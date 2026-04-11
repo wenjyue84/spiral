@@ -1652,3 +1652,6 @@ class TestDatabaseToFeatureRejected:
 *   **Story Description vs. Code:** The story description ("*feature stories cannot depend on infrastructure*") is incorrect. The actual code logic in `lib/phases/validate.py` explicitly **allows** this. The regression test should validate the behavior as it is coded, not as described in the story.
 *   **Test Data:** Use unique story IDs (e.g., prefixed with the story number `US-1199-`) to avoid confusion with existing tests.
 *   **Error Message Specificity:** The test should assert the presence of all key parts of the error message (source/target info, allowed list, rule ID, remediation text) to be a robust guard against future regressions.
+## Iteration 1 - Sat, Apr 11, 2026  7:07:32 PM
+Completed: Phase A: Read Phase L learned patterns and inject into gap analysis prompt (ID: US-1213) in 11m
+
