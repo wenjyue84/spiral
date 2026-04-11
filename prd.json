@@ -1759,7 +1759,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         "ralph/ralph.sh",
