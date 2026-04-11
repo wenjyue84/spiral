@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\prd\lint_prd.py
+# hypothesis_version: 6.151.9
+
+['--schema', 'Path to prd.json', '__main__', 'acceptanceCriteria', 'branchName', 'circular_dep', 'cycle', 'dependencies', 'duplicate_id', 'errors', 'id', 'message', 'naming', 'passes', 'prd', 'productName', 'schema', 'story_id', 'title', 'type', 'userStories', 'utf-8', 'valid']
