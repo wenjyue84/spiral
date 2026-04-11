@@ -114,12 +114,8 @@ class TestUS617RegressionFederatedOrder:
         ids = [s["id"] for s in result]
 
         # Verify chain order: C before B before A
-        assert ids.index("US-C1") < ids.index("US-B1"), (
-            f"Chain ordering failed at first link: {ids}"
-        )
-        assert ids.index("US-B1") < ids.index("US-A1"), (
-            f"Chain ordering failed at second link: {ids}"
-        )
+        assert ids.index("US-C1") < ids.index("US-B1"), f"Chain ordering failed at first link: {ids}"
+        assert ids.index("US-B1") < ids.index("US-A1"), f"Chain ordering failed at second link: {ids}"
 
     def test_us_617_merge_prevents_unmet_dependencies(self) -> None:
         """Observable behavior: returned order ensures Phase M can safely merge in sequence.
