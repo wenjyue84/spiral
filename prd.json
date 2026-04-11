@@ -1528,11 +1528,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T12:30:35Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe story US-1200 is a regression test for US-728 (the `spiral explain-retry` CLI command). The test files already exist and all tests are passing:\n- `tests/test_explain_retry_us728.py` contains 16 comprehensive unit tests\n- `tests/test_explain_retry.py` contains 9 integration tests including a `test_us_728_regression` test\n- All 25 tests pass successfully\n- The explain-retry command is fully implemented in `lib/commands/explain_retry.py` and wired into the CLI\n\n## Problem Identified\nThe story was marked as `passes: false` in prd.json (with `last_attempted: \"2026-04-11T12:30:35Z\"`), but the regression tests are actually fully implemented and passing. The tests comprehensively cover:\n- Retry sequence extraction with model escalation (haiku → sonnet → opus)\n- Error categorization for different failure types\n- Decomposition suggestions based on failed file patterns\n- Edge cases and missing data handling\n- CLI command behavior with and without flags\n\n## Planned Changes\n1. Update prd.json to mark US-1200 as `passes: true`\n2. Commit the change with documentation\n\nLet me now update prd.json:\nPerfect! Now let me verify the change and commit it:\nLet me check the update directly:\nExcellent! Now let me commit this change:\nPerfect! Let me verify the commit:\nExcellent! Now let me run pre-commit hooks to ensure code quality:\nLet me run a quick type check on the test files:\nLet me check if there are any specific errors in the test files themselves:\nLet me fix the mypy issues in the test file:\nLet me check the issue more carefully:\nLet me fix the mypy issues by importing the proper pytest type for capsys:\nNow let me fix the function signature and capsys type:\nNow let me remove the unnecessary type: ignore comments:\nLet me fix the other capsys.readouterr() calls:\nLet me fix the final capsys.readouterr() call:\nNow let me verify the type: ignore for the import is still needed by checking the mypy output again:\nLet me remove the unused type: ignore comment:\nLet me verify the mypy issues are fixed:\nLet me just remove the type: ignore comment since mypy says it's unused:\nLet me verify the fix:\nLet me remove the type: ignore and see what the actual error is:\nLet me check the actual mypy errors without the type: ignore:\nPerfect! Now let me run the tests again to ensure everything still works:\nExcellent! All tests still pass. Now let me commit these type-checking fixes:\nPerfect! Let me verify the final state:\nLet me run one final comprehensive test verification:\nPerfect! Let me verify the final prd.json status:\nPerfect! Let me create a summary of the completed work:\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1201",
@@ -1550,11 +1546,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe performance test file `tests/test_performance_us_390.py` exists and contains 6 tests measuring key metrics for US-390 (Message Batches API):\n- `test_us_390_build_requests_performance_10_stories` and `_100_stories`\n- `test_us_390_parse_results_performance_50_results` and `_200_results`\n- `test_us_390_batch_throughput_e2e`\n- `test_us_390_baseline_capture`\n\nTests currently pass (6/6) and baseline metrics are captured in `.spiral/us_390_baseline.json` with a 20% degradation threshold.\n\n## Problem Identified\n\nThe story acceptance criteria require the test to be runnable with `uv run pytest tests/ -k us_390 -v`, but:\n1. The `pyproject.toml` doesn't have `us_390` in the markers list (only `us_1062`, `us_1027`, `us_1008`)\n2. The test methods aren't marked with `@pytest.mark.us_390`\n3. This prevents proper pytest discovery when using markers/filters\n\n## Planned Changes\n\n1. Add `us_390` marker to `tests/pyproject.toml` markers list\n2. Add `@pytest.mark.us_390` decorator to the test class in `tests/test_performance_us_390.py`\n3. Verify the test runs successfully with `uv run pytest tests/ -k us_390 -v`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/pyproject.toml\",\n    \"tests/test_performance_us_390.py\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow executing the plan:\nPerfect! All 6 tests pass. Let me verify the story completion one final time:\nPerfect! Story US-1201 is now **complete** and marked as **passes: true**. Here's a summary of what was implemented:\n\n## Summary"
-      },
-      "_passedCommit": "b03bd697d6b1aacd7b6e50cb0f60372a510e73ab"
+      "model": "haiku"
     },
     {
       "id": "US-1202",
@@ -1734,6 +1726,58 @@
       ]
     },
     {
+      "id": "US-1211",
+      "title": "[Regression Test] Integration Test: Federated Phase G with Cross-Project CHANGELOG and Dependency Or",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-697. Story description: Add integration test verifying Phase G correctly generates CHANGELOG.md when using federated prd.json with multiple sub-projects that have cross-project story dependencies. Validates story ordering in CHANGELOG respects dependency graph.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-697",
+        "Test would reliably fail if the US-697 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "In ralph.sh around line 700 (before spawning Claude), find the most similar passed story",
+        "Use jq to extract passed stories filesTouch arrays from prd.json",
+        "Jaccard similarity: intersection/union of filesTouch arrays",
+        "git show <commit_hash> --stat to get the diff, pipe to head -200 for truncation",
+        "_passedCommit field on stories holds the commit hash",
+        "Inject as: echo \"## Reference: Similar story US-XXX implementation\" >> context_file"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku",
+      "filesTouch": [
+        "ralph/ralph.sh",
+        "ralph/lib/model_routing.sh"
+      ]
+    },
+    {
+      "id": "US-1212",
+      "title": "[E2E Test] Phase M Story Reordering by Dependency Graph for Optimal Merge Order",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-698. Story description: Topologically sort pending stories by dependency graph before merge to minimize implementation conflicts and rework. Stories should be merged after their dependencies are satisfied.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-698",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Story picker is in spiral.sh Phase I block — look for NEXT_STORY selection logic",
+        "Add a Python helper lib/routing/story_scorer.py that takes prd.json + results.tsv and outputs story ID",
+        "Score = P(success) * priority_weight * (1 / (1 + retry_count))",
+        "P(success) from results.tsv: group by (model, complexity, tag_prefix), compute pass_rate",
+        "Requires US-1210 UCB1 data — same results.tsv parsing can be shared"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku",
+      "filesTouch": [
+        "spiral.sh",
+        "lib/routing/route_stories.py"
+      ]
+    },
+    {
       "id": "US-1213",
       "title": "Phase A: Read Phase L learned patterns and inject into gap analysis prompt",
       "description": "Sub-story of US-1209. Read the latest .spiral/learned_patterns_iter_*.json file in ai_suggest.py. Extract the top 5 patterns by frequency. Append them as a Lessons Learned section to the LLM prompt used for gap analysis. If no patterns file exists, skip silently.",
@@ -1797,6 +1841,74 @@
         "phase-i",
         "shinka-evolve"
       ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1215",
+      "title": "[Regression Test] Phase A: Constitution-Aware Story Generation with Quality Scoring",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-791. Story description: Score AI-generated story candidates against the constitution before proposing them to Phase S. Low-score candidates are filtered pre-validation, reducing wasted Phase S cycles and improving story quality from the source.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-791",
+        "Test would reliably fail if the US-791 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_791 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1216",
+      "title": "[Regression Test] Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-772. Story description: After Phase I completes a research-sourced story, tag it with implementation metrics (pass/fail, retry count, cost). Aggregate scores per research prompt to identify which strategies yield implementable stories.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-772",
+        "Test would reliably fail if the US-772 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_772 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1217",
+      "title": "[Regression Test] Phase T: Flaky Test Detection - Skip Story Generation for Intermittent Failures",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-774. Story description: Track test failure history across iterations. Tests failing <50% of the time across last 5 iterations are flagged flaky and excluded from story generation.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-774",
+        "Test would reliably fail if the US-774 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_774 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1218",
+      "title": "[Regression Test] Phase V: Blame Attribution - Correlate Failing Tests to the Story That Broke Them",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-782. Story description: After validation, diff test results against pre-implementation baseline. Attribute new failures to the specific story that caused them for targeted revert.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-782",
+        "Test would reliably fail if the US-782 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_782 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     }
   ]

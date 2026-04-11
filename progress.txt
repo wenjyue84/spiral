@@ -1907,3 +1907,36 @@ This brief is for implementing a regression test for the `spiral explain-retry` 
 *   `story_id` not found within the `results.tsv` file.
 *   Stories with no retries or only successful attempts.
 *   Ensuring the test does not rely on any global state or existing `results.tsv` files.
+## Iteration 2 - Sat, Apr 11, 2026  8:43:06 PM
+Completed: [Regression Test] CLI: spiral explain-retry <story_id> - Analyze Retry Pattern and Suggest Decomposi (ID: US-1200) in 12m
+
+
+## Pre-analysis for US-1202 (Gemini 2.5 Pro)
+This user story is not related to Frappe or the `lhdn_payroll_integration` app. It describes a regression test for a Python-based worker process named "Ralph" that interacts with Git.
+
+Here is the technical brief for the Claude agent:
+
+**Subject: Technical Brief for US-1202: Regression Test for Worker Crash Recovery**
+
+**1. Core Task:**
+Implement a Pytest regression test to ensure the "Ralph" worker process correctly recovers from a Git crash scenario (e.g., detached HEAD, incomplete commit) by resetting the worktree to the last known-good state.
+
+**2. Key Files & Modules:**
+*   **Test File (New):** Create a new test file, likely `tests/test_worker_recovery.py` or `tests/test_us461_crash_recovery.py`.
+*   **Likely Target Module:** The recovery logic implemented in US-461, which needs to be imported and executed by the test. This is probably located in a file like `ralph/worker.py`, `lib/git_utils.py`, or `lib/crash_handler.py`.
+*   **Test Fixtures:** Utilize Pytest fixtures (`tmp_path`) to create isolated, temporary Git repositories for testing.
+
+**3. Implementation Approach:**
+1.  Define a test function (e.g., `test_recovers_from_detached_head`).
+2.  Use a Pytest `tmp_path` fixture to create a clean, temporary directory.
+3.  Inside the test, programmatically initialize a new Git repository in `tmp_path`. Create a `main` branch with a "known-good" commit.
+4.  Simulate a crash state by running Git commands to create a detached HEAD or a corrupted commit state.
+5.  Invoke the crash recovery function from the application's source code, passing the path to the temporary repository.
+6.  Assert that the repository HEAD is now pointing to the "known-good" commit on the `main` branch and the working directory is clean.
+
+**4. Edge Cases & Gotchas:**
+*   **State Simulation:** Be precise in scripting the exact Git states (detached HEAD, corrupt index) that the recovery logic is designed to handle.
+*   **Test Isolation:** Ensure all Git operations occur strictly within the temporary directory provided by the `tmp_path` fixture to avoid interfering with the project's actual Git repository.
+*   **Cleanup:** Confirm the testing framework properly handles the cleanup of the temporary repositories after each test run.
+*   **Dependencies:** The test will have a hard dependency on a local Git installation.
+
