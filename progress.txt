@@ -2619,3 +2619,47 @@ This is not a Frappe application; the context points to a Python-based AI workfl
 -   **Mocking is crucial:** The test must not make live AI model calls. Mock the generation and scoring process for deterministic results.
 -   **Observability:** Ensure you can verify that a candidate was filtered. This may require mocking a downstream function to check what it receives.
 -   **Constitution Loading:** The test may need to provide a simplified, mock "constitution" file/object for the scoring logic to use.
+## Iteration 1 - Sun, Apr 12, 2026 12:26:01 AM
+FAILED diff-guard: [Regression Test] Phase A: Constitution-Aware Story Generation with Quality Scoring (ID: US-1215) — 2644 lines > 800 limit — attempt 1/3
+
+
+## Pre-analysis for US-1215 (Gemini 2.5 Pro)
+This is not a Frappe application; the context points to a Python-based AI workflow tool named "Spiral". The request is to create a regression test for an existing feature.
+
+**Technical Brief for Claude**
+
+**Objective:** Implement a regression test for story US-791, which filters AI-generated story candidates based on a quality score from a "constitution".
+
+**1. Target Files for Testing:**
+-   The core logic likely resides in `lib/ai_suggest.py`, `lib/decompose_story.py`, or a similar module responsible for AI-driven story generation.
+-   The "constitution" and scoring logic might be in a validation module like `lib/arch_validators.py` or `lib/consistency_check.py`.
+
+**2. Files to Modify:**
+-   A new or existing test file in the `tests/` directory. Based on the technical notes (`pytest -k us_791`), a file like `tests/test_story_generation.py` or `tests/test_ai_features.py` is the appropriate place.
+-   No Frappe DocTypes or hooks are involved.
+
+**3. Implementation Approach:**
+-   Create a new Pytest function, e.g., `test_us_791_constitution_filter_rejects_low_score_candidates`.
+-   Use `pytest.mark.parametrize` to test multiple scenarios.
+-   Mock the AI model call that generates story candidates to return a controlled list of "good" (high-score) and "bad" (low-score) candidates.
+-   Invoke the story generation/suggestion function that triggers the US-791 constitution scoring feature.
+-   Assert that the "bad" candidate is filtered out and only the "good" candidate is passed to the next stage (e.g., saved or sent to "Phase S").
+
+**4. Edge Cases & Gotchas:**
+-   **Mocking is crucial:** The test must not make live AI model calls. Mock the generation and scoring process for deterministic results.
+-   **Observability:** Ensure you can verify that a candidate was filtered. This may require mocking a downstream function to check what it receives.
+-   **Constitution Loading:** The test may need to provide a simplified, mock "constitution" file/object for the scoring logic to use.
+
+
+## Iteration - Story: US-1215 - [Regression Test] Phase A: Constitution-Aware Story Generation with Quality Scoring
+
+### What was implemented
+- No new code needed: TestUS791Regression class with 7 @pytest.mark.us_791 tests already existed in tests/test_story_quality_scorer.py (committed in iter 25, from US-790 implementation)
+- Just marked prd.json passes=True after verifying all 7 tests pass
+
+### Patterns discovered
+- When a story's test implementation already exists from a prior commit (from related story work), just verify tests pass and mark passes=True
+- The diff-guard failure in attempt 1 (2644 lines) was from trying to re-create an already-existing test file
+
+### Gotchas
+- Always check git history of the test file before writing new tests — the tests may already be there

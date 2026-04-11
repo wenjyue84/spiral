@@ -61,3 +61,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T15:23:24Z	24	2	US-1210	[Regression Test] CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Mu	keep	264	sonnet	1	639d4c0e6d2c3ae2b7933f5fcbc0d3bde69dc82d	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T15:46:42Z	25	1	US-1212	[E2E Test] Phase M Story Reordering by Dependency Graph for Optimal Merge Order	reject	437	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T15:55:33Z	25	2	US-1212	[E2E Test] Phase M Story Reordering by Dependency Graph for Optimal Merge Order	keep	504	sonnet	1	ef174243fd86d31ecbae129f0ccf258ac278a346	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-11T16:26:01Z	26	1	US-1215	[Regression Test] Phase A: Constitution-Aware Story Generation with Quality Scoring	reject	732	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
