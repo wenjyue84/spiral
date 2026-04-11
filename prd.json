@@ -2388,7 +2388,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-11T22:35:39Z"
+      "last_attempted": "2026-04-11T22:35:39Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `tests/conftest.py` exists with many fixtures but is missing `mock_ralph_env` and `mock_prd_fixture`\n- `tests/fixtures/` directory exists  \n- `test_spiral_e2e_integration.py` doesn't exist yet\n\n## Problem Identified\nNeed to create E2E integration test infrastructure for SPIRAL:\n1. Mock environment variables (`SPIRAL_VALIDATE_CMD`, `SPIRAL_MODEL_ROUTING=fixed`)\n2. Mock `ralph.sh` script that exits 0 and writes to `results.tsv`\n3. Mock PRD fixture with one deterministic story (UT-001)\n\n## Planned Changes\n1. **tests/conftest.py**: Add `mock_ralph_env` and `mock_prd_fixture` fixtures\n2. **tests/fixtures/mock_spiral_prd.json**: Create single-story PRD file\n3. **tests/test_spiral_e2e_integration.py**: Create test file with fixture validation test\n\n<plan>\n{\n  \"files_to_create\": [\n    \"tests/fixtures/mock_spiral_prd.json\",\n    \"tests/test_spiral_e2e_integration.py\"\n  ],\n  \"files_to_modify\": [\n    \"tests/conftest.py\"\n  ],\n  \"functions_to_add\": [\n    \"mock_ralph_env\",\n    \"mock_prd_fixture\",\n    \"TestSpiralE2EIntegration\"\n  ],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow I'll execute the plan:\nPerfect! I've successfully implemented **US-1250: Create E2E Integration Test Harness and Fixtures for SPIRAL**.\n\n## Summary"
+      }
     },
     {
       "id": "US-1251",

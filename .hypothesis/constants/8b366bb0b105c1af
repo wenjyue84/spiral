@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\prd\prd_schema.py
+# hypothesis_version: 6.151.9
+
+[120, '--quiet', '--validate-write', '..', '.bak', '/', 'NEW_FILE', 'Path to prd.json', 'SPIRAL_HOME', 'SPIRAL_STORY_PREFIX', 'US', '^[0-9a-f]{40}$', '^[a-z0-9_.:-]+$', '__main__', '_decomposed', '_decomposedFrom', '_decomposedInto', '_failureReason', '_passedCommit', 'acceptanceCriteria', 'branchName', 'command', 'critical', 'dependencies', 'description', 'epicId', 'epics', 'estimatedComplexity', 'filesTouch', 'goals', 'high', 'id', 'isTestFix', 'large', 'low', 'medium', 'overview', 'passes', 'prd', 'prd.schema.json', 'priority', 'productName', 'schemaVersion', 'small', 'stdlib', 'store_true', 'tags', 'technicalNotes', 'testFiles', 'testMarker', 'title', 'userStories', 'utf-8', 'verification']
