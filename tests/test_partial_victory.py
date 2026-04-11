@@ -415,9 +415,7 @@ class TestPartialVictoryCore:
         prd_file = tmp_dir / "prd.json"
         report_file = tmp_dir / "ac_report.json"
 
-        prd: dict[str, Any] = {
-            "userStories": [{"id": "US-200", "title": "Complex"}]
-        }
+        prd: dict[str, Any] = {"userStories": [{"id": "US-200", "title": "Complex"}]}
         prd_file.write_text(json.dumps(prd), encoding="utf-8")
 
         report: dict[str, Any] = {
