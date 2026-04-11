@@ -1893,18 +1893,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T17:42:52Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe test file `tests/test_flaky_detector.py` with 7 `us_774`-marked tests was committed in a prior attempt. All tests pass. The `prd.json` was reset to `passes: false` by the diff-guard after the oversized diff.\n\n## Problem Identified\nOnly need to mark US-1217 as `passes: true` — the actual implementation (test file) is already committed.\n\n## Planned Changes\n- Update `prd.json`: set `passes: true`, clear `_failureReason`/`_antiPatterns`\n- Update `progress.txt` with this iteration's learning\n- Commit the small diff\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\", \"progress.txt\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 10\n}\n</plan>\nNow update `progress.txt` and commit:\nDone. US-1217 is marked `passes: true`. The diff this time is 47 lines (well under the 800-line guard), since the test file was already committed in the prior attempt."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 451,
-        "tokensAfterMasking": 450,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_passedCommit": "4d4602e00300d47af722906dc79b69240934dc0d"
+      "model": "haiku"
     },
     {
       "id": "US-1218",
@@ -1921,11 +1910,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T17:47:16Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/test_blame.py` contains the full blame attribution implementation with 6 functions\n- `tests/test_blame_attribution.py` has 8 test classes with comprehensive coverage (14 test functions)\n- The test file exists but lacks `@pytest.mark.us_782` markers needed for test discovery via `pytest -k us_782`\n- `tests/pyproject.toml` has marker definitions but no `us_782` entry yet\n\n## Problem Identified\nStory US-1218 requires regression tests for US-782 (blame attribution feature). The existing test file covers the functionality but isn't marked as a regression test and won't be discovered with the specified test command (`uv run pytest tests/ -k us_782 -v`).\n\n## Planned Changes\n1. Add `us_782` marker definition to `tests/pyproject.toml`\n2. Add `@pytest.mark.us_782` decorator to all test functions in `tests/test_blame_attribution.py`\n3. Verify tests run and pass with the marker discovery command\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/test_blame_attribution.py\",\n    \"tests/pyproject.toml\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 40\n}\n</plan>\n\nNow let me execute the plan:\nNow let me run the tests to verify they work with the markers:\nPerfect! All 21 tests pass. Now let me verify type checking and linting:\nNow let me commit the changes:\nLet me verify the final state by running one more comprehensive test:\nPerfect! Story US-1218 has been successfully implemented. Here's a summary:\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1219",
@@ -2060,6 +2045,96 @@
         "Run: uv run pytest tests/ -k us_1045 -v"
       ],
       "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1227",
+      "title": "[Regression Test] [Integration Test] Episodic memory store: write, retrieve, and inject past pattern",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-518. Story description: Write integration tests for the SQLite FTS5 episodic memory store introduced in US-350. Tests must cover the full round-trip: recording a story outcome, retrieving the top-3 relevant past implementations via FTS5 ranking, and verifying the injected context snippet Ralph receives. No external services or manual setup required — the store must be created in a temp directory per test.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-518",
+        "Test would reliably fail if the US-518 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_518 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1228",
+      "title": "[Performance Test] Phase R: Semantic Query Dedup - Skip Research When Query Matches Prior Cache",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-773. Story description: Hash research queries semantically. If a new query is >90% similar to a cached result from last 3 iterations, reuse the cached result instead of making a new API call.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-773",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_773 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1229",
+      "title": "[E2E Test] Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker Ac",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-652. Story description: Create a timeline visualization showing each worker's time spent in each phase (R/T/S/M/I/V/C) across iterations. Identify phase bottlenecks and worker imbalances. Export as interactive HTML/SVG from dashboard API.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-652",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_652 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1230",
+      "title": "[Regression Test] CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-642. Story description: New CLI command computing semantic similarity between story description and historical stories in results.tsv, outputting complexity score (1-10) and similar past story references. Helps triage stories and select initial model for Phase I.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-642",
+        "Test would reliably fail if the US-642 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_642 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1231",
+      "title": "[Performance Test] Automatic Worker Lag Detection & Restart on Heartbeat Timeout",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-531. Story description: Monitor worker heartbeat intervals. If a worker reports no progress for >SPIRAL_WORKER_TIMEOUT (default 300s), auto-terminate and restart it with the same story to recover from silent hangs or network stalls in parallel worker pool.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-531",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_531 -v"
+      ],
+      "dependencies": [
+        "US-531"
+      ],
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"

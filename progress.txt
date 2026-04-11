@@ -2891,3 +2891,37 @@ Completed: [Regression Test] Phase T: Flaky Test Detection - Skip Story Generati
 *   The test should account for multiple stories being processed in the same batch.
 *   Ensure the attribution logic is robust against flaky tests that might have failed in the baseline.
 
+## Iteration 4 - Sun, Apr 12, 2026  1:57:02 AM
+Completed: [Regression Test] Phase V: Blame Attribution - Correlate Failing Tests to the Story That Broke Them (ID: US-1218) in 9m
+
+
+## Pre-analysis for US-1219 (Gemini 2.5 Pro)
+This user story is not related to Frappe or the `lhdn_payroll_integration` app. It pertains to the Spiral project itself, focusing on creating a regression test for an internal feature (US-785) that analyzes story completion patterns.
+
+Here is the technical brief based on the actual story content and project structure:
+
+**Project:** Spiral
+**User Story:** US-1219: Regression Test for Retry Pattern Analysis
+
+### 1. Python Files to Modify
+*   **New File:** `tests/regression/test_us_785_retry_pattern_analysis.py`. A new test file should be created to house the regression test.
+*   **Likely Implementation File (to be tested):** `lib/pattern_analyzer.py` (or a similar new/existing module). The logic for US-785, which clusters stories and extracts traits, would reside here.
+*   **Key Interacting File:** `lib/episodic_memory.py`. The test will need to verify that the patterns extracted by the analyzer are correctly stored in the episodic memory.
+
+### 2. Key Modules & Concepts
+*   **Story Analysis Logic:** The core function(s) that implement US-785. This logic takes a collection of completed stories (likely JSON or dicts), clusters them by `retry_count`, and identifies common features in high-retry vs. low-retry groups.
+*   **Episodic Memory:** The storage mechanism where the extracted "easy vs. hard" patterns are saved for future use. The test will need to mock or inspect this component.
+*   **Test Fixtures:** Pytest fixtures will be needed to provide mock story data and to mock the `episodic_memory` interface.
+
+### 3. Recommended Implementation Approach
+1.  Create the new test file: `tests/regression/test_us_785_retry_pattern_analysis.py`.
+2.  Define a pytest fixture that provides a list of mock "completed story" objects. This list should include clear patterns (e.g., stories containing the token "database migration" have high retries, while those with "update UI text" have low retries).
+3.  In the test function (e.g., `test_us_785_retry_pattern_extraction`), call the main analysis function, passing the mock story data.
+4.  Assert that the `episodic_memory.store()` method was called with the correctly identified patterns. The test should verify that the system correctly concluded "database migration" is a feature of hard stories.
+
+### 4. Edge Cases & Gotchas
+*   **No Patterns:** The test should cover cases where no statistically significant patterns can be found in the story data. The system should handle this gracefully without errors.
+*   **Empty Input:** The analyzer must not fail if given an empty list of completed stories.
+*   **Data Schema:** The mock story data must precisely match the real data schema, including fields for `retry_count`, `description`, etc.
+*   **State Management:** The test must ensure `episodic_memory` is in a clean state before the test runs and does not persist state that could affect other tests.
+

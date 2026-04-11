@@ -12,6 +12,8 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from lib.pattern_analyzer import (
     aggregate_traits,
     analyze_patterns,
@@ -24,6 +26,7 @@ from lib.pattern_analyzer import (
 )
 
 
+@pytest.mark.us_785
 class TestLoadPRD:
     """Test loading PRD JSON."""
 
@@ -60,6 +63,7 @@ class TestLoadPRD:
             assert stories == []
 
 
+@pytest.mark.us_785
 class TestLoadRetryCounts:
     """Test loading retry counts."""
 
@@ -82,6 +86,7 @@ class TestLoadRetryCounts:
         assert counts == {}
 
 
+@pytest.mark.us_785
 class TestExtractTraits:
     """Test trait extraction from stories."""
 
@@ -130,6 +135,7 @@ class TestExtractTraits:
         assert traits["file_patterns"] == []
 
 
+@pytest.mark.us_785
 class TestExtractFilePatterns:
     """Test file pattern extraction."""
 
@@ -166,6 +172,7 @@ class TestExtractFilePatterns:
         assert set(patterns) == {"lib", "tests"}
 
 
+@pytest.mark.us_785
 class TestClusterStoriesByRetry:
     """Test clustering stories by retry count."""
 
@@ -209,6 +216,7 @@ class TestClusterStoriesByRetry:
         assert total == 1
 
 
+@pytest.mark.us_785
 class TestAggregateTraits:
     """Test trait aggregation across story groups."""
 
@@ -274,6 +282,7 @@ class TestAggregateTraits:
         assert "bug" not in result["common_tags"]
 
 
+@pytest.mark.us_785
 class TestAnalyzePatterns:
     """Test full pattern analysis workflow."""
 
