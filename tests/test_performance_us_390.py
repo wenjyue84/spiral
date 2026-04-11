@@ -14,6 +14,8 @@ import sys
 import time
 from typing import Any
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 import batch_validate as bv
@@ -92,6 +94,7 @@ def _save_baseline(metric_name: str, value: float) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.us_390
 class TestUS390PerformanceBatch:
     """Performance tests for US-390 batch validation operations."""
 
