@@ -2924,4 +2924,3 @@ Here is the technical brief based on the actual story content and project struct
 *   **Empty Input:** The analyzer must not fail if given an empty list of completed stories.
 *   **Data Schema:** The mock story data must precisely match the real data schema, including fields for `retry_count`, `description`, etc.
 *   **State Management:** The test must ensure `episodic_memory` is in a clean state before the test runs and does not persist state that could affect other tests.
-

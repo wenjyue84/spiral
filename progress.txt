@@ -289,4 +289,3 @@ Based on the story and file structure, here is the technical brief:
 *   Handle malformed assertion input gracefully.
 *   The test must reliably simulate the post-implementation state ("after pytest passes") mentioned in the story.
 *   Focus on testing the "observable behaviour" of the runner, not its internal implementation details.
-
