@@ -1016,3 +1016,29 @@ The goal is to test the user flow, not just the API response.
 *   **Authentication:** The test runner will need a mechanism to log in or use an authenticated session to access the dashboard page. Look for existing auth fixtures.
 *   **Endpoint Failures:** Consider adding an assertion to check that the browser's network call to the `/api/timeline` endpoint returns a `200 OK` status.
 
+
+## Pre-analysis for US-1233 (Gemini 2.5 Pro)
+This user story is not related to Frappe or the `lhdn_payroll_integration` app. The context is the Spiral project, a Python-based federated project management tool. The analysis is based on the Spiral codebase.
+
+**Technical Brief for US-1233**
+
+**1. Files to Modify:**
+*   **New Test File:** `tests/test_federated_merge_conflicts.py` (or similar). A new file is recommended to isolate this regression test.
+*   **Likely Related Logic:** `lib/conflict_detector.py` and `lib/federated_merge_prd.py`. The test will execute code from these files.
+
+**2. Frappe Involvement:**
+*   None. This is a standard Python project, not a Frappe application. No DocTypes or hooks are involved.
+
+**3. Implementation Approach:**
+*   Create a pytest test function (e.g., `test_us584_regression_file_path_collision`).
+*   In the test, programmatically generate two distinct, mock "federated sub-project" story files (JSON).
+*   Ensure both mock stories define an operation that modifies the *exact same file path*.
+*   Invoke the main conflict detection logic from `federated_merge_prd.py` (or `conflict_detector.py`) with these mock stories as input.
+*   Assert that the function detects a conflict, returns a non-zero exit code, and writes a structured conflict report to a temporary file.
+*   Assert the contents of the conflict report match the expected format, identifying the conflicting stories and file path.
+
+**4. Edge Cases & Gotchas:**
+*   The test must correctly simulate the federated project structure and story data format that the merge process expects.
+*   Ensure the test cleans up any mock project files or conflict reports it generates.
+*   The assertion should be specific enough to validate the conflict report's structure without being overly brittle to minor formatting changes.
+
