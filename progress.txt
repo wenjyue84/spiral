@@ -510,3 +510,34 @@ Here is the technical brief for user story US-1226.
 *   **Asynchronous UI:** Use Playwright's web-first assertions (`expect(locator).to_have_text(...)`) to automatically handle waits for UI elements to appear after the API call resolves.
 *   **Selector Strategy:** Avoid brittle selectors based on CSS classes or structure. Collaborate with the frontend implementation to ensure stable `data-testid` attributes are present on the key elements that need to be asserted on.
 
+## Iteration 2 - Sun, Apr 12, 2026  3:35:56 AM
+Completed: [E2E Test] Dashboard: Story Retry Exhaustion Analyzer - GET /api/dashboard/stuck-stories (ID: US-1226) in 14m
+
+
+## Pre-analysis for US-1227 (Gemini 2.5 Pro)
+Based on the user story, here is a technical brief for the implementation:
+
+**Project:** Standard Python application (not a Frappe app).
+
+**Objective:** Create a regression test for the SQLite FTS5-based episodic memory feature.
+
+**1. Files to Modify:**
+*   **Create new test file:** `tests/test_us518_episodic_memory_regression.py`.
+*   **Import from:** `lib/episodic_memory.py` (this is the likely implementation of the feature).
+
+**2. Frappe DocTypes/Hooks:**
+*   None. The project is a Python application using `pytest`, not a Frappe-based system.
+
+**3. Implementation Approach:**
+*   Use the `pytest` framework.
+*   Use the `tempfile` standard library to create a temporary SQLite database for each test run, ensuring test isolation.
+*   The test must perform a full round-trip:
+    1.  **Write:** Programmatically add several distinct, sample "story outcomes" (e.g., problem description, code solution) to the episodic memory store.
+    2.  **Retrieve:** Query the store with a new problem description that is intentionally similar to one of the stored outcomes.
+    3.  **Assert:** Verify that the FTS5 search correctly returns the top-3 most relevant past outcomes, ranked by relevance. Confirm the structure of the injected context snippet is as expected.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the temporary database is completely torn down after each test to prevent state leakage.
+*   Test the "no results" scenario to ensure it returns an empty list and does not raise an error.
+*   Test queries with special characters or SQL keywords to guard against injection vulnerabilities.
+

@@ -34,6 +34,7 @@ markers = [
     "us_461: regression tests for worker crash recovery using git worktree state snapshots (US-461)",
     "us_390: performance tests for Phase S Message Batches API (US-390)",
     "us_512: regression tests for Phase V pytest output parsing with subprocess mock (US-512)",
+    "us_518: regression tests for episodic memory store write, retrieve, and context injection (US-518)",
     "us_617: regression tests for Phase M federated order topological sort (US-617)",
     "us_774: regression tests for Phase T flaky test detection and exclusion from story generation (US-774)",
     "us_1062: regression tests for Phase S validation confidence scorer (US-1062)",

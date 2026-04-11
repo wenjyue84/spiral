@@ -2029,11 +2029,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nI found the test file for US-1044: `tests/test_federation_conflict.py` which contains comprehensive tests for the file conflict detection feature. The tests cover:\n- Detection of common files across sub-projects\n- No false positives for single sub-project files\n- Conflict reporting with sub-projects and story IDs\n- Resolution hints generation\n- Edge cases (empty PRD, single sub-project scenarios)\n\nThe feature is implemented in `lib/federation/conflict_detector.py` with a `FileConflict` dataclass and `detect_file_conflicts()` function.\n\n## Problem Identified\n\nFollowing the regression test pattern from US-1219 through US-1224, I need to mark existing tests with `@pytest.mark.us_1044` to create a regression test suite that:\n1. Covers the core observable behavior of US-1044 (file conflict detection with patch/resolution visualization)\n2. Would fail reliably if the feature were removed or broken\n3. Is discoverable via `pytest tests/ -k us_1044 -v`\n\n## Planned Changes\n\n- Add `@pytest.mark.us_1044` decorator to the `TestDetectFileConflicts` test class in `tests/test_federation_conflict.py`\n- All existing tests cover observable behavior: conflict detection, resolution hints, sub-project tracking\n- Run quality checks (mypy, ruff lint/format, pytest)\n- Mark story as `passes: true` in prd.json\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_federation_conflict.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow let me execute the implementation:\nNow let me run the regression test suite to verify all tests pass:\nExcellent! All 9 tests pass. Let me now run quality checks:\nPerfect! All quality checks pass. Now let me update prd.json to mark the story as complete:\nNow let me stage and commit the changes:\nNow let me update progress.txt with the implementation details:\nPerfect! Let me verify the final state:\nLet me run the complete test suite one final time to confirm:\n## Summary"
-      },
-      "_passedCommit": "4cfb2040e4199919c2616cfb8d6166a1c8a433e6"
+      "model": "haiku"
     },
     {
       "id": "US-1226",
@@ -2051,11 +2047,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T19:21:29Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- The `/api/dashboard/stuck-stories` endpoint exists in `lib/dashboard/api.py` and returns stuck stories data\n- The `StuckStoriesPanel` React component in `spiral-ui/src/components/analytics/StuckStoriesPanel.tsx` displays the data\n- Unit tests for `stuck_story_analyzer.py` exist and verify the core logic\n- No E2E test yet covers the user-facing dashboard flow\n\n## Problem Identified\nStory US-1226 requests an E2E test that verifies the full user flow of identifying and analyzing stuck stories in the dashboard UI. The test should be discoverable with `pytest tests/ -k us_1045 -v`.\n\n## Planned Changes\n1. **File to create:** `tests/e2e/test_stuck_stories_e2e_us_1045.py`\n   - E2E test class using Playwright for headless browser testing\n   - Helper function to create mock results.tsv with stuck stories\n   - Test cases covering:\n     - Panel visibility with stuck stories\n     - Story data display (ID, attempts, escalation chain, tokens)\n     - Decomposition suggestion button interaction\n     - Empty state when no stuck stories\n\n<plan>\n{\n  \"files_to_create\": [\"tests/e2e/test_stuck_stories_e2e_us_1045.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_stuck_stories_panel_displays_stories\", \"test_decomposition_suggestion_button\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow I'll execute the plan. First, let me read an existing E2E test to understand the exact pattern, then create the test file.\nNow let me run the quality checks:\nNow let's run the tests to verify they work:\nPerfect! All 4 tests pass. Now let me update prd.json to mark the story as complete:\nPerfect! Story **US-1226** is now complete. Here's a summary:\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1227",
@@ -2232,6 +2224,58 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_524 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1237",
+      "title": "[Regression Test] [Regression Test] Worker crash recovery reverts worktree to main on detached HEAD",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-526. Story description: Write a regression test for US-461's crash recovery logic. The test creates a scratch git worktree, simulates a Ralph worker crash (detached HEAD or partial commit), invokes the recovery routine, and asserts the worktree is back on main with a clean working tree. The test must fail if the recovery logic is removed or bypassed.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-526",
+        "Test would reliably fail if the US-526 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_526 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1238",
+      "title": "[Performance Test] Perf Benchmark: E2E SPIRAL R→C Timing + results.tsv Validation for US-638",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-714. Story description: Write the pytest performance benchmark that runs a full SPIRAL R→C loop against the federated prd.json fixture with 2 mock workers, records wall-clock time for each phase, asserts the total does not exceed a stored baseline by more than 20%, and validates that results.tsv contains a sub_project column and that prd.json stories are all marked done.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-714",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_714 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1239",
+      "title": "[Regression Test] Derive cross-iteration story velocity model from results.tsv to improve cost estim",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-352. Story description: SPIRAL's python main.py estimate command uses static per-story cost estimates. results.tsv accumulates per-story telemetry (model, tokens, cost, duration, status) across all iterations, providing a growing empirical dataset for velocity and cost forecasting. Fitting a simple linear regression on story_type to (mean_tokens, mean_duration, pass_rate) from results.tsv enables estimate to produce data-driven projections that improve as SPIRAL runs more iterations.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-352",
+        "Test would reliably fail if the US-352 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_352 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
