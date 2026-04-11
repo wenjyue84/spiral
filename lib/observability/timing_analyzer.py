@@ -61,6 +61,10 @@ def parse_events(event_file: str) -> dict[tuple[int, str], float]:
                 except json.JSONDecodeError:
                     continue
 
+                # Ensure record is a dict (not a string, list, or other JSON type)
+                if not isinstance(record, dict):
+                    continue
+
                 event_type = record.get("event")
                 phase = record.get("phase")
                 iteration = record.get("iteration")
