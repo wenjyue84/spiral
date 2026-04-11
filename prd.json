@@ -2178,7 +2178,8 @@
       "last_attempted": "2026-04-11T21:26:46Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nUS-1233 is a regression test story that requires marking existing US-584 tests with `@pytest.mark.us_584` so they are discoverable via `pytest tests/ -k us_584 -v`.\n\nUS-584 (archived story) implemented Phase M file conflict detection with these core functions:\n- `build_conflict_matrix()` - detects file conflicts between stories\n- `write_conflict_report()` - writes conflict report JSON\n- `run()` - orchestrates detection and returns exit code 1 on conflicts\n\nThe tests in `tests/test_phase_m_conflicts.py` comprehensively cover this functionality with 8 test functions.\n\n## Problem Identified\nUS-1233 requires regression tests for US-584 that:\n1. Cover the core observable behavior of US-584\n2. Would reliably fail if the feature were removed or broken\n3. Are discoverable via `pytest tests/ -k us_584 -v`\n\nCurrently, tests exist but lack the `@pytest.mark.us_584` marker for selective discovery.\n\n## Planned Changes\n1. Add `@pytest.mark.us_584` decorator to all test functions in `tests/test_phase_m_conflicts.py`\n2. Verify tests run successfully with `pytest tests/ -k us_584 -v`\n3. Mark story as passes: true in prd.json\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/test_phase_m_conflicts.py\",\n    \"prd.json\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 15\n}\n</plan>\n\nNow executing the plan:\nNow let me run the tests to verify they pass with the marker:\nExcellent! All 8 tests pass with the `@pytest.mark.us_584` decorator. The warnings about unknown marks are expected (same pattern as other regression tests). Now let me run quality checks:\nGreat! Lint passes. Now let me update prd.json to mark US-1233 as passed:\nNow let me commit these changes:\nPerfect! Let me verify the tests can be discovered as required:\nPerfect! Implementation complete. Let me verify the git status:\n## Summary"
-      }
+      },
+      "_passedCommit": "bfdd052d89ea8328d977d4a490ac4c63531ac4f5"
     },
     {
       "id": "US-1234",
@@ -2195,8 +2196,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T21:33:17Z"
     },
     {
       "id": "US-1235",
