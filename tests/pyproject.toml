@@ -46,6 +46,7 @@ markers = [
     "us_697: Regression tests for Phase G federated CHANGELOG generation with cross-project dependencies (US-697)",
     "us_791: regression tests for Phase A constitution-aware story quality scoring (US-791)",
     "us_782: regression tests for Phase V blame attribution - correlate failing tests to story (US-782)",
+    "us_524: performance tests for Phase S story validation batch vs sequential throughput (US-1236)",
 ]
 
 [tool.coverage.run]
