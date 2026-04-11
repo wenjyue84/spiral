@@ -1,3 +1,52 @@
+## Iteration [N] - Story: US-1206 - [Regression Test] Phase M: Optimize Merge Order for Federated Stories
+
+### What was implemented
+
+Verified and validated existing regression tests for US-617 (Phase M topological sorting for federated stories).
+
+**Key Findings:**
+- Regression tests already exist in `tests/test_regression_us_617.py` (5 tests marked with `@pytest.mark.us_617`)
+- Core implementation in `lib/impl/phase_m_federated_order.py` provides `order_federated_stories_by_dependency()`
+- All acceptance criteria are met by existing test suite
+
+**Test Coverage:**
+- `test_us_617_topological_sort_dependency_order`: Basic dependency ordering (B before A when A→B)
+- `test_us_617_cycle_detection_raises_error`: Circular dependency detection with ValueError
+- `test_us_617_description_based_dependencies`: Description-based dependency inference
+- `test_us_617_chain_ordering_three_stories`: Transitive dependency chains (C→B→A ordering)
+- `test_us_617_merge_prevents_unmet_dependencies`: Complex multi-dependency graphs
+
+### Quality Checks Passed
+
+✓ All 5 regression tests pass: `uv run pytest tests/ -k us_617 -v`
+✓ Type checking: `uv run mypy lib/impl/phase_m_federated_order.py --strict`
+✓ Linting: `uv run ruff check tests/test_regression_us_617.py`
+
+### Acceptance Criteria Met
+
+✓ **AC1:** Regression test covers core observable behaviour of US-617
+   - Tests verify exact ordering constraints (dependencies before dependents)
+   - Tests verify cycle detection with proper error messages
+   - Tests verify description parsing for cross-project references
+
+✓ **AC2:** Test would reliably fail if the US-617 feature were removed or broken
+   - Test assertions would immediately catch removal of topological sort logic
+   - Cycle detection would fail if ValueError raising is removed
+   - All assertions isolate observable behavior (not implementation details)
+
+### Patterns Discovered
+
+- Regression tests use pytest markers (`@pytest.mark.us_XXX`) for discovery
+- Tests import implementation directly from lib.impl with sys.path adjustment
+- Description-based deps use regex: "depends on|requires|after" keywords
+- Topological sort uses Kahn's algorithm with priority-based heap
+
+### Gotchas
+
+- Pre-analysis suggested `tests/test_federation.py` but actual tests in `tests/test_regression_us_617.py`
+- Circular dependency error uses Unicode arrow (→) in message
+- Tests correctly handle stories without IDs by passing them through unchanged
+
 ## Iteration N - Story: US-1205 - [Regression Test] Integration Test: Phase V Pytest Output Parsing with Subprocess Mock
 
 ### What was implemented
