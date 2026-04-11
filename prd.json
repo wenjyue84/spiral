@@ -1183,7 +1183,10 @@
         "phase-t"
       ],
       "model": "haiku",
-      "last_attempted": "2026-04-11T04:51:28Z"
+      "last_attempted": "2026-04-11T04:51:28Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nStory **US-1182** reports that Phase T test synthesis fails with `unexpected argument --output-format` error. The spiral-core binary's CLI changed to use `--output` instead of `--output-format`, but the caller in phase_rt_parallel.sh still passes the old flag.\n\n## Problem Identified\nIn `lib/phases/phase_rt_parallel.sh`, when invoking the `$SPIRAL_CORE_BIN` synthesize command, the code passes `--output-format \"$SPIRAL_TEST_OUTPUT_FORMAT\"`, but spiral-core expects `--output` instead. The Python fallback script still expects `--output-format`.\n\n## Planned Changes\n- **File:** `lib/phases/phase_rt_parallel.sh`\n  - Lines ~108-114: Change `--output-format` to `--output` in `$SPIRAL_CORE_BIN` synthesize invocation (with timeout)\n  - Lines ~120-128: Change `--output-format` to `--output` in `$SPIRAL_CORE_BIN` synthesize invocation (without timeout)\n  - Keep `--output-format` in Python synthesize_tests.py calls unchanged\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"lib/phases/phase_rt_parallel.sh\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow let me read the actual file to identify the exact lines:\nNow I'll make the fix. The issue is on lines 176 and 184 where `--output-format` is passed to `spiral-core`. The spiral-core binary expects `--output` instead.\nPerfect! Now let me verify the changes:\nExcellent! The changes are correctly applied. Let me run quality checks:\nThe warnings are pre-existing and unrelated to my changes. Let me run the full pre-commit hooks:\nGood! The shell script checks passed. Let me verify my changes with git diff:\nPerfect! The changes are minimal and correct. Now let me commit:\nNow let me update prd.json to mark the story as passed:\nNow let me update progress.txt to document the implementation:\nPerfect! Let me verify the completion:\nExcellent! **Story US-1182 is now complete.** \n\n## Summary"
+      }
     },
     {
       "id": "US-1183",
