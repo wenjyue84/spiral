@@ -1385,7 +1385,8 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-11T08:19:48Z"
     },
     {
       "id": "US-1193",
@@ -1539,77 +1540,6 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_390 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1202",
-      "title": "[Regression Test] Implement worker crash recovery using git worktree state snapshots",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-461. Story description: Detect when Ralph workers crash with detached HEAD or incomplete commits and automatically recover by reverting to last known-good state on main branch",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-461",
-        "Test would reliably fail if the US-461 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_461 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1203",
-      "title": "[E2E Test] Integration Test Phase R Research with Mocked Gemini Responses",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-491. Story description: Add end-to-end integration test for Phase R that mocks Gemini web search API and validates _research_output.json schema compliance",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-491",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_491 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1204",
-      "title": "[E2E Test] Add WebSocket /ws/cost endpoint to dashboard API for real-time token burn rate streaming",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-497. Story description: Extend SPIRAL self-monitoring dashboard with WebSocket support so cost deltas stream in real-time (within 2s) instead of polling. When Phase I completes a story, broadcast cost delta to all connected dashboard clients.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-497",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Source files from US-497: .coverage, .hypothesis/tmp/tmp0_6cugyv, .hypothesis/tmp/tmp0foc4z1u, .hypothesis/tmp/tmp14ubuxgu, .hypothesis/tmp/tmp1ph8xyfi",
-        "Run: uv run pytest tests/ -k us_497 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1205",
-      "title": "[Regression Test] Integration Test: Phase V Pytest Output Parsing with Subprocess Mock",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-512. Story description: Create tests/test_phase_v_integration.py that patches subprocess.run to return synthetic pytest output at a 60% pass rate. Verify Phase V correctly parses the output, tags failed stories with _test_failures, and emits the correct routing decision (retry vs proceed).",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-512",
-        "Test would reliably fail if the US-512 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_512 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

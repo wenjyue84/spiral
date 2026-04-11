@@ -33,6 +33,7 @@ from research_cache import (
 )
 
 
+@pytest.mark.benchmark(group="research-cache-us1026")
 class TestCacheHitPerformance:
     """Performance test: Cache hit operations for identical queries."""
 
@@ -59,12 +60,12 @@ class TestCacheHitPerformance:
             return hit_count
 
         # Run benchmark
-        result = benchmark(do_cache_hits)
-
+        result: int = benchmark(do_cache_hits)
         # Acceptance: All 1000 should be cache hits
         assert result == 1000, f"Expected 1000 cache hits, got {result}"
 
 
+@pytest.mark.benchmark(group="research-cache-us1026")
 class TestCacheMissPerformance:
     """Performance test: Cache miss detection for novel queries."""
 
@@ -77,11 +78,10 @@ class TestCacheMissPerformance:
         cache_path = tmp_path / "research_cache.json"
 
         # Pre-populate cache with 10 cached queries
-        cached_queries = []
         for i in range(10):
             query = f"Research topic {i}: Information about domain {i}"
-            result = f"Result for topic {i}"
-            record_query_result(query, result, cache_path, iteration=0, ttl_iterations=5)
+            result_content = f"Result for topic {i}"
+            record_query_result(query, result_content, cache_path, iteration=0, ttl_iterations=5)
 
         # Benchmark: 100 novel query lookups (all should be misses)
         novel_queries = [f"Completely novel topic {i}: Different domain {i}" for i in range(100)]
@@ -95,12 +95,12 @@ class TestCacheMissPerformance:
             return miss_count
 
         # Run benchmark
-        result = benchmark(do_cache_misses)
-
+        result: int = benchmark(do_cache_misses)
         # Acceptance: All 100 should be cache misses
         assert result == 100, f"Expected 100 cache misses, got {result}"
 
 
+@pytest.mark.benchmark(group="research-cache-us1026")
 class TestLRUEvictionPerformance:
     """Performance test: LRU eviction when cache exceeds max size."""
 
@@ -173,6 +173,7 @@ class TestLRUEvictionPerformance:
         assert newest_present, "Newest query should be in cache"
 
 
+@pytest.mark.benchmark(group="research-cache-us1026")
 class TestCachePerformanceRegression:
     """Performance regression detection: Fail if operations degrade >20% from baseline."""
 
@@ -198,8 +199,7 @@ class TestCachePerformanceRegression:
             return hit_count
 
         # pytest-benchmark will track and compare against baseline automatically
-        result = benchmark(do_cache_hits)
-
+        result: int = benchmark(do_cache_hits)
         # All should be hits
         assert result == 100, f"Expected 100 hits, got {result}"
 
@@ -232,8 +232,7 @@ class TestCacheOperationsPerformanceSuite:
                     stats["misses"] += 1
             return stats
 
-        result = benchmark(do_mixed_workload)
-
+        result: dict[str, int] = benchmark(do_mixed_workload)
         # Verify: should have ~50 hits and ~40 misses
         assert result["hits"] >= 40, f"Expected at least 40 hits, got {result['hits']}"
         assert result["misses"] >= 30, f"Expected at least 30 misses, got {result['misses']}"
