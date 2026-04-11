@@ -1,5 +1,41 @@
 ## Iteration 12 - Sun, Apr 12, 2026  [Current]
-Completed: [E2E Test] Dashboard endpoint GET /api/dashboard/costs-by-project aggregating results.tsv (ID: US-1234) in ~7m
+Completed: [Performance Test] Dashboard /profile endpoint for phase duration analytics (ID: US-1235) in ~15m
+
+### What was implemented
+- Created performance benchmark test suite: `tests/test_perf_us_522_profile_endpoint.py`
+- 3 test methods covering /profile endpoint (US-522) performance:
+  1. **test_profile_endpoint_baseline**: Measures baseline latency on real results.tsv file
+  2. **test_profile_endpoint_degradation_with_synthetic_data**: Verifies <20% latency degradation when data grows 10x
+  3. **test_profile_endpoint_response_structure**: Validates JSON response structure with all required fields
+
+### Quality checks passed
+- MyPy --strict: ✓ No issues found
+- Ruff check: ✓ All checks passed
+- Ruff format: ✓ Applied formatting
+- Pytest: ✓ All 3 tests pass with 100% success rate
+- Pre-commit: ✓ Resolved merge conflict in prd.json, committed successfully
+
+### Key findings
+- /profile endpoint (US-522) fully implemented in `lib/dashboard/api.py` lines 68-156
+- Endpoint reads results.tsv and returns JSON with:
+  - `mean_phase_durations`: decompose_secs, impl_secs, verify_secs means
+  - `slowest_stories`: top 5 stories by total duration
+  - `escalation_frequency`: escalation count per story
+- Tests use synthetic data fixtures (100 and 1000 rows) for controlled degradation testing
+- Backup/restore pattern ensures test isolation without mocking complexity
+
+### Patterns discovered
+- Performance test pattern: baseline measurement → 10x data test → degradation check with threshold
+- Synthetic fixture approach (shutil.copy2) is simpler than complex mocking
+- Tests work with actual FastAPI TestClient for realistic endpoint testing
+- All fixtures properly cleaned up with backup/restore in finally blocks
+
+### Gotchas
+- pytest.mark.us_522 not registered in pytest.ini generates warnings but tests run correctly
+- prd.json had merge conflict requiring manual resolution before commit
+- Ruff format expands long assertion messages to multiple lines
+
+Previous session: [E2E Test] Dashboard endpoint GET /api/dashboard/costs-by-project aggregating results.tsv (ID: US-1234) in ~7m
 
 ### What was implemented
 - Created comprehensive E2E test suite: `tests/e2e/test_us_582_e2e_costs_by_project.py`
@@ -1141,3 +1177,26 @@ This brief outlines the implementation plan for creating a performance benchmark
 *   Performance can vary between environments. Baselines should be generated and compared on the same machine type (e.g., the CI runner).
 *   The test must fail if performance degrades beyond the 20% threshold specified in the AC, which can be configured with `pytest-benchmark` comparison flags.
 
+## Pre-analysis for US-1235 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-1235: Performance Test for /profile API**
+
+This brief outlines the implementation plan for creating a performance benchmark for the `/profile` API endpoint as described in user story US-1235.
+
+**1. Python Files to Modify:**
+*   **Primary Target:** Create a new test file at `tests/performance/test_profile_endpoint.py`.
+*   **Dependencies:** Add the `pytest-benchmark` library to the project's development dependencies in `pyproject.toml`.
+
+**2. Frappe DocTypes & Hooks:**
+*   **Correction:** This is a pure Python testing task, not a Frappe framework task. No Frappe DocTypes or hooks are involved. The work will be confined to `pytest` and the test files.
+
+**3. Implementation Approach:**
+1.  Utilize the `pytest-benchmark` library for measuring performance.
+2.  Create a `pytest` fixture to generate a large, representative `results.tsv` file before the test runs. The endpoint's performance is dependent on this file's size and complexity.
+3.  Write a test function, `test_profile_endpoint_performance(benchmark, client)`, that uses the project's API test client to call the `/profile` endpoint.
+4.  Wrap the API call within the `benchmark()` callable provided by the fixture to measure execution time.
+5.  Establish a performance baseline by running `pytest --benchmark-save=profile_endpoint` and commit the resulting baseline file.
+
+**4. Edge Cases & Gotchas:**
+*   The generated `results.tsv` must be realistic to get a meaningful benchmark. An overly simple file will yield misleading results.
+*   Performance can vary between environments. Baselines should be generated and compared on the same machine type (e.g., the CI runner).
+*   The test must fail if performance degrades beyond the 20% threshold specified in the AC, which can be configured with `pytest-benchmark` comparison flags.
