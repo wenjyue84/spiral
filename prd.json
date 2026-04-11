@@ -2387,6 +2387,79 @@
       "model": "haiku"
     },
     {
+      "id": "US-1246",
+      "title": "[Regression Test] Incremental test execution in Phase V using pytest --lf and changed-file detection",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1102. Story description: Phase V runs the full test suite every iteration even when only 2-3 files changed. Use pytest --lf (last-failed) for retry iterations and pytest --co combined with git diff to identify tests affected by changed files. Run only affected tests first; if they pass, skip the full suite. Full suite runs every 5th iteration as a safety net (configurable via SPIRAL_FULL_TEST_EVERY_N).",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1102",
+        "Test would reliably fail if the US-1102 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1102 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1247",
+      "title": "[Performance Test] File-locked spiral_events.jsonl writes to prevent corruption on Windows",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1104. Story description: Multiple workers and the main process concurrently append to spiral_events.jsonl (run_parallel_ralph.sh lines 942, 985, 1114, 1223 plus worker_heartbeat.sh and commit_revert.sh). On Windows, concurrent file opens can corrupt lines or drop writes. Replace all raw printf >> appends with a locked_append_jsonl() function that acquires a file lock (flock on Linux, LockFileEx on Windows via Python) before writing.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1104",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1104 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1248",
+      "title": "[E2E Test] Add cumulative cost and stories-passed trend chart to analytics",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1112. Story description: The analytics summary only shows a single total cost number with no over-time view. Add a dual-axis line chart below the summary bar: x-axis = iteration number, left y-axis = cumulative API cost ($), right y-axis = cumulative stories passed. Both lines on the same chart show the economic efficiency curve. Data: group results.tsv by spiral_iter, accumulate cost and passed count per iteration.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1112",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Source files from US-1112: spiral-ui/src/components/AnalyticsTab.tsx, spiral-ui/src/server/analyticsApi.ts",
+        "Run: uv run pytest tests/ -k us_1112 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1249",
+      "title": "[E2E Test] Add filter controls to analytics retry history table",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1115. Story description: The retry history table has no way to slice the data. Add a filter bar above the table with three dropdowns: (1) Failure Type - filters by failure_root_cause value; (2) Model Tier - haiku/sonnet/opus/all; (3) Outcome - passed/skipped/decomposed/all. The existing Most Recent / Most Retried sort toggle should remain. Show empty state message when no rows match filters.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1115",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Source files from US-1115: spiral-ui/src/components/analytics/FailureRetryDashboard.tsx, spiral-ui/src/components/AnalyticsTab.tsx",
+        "Run: uv run pytest tests/ -k us_1115 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1250",
       "title": "Create E2E Integration Test Harness and Fixtures for SPIRAL",
       "priority": "high",
@@ -2449,11 +2522,28 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-04-11T23:34:56Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\n`lib/context_guard.py` doesn't exist (US-529 is marked `passes: true` but the file was never created). No `tests/test_context_guard_security.py` either.\n\n## Problem Identified\n\nNeed to create `lib/context_guard.py` (the missing dependency) and `tests/test_context_guard_security.py` with security tests that run via `-k us_529`.\n\n## Planned Changes\n\n- Create `lib/context_guard.py` with `estimate_phase_i_tokens` (raises ValueError on non-string) and `trim_prompt_sections` (removes example sections when over threshold, accepts `_token_limit` override for testability)\n- Create `tests/test_context_guard_security.py` with `test_no_sensitive_data_in_trim_us_529` and `test_invalid_input_raises_us_529`\n\n<plan>\n{\n  \"files_to_create\": [\"lib/context_guard.py\", \"tests/test_context_guard_security.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"estimate_phase_i_tokens\", \"trim_prompt_sections\", \"test_no_sensitive_data_in_trim_us_529\", \"test_invalid_input_raises_us_529\"],\n  \"estimated_loc\": 70\n}\n</plan>\nBoth tests pass. Now verify the `-k us_529` filter works:\n2 passed (with pre-existing import errors in unrelated files). Now run pre-commit and mark story complete:\nNow mark story as passing and commit:\nUS-1252 complete. All 3 acceptance criteria met:\n\n1. `trim_prompt_sections` with `sk-ant-FAKEKEY123` in an example section returns output without the key\n2. `estimate_phase_i_tokens(None)` and `estimate_phase_i_tokens(12345)` both raise `ValueError`\n3. `uv run pytest tests/ -k us_529 -v` exits 0 with 2 passing tests\n\nAlso created `lib/context_guard.py` which was marked as implemented in US-529 but was never actually committed to the repo."
-      }
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1253",
+      "title": "Phase G: Generate CHANGELOG.md from Story Commits Using git-cliff",
+      "priority": "medium",
+      "description": "Implement Phase G to auto-generate CHANGELOG.md from git commits associated with completed stories, using git-cliff for structured parsing. Groups commits by story ID (US-NNN format) and iteration, creating a human-readable changelog of features and fixes per iteration.",
+      "acceptanceCriteria": [
+        "Create lib/phases/phase_g.sh orchestrating git-cliff invocation with .cliff.toml config",
+        "CHANGELOG.md generated in repository root with sections per iteration, commits grouped by story ID",
+        "Each changelog entry includes story title (extracted from prd.json) and associated commit messages"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phases/phase_g.sh (phase orchestration stub to invoke git-cliff binary and handle CHANGELOG.md output)",
+        "File to create: .cliff.toml (git-cliff config grouping commits by [Conventional Commits] footer 'Story: US-NNN')",
+        "File to create: tests/test_phase_g_changelog.bats (test git-cliff config parsing, verify CHANGELOG.md structure and story grouping)",
+        "Test command: tests/bats-core/bin/bats tests/test_phase_g_changelog.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
