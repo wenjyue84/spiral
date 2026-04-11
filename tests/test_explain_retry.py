@@ -13,6 +13,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 # Add lib/ to path so imports work without installing the package
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
@@ -309,7 +311,7 @@ class TestSuggestDecomposition:
 # ── Regression test for US-728 (CLI command) ──────────────────────────────────
 
 
-def test_us_728_regression(tmp_path: Path, capsys: object) -> None:
+def test_us_728_regression(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Regression test for US-728: CLI command spiral explain-retry <story_id>.
 
     Verifies core observable behavior:
@@ -325,7 +327,7 @@ def test_us_728_regression(tmp_path: Path, capsys: object) -> None:
     # Import cmd_explain_retry from main.py (where it's actually defined)
     spiral_root = Path(__file__).parent.parent
     sys.path.insert(0, str(spiral_root))
-    import main  # type: ignore[import-untyped]
+    import main
 
     cmd_explain_retry = main.cmd_explain_retry
 
@@ -377,7 +379,7 @@ def test_us_728_regression(tmp_path: Path, capsys: object) -> None:
         # Expect sys.exit(0) on success
         assert e.code == 0, f"Expected exit code 0, got {e.code}"
 
-    captured = capsys.readouterr()  # type: ignore
+    captured = capsys.readouterr()
 
     # Extract JSON from output
     # The JSON is the first part (before any non-JSON text like "Decomposition:")
@@ -432,7 +434,7 @@ def test_us_728_regression(tmp_path: Path, capsys: object) -> None:
     except SystemExit as e:
         assert e.code == 0
 
-    captured_no_decomp = capsys.readouterr()  # type: ignore
+    captured_no_decomp = capsys.readouterr()
 
     # JSON should be present
     assert "[" in captured_no_decomp.out and "]" in captured_no_decomp.out, (
@@ -457,6 +459,6 @@ def test_us_728_regression(tmp_path: Path, capsys: object) -> None:
         # Expect sys.exit(1) on missing story
         assert e.code == 1, f"Expected exit code 1 for missing story, got {e.code}"
 
-    captured_error = capsys.readouterr()  # type: ignore
+    captured_error = capsys.readouterr()
     # Error message should be on stderr
     assert "No retry records found" in captured_error.err, "Error message should indicate story not found"
