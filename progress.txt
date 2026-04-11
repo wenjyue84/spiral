@@ -120,3 +120,33 @@ Completed: [Regression Test] Phase I: Partial Victory Commit - Save Working ACs 
 - Ruff linting: ✓ All checks passed
 - Story marked complete: passes = true in prd.json
 
+## Iteration 2 - Sun, Apr 12, 2026  2:29:29 AM
+Completed: [Regression Test] Phase I: Partial Victory Commit - Save Working ACs When Full Story Fails (ID: US-1220) in 11m
+
+
+## Pre-analysis for US-1221 (Gemini 2.5 Pro)
+This is a regression test for an automated failure diagnosis system within the Spiral project. The original feature (US-788) classifies recurring failures to prevent pointless retries. This task is to write a `pytest` test to ensure that functionality doesn't break.
+
+**Technical Brief: US-1221**
+
+1.  **Files to Modify**:
+    *   Create a new test file: `tests/test_failure_classification_regression.py`.
+    *   The core logic to be tested likely resides in `lib/failure_categorizer.py`, `lib/stuck_story_analyzer.py`, or a similar module responsible for processing failure events and classifying root causes.
+
+2.  **Frappe DocTypes/Hooks Involved**:
+    *   None. The project is a pure Python application using `pytest` for testing, not a Frappe application. All interactions will be with Python classes and functions.
+
+3.  **Recommended Implementation Approach**:
+    *   Use `pytest` and its mocking capabilities (e.g., `pytest-mock`).
+    *   In the new test file, define a test case like `test_us_788_regression_repeated_failures_are_classified`.
+    *   Simulate the precondition: Generate data representing the same user story failing 3 consecutive times with an identical error signature.
+    *   Invoke the function responsible for analyzing and classifying these failures (e.g., `classify_root_cause(...)`).
+    *   Assert that the function returns the correct classification enum (e.g., `RootCause.MODEL_RESOLVABLE`).
+    *   Assert that the system's response is to halt retries and raise a specific escalation or suggestion.
+
+4.  **Edge Cases & Gotchas**:
+    *   **Defining "Identical" Failure**: The test must be precise in mocking what constitutes an "identical" failure. This could involve matching error messages, stack traces, or specific output states.
+    *   **State Management**: Ensure the test properly isolates the failure data. The diagnosis logic may depend on state from a run history or event log; mock this source data carefully.
+    *   **Configuration**: The threshold (3 failures) might be configurable. The test should assume the default or explicitly set it for predictability.
+    *   **Test Naming**: Name the test function so it can be targeted with `pytest -k us_788` as noted in the story.
+

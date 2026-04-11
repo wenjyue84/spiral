@@ -1927,12 +1927,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T18:04:34Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `pattern_analyzer.py` analyzes stories and extracts retry patterns\n- Existing unit tests in `test_pattern_analyzer.py` cover analysis logic\n- BUT: No test verifies the complete pipeline of storing patterns in episodic memory\n\n## Problem Identified\nThe story requires a regression test that verifies US-785 behavior including storing extracted patterns in episodic memory. The existing tests only verify analysis logic, not the storage/retrieval cycle.\n\n## Planned Changes\n1. Add new test in `test_pattern_analyzer.py` that verifies pattern storage in episodic memory\n2. This test will be marked `@pytest.mark.us_785` \n3. Will test the critical integration: analyze → store → retrieve\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_pattern_analyzer.py\"],\n  \"functions_to_add\": [\"TestPatternMemoryIntegration.test_patterns_storable_in_episodic_memory\"],\n  \"estimated_loc\": 45\n}\n</plan>\nNow let me verify the tests pass:\nPerfect! Now let me run quality checks:\nNow let me document the learnings in progress.txt:\nPerfect! **US-1219 is complete**. Here's what was implemented:\n\n## Summary"
-      },
-      "_passedCommit": "5d836730b9663971c31bbcb1a2ab167b0cb8a1bd"
+      "model": "haiku"
     },
     {
       "id": "US-1220",
@@ -1949,11 +1944,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T18:17:29Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/impl/partial_victory.py` implements the partial victory feature (US-787) for Phase I\n- Module handles: parsing AC reports, marking partial stories, creating sub-stories for failing ACs\n- No regression test exists to guard against future breakage of this feature\n\n## Problem Identified\nNeed regression test covering core observable behavior of US-787 that would fail if the feature is removed or broken.\n\n## Planned Changes\n1. Create `tests/test_partial_victory.py` with comprehensive regression tests\n2. Test core behavior: partial victory handler marks story as partial and creates sub-stories for failing ACs only\n3. Mark tests with `@pytest.mark.us_787` to run with `pytest tests/ -k us_787 -v`\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_partial_victory.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"TestPartialVictoryHandler\", \"TestCreateACSubStories\", \"TestMarkStoryAsPartial\"],\n  \"estimated_loc\": 200\n}\n</plan>\n\nNow implementing the test:\nNow let me run the tests to verify they pass:\nI see the issue. The implementation's `handle_partial_victory` returns True when at least one AC passes (even if all ACs pass). Let me fix the test to match the actual behavior:\nPerfect! All 21 tests pass. Now let me verify the tests can be run with the specified command from the story:\nPerfect! **US-1220 is complete.** Here's the final summary:\n\n## Implementation Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1221",
@@ -1969,7 +1960,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -2087,6 +2078,98 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_773 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1229",
+      "title": "[E2E Test] Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker Ac",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-652. Story description: Create a timeline visualization showing each worker's time spent in each phase (R/T/S/M/I/V/C) across iterations. Identify phase bottlenecks and worker imbalances. Export as interactive HTML/SVG from dashboard API.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-652",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_652 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1230",
+      "title": "[Regression Test] CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-642. Story description: New CLI command computing semantic similarity between story description and historical stories in results.tsv, outputting complexity score (1-10) and similar past story references. Helps triage stories and select initial model for Phase I.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-642",
+        "Test would reliably fail if the US-642 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_642 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1231",
+      "title": "[Performance Test] Automatic Worker Lag Detection & Restart on Heartbeat Timeout",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-531. Story description: Monitor worker heartbeat intervals. If a worker reports no progress for >SPIRAL_WORKER_TIMEOUT (default 300s), auto-terminate and restart it with the same story to recover from silent hangs or network stalls in parallel worker pool.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-531",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_531 -v"
+      ],
+      "dependencies": [
+        "US-531"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1232",
+      "title": "[E2E Test] Dashboard: Story Status Timeline Endpoint with Phase Swimlanes for iteration bottleneck d",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-540. Story description: Add `/api/timeline?iterations=N` dashboard endpoint that streams story attempt history grouped by iteration and phase, enabling real-time swimlane visualization and automated bottleneck detection.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-540",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_540 -v"
+      ],
+      "dependencies": [
+        "US-540"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1233",
+      "title": "[Regression Test] Phase M Conflict Detection — Identify File-Level Collisions in Federated Projects",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-584. Story description: When merging federated sub-project stories, detect file path conflicts where multiple stories claim ownership of the same file to prevent merge conflicts. Adds a conflict detection step to Phase M that writes a structured conflict report and exits 1 to block the merge. Supports Goal 4 (multi-repo federated projects).",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-584",
+        "Test would reliably fail if the US-584 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_584 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

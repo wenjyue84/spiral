@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """
-tests/test_stuck_diagnosis.py — Unit tests for lib/impl/stuck_diagnosis.py
+Regression tests for US-788: Phase I Stuck Story Diagnosis.
 
-Tests verify:
-- Detection of identical failures with >70% overlap
-- Classification into 4 categories (model-resolvable, scope-too-large, missing-knowledge, external-dependency)
-- Storage of diagnosis in _stuckDiagnosis field
-- Auto-skip for external-dependency stories
+Tests verify that repeated identical failures are correctly diagnosed:
+1. Detect identical failures with >70% error message overlap
+2. Classify root cause into 4 categories:
+   - model-resolvable: Syntax/logic errors fixable by better model
+   - scope-too-large: Timeout/token limit — story too big
+   - missing-knowledge: Import/undefined reference errors
+   - external-dependency: API/network failures
+3. Skip futile retries and provide targeted recommendations
+4. Store diagnosis in _stuckDiagnosis field on story
+
+Run with: pytest tests/ -k us_788 -v
 """
 
 from __future__ import annotations
@@ -14,6 +20,8 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
+
+import pytest
 
 from lib.impl.stuck_diagnosis import (
     classify_failure,
@@ -24,6 +32,7 @@ from lib.impl.stuck_diagnosis import (
 )
 
 
+@pytest.mark.us_788
 class TestDetectIdenticalFailures:
     """Test detection of identical failures with >70% overlap."""
 
@@ -85,6 +94,7 @@ class TestDetectIdenticalFailures:
         assert overlap < 0.95
 
 
+@pytest.mark.us_788
 class TestClassifyFailure:
     """Test classification of failures into 4 categories."""
 
@@ -173,6 +183,7 @@ class TestClassifyFailure:
         assert classification == "scope-too-large"
 
 
+@pytest.mark.us_788
 class TestGetRecommendedAction:
     """Test recommended actions for each classification."""
 
@@ -198,6 +209,7 @@ class TestGetRecommendedAction:
         assert "prd" in action.lower() or "description" in action.lower()
 
 
+@pytest.mark.us_788
 class TestDiagnose:
     """Test main diagnose function end-to-end."""
 
@@ -249,6 +261,7 @@ class TestDiagnose:
         assert result["confidence"] < 1.0
 
 
+@pytest.mark.us_788
 class TestUpdateStoryWithDiagnosis:
     """Test updating prd.json with diagnosis."""
 
@@ -320,6 +333,7 @@ class TestUpdateStoryWithDiagnosis:
             assert success is False
 
 
+@pytest.mark.us_788
 class TestIntegration:
     """Integration tests: end-to-end diagnosis workflow."""
 
