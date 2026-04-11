@@ -1,3 +1,29 @@
+## Iteration 10 - Sun, Apr 12, 2026
+Completed: [Regression Test] CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns (ID: US-1230) in ~5m
+
+### What was implemented
+- Created comprehensive regression test suite: `tests/test_us_642_regression.py`
+- 7 test methods covering full US-642 complexity scoring feature:
+  1. **test_us_642_predict_complexity_returns_expected_structure**: Verifies core function returns dict with story_id, score (1-10), label, and similar list
+  2. **test_us_642_complexity_score_from_retries**: Validates complexity score increases with retry count
+  3. **test_us_642_embedding_and_similarity**: Tests semantic embedding computation and cosine similarity
+  4. **test_us_642_find_similar_stories_ranking**: Verifies top-k similar stories ranked by semantic similarity
+  5. **test_us_642_empty_history_handling**: Tests graceful handling of missing/empty results.tsv
+  6. **test_us_642_recommend_model_from_history**: Validates historical model routing recommends cheapest viable tier
+  7. **test_us_642_complexity_score_insensitive_to_empty_description**: Tests edge case: empty descriptions
+
+### Quality checks passed
+- MyPy --strict: ✓ Success: no issues found
+- Ruff lint: ✓ All checks passed
+- Pytest: ✓ All 7 tests pass with 100% success rate
+- Test discovery: ✓ `pytest tests/ -k us_642 -v` passes
+
+### Key findings
+- US-642 fully implemented: `lib/routing/complexity_scorer.py`
+- predict_story_complexity(): computes 1-10 complexity score from semantic similarity
+- Feature outputs JSON: {story_id, score, label, similar}
+- Wired to CLI in main.py line 4025: `spiral predict-story-complexity <story_id>`
+
 ## Iteration 9 - Sun, Apr 12, 2026  [Current]
 Completed: [E2E Test] Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker (ID: US-1229) in ~8m
 
@@ -770,3 +796,32 @@ This is not a Frappe application. The codebase is a Python project for the "Spir
     *   **UI Locators:** Rely on stable `id` or `data-testid` attributes for locating UI elements, as class names might change.
     *   **Application State:** Ensure the test cleans up any created data and doesn't rely on a persistent server state between runs.
 
+## Iteration 1 - Sun, Apr 12, 2026  4:32:06 AM
+Completed: [E2E Test] Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker Ac (ID: US-1229) in 12m
+
+
+## Pre-analysis for US-1230 (Gemini 2.5 Pro)
+This is a regression test for a Python CLI, not a Frappe app. The goal is to test the `spiral predict-story-complexity` command.
+
+**Technical Brief for US-1230**
+
+**1. Files to Modify:**
+*   **Create new test file:** `tests/test_cli_predict_story_complexity.py`.
+*   **Potential related source:** `lib/predict_story_complexity.py` (or similar) likely holds the core logic invoked by the CLI. Review this to understand the implementation.
+
+**2. Involved Components:**
+*   **CLI Command:** `spiral predict-story-complexity`
+*   **Test Framework:** `pytest`
+*   **Key Input:** A test-specific `results.tsv` file to act as a database of historical stories. This file will need to be created as a test fixture.
+
+**3. Implementation Approach:**
+*   Use `pytest` and a CLI runner (e.g., `click.testing.CliRunner` or `subprocess`) to invoke the command.
+*   Create a temporary `results.tsv` file with a small, deterministic set of story descriptions and known complexities.
+*   Pass a new story description to the command (e.g., `spiral predict-story-complexity "New story about login buttons"`).
+*   Assert that the command's stdout correctly prints the calculated complexity score (e.g., "7/10") and the IDs of the most similar stories from your test `results.tsv`.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the test creates and uses its own `results.tsv` fixture, not the real one.
+*   The underlying semantic search may not be perfectly deterministic. Use simple, distinct examples in the fixture to ensure reliable matching.
+*   Test the "no similar story found" scenario.
+*   The test should fail if the CLI command is removed or if its output format changes significantly.
