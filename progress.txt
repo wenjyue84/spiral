@@ -1217,3 +1217,80 @@ This is not a Frappe/Python user story; the context appears to be a Python proje
     *   **Baseline:** The test will fail initially until a baseline is established and saved. The CI/CD pipeline may need configuration to handle baseline storage and comparison (`--benchmark-autosave`).
     *   **Thresholds:** Configure `pytest-benchmark` to fail if the performance degrades by more than 20% compared to the saved baseline, as per the acceptance criteria.
 
+## Iteration 1 - Sat, Apr 11, 2026  4:29:40 PM
+Completed: [Performance Test] Test Phase R Research Cache Hit/Miss Counting and LRU Eviction (ID: US-1192) in 9m
+
+
+## Pre-analysis for US-1193 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the performance benchmark.
+
+**Project:** Spiral (local repository)
+**Story:** US-1193 - Benchmark Phase R Research Cache Latency
+
+### 1. Files to Modify
+
+-   **Primary Target (New File):** `tests/test_us1027_phase_r_perf.py`. A new test file should be created to house the performance benchmark, as indicated by the `technicalNotes`.
+-   **Code to Benchmark (Existing):** The core logic is likely located in a module responsible for research or data retrieval, using a cache. Based on the project structure, candidates include `spiral/core/research.py` or a dedicated caching module like `spiral/utils/cache.py`.
+
+### 2. Frappe DocTypes / Hooks
+
+-   This user story does not involve Frappe DocTypes or hooks. It is a `pytest`-based performance test for a Python application's caching layer.
+
+### 3. Implementation Approach
+
+-   Use the `pytest-benchmark` library to create the test function. It handles timing, rounds, and statistical analysis automatically.
+-   The test function `test_phase_r_cache_performance(benchmark)` will measure two scenarios:
+    1.  **Warm Cache:** Call the target function once to populate the cache, then use `benchmark()` on a subsequent call to measure the cached performance.
+    2.  **Uncached (Mocked):** Use `unittest.mock.patch` to temporarily disable or bypass the cache mechanism, then use `benchmark()` on the same function to establish the baseline performance.
+-   Assert that the mean time for the warm cache run is at least 30% lower than the uncached baseline.
+-   Print the results (e.g., baseline time, cached time, and percentage saving) to `stdout` so they are captured in CI logs.
+
+### 4. Edge Cases & Gotchas
+
+-   **Mocking Strategy:** Ensure the mock for the uncached scenario accurately reflects the non-cached code path without adding its own significant overhead.
+-   **Test Data Consistency:** Use identical, non-trivial query parameters for both the cached and uncached runs to ensure a fair comparison.
+-   **CI Flakiness:** Performance tests can be sensitive to system load. `pytest-benchmark` helps by running multiple rounds, but be prepared for minor fluctuations in CI environments. The 20% degradation threshold should account for this variance.
+-   **Baseline Storage:** The story implies comparing against a known baseline. Initially, print the baseline to `stdout`. For long-term regression tracking, consider storing the accepted baseline value as a constant in the test file.
+
+
+## Iteration N - Story: US-1193 - Benchmark Phase R Research Cache Latency Savings
+
+### What was implemented
+- **tests/test_research_cache_benchmark.py**:
+  - Added `@pytest.mark.us_1027` marker to enable discovery with `-k us_1027` command
+  - Implemented baseline capture mechanism (JSON file at .spiral/research_cache_baseline.json)
+  - Added baseline comparison logic to detect >20% degradation from baseline
+  - Enhanced stdout printing to include baseline metrics and degradation percentage
+
+- **tests/pyproject.toml**:
+  - Registered `us_1027` pytest marker to suppress unknown mark warnings
+
+### Patterns discovered
+- Baseline metrics stored in .spiral/ to persist across test runs
+- Threshold-based performance regression detection: 20% degradation limit
+- Baseline saved after every test run to track performance trends
+- Stdout printing with structured formatting for CI log capture
+
+### Acceptance Criteria Met
+- [x] AC1: Performance test measures key metrics (cached latency, uncached baseline, improvement %)
+- [x] AC2: Baseline captured and acceptable threshold defined (20% degradation)
+- [x] AC3: Test fails if response time degrades more than 20% from baseline
+- [x] Results printed to stdout for CI logs
+- [x] Test discoverable with `uv run pytest tests/ -k us_1027 -v`
+
+### Files Changed
+- `tests/test_research_cache_benchmark.py`: +import, +@pytest.mark.us_1027, +baseline functions, +baseline comparison logic
+- `tests/pyproject.toml`: +us_1027 marker registration
+- `prd.json`: US-1193 marked passes=true
+
+### Test Results
+All 3 tests in TestCacheLatencySavings pass:
+- test_cache_latency_savings: ✓ (PASSED)
+- test_cache_deduplication_count: ✓ (PASSED)
+- test_cache_miss_for_novel_queries: ✓ (PASSED)
+
+Metrics show:
+- Latency improvement: ~93% (well above 30% target)
+- Baseline degradation: ~6-7% (well below 20% threshold)
+- API call counts: 0 cached vs 6 uncached (100% hit rate)
+
