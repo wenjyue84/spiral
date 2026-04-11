@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\extract_failed_stories.py
+# hypothesis_version: 6.151.9
+
+[0.0, 1.3, ' -> ', 'UT-', 'cache_read_tokens', 'decompose', 'duration_sec', 'failure_reasons', 'failure_root_cause', 'investigate', 'model', 'model_escalation', 'reject', 'research', 'results.tsv', 'retry', 'retry_count', 'retry_num', 'review_tokens', 'scope', 'status', 'stories', 'story_id', 'story_title', 'suggestion', 'summary', 'test-fix', 'title', 'token_burns', 'tokens', 'total_token_burn', 'total_tokens', 'unknown', 'utf-8']

@@ -2450,7 +2450,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-04-11T23:34:56Z"
+      "last_attempted": "2026-04-11T23:34:56Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\n`lib/context_guard.py` doesn't exist (US-529 is marked `passes: true` but the file was never created). No `tests/test_context_guard_security.py` either.\n\n## Problem Identified\n\nNeed to create `lib/context_guard.py` (the missing dependency) and `tests/test_context_guard_security.py` with security tests that run via `-k us_529`.\n\n## Planned Changes\n\n- Create `lib/context_guard.py` with `estimate_phase_i_tokens` (raises ValueError on non-string) and `trim_prompt_sections` (removes example sections when over threshold, accepts `_token_limit` override for testability)\n- Create `tests/test_context_guard_security.py` with `test_no_sensitive_data_in_trim_us_529` and `test_invalid_input_raises_us_529`\n\n<plan>\n{\n  \"files_to_create\": [\"lib/context_guard.py\", \"tests/test_context_guard_security.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"estimate_phase_i_tokens\", \"trim_prompt_sections\", \"test_no_sensitive_data_in_trim_us_529\", \"test_invalid_input_raises_us_529\"],\n  \"estimated_loc\": 70\n}\n</plan>\nBoth tests pass. Now verify the `-k us_529` filter works:\n2 passed (with pre-existing import errors in unrelated files). Now run pre-commit and mark story complete:\nNow mark story as passing and commit:\nUS-1252 complete. All 3 acceptance criteria met:\n\n1. `trim_prompt_sections` with `sk-ant-FAKEKEY123` in an example section returns output without the key\n2. `estimate_phase_i_tokens(None)` and `estimate_phase_i_tokens(12345)` both raise `ValueError`\n3. `uv run pytest tests/ -k us_529 -v` exits 0 with 2 passing tests\n\nAlso created `lib/context_guard.py` which was marked as implemented in US-529 but was never actually committed to the repo."
+      }
     }
   ]
 }

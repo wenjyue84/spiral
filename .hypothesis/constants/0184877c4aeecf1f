@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\impl\retry.py
+# hypothesis_version: 6.151.9
+
+[300, 'SPIRAL_TIMEOUT_RALPH', 'error', 'exhausted', 'failed', 'haiku', 'model', 'next_model', 'opus', 'partial_stderr', 'partial_stdout', 'passed', 'replace', 'retry_escalated', 'sonnet', 'status', 'stderr', 'stdout', 'story_id', 'suggestion', 'timeout_error', 'timeout_seconds', 'utf-8', 'w']

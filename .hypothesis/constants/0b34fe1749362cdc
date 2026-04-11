@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\commands\show_worker_logs.py
+# hypothesis_version: 6.151.9
+
+['.spiral', '.spiral-workers', 'INFO', 'WARN', 'WARNING', 'replace', 'utf-8', 'w', 'worker*.log', 'worker-', 'worker-*/**.log', 'workers']

@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\validate_federated_governance.py
+# hypothesis_version: 6.151.9
+
+[999, '.*', 'allowed_phases', 'default', 'id', 'id_pattern', 'id_pattern_regex', 'message', 'phase', 'phases', 'project_id', 'quota', 'rules', 'story_id', 'sub_project', 'type', 'utf-8', 'violations']

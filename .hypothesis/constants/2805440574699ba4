@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\util\changed_files_to_tests.py
+# hypothesis_version: 6.151.9
+
+['+', '--changed-files', '--git-diff', '--name-only', '--repo-root', '-l', '-r', '.', '.py', 'HEAD~1', '__main__', 'all', 'by_convention', 'by_import', 'changed_files', 'diff', 'git', 'grep', 'mapping', 'test', 'tests', 'tests/']

@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\check_federated_deps.py
+# hypothesis_version: 6.151.9
+
+['-', 'US', 'UT', 'conflicts', 'cycles', 'dependencies', 'id', 'namespace_valid', 'namespaces', 'orphans', 'sub_project', 'userStories', 'valid']
