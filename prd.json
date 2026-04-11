@@ -2063,8 +2063,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T19:45:10Z"
     },
     {
       "id": "US-1228",
@@ -2224,58 +2225,6 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_524 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1237",
-      "title": "[Regression Test] [Regression Test] Worker crash recovery reverts worktree to main on detached HEAD",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-526. Story description: Write a regression test for US-461's crash recovery logic. The test creates a scratch git worktree, simulates a Ralph worker crash (detached HEAD or partial commit), invokes the recovery routine, and asserts the worktree is back on main with a clean working tree. The test must fail if the recovery logic is removed or bypassed.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-526",
-        "Test would reliably fail if the US-526 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_526 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1238",
-      "title": "[Performance Test] Perf Benchmark: E2E SPIRAL R→C Timing + results.tsv Validation for US-638",
-      "priority": "medium",
-      "description": "Write performance benchmark for the operation in US-714. Story description: Write the pytest performance benchmark that runs a full SPIRAL R→C loop against the federated prd.json fixture with 2 mock workers, records wall-clock time for each phase, asserts the total does not exceed a stored baseline by more than 20%, and validates that results.tsv contains a sub_project column and that prd.json stories are all marked done.",
-      "acceptanceCriteria": [
-        "Performance test measures key metrics for US-714",
-        "Baseline captured and acceptable threshold defined",
-        "Test fails if response time degrades more than 20% from baseline"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_714 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1239",
-      "title": "[Regression Test] Derive cross-iteration story velocity model from results.tsv to improve cost estim",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-352. Story description: SPIRAL's python main.py estimate command uses static per-story cost estimates. results.tsv accumulates per-story telemetry (model, tokens, cost, duration, status) across all iterations, providing a growing empirical dataset for velocity and cost forecasting. Fitting a simple linear regression on story_type to (mean_tokens, mean_duration, pass_rate) from results.tsv enables estimate to produce data-driven projections that improve as SPIRAL runs more iterations.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-352",
-        "Test would reliably fail if the US-352 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_352 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

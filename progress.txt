@@ -1,3 +1,37 @@
+## Iteration 8 - Sun, Apr 12, 2026  [Current]
+Completed: [Regression Test] [Integration Test] Episodic memory store: write, retrieve, and inject past pattern (ID: US-1227) in ~3m
+
+### What was implemented
+- Verified comprehensive regression test suite already exists in `tests/test_us_518_regression.py`
+- Test file contains 6 regression tests marked with `@pytest.mark.us_518`:
+  1. **test_us_518_write_and_retrieve_round_trip**: Full round-trip write/retrieve test with top-3 ranking verification
+  2. **test_us_518_context_injection_structure**: Validates all required fields for Ralph context injection (story_id, approach, outcome, similarity_score, timestamp)
+  3. **test_us_518_top3_ranking_correctness**: Verifies ranking correctness (more relevant patterns rank higher, top-3 limit enforced)
+  4. **test_us_518_empty_store_graceful_handling**: Edge case handling (empty store, non-existent story, empty query)
+  5. **test_us_518_convenience_function_get_similar_patterns**: Public API function works end-to-end
+  6. **test_us_518_would_catch_broken_embedding**: Regression guard that catches broken embedding/similarity logic
+
+### Quality checks passed
+- MyPy --strict: ✓ Success: no issues found
+- Ruff lint: ✓ All checks passed
+- Ruff format: ✓ Already formatted
+- All 6 tests pass: `uv run pytest tests/test_us_518_regression.py -v` (100% pass rate)
+
+### Key findings
+- Test file fully covers US-518 episodic memory store feature
+- Tests verify core observable behavior: writing patterns, retrieving by embedding distance, context injection
+- Tests would reliably fail if US-518 feature were removed or broken
+- Integration testing covers: JSONL storage, embedding-based similarity ranking, TTL expiration edge cases
+
+### Patterns discovered
+- Regression test pattern: existing test files marked with `@pytest.mark.us_XXXX` for selective discovery
+- Episodic memory tests use temporary directories for isolation
+- Tests verify both happy path and edge cases (empty store, non-existent stories)
+- Similarity scores properly bounded to [0, 1] range for all results
+
+### Gotchas
+- None identified — test file was already well-implemented and comprehensive
+
 ## Iteration 7 - Sun, Apr 12, 2026  3:25:00 AM
 Completed: [E2E Test] Dashboard: Story Retry Exhaustion Analyzer - GET /api/dashboard/stuck-stories (ID: US-1226) in 7m
 
@@ -512,6 +546,34 @@ Here is the technical brief for user story US-1226.
 
 ## Iteration 2 - Sun, Apr 12, 2026  3:35:56 AM
 Completed: [E2E Test] Dashboard: Story Retry Exhaustion Analyzer - GET /api/dashboard/stuck-stories (ID: US-1226) in 14m
+
+
+## Pre-analysis for US-1227 (Gemini 2.5 Pro)
+Based on the user story, here is a technical brief for the implementation:
+
+**Project:** Standard Python application (not a Frappe app).
+
+**Objective:** Create a regression test for the SQLite FTS5-based episodic memory feature.
+
+**1. Files to Modify:**
+*   **Create new test file:** `tests/test_us518_episodic_memory_regression.py`.
+*   **Import from:** `lib/episodic_memory.py` (this is the likely implementation of the feature).
+
+**2. Frappe DocTypes/Hooks:**
+*   None. The project is a Python application using `pytest`, not a Frappe-based system.
+
+**3. Implementation Approach:**
+*   Use the `pytest` framework.
+*   Use the `tempfile` standard library to create a temporary SQLite database for each test run, ensuring test isolation.
+*   The test must perform a full round-trip:
+    1.  **Write:** Programmatically add several distinct, sample "story outcomes" (e.g., problem description, code solution) to the episodic memory store.
+    2.  **Retrieve:** Query the store with a new problem description that is intentionally similar to one of the stored outcomes.
+    3.  **Assert:** Verify that the FTS5 search correctly returns the top-3 most relevant past outcomes, ranked by relevance. Confirm the structure of the injected context snippet is as expected.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the temporary database is completely torn down after each test to prevent state leakage.
+*   Test the "no results" scenario to ensure it returns an empty list and does not raise an error.
+*   Test queries with special characters or SQL keywords to guard against injection vulnerabilities.
 
 
 ## Pre-analysis for US-1227 (Gemini 2.5 Pro)
