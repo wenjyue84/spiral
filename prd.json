@@ -1527,8 +1527,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T12:30:35Z"
     },
     {
       "id": "US-1201",
@@ -1549,7 +1550,8 @@
       "model": "haiku",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe performance test file `tests/test_performance_us_390.py` exists and contains 6 tests measuring key metrics for US-390 (Message Batches API):\n- `test_us_390_build_requests_performance_10_stories` and `_100_stories`\n- `test_us_390_parse_results_performance_50_results` and `_200_results`\n- `test_us_390_batch_throughput_e2e`\n- `test_us_390_baseline_capture`\n\nTests currently pass (6/6) and baseline metrics are captured in `.spiral/us_390_baseline.json` with a 20% degradation threshold.\n\n## Problem Identified\n\nThe story acceptance criteria require the test to be runnable with `uv run pytest tests/ -k us_390 -v`, but:\n1. The `pyproject.toml` doesn't have `us_390` in the markers list (only `us_1062`, `us_1027`, `us_1008`)\n2. The test methods aren't marked with `@pytest.mark.us_390`\n3. This prevents proper pytest discovery when using markers/filters\n\n## Planned Changes\n\n1. Add `us_390` marker to `tests/pyproject.toml` markers list\n2. Add `@pytest.mark.us_390` decorator to the test class in `tests/test_performance_us_390.py`\n3. Verify the test runs successfully with `uv run pytest tests/ -k us_390 -v`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/pyproject.toml\",\n    \"tests/test_performance_us_390.py\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow executing the plan:\nPerfect! All 6 tests pass. Let me verify the story completion one final time:\nPerfect! Story US-1201 is now **complete** and marked as **passes: true**. Here's a summary of what was implemented:\n\n## Summary"
-      }
+      },
+      "_passedCommit": "b03bd697d6b1aacd7b6e50cb0f60372a510e73ab"
     },
     {
       "id": "US-1202",
