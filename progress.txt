@@ -1,3 +1,36 @@
+## Iteration N - Story: US-1186 - Phase M: Lower dedup threshold after 3 consecutive all-rejected iterations
+
+### What was implemented
+- **lib/prd/merge_stories.py** fallback threshold mechanism:
+  - Changed counter file path from `.spiral/dedup_fallback_count.json` to `.spiral/_merge_reject_streak.json` to match AC #1
+  - Fixed threshold lowering logic: now sets `effective_threshold = 0.45` instead of using `max(0.60, ...)` floor
+  - Added "WARNING:" prefix to log message when threshold is lowered (AC #3)
+  - Counter resets to 0 when >= 1 story successfully merged (AC #4)
+  - Fallback mechanism controlled by `SPIRAL_DEDUP_FALLBACK_ITERS` env var (default: 3)
+
+- **tests/test_merge_stories.py** updated fallback tests:
+  - Updated `test_effective_threshold_lowering()` to verify threshold lowers to 0.45
+  - Updated `test_effective_threshold_never_below_floor()` → `test_effective_threshold_consistent_at_0_45()`
+  - Updated `test_fallback_disabled_when_iters_zero()` to use new 0.45 threshold
+
+### Patterns discovered
+- Fallback counter persists across iterations using JSON file in .spiral/
+- Threshold lowering is binary (on/off at 0.45), not gradual
+- Tests verify both the counter mechanism and the threshold calculation separately
+- Pre-existing code already had most infrastructure; just needed corrections to file name and threshold values
+
+### Acceptance Criteria Met
+- [x] Counter tracks consecutive all-rejected iterations in .spiral/_merge_reject_streak.json (AC #1)
+- [x] After 3 consecutive all-rejected iterations, Jaccard threshold lowers from 0.6 to 0.45 (AC #2)
+- [x] A WARNING log message is emitted when threshold is lowered (AC #3)
+- [x] Counter resets to 0 when at least 1 story is successfully merged (AC #4)
+- [x] All 68 merge_stories tests pass, including 7 fallback-specific tests
+
+### Files Changed
+- `lib/prd/merge_stories.py`: 2 function docstrings updated (file path), 1 threshold calculation fixed (+/- 5 lines)
+- `tests/test_merge_stories.py`: 3 test methods updated to expect 0.45 threshold instead of 0.60 floor
+- `prd.json`: US-1186 marked passes=true
+
 ## Iteration N - Story: US-1185 - Phase I: Complete rollback implementation stubs in commit_revert.sh
 
 ### What was implemented
@@ -807,3 +840,30 @@ Completed: Phase T: Fix --output-format CLI argument error in spiral-core synthe
 *   **State Capture:** The initial commit hash and branch name are critical. Their capture must be foolproof.
 *   **Test Environment:** The new test must reliably simulate a quality gate failure to ensure the rollback path is actually executed and can be asserted.
 
+
+## Pre-analysis for US-1186 (Gemini 2.5 Pro)
+This user story appears to be for a local Python project, not a Frappe app. The technical brief has been adjusted accordingly.
+
+---
+
+### Technical Brief: US-1186
+
+**1. Python Files to Modify:**
+*   `lib/prd/merge_stories.py`: The core file containing the story merging and deduplication logic.
+*   `.spiral/_merge_reject_streak.json`: A new file to be created for persisting the consecutive rejection counter between runs.
+
+**2. Frappe DocTypes/Hooks:**
+*   None. This is a standalone Python script, not a Frappe integration.
+
+**3. Recommended Implementation Approach:**
+*   Within `merge_stories.py`, introduce logic to read `.spiral/_merge_reject_streak.json` at startup. If it doesn't exist, initialize the streak counter to 0.
+*   Define constants for the thresholds (0.6, 0.45) and the streak limit (3).
+*   Dynamically select the Jaccard threshold based on the streak counter.
+*   If the streak causes the threshold to be lowered, emit a `logging.warning()`.
+*   After processing an iteration: if any story was merged, reset the streak to 0. If all were rejected as duplicates, increment the streak.
+*   Persist the updated streak count to the JSON file before the script terminates.
+
+**4. Edge Cases & Gotchas:**
+*   **File I/O:** Gracefully handle cases where `_merge_reject_streak.json` is missing (create it) or corrupted (log an error and default to a streak of 0).
+*   **State Reset:** The counter must only be reset by a successful merge. Ensure that script failures or iterations with no candidates do not affect the counter.
+*   **Concurrency:** Assumed to be a single-process script. If it can run in parallel, file locking on the streak JSON might be needed to prevent race conditions.
