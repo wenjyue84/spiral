@@ -2369,90 +2369,42 @@
       "model": "haiku"
     },
     {
-      "id": "US-1245",
-      "title": "[Performance Test] Phase E batch enrichment to reduce per-story Claude CLI overhead",
-      "priority": "medium",
-      "description": "Write performance benchmark for the operation in US-1101. Story description: Phase E enriches stories one-at-a-time, each requiring a separate Claude CLI invocation (~3s startup per call). Batch 5-10 stories into a single enrichment prompt, reducing N calls to ceil(N/5) calls. For 20 stories, this cuts from 60s to 12s of CLI overhead alone.",
+      "id": "US-1250",
+      "title": "Create E2E Integration Test Harness and Fixtures for SPIRAL",
+      "priority": "high",
+      "description": "Create the test infrastructure for SPIRAL end-to-end integration testing: a conftest.py with pytest fixtures that set up mocked environment variables and a mock ralph.sh script, plus a minimal prd.json fixture with one deterministic test story.",
       "acceptanceCriteria": [
-        "Performance test measures key metrics for US-1101",
-        "Baseline captured and acceptable threshold defined",
-        "Test fails if response time degrades more than 20% from baseline"
+        "tests/conftest.py defines fixtures for SPIRAL_VALIDATE_CMD, SPIRAL_MODEL_ROUTING=fixed, and injects a mock ralph.sh into PATH that exits 0",
+        "tests/fixtures/mock_spiral_prd.json contains exactly 1 story with status='pending' and deterministic id/title fields",
+        "uv run pytest tests/test_spiral_e2e_integration.py --collect-only exits 0 (fixtures load without error)"
       ],
       "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_1101 -v"
+        "File to create: tests/conftest.py (pytest fixtures: mock_ralph_env, mock_prd_fixture)",
+        "File to create: tests/fixtures/mock_spiral_prd.json (single story: id=UT-001, title=Mock Story, status=pending)",
+        "Mock ralph.sh must write a passing result to results.tsv and exit 0 — create as a tmpfile in the fixture",
+        "Test command: uv run pytest tests/test_spiral_e2e_integration.py --collect-only -v"
       ],
       "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T22:35:39Z"
     },
     {
-      "id": "US-1246",
-      "title": "[Regression Test] Incremental test execution in Phase V using pytest --lf and changed-file detection",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-1102. Story description: Phase V runs the full test suite every iteration even when only 2-3 files changed. Use pytest --lf (last-failed) for retry iterations and pytest --co combined with git diff to identify tests affected by changed files. Run only affected tests first; if they pass, skip the full suite. Full suite runs every 5th iteration as a safety net (configurable via SPIRAL_FULL_TEST_EVERY_N).",
+      "id": "US-1251",
+      "title": "Write E2E Test Asserting Phase Sequence and Story State Transitions",
+      "priority": "high",
+      "description": "Implement the actual pytest test that invokes spiral.sh with the mocked environment (from conftest.py fixtures) and asserts that .spiral/_checkpoint.json records correct phase progression and that the story status transitions from pending to done.",
       "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-1102",
-        "Test would reliably fail if the US-1102 feature were removed or broken"
+        "test_single_iteration_phase_sequence invokes spiral.sh with --gate skip and captures exit code 0",
+        ".spiral/_checkpoint.json exists after the run and contains phase entries matching expected order [A, M, I, V, C]",
+        "prd.json story UT-001 status equals 'done' after the run"
       ],
       "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_1102 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1247",
-      "title": "[Performance Test] File-locked spiral_events.jsonl writes to prevent corruption on Windows",
-      "priority": "medium",
-      "description": "Write performance benchmark for the operation in US-1104. Story description: Multiple workers and the main process concurrently append to spiral_events.jsonl (run_parallel_ralph.sh lines 942, 985, 1114, 1223 plus worker_heartbeat.sh and commit_revert.sh). On Windows, concurrent file opens can corrupt lines or drop writes. Replace all raw printf >> appends with a locked_append_jsonl() function that acquires a file lock (flock on Linux, LockFileEx on Windows via Python) before writing.",
-      "acceptanceCriteria": [
-        "Performance test measures key metrics for US-1104",
-        "Baseline captured and acceptable threshold defined",
-        "Test fails if response time degrades more than 20% from baseline"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_1104 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1248",
-      "title": "[E2E Test] Add cumulative cost and stories-passed trend chart to analytics",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-1112. Story description: The analytics summary only shows a single total cost number with no over-time view. Add a dual-axis line chart below the summary bar: x-axis = iteration number, left y-axis = cumulative API cost ($), right y-axis = cumulative stories passed. Both lines on the same chart show the economic efficiency curve. Data: group results.tsv by spiral_iter, accumulate cost and passed count per iteration.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-1112",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Source files from US-1112: spiral-ui/src/components/AnalyticsTab.tsx, spiral-ui/src/server/analyticsApi.ts",
-        "Run: uv run pytest tests/ -k us_1112 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1249",
-      "title": "[E2E Test] Add filter controls to analytics retry history table",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-1115. Story description: The retry history table has no way to slice the data. Add a filter bar above the table with three dropdowns: (1) Failure Type - filters by failure_root_cause value; (2) Model Tier - haiku/sonnet/opus/all; (3) Outcome - passed/skipped/decomposed/all. The existing Most Recent / Most Retried sort toggle should remain. Show empty state message when no rows match filters.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-1115",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Source files from US-1115: spiral-ui/src/components/analytics/FailureRetryDashboard.tsx, spiral-ui/src/components/AnalyticsTab.tsx",
-        "Run: uv run pytest tests/ -k us_1115 -v"
+        "File to create: tests/test_spiral_e2e_integration.py (test_single_iteration_phase_sequence)",
+        "Use subprocess.run(['bash', 'spiral.sh', '1', '--gate', 'skip'], env=mock_ralph_env, cwd=tmp_project_dir)",
+        "Assert checkpoint: json.loads(Path('.spiral/_checkpoint.json').read_text())['phase'] in EXPECTED_PHASES",
+        "Test command: uv run pytest tests/test_spiral_e2e_integration.py::test_single_iteration_phase_sequence -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
