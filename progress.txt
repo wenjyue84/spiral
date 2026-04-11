@@ -867,3 +867,34 @@ This user story appears to be for a local Python project, not a Frappe app. The 
 *   **File I/O:** Gracefully handle cases where `_merge_reject_streak.json` is missing (create it) or corrupted (log an error and default to a streak of 0).
 *   **State Reset:** The counter must only be reset by a successful merge. Ensure that script failures or iterations with no candidates do not affect the counter.
 *   **Concurrency:** Assumed to be a single-process script. If it can run in parallel, file locking on the streak JSON might be needed to prevent race conditions.
+## Iteration 1 - Sat, Apr 11, 2026  1:28:20 PM
+FAILED diagnosis-block gate: Phase M: Lower dedup threshold after 3 consecutive all-rejected merge iterations (ID: US-1186) — no diagnosis block found — attempt 1/3
+
+
+## Pre-analysis for US-1186 (Gemini 2.5 Pro)
+This user story appears to be for a local Python project, not a Frappe app. The technical brief has been adjusted accordingly.
+
+---
+
+### Technical Brief: US-1186
+
+**1. Python Files to Modify:**
+*   `lib/prd/merge_stories.py`: The core file containing the story merging and deduplication logic.
+*   `.spiral/_merge_reject_streak.json`: A new file to be created for persisting the consecutive rejection counter between runs.
+
+**2. Frappe DocTypes/Hooks:**
+*   None. This is a standalone Python script, not a Frappe integration.
+
+**3. Recommended Implementation Approach:**
+*   Within `merge_stories.py`, introduce logic to read `.spiral/_merge_reject_streak.json` at startup. If it doesn't exist, initialize the streak counter to 0.
+*   Define constants for the thresholds (0.6, 0.45) and the streak limit (3).
+*   Dynamically select the Jaccard threshold based on the streak counter.
+*   If the streak causes the threshold to be lowered, emit a `logging.warning()`.
+*   After processing an iteration: if any story was merged, reset the streak to 0. If all were rejected as duplicates, increment the streak.
+*   Persist the updated streak count to the JSON file before the script terminates.
+
+**4. Edge Cases & Gotchas:**
+*   **File I/O:** Gracefully handle cases where `_merge_reject_streak.json` is missing (create it) or corrupted (log an error and default to a streak of 0).
+*   **State Reset:** The counter must only be reset by a successful merge. Ensure that script failures or iterations with no candidates do not affect the counter.
+*   **Concurrency:** Assumed to be a single-process script. If it can run in parallel, file locking on the streak JSON might be needed to prevent race conditions.
+
