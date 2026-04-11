@@ -305,9 +305,7 @@ class TestDashboardMetricsPersistence:
 
                 # Attempt to call metrics API
                 try:
-                    response = await page.request.get(
-                        METRICS_ENDPOINT + "?start_date=2026-03-20&end_date=2026-03-27"
-                    )
+                    response = await page.request.get(METRICS_ENDPOINT + "?start_date=2026-03-20&end_date=2026-03-27")
 
                     if response.ok:
                         data = await response.json()
@@ -316,9 +314,9 @@ class TestDashboardMetricsPersistence:
                         if len(data) > 0:
                             # Should be ordered by timestamp for trend plotting
                             timestamps = [row["timestamp"] for row in data]
-                            assert timestamps == sorted(
-                                timestamps
-                            ), "Data should be ordered by timestamp for trend visualization"
+                            assert timestamps == sorted(timestamps), (
+                                "Data should be ordered by timestamp for trend visualization"
+                            )
 
                             # Should have numeric cost_tokens for Y-axis plotting
                             costs = [row["cost_tokens"] for row in data]

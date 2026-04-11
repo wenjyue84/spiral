@@ -36,4 +36,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T05:40:52Z	6	3	US-1187	Phase S: Replace bare except clauses with logged exceptions in batch_validate.py	reject	453	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T06:18:35Z	8	1	US-1188	[E2E Test] Model Escalation Prediction Engine with Dashboard Endpoint	keep	1663	haiku	0	6f8273246b3255457f20f2d30620077f1bf37408	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T06:56:30Z	9	1	US-1189	[Regression Test] Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits	keep	1338	haiku	0	14032da52cada65c4a079215bffeeab9205c4945	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
-2026-04-11T07:32:51Z	10	1	US-1190	[E2E Test] Dashboard Persistence: SQLite Historical Metrics Store for 7-Day Trends	keep	1126	haiku	0	038784da182401909c8f10f2ff5809c38f01bdfd	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-11T07:32:51Z	10	1	US-1190	[E2E Test] Dashboard Persistence: SQLite Historical Metrics Store for 7-Day Trends	keep	1126	haiku	0	038784da182401909c8f10f2ff5809c38f01bdfd	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0

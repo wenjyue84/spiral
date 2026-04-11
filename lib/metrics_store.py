@@ -78,9 +78,7 @@ class SQLiteMetricsStore:
 
                 try:
                     cache_creation = (
-                        int(row.get("cache_creation_tokens", "0"))
-                        if row.get("cache_creation_tokens")
-                        else 0
+                        int(row.get("cache_creation_tokens", "0")) if row.get("cache_creation_tokens") else 0
                     )
                 except (ValueError, TypeError):
                     cache_creation = 0
