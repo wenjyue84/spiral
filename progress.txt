@@ -2490,3 +2490,54 @@ This technical brief is for implementing a regression test for a CI/CD automatio
 *   The dependency resolution logic can be complex; the test assertion needs a deterministic way to calculate the expected story order.
 *   The "Phase G" logic might have external dependencies that need to be mocked or provided during the test run.
 
+## Iteration [N] - Story: US-1211 - [Regression Test] Integration Test: Federated Phase G with Cross-Project CHANGELOG and Dependency Or
+
+### What was implemented
+
+Enhanced and validated regression test suite for US-697 (Phase G CHANGELOG generation for federated PRDs with cross-project dependencies).
+
+**Key Changes:**
+1. Added `@pytest.mark.us_697` decorator to all 6 existing tests in `tests/test_federated_phase_g.py`
+2. Added `us_697` marker definition to `tests/pyproject.toml` for test discovery
+3. Added 2 new edge-case regression tests:
+   - `test_federated_changelog_circular_dependency_detection()`: Verifies ValueError for circular deps
+   - `test_federated_changelog_missing_dependency_handling()`: Verifies graceful handling of missing refs
+
+**Test Coverage (8 total):**
+- `test_federated_changelog_respects_dependency_order`: Cross-project dependency ordering (API+Web)
+- `test_federated_changelog_complete_story_list`: All 6 stories present in CHANGELOG
+- `test_federated_changelog_namespace_preservation`: Namespace prefixes (api/US-001, web/US-001)
+- `test_federated_changelog_circular_dependency_detection`: Circular dependency error handling
+- `test_federated_changelog_missing_dependency_handling`: Missing reference resilience
+
+### Quality Checks Passed
+
+✓ All 8 regression tests pass: `pytest tests/test_federated_phase_g.py -m us_697 -v`
+✓ Test markers correctly applied: All 8 tests discoverable with `-m us_697` filter
+✓ Pre-commit hooks pass: ruff, mypy, shellcheck all clean
+
+### Acceptance Criteria Met
+
+✓ **AC1:** Regression test covers core observable behaviour of US-697
+   - Tests verify `order_federated_stories_by_dependency()` correctly orders stories
+   - Tests verify namespace prefixes are preserved (sub_project/story_id format)
+   - Tests verify cross-project dependencies are respected in ordering
+
+✓ **AC2:** Test would reliably fail if the US-697 feature were removed or broken
+   - Test assertions catch missing/incorrect dependency ordering
+   - ImportError if `order_federated_stories_by_dependency` removed
+   - Tests explicitly verify ordering constraints match expected dependency graph
+   - Circular dependency test catches if ValueError raising is removed
+
+### Patterns Discovered
+
+- Regression tests use pytest markers (`@pytest.mark.us_XXX`) for discovery and selective running
+- Test helper functions (`_create_federated_prd_structure`, `_extract_stories_from_changelog`) encapsulate test data
+- Topological sorting implementation from `lib.impl.phase_m_federated_order` handles description-based deps
+- Federated merge (`federated_merge()`) deduplicates stories by namespace+ID before sorting
+
+### Gotchas
+
+- Class-level pytest markers need both class and method decorators
+- filesTouch in prd.json (ralph.sh, model_routing.sh) are mismatched; actual files are in lib/impl and tests/
+- Pre-commit hooks use Python 3.12 but test runs on both 3.12 and 3.13
