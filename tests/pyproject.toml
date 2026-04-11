@@ -35,6 +35,7 @@ markers = [
     "us_390: performance tests for Phase S Message Batches API (US-390)",
     "us_512: regression tests for Phase V pytest output parsing with subprocess mock (US-512)",
     "us_617: regression tests for Phase M federated order topological sort (US-617)",
+    "us_774: regression tests for Phase T flaky test detection and exclusion from story generation (US-774)",
     "us_1062: regression tests for Phase S validation confidence scorer (US-1062)",
     "us_1027: performance tests for Phase R research cache latency savings (US-1027)",
     "us_1008: performance tests for Phase C: phase timing baseline and regression detector (US-1195)",

@@ -6,6 +6,7 @@ import os
 # Import the module under test
 import sys
 import tempfile
+from collections.abc import Generator
 
 import pytest
 
@@ -19,14 +20,14 @@ from flaky_detector import (
 
 
 @pytest.fixture
-def tmp_spiral_home():
+def tmp_spiral_home() -> Generator[str, None, None]:
     """Create a temporary SPIRAL_HOME directory for testing."""
     with tempfile.TemporaryDirectory() as tmp:
         yield tmp
 
 
 @pytest.mark.us_774
-def test_record_test_result_creates_history_file(tmp_spiral_home):
+def test_record_test_result_creates_history_file(tmp_spiral_home: str) -> None:
     """AC: record_test_result() creates .spiral/test_failure_history.json"""
     test_id = "tests.unit.test_example.test_basic"
     record_test_result(test_id, True, spiral_home=tmp_spiral_home)
@@ -41,7 +42,7 @@ def test_record_test_result_creates_history_file(tmp_spiral_home):
 
 
 @pytest.mark.us_774
-def test_record_test_result_pass_fail(tmp_spiral_home):
+def test_record_test_result_pass_fail(tmp_spiral_home: str) -> None:
     """AC: record_test_result() tracks passes and failures correctly"""
     test_id = "tests.unit.test_example.test_func"
     record_test_result(test_id, True, spiral_home=tmp_spiral_home)
@@ -56,7 +57,7 @@ def test_record_test_result_pass_fail(tmp_spiral_home):
 
 
 @pytest.mark.us_774
-def test_is_flaky_test_with_insufficient_history(tmp_spiral_home):
+def test_is_flaky_test_with_insufficient_history(tmp_spiral_home: str) -> None:
     """AC: is_flaky_test() returns False when < window_size results exist"""
     test_id = "tests.unit.test_example.test_insufficient"
     # Only 3 results, window_size is 5 by default
@@ -68,7 +69,7 @@ def test_is_flaky_test_with_insufficient_history(tmp_spiral_home):
 
 
 @pytest.mark.us_774
-def test_is_flaky_test_failing_once_in_five(tmp_spiral_home):
+def test_is_flaky_test_failing_once_in_five(tmp_spiral_home: str) -> None:
     """AC: test failing 1/5 iterations is flaky (20% failure rate < 50% threshold)"""
     test_id = "tests.unit.test_example.test_one_fail"
     # Record 5 results: 1 fail, 4 pass = 20% failure rate (flaky)
@@ -82,7 +83,7 @@ def test_is_flaky_test_failing_once_in_five(tmp_spiral_home):
 
 
 @pytest.mark.us_774
-def test_is_flaky_test_failing_three_in_five(tmp_spiral_home):
+def test_is_flaky_test_failing_three_in_five(tmp_spiral_home: str) -> None:
     """Test failing 3/5 (60%) is NOT flaky when threshold is 0.5"""
     test_id = "tests.unit.test_example.test_not_flaky"
     # Record 5 results: 3 fail, 2 pass = 60% failure rate (not flaky, >= 0.5)
@@ -96,7 +97,7 @@ def test_is_flaky_test_failing_three_in_five(tmp_spiral_home):
 
 
 @pytest.mark.us_774
-def test_get_flaky_tests_returns_all_flaky(tmp_spiral_home):
+def test_get_flaky_tests_returns_all_flaky(tmp_spiral_home: str) -> None:
     """AC: get_flaky_tests() returns list of all flaky tests"""
     # Record 3 tests: 2 flaky, 1 not flaky
     test_ids = [
@@ -128,7 +129,7 @@ def test_get_flaky_tests_returns_all_flaky(tmp_spiral_home):
 
 
 @pytest.mark.us_774
-def test_get_flaky_tests_with_rates(tmp_spiral_home):
+def test_get_flaky_tests_with_rates(tmp_spiral_home: str) -> None:
     """AC: get_flaky_tests_with_rates() returns test names with failure rates"""
     test_id = "tests.unit.test_rates.test_example"
     # Fail 1/5: 20% failure rate
@@ -143,7 +144,7 @@ def test_get_flaky_tests_with_rates(tmp_spiral_home):
     assert abs(rate - 0.2) < 0.01  # 20% failure rate
 
 
-def test_flaky_detector_excluded_from_story_generation(tmp_spiral_home):
+def test_flaky_detector_excluded_from_story_generation(tmp_spiral_home: str) -> None:
     """Integration: Phase T should exclude flaky tests from story generation"""
     # This test verifies the end-to-end flow: record results → mark flaky → exclude from synthesis
     test_id = "tests.unit.test_integration.test_example"
@@ -161,19 +162,19 @@ def test_flaky_detector_excluded_from_story_generation(tmp_spiral_home):
     assert test_id in flaky
 
 
-def test_is_flaky_test_missing_test_id(tmp_spiral_home):
+def test_is_flaky_test_missing_test_id(tmp_spiral_home: str) -> None:
     """Edge case: is_flaky_test() returns False for unknown test ID"""
     unknown_test = "tests.unit.test_does_not_exist.test_never_recorded"
     assert not is_flaky_test(unknown_test, spiral_home=tmp_spiral_home)
 
 
-def test_get_flaky_tests_empty_history(tmp_spiral_home):
+def test_get_flaky_tests_empty_history(tmp_spiral_home: str) -> None:
     """Edge case: get_flaky_tests() returns [] when no history exists"""
     flaky = get_flaky_tests(spiral_home=tmp_spiral_home)
     assert flaky == []
 
 
-def test_record_test_result_multiple_tests_in_one_file(tmp_spiral_home):
+def test_record_test_result_multiple_tests_in_one_file(tmp_spiral_home: str) -> None:
     """AC: Multiple test IDs are tracked independently"""
     test_ids = ["tests.unit.test_a.test_1", "tests.unit.test_b.test_2", "tests.unit.test_c.test_3"]
 
