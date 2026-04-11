@@ -88,10 +88,63 @@ def _try_load_semantic_router() -> Optional[Any]:
     return result[0]
 
 
-def route_stories(prd_path: str, profile: str) -> None:
+def select_model_with_ucb1(
+    story: dict[str, Any], complexity_score: int, results_tsv_path: str | None = None
+) -> str:
+    """Select model using complexity score, optionally refined by UCB1 historical data.
+
+    US-1210: If results.tsv exists, uses UCB1 algorithm to select model based on
+    historical pass rates grouped by (model, story_tag).
+
+    Returns: model name (haiku, sonnet, opus)
+    """
+    base_model = map_complexity_to_model(complexity_score)
+
+    if not results_tsv_path or not os.path.exists(results_tsv_path):
+        return base_model
+
+    # Try UCB1 refinement based on story tag
+    try:
+        import subprocess
+
+        story_title = story.get("title", "")
+        # Extract tag like "[Regression Test]"
+        tag_match = re.match(r"(\[.+?\])", story_title)
+        tag = tag_match.group(1) if tag_match else ""
+
+        if tag:
+            # Call ucb1_select.py for recommendation
+            result = subprocess.run(
+                [
+                    "uv",
+                    "run",
+                    "python",
+                    os.path.join(os.path.dirname(__file__), "ucb1_select.py"),
+                    "--results-tsv",
+                    results_tsv_path,
+                    "--story-tag",
+                    tag,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                ucb1_model = result.stdout.strip()
+                if ucb1_model in ("haiku", "sonnet", "opus"):
+                    return ucb1_model
+    except Exception:
+        # UCB1 refinement failed; fall back to base model
+        pass
+
+    return base_model
+
+
+def route_stories(prd_path: str, profile: str, results_tsv_path: str | None = None) -> None:
     """
     Analyzes each pending story in the PRD file and annotates it with a recommended model.
     Uses regex-based complexity scoring on acceptance criteria (US-453).
+    Optionally refines with UCB1 historical routing (US-1210).
     """
     if not os.path.exists(prd_path):
         raise FileNotFoundError(f"[router] ERROR: PRD file not found at {prd_path}")
@@ -113,7 +166,10 @@ def route_stories(prd_path: str, profile: str) -> None:
             complexity_score = score_story_complexity(story)
             if profile == "auto":
                 # US-453: Use regex-based complexity scoring on acceptance criteria
-                assigned_model = map_complexity_to_model(complexity_score)
+                # US-1210: Optionally refine with UCB1 historical data
+                assigned_model = select_model_with_ucb1(
+                    story, complexity_score, results_tsv_path
+                )
                 print(f"  [router] Story '{story.get('id')}' -> score: {complexity_score} -> model: {assigned_model}")
             else:
                 # User forced a specific model (e.g., "opus", "sonnet", "haiku")
@@ -164,10 +220,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Route stories in prd.json to optimal models.")
     parser.add_argument("--prd", required=True, help="Path to the prd.json file.")
     parser.add_argument("--profile", required=True, help="The model routing profile (e.g., 'auto', 'opus', 'sonnet').")
+    parser.add_argument(
+        "--results-tsv",
+        default=None,
+        help="Optional path to results.tsv for UCB1 historical refinement.",
+    )
     args = parser.parse_args()
 
     print("[router] Starting story routing...")
-    route_stories(args.prd, args.profile)
+    route_stories(args.prd, args.profile, args.results_tsv)
     print("[router] Story routing complete.")
 
 

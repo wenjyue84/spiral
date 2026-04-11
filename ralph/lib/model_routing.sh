@@ -201,6 +201,27 @@ resolve_model() {
     return
   fi
 
+  # US-1210: UCB1-based historical routing at retry==0 (before complexity band routing)
+  if [[ "$retry_count" -eq 0 && -f "${RESULTS_TSV_PATH:-}" ]]; then
+    local story_title
+    story_title=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .title // \"\"" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "")
+    if [[ -n "$story_title" ]]; then
+      # Extract first [Tag] from title (e.g., "[Regression Test]")
+      local tag
+      tag=$(echo "$story_title" | sed -n 's/^\(\[[^]]*\]\).*/\1/p')
+      if [[ -n "$tag" ]]; then
+        local ucb1_model
+        ucb1_model=$(uv run python "$(dirname "${BASH_SOURCE[0]}")/../../lib/routing/ucb1_select.py" \
+          --results-tsv "$RESULTS_TSV_PATH" --story-tag "$tag" 2>/dev/null || echo "")
+        if [[ -n "$ucb1_model" && "$ucb1_model" =~ ^(haiku|sonnet|opus)$ ]]; then
+          echo "[model_routing] UCB1 recommends $ucb1_model for tag=$tag" >&2
+          echo "$ucb1_model"
+          return
+        fi
+      fi
+    fi
+  fi
+
   # Historical model routing: query results.tsv for pass rates by complexity band
   if [[ "${SPIRAL_HISTORY_ROUTING:-false}" == "true" && "$retry_count" -eq 0 ]]; then
     local complexity

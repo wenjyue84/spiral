@@ -2382,3 +2382,35 @@ Completed: [Performance Test] Phase I: Distribute Federated Stories to Workers b
 - Previous attempt failed (4863 lines) — likely generated large fixture data files
 - Keep benchmark tests tiny: 3 focused functions, inline story generation, no large fixtures
 - diff limit is 800 lines — this approach uses ~100 (file + prd.json update)
+## Iteration 2 - Sat, Apr 11, 2026 10:54:46 PM
+Completed: [Performance Test] Phase I: Distribute Federated Stories to Workers by Sub-Project with Isolated Wor (ID: US-1208) in 10m
+
+
+## Pre-analysis for US-1210 (Gemini 2.5 Pro)
+This is a Python CLI regression test, not a Frappe story. The context about "lhdn_payroll_integration" and "Frappe" should be disregarded. The technical notes in the JSON also appear to be from a different, unrelated story about model routing and should be ignored.
+
+**Project:** Spiral CLI (Python)
+**Goal:** Create a regression test for the `spiral check-federated-deps` command.
+
+**1. Key Files:**
+*   **To Create:** `tests/test_check_federated_deps.py`. This new file will contain the regression test logic.
+*   **To Read/Import:** `lib/check_federated_deps.py`. This is the source code for the feature being tested. The test will import its core logic to execute against test data.
+*   **To Reference:** `prd.schema.json`. This file defines the structure of the data file being validated and is useful for creating accurate mock data.
+
+**2. Involved Frappe/App Components:**
+*   **DocTypes/Hooks:** None. This is a pure Python application. The primary data structure is the federated `prd.json` file.
+
+**3. Recommended Implementation Approach:**
+1.  In `tests/test_check_federated_deps.py`, use `pytest`.
+2.  Define separate test functions for each validation rule:
+    *   `test_detects_circular_dependencies`: Create an in-memory dictionary or temporary JSON file representing a `prd.json` with a story dependency loop (e.g., US-1 -> US-2 -> US-1).
+    *   `test_detects_orphan_stories`: Create mock data with a story that references a non-existent sub-project.
+    *   `test_valid_graph_passes`: Create a well-formed mock `prd.json` with no issues.
+3.  Import the main validation function from `lib/check_federated_deps.py` and call it against the mock data.
+4.  Assert that the function raises an appropriate error (e.g., `SystemExit` or a custom exception) for invalid data and runs without error for valid data.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the mock `prd.json` data accurately reflects the schema, especially the structure of the `dependencies` and sub-project fields.
+*   The test should check for both simple (A->B->A) and longer (A->B->C->A) circular dependency chains.
+*   The test must confirm the command fails as expected (e.g., non-zero exit code or exception) when issues are found, not just that it prints an error.
+
