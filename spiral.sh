@@ -825,6 +825,7 @@ SPIRAL_AUTO_INFER_DEPS="${SPIRAL_AUTO_INFER_DEPS:-false}"       # true = write i
 SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"                   # 0 = unlimited
 SPIRAL_MAX_RESEARCH_STORIES="${SPIRAL_MAX_RESEARCH_STORIES:-0}" # 0 = unlimited; cap research candidates per iteration
 SPIRAL_STORY_BATCH_SIZE="${SPIRAL_STORY_BATCH_SIZE:-20}"        # 0 = disabled (show all)
+SPIRAL_DRAIN_THRESHOLD="${SPIRAL_DRAIN_THRESHOLD:-10}"          # 0 = disabled; suppress Phase A/R when pending <= N
 SPIRAL_COST_CEILING="${SPIRAL_COST_CEILING:-}"                  # empty = disabled; USD amount to cap spend
 SPIRAL_LOW_POWER_MODE="${SPIRAL_LOW_POWER_MODE:-1}"
 SPIRAL_PRESSURE_THRESHOLDS="${SPIRAL_PRESSURE_THRESHOLDS:-40,25,18,12}"
@@ -1506,6 +1507,18 @@ print(len(completed))
   #   - tests/test_timeline_endpoint.py                 (test_phase_order_contains_all_phases)
   # ══════════════════════════════════════════════════════════════════════════
 
+  # ── Drain mode: suppress story generation when backlog is small ────────────
+  # When pending stories drop to SPIRAL_DRAIN_THRESHOLD or below, skip Phase A
+  # and Phase R so SPIRAL focuses all iterations on clearing the remaining backlog
+  # instead of adding new stories that prevent completion.
+  DRAIN_MODE=0
+  if [[ "${SPIRAL_DRAIN_THRESHOLD:-10}" -gt 0 && "$PENDING" -gt 0 && "$PENDING" -le "${SPIRAL_DRAIN_THRESHOLD:-10}" ]]; then
+    DRAIN_MODE=1
+    echo ""
+    echo "  [DRAIN] Pending ($PENDING) <= threshold (${SPIRAL_DRAIN_THRESHOLD:-10}) — suppressing Phase A/R to clear backlog"
+  fi
+  export DRAIN_MODE
+
   # ── Phase A: AI STORY SUGGESTIONS ──────────────────────────────────────────
   # Runs once per iteration before Phase R.
   # Source 2: consumes Phase 0-D ai-example queue + PRD gap analysis → _ai_suggest_output.json
@@ -1513,6 +1526,11 @@ print(len(completed))
   AI_SUGGEST_OUTPUT="$SCRATCH_DIR/_ai_suggest_output.json"
   TEST_STORY_CANDIDATES="$SCRATCH_DIR/_test_story_candidates.json"
   AI_QUEUE_FILE="$SCRATCH_DIR/_ai_example_queue.json"
+  if [[ "$DRAIN_MODE" -eq 1 ]]; then
+    echo "  [A] Skipped (drain mode — clearing remaining $PENDING stories)"
+    echo '{"stories":[]}' >"$AI_SUGGEST_OUTPUT"
+    echo '[]' >"$TEST_STORY_CANDIDATES"
+  else
   print_phase_banner "A" "AI SUGGESTIONS — generating per-iteration story candidates..."
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/ai_suggest.py" \
     --prd "$PRD_FILE" \
@@ -1520,6 +1538,8 @@ print(len(completed))
     --out "$AI_SUGGEST_OUTPUT" \
     --focus "${SPIRAL_FOCUS:-}" \
     --max-suggest "$SPIRAL_MAX_AI_SUGGEST" \
+    --pending "$PENDING" \
+    --max-pending "$SPIRAL_MAX_PENDING" \
     --history-limit "$SPIRAL_AI_SUGGEST_HISTORY_LIMIT" \
     --clear-queue || true
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/generate_test_stories.py" \
@@ -1592,6 +1612,7 @@ print(len(completed))
       cp "$TEST_STORIES_DEDUP" "$TEST_STORY_CANDIDATES"
     fi
   fi
+  fi # end drain-mode guard
 
   # ── Record goals hash before Phase R (US-323: goal-hijack detection) ──────
   _GOALS_HASH_FILE="$SCRATCH_DIR/_goals_hash"

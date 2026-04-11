@@ -302,6 +302,12 @@ SPIRAL_MAX_RESEARCH_STORIES="5"
 # Set to 0 to stop generating new stories and focus on clearing the backlog.
 SPIRAL_MAX_AI_SUGGEST="5"
 
+# ── Drain mode threshold: stop story generation to clear backlog ────────────
+# When pending story count drops to this threshold or below, Phase A and Phase R
+# are suppressed so SPIRAL focuses on completing remaining stories instead of
+# adding new ones that prevent completion. Set to 0 to disable drain mode.
+SPIRAL_DRAIN_THRESHOLD=10
+
 # ── AI suggestion quality threshold: filter low-quality stories (US-790) ─────────
 # Stories scoring below this threshold are discarded before Phase S validation.
 # Score (0-100) based on: production value (35%), constitution alignment (25%),
@@ -388,7 +394,7 @@ SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
 # reasons, then exits with ERR_ZERO_PROGRESS (exit code 9).
 # 0 = disabled (unlimited retries; recovery strategies still apply).
 # Default 3 matches the existing graduated recovery (decompose → halve batch → halt).
-SPIRAL_CONSECUTIVE_FAIL_ABORT="0 # disabled — allow retries on difficult sub-stories" # disabled — allow retries on difficult sub-stories" # disabled — allow retries on difficult sub-stories"  # disabled — allow retries on difficult sub-stories"  # disabled — allow retries on difficult sub-stories
+SPIRAL_CONSECUTIVE_FAIL_ABORT=5 # halt after 5 zero-progress iters (0 = disabled)
 
 # ── Skip disk space preflight check (slow on Windows NTFS) ──────────────────
 export SPIRAL_SKIP_DISK_CHECK="1"
