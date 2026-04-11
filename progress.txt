@@ -1696,3 +1696,32 @@ Completed: Phase A: Read Phase L learned patterns and inject into gap analysis p
 - shellcheck: No errors
 - shfmt: Formatted to 2-space indent with -ci flag
 - Pre-commit hooks: Passed
+## Iteration 1 - Sat, Apr 11, 2026  7:29:45 PM
+Completed: Ralph: Inject Phase L learned patterns into implementation context (ID: US-1214) in 10m
+
+
+## Pre-analysis for US-1200 (Gemini 2.5 Pro)
+This brief is for implementing a regression test for the `spiral explain-retry` CLI command. Note: The project is a Python CLI tool named "Spiral," not a Frappe application.
+
+**1. Files to Modify:**
+*   Create a new test file: `tests/test_explain_retry_regression.py`.
+*   The implementation logic for the command is likely in a file discoverable by searching for "explain-retry" or a related command handler in the `lib/` directory, which will be imported for testing.
+
+**2. Key Components Involved:**
+*   **CLI Command:** `spiral explain-retry <story_id>`
+*   **Core Logic:** The function responsible for parsing `results.tsv`, analyzing retry patterns, and generating decomposition suggestions.
+*   **Data Fixture:** A test-specific `results.tsv` file will be required to simulate a story with a known failure/retry pattern.
+
+**3. Implementation Approach:**
+*   Use the `pytest` framework.
+*   Create a pytest fixture using `tmp_path` to generate a mock `results.tsv` file containing a sample story with multiple retries, model escalations, and distinct error messages.
+*   The test function, named `test_us_728_regression`, will call the core logic function for `explain-retry`.
+*   Capture the standard output (stdout) from the function call.
+*   Assert that the captured output correctly displays the retry sequence, identifies the error pattern, and suggests the expected sub-story decomposition.
+
+**4. Edge Cases to Consider:**
+*   Handling of a non-existent or malformed `results.tsv`.
+*   `story_id` not found within the `results.tsv` file.
+*   Stories with no retries or only successful attempts.
+*   Ensuring the test does not rely on any global state or existing `results.tsv` files.
+

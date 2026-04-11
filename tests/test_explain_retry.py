@@ -304,3 +304,159 @@ class TestSuggestDecomposition:
         tsv = _write_tsv(tmp_path, [])
         result = suggest_decomposition("US-999", tsv)
         assert result is None
+
+
+# ── Regression test for US-728 (CLI command) ──────────────────────────────────
+
+
+def test_us_728_regression(tmp_path: Path, capsys: object) -> None:
+    """Regression test for US-728: CLI command spiral explain-retry <story_id>.
+
+    Verifies core observable behavior:
+      1. JSON retry sequence output with correct fields
+      2. Decomposition suggestion when failed_files data exists
+      3. Exit code behavior
+      4. Error message when story not found
+
+    This test would fail if the US-728 feature were removed or broken.
+    """
+    import argparse
+
+    # Import cmd_explain_retry from main.py (where it's actually defined)
+    spiral_root = Path(__file__).parent.parent
+    sys.path.insert(0, str(spiral_root))
+    import main  # type: ignore[import-untyped]
+
+    cmd_explain_retry = main.cmd_explain_retry
+
+    # Setup: Create a realistic results.tsv with a multi-attempt story
+    tsv = _write_tsv(
+        tmp_path,
+        [
+            {
+                "timestamp": "2026-04-10T10:00:00Z",
+                "story_id": "US-728",
+                "story_title": "Add explain-retry command",
+                "status": "failed",
+                "duration_sec": "350",
+                "model": "haiku",
+                "retry_num": "1",
+                "cache_read_tokens": "5000",
+                "cache_creation_tokens": "1000",
+                "review_tokens": "300",
+                "failure_root_cause": "diff guard exceeded 400 lines",
+                "failed_files": json.dumps(["lib/commands/explain_retry.py", "lib/failure_categorizer.py"]),
+            },
+            {
+                "timestamp": "2026-04-10T10:15:00Z",
+                "story_id": "US-728",
+                "story_title": "Add explain-retry command",
+                "status": "pass",
+                "duration_sec": "280",
+                "model": "sonnet",
+                "retry_num": "2",
+                "cache_read_tokens": "12000",
+                "cache_creation_tokens": "2000",
+                "review_tokens": "500",
+                "failed_files": json.dumps(["tests/test_explain_retry.py"]),
+            },
+        ],
+    )
+
+    # Test 1: Command with decomposition (default)
+    args = argparse.Namespace(
+        story_id="US-728",
+        results=str(tsv),
+        no_decompose=False,
+        command="explain-retry",
+    )
+
+    try:
+        cmd_explain_retry(args)
+    except SystemExit as e:
+        # Expect sys.exit(0) on success
+        assert e.code == 0, f"Expected exit code 0, got {e.code}"
+
+    captured = capsys.readouterr()  # type: ignore
+
+    # Extract JSON from output
+    # The JSON is the first part (before any non-JSON text like "Decomposition:")
+    output = captured.out.strip()
+
+    # Find the JSON portion by looking for [ ... ]
+    json_start = output.find("[")
+    json_end = output.rfind("]") + 1
+
+    assert json_start != -1, f"No JSON array found in output: {output}"
+
+    json_text = output[json_start:json_end]
+    sequence = json.loads(json_text)
+
+    # Verify retry sequence structure
+    assert isinstance(sequence, list), "Output should be a JSON array"
+    assert len(sequence) == 2, f"Expected 2 attempts, got {len(sequence)}"
+
+    # Verify first attempt (haiku, scope_overrun)
+    attempt1 = sequence[0]
+    assert attempt1["attempt"] == 1
+    assert attempt1["model"] == "haiku"
+    assert attempt1["tokens"] == 6300  # 5000 + 1000 + 300
+    assert attempt1["duration_sec"] == 350.0
+    assert attempt1["status"] == "failed"
+    assert attempt1["error_category"] == "scope_overrun"
+
+    # Verify second attempt (sonnet, pass)
+    attempt2 = sequence[1]
+    assert attempt2["attempt"] == 2
+    assert attempt2["model"] == "sonnet"
+    assert attempt2["tokens"] == 14500  # 12000 + 2000 + 500
+    assert attempt2["duration_sec"] == 280.0
+    assert attempt2["status"] == "pass"
+
+    # Verify decomposition suggestion is printed
+    assert "Decomposition:" in captured.out, "Decomposition suggestion should be present"
+    assert "US-728A" in captured.out and "US-728B" in captured.out, "Suggestion should contain US-728A and US-728B"
+
+    # Test 2: Command with --no-decompose flag
+    args_no_decompose = argparse.Namespace(
+        story_id="US-728",
+        results=str(tsv),
+        no_decompose=True,
+        command="explain-retry",
+    )
+
+    # Capture output with no decomposition
+    capsys.readouterr()  # Clear previous capture
+    try:
+        cmd_explain_retry(args_no_decompose)
+    except SystemExit as e:
+        assert e.code == 0
+
+    captured_no_decomp = capsys.readouterr()  # type: ignore
+
+    # JSON should be present
+    assert "[" in captured_no_decomp.out and "]" in captured_no_decomp.out, (
+        "JSON output should be present even with --no-decompose"
+    )
+
+    # Decomposition should NOT be in output
+    assert "Decomposition:" not in captured_no_decomp.out, "Decomposition should not appear with --no-decompose flag"
+
+    # Test 3: Error case — story not found
+    args_missing = argparse.Namespace(
+        story_id="US-999",
+        results=str(tsv),
+        no_decompose=False,
+        command="explain-retry",
+    )
+
+    capsys.readouterr()  # Clear previous capture
+    try:
+        cmd_explain_retry(args_missing)
+    except SystemExit as e:
+        # Expect sys.exit(1) on missing story
+        assert e.code == 1, f"Expected exit code 1 for missing story, got {e.code}"
+
+    captured_error = capsys.readouterr()  # type: ignore
+    # Error message should be on stderr
+    assert "No retry records found" in captured_error.err, "Error message should indicate story not found"
