@@ -1313,8 +1313,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T05:50:08Z"
     },
     {
       "id": "US-1189",
@@ -1469,76 +1470,6 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_752 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1198",
-      "title": "[E2E Test] Dashboard: Implement worker_swimlane.py with phase status logic",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-749. Story description: Create lib/dashboard/worker_swimlane.py with functions that read .spiral/_checkpoint.json and worker heartbeat files to determine each active worker's current phase, start time, and estimated remaining time. This is the data layer for the swimlane endpoint.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-749",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_749 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1199",
-      "title": "[Regression Test] Federation: Cross-Project Story Dependency Type Validation Rules Engine",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-729. Story description: Add phase-S validator that enforces story dependency type constraints (e.g., 'feature stories cannot depend on infrastructure'), with clear error messages and remediation guidance",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-729",
-        "Test would reliably fail if the US-729 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_729 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1200",
-      "title": "[Regression Test] CLI: spiral explain-retry <story_id> - Analyze Retry Pattern and Suggest Decomposi",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-728. Story description: Read results.tsv for a given story_id, show full retry sequence (model escalations, durations, error messages), analyze error patterns, and suggest atomic sub-story decomposition based on failed file patterns",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-728",
-        "Test would reliably fail if the US-728 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_728 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1201",
-      "title": "[Performance Test] Use Claude Message Batches API for Phase S multi-story validation",
-      "priority": "medium",
-      "description": "Write performance benchmark for the operation in US-390. Story description: Phase S currently validates stories sequentially via individual Claude API calls. Submitting all pending story validation requests as a single Message Batches API request cuts cost by 50% and enables asynchronous processing of up to 10,000 stories per batch, completing in under 1 hour. This also unlocks stacking with prompt caching discounts for further savings.",
-      "acceptanceCriteria": [
-        "Performance test measures key metrics for US-390",
-        "Baseline captured and acceptable threshold defined",
-        "Test fails if response time degrades more than 20% from baseline"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_390 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
