@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\routing\complexity_scorer.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.5, 0.6, 1.0, 100, 384, 50000, 100000, '--complexity', '--min-samples', '--recommend', '--results-tsv', '--story-id', '--threshold', '-_', 'Minimum sample size', 'Pass rate threshold', 'Path to results.tsv', 'Story ID', '__main__', 'avg_retries', 'duration_sec', 'easy', 'estimated_complexity', 'haiku', 'hard', 'id', 'keep', 'label', 'medium', 'model', 'opus', 'pass', 'prd.json', 'reject', 'replace', 'results.tsv', 'retry_num', 'score', 'similar', 'similarity', 'sonnet', 'status', 'store_true', 'story_id', 'story_title', 'tokens', 'total', 'utf-8']

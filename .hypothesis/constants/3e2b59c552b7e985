@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\chardet\codingstatemachine.py
+# hypothesis_version: 6.151.9
+
+['char_len_table', 'class_factor', 'class_table', 'language', 'name', 'state_table']

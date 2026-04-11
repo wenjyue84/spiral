@@ -38,3 +38,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T06:56:30Z	9	1	US-1189	[Regression Test] Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits	keep	1338	haiku	0	14032da52cada65c4a079215bffeeab9205c4945	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T07:32:51Z	10	1	US-1190	[E2E Test] Dashboard Persistence: SQLite Historical Metrics Store for 7-Day Trends	keep	1126	haiku	0	038784da182401909c8f10f2ff5809c38f01bdfd	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T08:04:47Z	11	1	US-1191	[E2E Test] GET /api/dashboard/phase-burn-rate: Burn Rate Calculation from results.tsv	keep	1003	haiku	0	c1c9144fc606dfc23a8b26f4e6184149d21a2170	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-11T08:29:40Z	12	1	US-1192	[Performance Test] Test Phase R Research Cache Hit/Miss Counting and LRU Eviction	keep	570	haiku	0	7ddb7fd8001e12224a123332b0735f6cab27550b	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				

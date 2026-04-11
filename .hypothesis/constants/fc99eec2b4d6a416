@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\chardet\langgreekmodel.py
+# hypothesis_version: 6.151.9
+
+[0.982851, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 123, 124, 187, 188, 233, 247, 248, 250, 252, 253, 254, 255, 'Greek', 'ISO-8859-7', 'char_to_order_map', 'charset_name', 'keep_english_letter', 'language', 'precedence_matrix', 'windows-1253']

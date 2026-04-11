@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\chardet\sbcharsetprober.py
+# hypothesis_version: 6.151.9
+
+[0.01, 0.05, 0.95, 0.99, 1.0, 255, 1024, 'char_to_order_map', 'charset_name', 'keep_english_letter', 'language', 'precedence_matrix']
