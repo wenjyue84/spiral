@@ -1978,12 +1978,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T18:37:20Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe codebase has:\n- `lib/ac_assertion_extractor.py` - Extracts executable assertions from AC text (5 patterns: exit_code, file_exists, test_command, json_field, log_grep)\n- `lib/ac_verification_runner.py` - Executes extracted assertions and reports results\n- `tests/test_ac_assertion_extractor.py` - Comprehensive unit tests (24 test methods across 8 classes)\n- `tests/test_ac_verification_runner.py` - Integration tests (9 test methods across 3 classes)\n\nTests exist but **are NOT marked with `@pytest.mark.us_1004`**, so they cannot be discovered with `pytest -k us_1004`.\n\n## Problem Identified\n\nUS-1222 requires a regression test that:\n1. Covers core observable behavior of US-1004 (AC Assertion Extractor)\n2. Would reliably fail if US-1004 were removed or broken\n3. Can be run with `uv run pytest tests/ -k us_1004 -v`\n\nCurrently, the existing tests in `test_ac_assertion_extractor.py` test the functions directly but aren't marked with the required pytest marker.\n\n## Planned Changes\n\n1. **Add `@pytest.mark.us_1004` to test classes in `tests/test_ac_assertion_extractor.py`**:\n   - Mark all test classes that validate extraction patterns and logic\n   - These tests cover observable behavior: pattern matching, assertion generation, metadata creation\n\n2. **Add CLI integration test** to ensure the observable file I/O behavior works:\n   - Test that the `main()` function accepts CLI args\n   - Verify `.spiral/ac_checks/{story_id}.json` output files are created\n   - Verify JSON output structure matches specification\n\n3. **Ensure end-to-end workflow test** that covers the full observable behavior:\n   - Extract assertions from a story with multiple AC types\n   - Verify output file is created with correct structure\n   - Verify assertions can be consumed by the verification runner\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/test_ac_assertion_extractor.py\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 150\n}\n</plan>\n\nNow I'll implement by adding pytest markers to the existing tests:\nNow let me add an integration test for the CLI observable behavior at the end of the file:\nNow let me run the tests to verify they pass with the `us_1004` marker:\nPerfect! All 52 tests passed. Now let me run quality checks:\nNow let me update prd.json to mark this story as complete:\nPerfect! The prd.json has been updated. Now let me commit the changes:\nNow let me update progress.txt to document this implementation:\nPerfect! Let me do a final verification that everything is working:\n## Summary"
-      },
-      "_passedCommit": "7561bf5cb967af56f90d5dabd8decf8ed5b7425e"
+      "model": "haiku"
     },
     {
       "id": "US-1223",
@@ -2000,12 +1995,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T18:46:24Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe `tests/test_ac_verification_runner.py` has 4 comprehensive test classes with 9 test methods covering:\n- Passing assertions (2 tests)\n- Failing assertions (1 test)\n- Mixed results (1 test)\n- Edge cases (4 tests)\n\nTests verify observable behavior: assertion execution, timeout handling, error reporting, and result aggregation.\n\n## Problem Identified\nThe existing tests don't have `@pytest.mark.us_1005`, so they can't be discovered with `pytest -k us_1005 -v` as required by the story's technical notes.\n\n## Planned Changes\nAdd `@pytest.mark.us_1005` decorator to all test classes in `tests/test_ac_verification_runner.py` and add an integration test showing the complete observable workflow.\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/test_ac_verification_runner.py\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 50\n}\n</plan>\n\nNow I'll add the pytest markers and a comprehensive integration test:\nNow let me verify the tests pass with the `us_1005` marker:\nPerfect! All 8 tests passed. Now let me run the quality checks:\nExcellent! All quality checks passed. Now let me update prd.json to mark this story as complete:\nNow let me run the pre-commit hooks to ensure everything is valid:\nLet me commit the changes directly since the quality checks already passed:\nPerfect! Commit successful. Let me verify the final state:\nPerfect! Story **US-1223** is now complete. Here's a summary of what was implemented:\n\n## Summary"
-      },
-      "_passedCommit": "288fca44eec1eee6fa0e642131ba8848b57e228f"
+      "model": "haiku"
     },
     {
       "id": "US-1224",
@@ -2022,11 +2012,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T18:59:41Z",
-      "_phaseI": {
-        "diagnosisBlock": "### Current State\n- `lib/impl/auto_decompose.py` implements automatic story decomposition (US-1043) triggered after 3 escalation attempts\n- `tests/test_auto_decompose.py` contains 12 comprehensive unit and integration tests covering all observable behavior\n- Tests are currently unmarked and cannot be discovered with `pytest -k us_1043`\n\n### Problem Identified  \n- US-1224 requires a regression test for US-1043 with marker `@pytest.mark.us_1043`\n- Existing tests cover: 4 sub-stories, parent metadata, ceiling validation, triple escalation path\n- Need to ensure tests fail reliably if feature is removed or broken\n\n### Planned Changes\n- `tests/test_auto_decompose.py`: Add `@pytest.mark.us_1043` to all test classes to enable discovery and mark as regression tests\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_auto_decompose.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow I'll execute the implementation:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1225",
@@ -2149,6 +2135,97 @@
       "dependencies": [
         "US-531"
       ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1232",
+      "title": "[E2E Test] Dashboard: Story Status Timeline Endpoint with Phase Swimlanes for iteration bottleneck d",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-540. Story description: Add `/api/timeline?iterations=N` dashboard endpoint that streams story attempt history grouped by iteration and phase, enabling real-time swimlane visualization and automated bottleneck detection.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-540",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_540 -v"
+      ],
+      "dependencies": [
+        "US-540"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1233",
+      "title": "[Regression Test] Phase M Conflict Detection — Identify File-Level Collisions in Federated Projects",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-584. Story description: When merging federated sub-project stories, detect file path conflicts where multiple stories claim ownership of the same file to prevent merge conflicts. Adds a conflict detection step to Phase M that writes a structured conflict report and exits 1 to block the merge. Supports Goal 4 (multi-repo federated projects).",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-584",
+        "Test would reliably fail if the US-584 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_584 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1234",
+      "title": "[E2E Test] Dashboard endpoint GET /api/dashboard/costs-by-project aggregating results.tsv",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-582. Story description: Add a Flask/FastAPI route that reads results.tsv and returns per-sub-project cost aggregates including total tokens, total cost, story count, and model distribution. Depends on sub_project column being present in results.tsv.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-582",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_582 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1235",
+      "title": "[Performance Test] Dashboard /profile endpoint for phase duration analytics",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-522. Story description: Add a /profile route to lib/dashboard/api.py that reads results.tsv and returns JSON with mean phase durations by story, the five slowest stories, and an escalation frequency count per story. This enables the dashboard UI to surface performance bottlenecks.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-522",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_522 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1236",
+      "title": "[Performance Test] [Performance Test] Benchmark Phase S batch validation vs sequential",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-524. Story description: Write a performance benchmark that measures Phase S story validation throughput using the Message Batches API (US-390) against the sequential baseline. The benchmark must capture latency and cost metrics, and fail if throughput degrades more than 20% from the established baseline.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-524",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_524 -v"
+      ],
+      "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"

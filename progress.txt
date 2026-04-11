@@ -363,3 +363,6 @@ Here is the technical brief for implementing the regression test within the Spir
     *   **Validation Logic:** The test should include a case to verify the validation step that prevents decomposition if it would exceed the maximum story limit in `prd.json`.
     *   **Idempotency:** The decomposition logic might have guards against being run multiple times. The test needs to ensure it's triggering the logic under the correct pre-conditions.
 
+## Iteration 3 - Sun, Apr 12, 2026  3:06:26 AM
+Completed: [Regression Test] Phase I Automatic Story Decomposition on Triple Retry Exhaustion with Validation (ID: US-1224) in 6m
+
