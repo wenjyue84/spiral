@@ -2032,7 +2032,8 @@
       "model": "haiku",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nI found the test file for US-1044: `tests/test_federation_conflict.py` which contains comprehensive tests for the file conflict detection feature. The tests cover:\n- Detection of common files across sub-projects\n- No false positives for single sub-project files\n- Conflict reporting with sub-projects and story IDs\n- Resolution hints generation\n- Edge cases (empty PRD, single sub-project scenarios)\n\nThe feature is implemented in `lib/federation/conflict_detector.py` with a `FileConflict` dataclass and `detect_file_conflicts()` function.\n\n## Problem Identified\n\nFollowing the regression test pattern from US-1219 through US-1224, I need to mark existing tests with `@pytest.mark.us_1044` to create a regression test suite that:\n1. Covers the core observable behavior of US-1044 (file conflict detection with patch/resolution visualization)\n2. Would fail reliably if the feature were removed or broken\n3. Is discoverable via `pytest tests/ -k us_1044 -v`\n\n## Planned Changes\n\n- Add `@pytest.mark.us_1044` decorator to the `TestDetectFileConflicts` test class in `tests/test_federation_conflict.py`\n- All existing tests cover observable behavior: conflict detection, resolution hints, sub-project tracking\n- Run quality checks (mypy, ruff lint/format, pytest)\n- Mark story as `passes: true` in prd.json\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_federation_conflict.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow let me execute the implementation:\nNow let me run the regression test suite to verify all tests pass:\nExcellent! All 9 tests pass. Let me now run quality checks:\nPerfect! All quality checks pass. Now let me update prd.json to mark the story as complete:\nNow let me stage and commit the changes:\nNow let me update progress.txt with the implementation details:\nPerfect! Let me verify the final state:\nLet me run the complete test suite one final time to confirm:\n## Summary"
-      }
+      },
+      "_passedCommit": "4cfb2040e4199919c2616cfb8d6166a1c8a433e6"
     },
     {
       "id": "US-1226",
@@ -2049,8 +2050,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T19:21:29Z"
     },
     {
       "id": "US-1227",
