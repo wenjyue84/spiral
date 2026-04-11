@@ -1152,3 +1152,37 @@ Based on the user story, here is a technical brief for the implementation:
 *   **Data Source:** The test must create and clean up its own `results.tsv` file to ensure repeatable results.
 *   **Lagging Average:** The mock data's timestamps must be crafted carefully to validate the 30-second lagging average calculation.
 *   **UI State:** Test for scenarios where `results.tsv` is empty or contains no recent data, and assert the UI displays a sensible default (e.g., "0" or "N/A").
+## Iteration 1 - Sat, Apr 11, 2026  4:04:47 PM
+Completed: [E2E Test] GET /api/dashboard/phase-burn-rate: Burn Rate Calculation from results.tsv (ID: US-1191) in 16m
+
+
+## Pre-analysis for US-1192 (Gemini 2.5 Pro)
+This is not a Frappe/Python user story; the context appears to be a Python project named Spiral. The technical brief is adjusted accordingly.
+
+**Project:** Spiral
+**Story:** US-1192: Performance Test for Research Cache
+
+### Technical Brief for Agent
+
+1.  **Files to Modify:**
+    *   **New Test File:** Create a new performance test file, likely `tests/performance/test_research_cache_perf.py` or similar.
+    *   **Candidate Code Under Test:** The core logic is likely located in a file related to "research" or "caching". Based on story US-1026, the primary target for testing is the deduplication cache used during "Phase R". The existing integration tests for `us_1026` should point to the exact module.
+
+2.  **Frameworks/Hooks Involved:**
+    *   **Framework:** This is a `pytest` environment. The performance test should be implemented using the `pytest-benchmark` plugin.
+    *   **Hooks/DocTypes:** No Frappe DocTypes or hooks are relevant.
+
+3.  **Implementation Approach:**
+    *   Use `pytest-benchmark` to write a new performance test function.
+    *   The test should benchmark a function that simulates a high volume of "research" calls.
+    *   Mock the underlying Gemini API call to isolate the cache's performance, removing network I/O from the measurement.
+    *   Generate a list of inputs: a significant portion should be unique to measure cache-miss/population/eviction overhead, and a portion should be duplicates to measure cache-hit speed.
+    *   The benchmark should wrap the loop that processes these inputs.
+    *   Run the test to establish a performance baseline, which `pytest-benchmark` saves to a file. This baseline file must be checked into version control.
+
+4.  **Gotchas & Edge Cases:**
+    *   **Isolate Cache Logic:** The test *must* mock the external API dependency. The goal is to test the LRU cache implementation's performance, not the API's.
+    *   **Cache State:** Use a `pytest` fixture to ensure the cache is cleared and in a known state before each benchmark run.
+    *   **Baseline:** The test will fail initially until a baseline is established and saved. The CI/CD pipeline may need configuration to handle baseline storage and comparison (`--benchmark-autosave`).
+    *   **Thresholds:** Configure `pytest-benchmark` to fail if the performance degrades by more than 20% compared to the saved baseline, as per the acceptance criteria.
+

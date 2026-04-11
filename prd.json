@@ -1367,10 +1367,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nI'm implementing **US-1191**: E2E test for the `/api/dashboard/phase-burn-rate` endpoint from US-1030. Security tests exist (test_security_us_1030.py) that validate authentication, but the E2E flow test is missing.\n\nThe Spiral project has:\n- FastAPI dashboard backend (`lib/dashboard/api.py`)\n- React Vite frontend (`spiral-ui/`)\n- Playwright test infrastructure\n- results.tsv metrics file that contains phase/story data\n- The endpoint should read results.tsv and calculate token burn rate per phase\n\n## Problem Identified\n\nUS-1191 requires a **Playwright E2E test** that:\n1. Tests the full user flow for the phase-burn-rate feature\n2. Navigates the dashboard UI\n3. Asserts visible state in a headless browser\n4. Validates the feature works end-to-end (not just unit tests)\n\nThe test file doesn't exist yet.\n\n## Planned Changes\n\n- **Create `tests/test_e2e_phase_burn_rate_us_1030.py`**: Playwright-based E2E test that:\n  1. Sets up sample results.tsv data with known phase/token values\n  2. Starts the dashboard server or connects to localhost:5299\n  3. Navigates to dashboard page\n  4. Calls the `/api/dashboard/phase-burn-rate` endpoint\n  5. Verifies the response contains token/sec and lagging average\n  6. Checks visible UI elements reflect burn rate data\n  7. Runs in headless browser mode\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_e2e_phase_burn_rate_us_1030.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_burn_rate_endpoint_returns_phase_data\", \"test_dashboard_displays_burn_rate\", \"test_burn_rate_calculation_accuracy\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nLet me now read the existing dashboard E2E test to match the pattern:\nNow I'll create the E2E test for US-1191. Based on the existing patterns and the feature description, I'll create a Playwright-based test that validates the phase burn-rate endpoint:\nI need to fix the class names (typo with space in \"Burn\"):\nNow let me run the tests to verify they work:\nNow let me commit the test file and update prd.json:\nPerfect! I have successfully implemented **US-1191** (E2E test for phase burn rate dashboard).\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1192",
@@ -1596,6 +1593,23 @@
       "technicalNotes": [
         "Source files from US-497: .coverage, .hypothesis/tmp/tmp0_6cugyv, .hypothesis/tmp/tmp0foc4z1u, .hypothesis/tmp/tmp14ubuxgu, .hypothesis/tmp/tmp1ph8xyfi",
         "Run: uv run pytest tests/ -k us_497 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1205",
+      "title": "[Regression Test] Integration Test: Phase V Pytest Output Parsing with Subprocess Mock",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-512. Story description: Create tests/test_phase_v_integration.py that patches subprocess.run to return synthetic pytest output at a 60% pass rate. Verify Phase V correctly parses the output, tags failed stories with _test_failures, and emits the correct routing decision (retry vs proceed).",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-512",
+        "Test would reliably fail if the US-512 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_512 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
