@@ -49,6 +49,7 @@ def federated_prd() -> dict[str, object]:
     }
 
 
+@pytest.mark.us_1044
 class TestDetectFileConflicts:
     """Integration tests for detect_file_conflicts()."""
 
