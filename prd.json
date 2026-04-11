@@ -2052,7 +2052,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-11T19:21:29Z"
+      "last_attempted": "2026-04-11T19:21:29Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- The `/api/dashboard/stuck-stories` endpoint exists in `lib/dashboard/api.py` and returns stuck stories data\n- The `StuckStoriesPanel` React component in `spiral-ui/src/components/analytics/StuckStoriesPanel.tsx` displays the data\n- Unit tests for `stuck_story_analyzer.py` exist and verify the core logic\n- No E2E test yet covers the user-facing dashboard flow\n\n## Problem Identified\nStory US-1226 requests an E2E test that verifies the full user flow of identifying and analyzing stuck stories in the dashboard UI. The test should be discoverable with `pytest tests/ -k us_1045 -v`.\n\n## Planned Changes\n1. **File to create:** `tests/e2e/test_stuck_stories_e2e_us_1045.py`\n   - E2E test class using Playwright for headless browser testing\n   - Helper function to create mock results.tsv with stuck stories\n   - Test cases covering:\n     - Panel visibility with stuck stories\n     - Story data display (ID, attempts, escalation chain, tokens)\n     - Decomposition suggestion button interaction\n     - Empty state when no stuck stories\n\n<plan>\n{\n  \"files_to_create\": [\"tests/e2e/test_stuck_stories_e2e_us_1045.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_stuck_stories_panel_displays_stories\", \"test_decomposition_suggestion_button\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow I'll execute the plan. First, let me read an existing E2E test to understand the exact pattern, then create the test file.\nNow let me run the quality checks:\nNow let's run the tests to verify they work:\nPerfect! All 4 tests pass. Now let me update prd.json to mark the story as complete:\nPerfect! Story **US-1226** is now complete. Here's a summary:\n\n## Summary"
+      }
     },
     {
       "id": "US-1227",
