@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 from reachability_verifier import find_calls, get_new_python_files, verify_reachability
 
 
+@pytest.mark.us_1007
 @pytest.mark.us_1194
 class TestReachabilityVerifier:
     """Tests for reachability_verifier.py (US-1007)."""
@@ -138,8 +139,10 @@ class TestReachabilityVerifier:
 
     def test_reachability_all_modules_found(self) -> None:
         """Phase story where all modules are reachable should pass."""
-        with patch("reachability_verifier.get_new_python_files") as mock_get, \
-             patch("reachability_verifier.find_calls") as mock_calls:
+        with (
+            patch("reachability_verifier.get_new_python_files") as mock_get,
+            patch("reachability_verifier.find_calls") as mock_calls,
+        ):
             mock_get.return_value = ["lib/new_module.py"]
             # Simulate finding the call
             mock_calls.return_value = ["some context from new_module import"]
@@ -150,8 +153,10 @@ class TestReachabilityVerifier:
 
     def test_reachability_module_not_found(self) -> None:
         """Phase story where module is NOT reachable should fail."""
-        with patch("reachability_verifier.get_new_python_files") as mock_get, \
-             patch("reachability_verifier.find_calls") as mock_calls:
+        with (
+            patch("reachability_verifier.get_new_python_files") as mock_get,
+            patch("reachability_verifier.find_calls") as mock_calls,
+        ):
             mock_get.return_value = ["lib/unreachable_module.py"]
             # Simulate NOT finding the call
             mock_calls.return_value = []
@@ -162,8 +167,10 @@ class TestReachabilityVerifier:
 
     def test_reachability_multiple_modules_mixed(self) -> None:
         """Phase story with multiple modules, some reachable and some not."""
-        with patch("reachability_verifier.get_new_python_files") as mock_get, \
-             patch("reachability_verifier.find_calls") as mock_calls:
+        with (
+            patch("reachability_verifier.get_new_python_files") as mock_get,
+            patch("reachability_verifier.find_calls") as mock_calls,
+        ):
             mock_get.return_value = ["lib/module_a.py", "lib/module_b.py"]
 
             def find_calls_side_effect(entry_point: str, module: str) -> list[str]:
@@ -180,8 +187,10 @@ class TestReachabilityVerifier:
 
     def test_reachability_checks_both_entry_points(self) -> None:
         """Reachability check should search both spiral.sh and main.py."""
-        with patch("reachability_verifier.get_new_python_files") as mock_get, \
-             patch("reachability_verifier.find_calls") as mock_calls:
+        with (
+            patch("reachability_verifier.get_new_python_files") as mock_get,
+            patch("reachability_verifier.find_calls") as mock_calls,
+        ):
             mock_get.return_value = ["lib/test_module.py"]
 
             call_count = 0
@@ -201,6 +210,7 @@ class TestReachabilityVerifier:
             assert result["reachable"] is True
 
 
+@pytest.mark.us_1007
 @pytest.mark.us_1194
 class TestGetNewPythonFiles:
     """Tests for get_new_python_files() helper."""
