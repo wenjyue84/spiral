@@ -1,3 +1,33 @@
+## Iteration N - Story: US-1187 - Phase S: Replace bare except clauses with logged exceptions
+
+### What was implemented
+- **lib/prd/batch_validate.py** line 434:
+  - Replaced bare `except Exception:` with specific exception types `(json.JSONDecodeError, OSError)`
+  - Added `logging.warning()` with traceback context (exc_info=True) for diagnostic output
+  - Added `import logging` module
+
+- **lib/prd/merge_stories.py** line 827:
+  - Replaced `print()` statement with `logging.warning()` for exception logging
+  - Exception details now logged at WARNING level with traceback context (exc_info=True)
+  - Added `import logging` module
+
+### Patterns discovered
+- Specific exception types prevent silent failures from unexpected errors
+- logging.warning with exc_info=True captures full stack traces for debugging
+- Both files handle fallback scenarios (streaming → HTTP, topological reorder → priority sort)
+- 105 existing tests pass without modification, confirming backward compatibility
+
+### Acceptance Criteria Met
+- [x] batch_validate.py catches specific exception types (json.JSONDecodeError, OSError) instead of bare Exception
+- [x] merge_stories.py logs exception message before falling back to priority sort
+- [x] All caught exceptions logged at WARNING level with traceback context (exc_info=True)
+- [x] No bare except or generic catch-all patterns remain (verified via grep)
+
+### Files Changed
+- `lib/prd/batch_validate.py`: Added logging import, replaced bare except at line 434 (+2 lines)
+- `lib/prd/merge_stories.py`: Added logging import, replaced print with logging.warning at line 827 (+4 lines)
+- `prd.json`: US-1187 marked passes=true
+
 ## Iteration N - Story: US-1186 - Phase M: Lower dedup threshold after 3 consecutive all-rejected iterations
 
 ### What was implemented
