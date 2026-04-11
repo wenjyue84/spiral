@@ -1286,7 +1286,7 @@
         "No bare except or generic catch-all patterns remain in merge_stories.py or batch_validate.py"
       ],
       "dependencies": [],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "lib/prd/batch_validate.py",
         "lib/prd/merge_stories.py"
@@ -1521,6 +1521,24 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_728 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1201",
+      "title": "[Performance Test] Use Claude Message Batches API for Phase S multi-story validation",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-390. Story description: Phase S currently validates stories sequentially via individual Claude API calls. Submitting all pending story validation requests as a single Message Batches API request cuts cost by 50% and enables asynchronous processing of up to 10,000 stories per batch, completing in under 1 hour. This also unlocks stacking with prompt caching discounts for further savings.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-390",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_390 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
