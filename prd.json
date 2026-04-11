@@ -1775,7 +1775,8 @@
       "filesTouch": [
         "spiral.sh",
         "lib/routing/route_stories.py"
-      ]
+      ],
+      "_scopeCreep": true
     },
     {
       "id": "US-1213",
@@ -1858,21 +1859,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_failureReason": "oversized_diff: produced 2644 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 2644 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ],
-      "last_attempted": "2026-04-11T16:26:03Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe `TestUS791Regression` class with 7 `@pytest.mark.us_791` tests already exists in `tests/test_story_quality_scorer.py` (from commit `49b71d70`). All tests pass.\n\n## Problem Identified\nUS-1215 has `passes: false` because the first attempt was reverted by the diff-guard (2644 lines > 800 limit). But the required tests are already committed.\n\n## Planned Changes\n- Only update `prd.json` to mark US-1215 as `passes: true`. No new code needed.\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 1\n}\n</plan>\nAll 7 regression tests pass. Now update prd.json to mark US-1215 as passing:\nNow update progress.txt and commit:\nDone. US-1215 is now marked `passes: true`.\n\n**Summary:** The `TestUS791Regression` class with 7 `@pytest.mark.us_791` tests was already committed in a prior iteration (from the US-790 implementation + iter 25 modifications). The first attempt for US-1215 failed because it tried to recreate the entire file (2644 lines), when the tests were already there. This attempt simply verified all 7 tests pass and updated `prd.json`."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 416,
-        "tokensAfterMasking": 415,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1216",
@@ -2091,6 +2078,24 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_773 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1229",
+      "title": "[E2E Test] Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker Ac",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-652. Story description: Create a timeline visualization showing each worker's time spent in each phase (R/T/S/M/I/V/C) across iterations. Identify phase bottlenecks and worker imbalances. Export as interactive HTML/SVG from dashboard API.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-652",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_652 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
