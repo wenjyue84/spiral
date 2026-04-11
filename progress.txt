@@ -963,3 +963,42 @@ This is not a Frappe/ERPNext user story. The provided JSON describes an end-to-e
     *   Ensure test data is isolated and does not interfere with other tests.
     *   The underlying prediction model might change; the test should be robust enough to handle minor variations in the prediction output as long as the core escalation/no-escalation state is correct.
 
+## Iteration 1 - Sat, Apr 11, 2026  2:18:35 PM
+Completed: [E2E Test] Model Escalation Prediction Engine with Dashboard Endpoint (ID: US-1188) in 27m
+
+
+## Pre-analysis for US-1189 (Gemini 2.5 Pro)
+This user story is for the Spiral project, not a Frappe/Python application. It describes writing a regression test for a feature called the "Federation Quota Governor".
+
+Here is the technical brief for the agent:
+
+**Project:** Spiral
+**Story:** US-1189 - Regression Test for Federation Quota Governor
+
+**1. Python Files to Modify:**
+*   **Create New Test File:** `tests/test_federation_quota_governor.py` or a similar new file under the `tests/` directory.
+*   **Core Logic (for reference):** The feature logic being tested is likely located in `lib/federated_merge_prd.py` and potentially `lib/constants.py` for configuration handling.
+
+**2. Key Components Involved:**
+*   **Frappe DocTypes/Hooks:** None. This is a Python application, not a Frappe app.
+*   **Configuration:** The test will need to manipulate environment variables like `SPIRAL_QUOTA_<SUBPROJECT_NAME>`.
+*   **Data:** The test will interact with mock `prd.json` files representing story backlogs for different sub-projects.
+
+**3. Recommended Implementation Approach:**
+*   Use `pytest` and `pytest.monkeypatch` to create a test environment.
+*   **Test Case 1 (Quota Exceeded):**
+    1.  Use `monkeypatch` to set an environment variable for a mock sub-project (e.g., `SPIRAL_QUOTA_TESTPROJ=5`).
+    2.  Create mock `prd.json` files: one for the main project and one for `TESTPROJ` containing more than 5 stories.
+    3.  Call the main federated merge function with these mock files.
+    4.  Assert that the merge process fails or raises a specific `QuotaExceededError`.
+    5.  Assert that a `quota_exceeded` event is logged for `TESTPROJ`.
+*   **Test Case 2 (Quota Not Exceeded):**
+    1.  Repeat the setup, but with a `prd.json` containing fewer than 5 stories.
+    2.  Assert that the merge process completes successfully.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure mock `prd.json` files and patched environment variables are properly isolated and cleaned up after tests.
+*   Test the behavior when a quota for a sub-project is *not* set (it should be ignored).
+*   Test with a quota of zero (`SPIRAL_QUOTA_TESTPROJ=0`).
+*   The test must not have external dependencies and should rely entirely on mocked data and environment setup.
+
