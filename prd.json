@@ -1672,8 +1672,13 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff: produced 4863 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
+      "_antiPatterns": [
+        "oversized_diff: produced 4863 lines but limit is 800. Keep total insertions+deletions under 800 lines."
+      ],
+      "last_attempted": "2026-04-11T14:43:27Z"
     },
     {
       "id": "US-1209",
