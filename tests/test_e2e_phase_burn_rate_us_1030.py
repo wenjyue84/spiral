@@ -12,10 +12,8 @@ import json
 import logging
 import os
 import sys
-import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
 
 import pytest
 from playwright.async_api import async_playwright
@@ -124,7 +122,9 @@ class TestPhaseBurnRateEndpoint:
                     response = await page.request.get(PHASE_BURN_RATE_ENDPOINT)
 
                     if response.status == 404:
-                        logger.warning("Phase burn rate endpoint not yet implemented (404). This is expected if US-1030 is not merged.")
+                        logger.warning(
+                            "Phase burn rate endpoint not yet implemented (404). This is expected if US-1030 is not merged."
+                        )
                         await browser.close()
                         pytest.skip("Endpoint not implemented (US-1030 dependency not met)")
 
@@ -264,8 +264,7 @@ class TestPhaseBurnRateEndpoint:
                     logger.info("✓ Endpoint correctly requires authentication")
                     # Try with a dummy auth header (will likely fail but that's ok)
                     response_with_auth = await page.request.get(
-                        PHASE_BURN_RATE_ENDPOINT,
-                        headers={"X-API-Key": "test-key"}
+                        PHASE_BURN_RATE_ENDPOINT, headers={"X-API-Key": "test-key"}
                     )
                     logger.info(f"Response with auth header: {response_with_auth.status}")
                 elif response.status == 200:

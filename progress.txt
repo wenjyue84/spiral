@@ -1351,3 +1351,35 @@ This is a Python/pytest-based project, not a Frappe app. The user story requires
     *   The test must handle file paths correctly, passing the temporary file paths to the validator function.
     *   Clean up all temporary files and directories created during the test run to prevent side effects.
 
+## Iteration 1 - Sat, Apr 11, 2026  5:06:45 PM
+Completed: [Regression Test] Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loo (ID: US-1194) in 13m
+
+
+## Pre-analysis for US-1195 (Gemini 2.5 Pro)
+This is a Python/Pytest project, not a Frappe app. The goal is to build a performance regression test for the operation in story US-1008.
+
+**Technical Brief for Claude**
+
+**1. Primary Files to Modify:**
+*   **`tests/test_story_us_1008.py`** (Hypothesized): Create a new test file or modify an existing one in the `tests/` directory. The test function should be decorated with `@pytest.mark.us_1195` and will likely call the business logic related to `us_1008`.
+*   **`lib/performance_monitor.py`** (New File): Create a new helper module to manage the persistence and calculation of performance baselines.
+*   **`.spiral/perf_baselines.json`** (New File): Use a JSON file in a non-tracked directory like `.spiral/` to store the historical execution times for the last 10 runs. Avoid using files in the main repo that would create git noise.
+
+**2. Involved DocTypes/Hooks:**
+*   None. This is a Pytest-based project, not a Frappe application. No DocTypes or Frappe hooks are relevant.
+
+**3. Implementation Approach:**
+*   In `performance_monitor.py`, implement a class (`PerformanceMonitor`) to handle:
+    *   Reading/writing a list of the last 10 execution times from `.spiral/perf_baselines.json`.
+    *   A method to calculate P90 (90th percentile) from the stored times using the `numpy` library.
+*   In the new performance test in `tests/`, import `PerformanceMonitor`.
+*   Wrap the core logic from US-1008 with a timer.
+*   Load the P90 baseline using the `PerformanceMonitor`.
+*   Assert that the current execution time is less than `baseline * 1.20`.
+*   Record the new execution time with the `PerformanceMonitor`.
+
+**4. Edge Cases & Gotchas:**
+*   **Threshold Conflict:** The story description mentions a `2x P90` threshold, while the acceptance criteria specify `20% degradation`. Default to the stricter `20%` (1.2x) threshold from the AC.
+*   **Cold Starts:** The baseline will be unstable for the first 10 runs. The test should only start failing after at least 10 data points have been collected.
+*   **SPIRAL Phases:** The story mentions timing individual "phases." The implementation will need to identify and instrument these specific phases within the US-1008 operation. This may require refactoring the original function to yield control or use callbacks.
+*   **Data Persistence:** Ensure the JSON file path is relative to the project root and the `.spiral` directory is used for persistence between runs.
