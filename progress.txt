@@ -1,3 +1,32 @@
+## Iteration N - Story: US-1205 - [Regression Test] Integration Test: Phase V Pytest Output Parsing with Subprocess Mock
+
+### What was implemented
+- **tests/test_phase_v_integration.py** - Added regression test class `TestUS512RegressionPhaseVParsingWithMock` with 4 tests:
+  - `test_us_512_subprocess_mock_returns_pytest_output` - Verifies subprocess.run can be mocked to return synthetic pytest output
+  - `test_us_512_parse_and_tag_from_mocked_output` - Tests parsing mocked output and tagging failed stories with _test_failures
+  - `test_us_512_routing_decision_based_on_mocked_failures` - Verifies routing decision (retry) when tests fail
+  - `test_us_512_end_to_end_mock_parse_tag_route` - Complete workflow: mock subprocess -> parse -> tag -> route
+
+- **tests/pyproject.toml** - Added `us_512` pytest marker definition for regression test discovery
+
+### Patterns Discovered
+- Regression tests follow naming pattern: TestUS{story_id}Regression{Feature} for the class
+- Test methods named `test_us_{story_id}_<description>` for consistency
+- Pytest marker defined in pyproject.toml markers list as: "us_512: regression tests for Phase V pytest output parsing with subprocess mock (US-512)"
+- Tests use @pytest.mark.us_512 decorator for class-level marker application
+- Subprocess mocking pattern: mock.patch("subprocess.run") provides control over test execution environment
+- Tests verify observable behavior (not implementation details): mock setup, output parsing, story tagging, routing logic
+
+### Acceptance Criteria Met
+- [x] Regression test covers core observable behaviour of US-512 (subprocess mocking + pytest output parsing workflow)
+- [x] Test would reliably fail if the US-512 feature were removed or broken (tests directly verify parse -> tag -> route workflow)
+- [x] Tests runnable with: `uv run pytest tests/ -m us_512 -v` (4 tests discovered and passing)
+
+### Files Changed
+- `tests/test_phase_v_integration.py`: +176 lines (new TestUS512RegressionPhaseVParsingWithMock class with 4 test methods)
+- `tests/pyproject.toml`: Added us_512 marker definition to markers list
+- `prd.json`: US-1205 marked passes=true
+
 ## Iteration N - Story: US-1201 - [Performance Test] Use Claude Message Batches API for Phase S multi-story validation
 
 ### What was implemented
@@ -2139,3 +2168,40 @@ Frappe concepts are not applicable here. The key components are:
 - For E2E WebSocket tests: use asyncio.run() inside a sync test function to avoid marker issues
 - Keep E2E test files in tests/e2e/ and < 100 lines to avoid diff-guard rejection
 - Use `pytest.mark.us_<story_id>` and register in tests/pyproject.toml markers list
+## Iteration 2 - Sat, Apr 11, 2026  9:40:18 PM
+Completed: [E2E Test] Add WebSocket /ws/cost endpoint to dashboard API for real-time token burn rate streaming (ID: US-1204) in 4m
+
+
+## Pre-analysis for US-1205 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent:
+
+**Project:** lhdn_payroll_integration
+**Story:** US-1205: Regression Test for Pytest Output Parsing
+
+### 1. Python Files to Modify:
+
+*   **Create New File:** `tests/test_phase_v_integration.py`.
+*   **Likely Files Under Test (for reference):** The core logic for running tests and parsing output is probably located in a dedicated script within the `lib/` directory, such as `lib/pytest_runner.py`, `lib/test_executor.py`, or `lib/phase_v_logic.py`. This is the code your new test will be exercising.
+
+### 2. Frappe DocTypes & Hooks:
+
+*   **DocTypes:** No direct modifications to Frappe DocType *definitions* are expected. The implementation will interact with story data (likely from a custom "User Story" DocType) in memory by adding a `_test_failures` tag to specific records.
+*   **Hooks:** No `hooks.py` changes are anticipated. The process is likely triggered by a custom script, not a standard Frappe event hook.
+
+### 3. Recommended Implementation Approach:
+
+1.  Create the new test file `tests/test_phase_v_integration.py`.
+2.  Use Python's `unittest.mock.patch` decorator to mock `subprocess.run`.
+3.  The mock should return a `CompletedProcess` object instance. This object's `stdout` attribute must be a synthetic, multi-line string that mimics real `pytest` output, including both `PASSED` and `FAILED` results (at a ~60% pass rate). Set `returncode=1` to indicate failure.
+4.  In the test function, invoke the Phase V entrypoint function that triggers the test execution and parsing logic.
+5.  **Assert:**
+    *   Verify the function correctly identifies the failed tests from the mocked output.
+    *   Check that the corresponding in-memory story objects are correctly tagged (e.g., a `_test_failures` list or boolean flag is added).
+    *   Confirm the final routing decision returned is `'retry'`.
+
+### 4. Edge Cases & Gotchas:
+
+*   **Mock Accuracy:** The mocked `subprocess.run` return object must have `stdout` (bytes or string), `stderr`, and `returncode` attributes to avoid breaking the calling code.
+*   **Pytest Output Format:** The synthetic `pytest` output string must be formatted realistically, as the parsing logic may be sensitive to the exact structure of `PASSED`/`FAILED` lines and the final summary block.
+*   **Test Isolation:** Ensure the test is hermetic. It should create its own in-memory story data for the function to process, rather than relying on any database state.
+
