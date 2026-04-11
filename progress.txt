@@ -1,3 +1,36 @@
+## Iteration N - Story: US-1199 - [Regression Test] Federation: Cross-Project Story Dependency Type Validation Rules Engine
+
+### What was implemented
+- **tests/test_dep_type_validator.py** added regression test class for US-729 feature:
+  - Added `TestUS729RegressionDependencyValidation` class with 9 comprehensive regression tests
+  - Tests verify core observable behavior of the DependencyTypeValidator (US-729 implementation):
+    1. `test_us_729_constraint_enforcement_feature_to_infrastructure` - Valid dependency (feature→infrastructure)
+    2. `test_us_729_constraint_enforcement_feature_to_database_invalid` - Invalid constraint detection
+    3. `test_us_729_constraint_enforcement_database_to_infrastructure` - Valid dependency (database→infrastructure)
+    4. `test_us_729_constraint_enforcement_infrastructure_no_dependencies` - Infrastructure cannot depend on anything
+    5. `test_us_729_error_message_includes_rule_id` - Error messages include stable rule IDs (e.g., DEP_TYPE_FEATURE_DATABASE)
+    6. `test_us_729_error_message_includes_remediation` - Error messages guide users toward fixes
+    7. `test_us_729_error_message_includes_allowed_list` - Error messages show allowed target types
+    8. `test_us_729_batch_validation_collects_all_violations` - All violations reported in one call
+    9. `test_us_729_custom_rules_override_defaults` - Custom rules allow validator flexibility
+
+### Patterns discovered
+- Regression tests need "us_729" in function/class name to be discoverable with `-k us_729` filter (Story pattern)
+- The validator implements configurable rule sets (default + custom rules support)
+- Error messages are designed for automation: include rule IDs, remediation guidance, and allowed types
+- Batch validation collects all violations rather than stopping at first error
+- Tests verify end-to-end behavior of constraint enforcement and error reporting
+
+### Acceptance Criteria Met
+- [x] Regression test covers core observable behaviour of US-729 (9 tests covering all constraint paths)
+- [x] Test would reliably fail if US-729 feature were removed or broken (tests directly verify validate() method)
+- [x] Tests are runnable with: `uv run pytest tests/ -k us_729 -v` (9 tests discovered and passing)
+
+### Files Changed
+- `tests/test_dep_type_validator.py`: +102 lines (new TestUS729RegressionDependencyValidation class with 9 test methods)
+- `prd.json`: US-1199 marked passes=true
+- All existing tests continue to pass: 27 total (18 existing + 9 new regression tests)
+
 ## Iteration N - Story: US-1196 - [Regression Test] Phase V: Dead Feature Detector
 
 ### What was implemented
@@ -1552,3 +1585,70 @@ This is a Python/Pytest project, not a Frappe application. The request to write 
 *   The test will be file-I/O heavy for setup; ensure paths are handled correctly, possibly using `tmp_path` fixtures in `pytest`.
 *   UI selectors might be brittle. Use stable selectors like `data-testid` if available.
 *   The dashboard may load data asynchronously. Use explicit waits (e.g., `expect(page.locator(...)).to_be_visible()`) to avoid flaky tests.
+## Iteration 1 - Sat, Apr 11, 2026  6:33:36 PM
+Completed: [E2E Test] Dashboard: Implement worker_swimlane.py with phase status logic (ID: US-1198) in 15m
+
+
+## Pre-analysis for US-1199 (Gemini 2.5 Pro)
+I will start by searching for the "phase-S validator" mentioned in the story to locate the relevant code.
+Okay, "phase-S validator" was too specific. I'll broaden my search to find files in `lib` and `tests` that mention both "dependency" and "validation". I'll also search for the related story, "US-729", to find any existing code references.
+`grep dependency` gave me great leads. `trace_dependencies.py`, `dependency_graph.py`, `spiral_assert.sh`, `validate.rs`, `federated_namespace_validator.py`, `prd_schema.py`, and `check_dag.py` all look promising. `federated_namespace_validator.py` seems especially relevant. Now, I'll `grep US-729` to find the exact implementation file.
+The search for "US-729" was a success, pointing me directly to `lib/phases/validate.py` (the implementation) and `tests/test_dep_type_validator.py` (the tests). Since US-1199 requires writing a regression test for US-729, I'll be adding a new test to the latter file. My plan is to create a new test function that builds a minimal `prd.json` structure in-memory, creates an invalid dependency (feature on infrastructure), and asserts that the validator in `lib/phases/validate.py` raises the correct error with the expected message. I'll also test a valid dependency. Before writing the brief, I'll read both files for specifics on story types and error handling.
+Read `lib/phases/validate.py`. Now, I'm reading `tests/test_dep_type_validator.py` to learn test structure.
+After reviewing `lib/phases/validate.py` and `tests/test_dep_type_validator.py`, I see the US-729 implementation allows feature stories to depend on infrastructure stories, contrary to the story's example. Existing tests cover many valid and invalid dependency scenarios. The most valuable new regression test would be for an untested invalid case. I'll recommend adding a test for a `database` story depending on a `feature` story, which should be invalid. Now, I'll write the technical brief.I've reviewed the code and tests. The user story's example of an invalid dependency (`feature` -> `infrastructure`) contradicts the actual implementation, where that dependency is valid. The existing tests in `tests/test_dep_type_validator.py` are thorough, but the user wants a new regression test created for story US-1199. I will now write a technical brief guiding the agent to add a new, robust test to that file, perhaps one using a custom ruleset to ensure the validation logic is flexible, thereby fulfilling the user's request.Based on the provided story and code analysis, here is a technical brief for the implementation of user story US-1199.
+
+***
+
+### **Technical Brief: US-1199 Regression Test**
+
+**Project Context:** The user story applies to the `Spiral` project, not a Frappe application. The task is to add a `pytest` regression test for the existing "Phase S" story dependency validator, which was implemented in story US-729.
+
+**1. Python Files to Modify:**
+*   **`tests/test_dep_type_validator.py`**: This is the primary file to modify. A new test class should be added here to house the new regression test case.
+*   **`lib/phases/validate.py`**: This file contains the `DependencyTypeValidator` class, which is the logic to be tested. It should be reviewed for understanding but not modified.
+
+**2. Involved DocTypes/Hooks:**
+*   This is not a Frappe project, so DocTypes are not applicable.
+*   The relevant data structures are Python dictionaries representing "stories," which must have `id`, `type`, and `dependencies` keys.
+*   The "hook" is the `DependencyTypeValidator().validate()` method, which checks these stories against a set of rules.
+
+**3. Recommended Implementation Approach:**
+The existing tests are granular. A new, comprehensive test for a currently untested rule permutation will add the most value. The rules in `lib/phases/validate.py` allow `database` stories to depend only on `infrastructure` stories. A `database -> feature` dependency is therefore invalid and makes a good test case.
+
+Add the following class to `tests/test_dep_type_validator.py`:
+
+```python
+# ---------------------------------------------------------------------------
+# Invalid pattern 3: database → feature (Regression test for US-1199)
+# ---------------------------------------------------------------------------
+
+class TestDatabaseToFeatureRejected:
+    """Comprehensive regression test for an untested rule path."""
+
+    def test_database_cannot_depend_on_feature(self) -> None:
+        """
+        Tests that a database story dependency on a feature story is rejected
+        and the violation message is correctly formatted.
+        """
+        stories = _make_stories(
+            {"id": "US-1199-A", "type": "database", "dependencies": ["US-1199-B"]},
+            {"id": "US-1199-B", "type": "feature"},
+        )
+        violations = DependencyTypeValidator().validate(stories)
+
+        # 1. Assert a single violation was detected
+        assert len(violations) == 1, f"Expected 1 violation, got: {violations}"
+        msg = violations[0]
+
+        # 2. Assert all components of the error message are present
+        assert "Story US-1199-A (type: database)" in msg
+        assert "cannot depend on US-1199-B (type: feature)" in msg
+        assert "allowed: ['infrastructure']" in msg
+        assert "rule: DEP_TYPE_DATABASE_FEATURE" in msg
+        assert "remediation: Remove or replace this dependency" in msg
+```
+
+**4. Edge Cases & Gotchas:**
+*   **Story Description vs. Code:** The story description ("*feature stories cannot depend on infrastructure*") is incorrect. The actual code logic in `lib/phases/validate.py` explicitly **allows** this. The regression test should validate the behavior as it is coded, not as described in the story.
+*   **Test Data:** Use unique story IDs (e.g., prefixed with the story number `US-1199-`) to avoid confusion with existing tests.
+*   **Error Message Specificity:** The test should assert the presence of all key parts of the error message (source/target info, allowed list, rule ID, remediation text) to be a robust guard against future regressions.
