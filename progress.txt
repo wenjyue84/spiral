@@ -825,3 +825,38 @@ This is a regression test for a Python CLI, not a Frappe app. The goal is to tes
 *   The underlying semantic search may not be perfectly deterministic. Use simple, distinct examples in the fixture to ensure reliable matching.
 *   Test the "no similar story found" scenario.
 *   The test should fail if the CLI command is removed or if its output format changes significantly.
+## Iteration 2 - Sun, Apr 12, 2026  4:43:49 AM
+Completed: [Regression Test] CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns (ID: US-1230) in 11m
+
+
+## Pre-analysis for US-1231 (Gemini 2.5 Pro)
+Here is a technical brief for the Claude Code agent.
+
+---
+
+**Project:** Spiral (Python Automation Framework)
+**Story:** US-1231 - Performance Test for Worker Lag Detection
+
+**Analysis:**
+This is a Python project, not a Frappe app. The story requires creating a `pytest` performance benchmark for an existing worker monitoring feature (from US-531), not modifying the feature itself.
+
+**1. Files to Create/Reference:**
+*   **Create:** A new performance test file, e.g., `tests/performance/test_worker_heartbeat.py`.
+*   **Reference:** The agent must analyze the existing worker pool and heartbeat monitoring logic. Based on the project's purpose, key files are likely named `lib/parallel_processor.py`, `lib/worker_manager.py`, or similar modules that handle process lifecycle and state.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is a pure Python application. The core components are scripts managing a parallel worker pool, not Frappe DocTypes.
+
+**3. Recommended Implementation Approach:**
+*   Use `pytest-benchmark` if available, otherwise Python's `timeit` module.
+*   Create a test fixture to set up a worker pool.
+*   Simulate a stalled worker by creating a mock worker function that runs longer than `SPIRAL_WORKER_TIMEOUT` (env var, default 300s) without signaling a heartbeat.
+*   The test should measure the time from worker stall to its termination.
+*   Assert that the detection/termination cycle completes within an acceptable threshold over the configured timeout.
+*   Capture baseline performance and fail the test if performance degrades >20% on subsequent runs.
+
+**4. Edge Cases & Gotchas:**
+*   **Stall Simulation:** The method of simulating a stall must match the actual heartbeat mechanism (e.g., file timestamp, IPC message).
+*   **Process Cleanup:** Ensure the test reliably terminates all child processes, even on failure, to avoid resource leaks.
+*   **Flaky Timings:** Performance tests can be unstable. Use averages over multiple runs for baselines and allow for a grace period in assertions instead of checking exact times.
+

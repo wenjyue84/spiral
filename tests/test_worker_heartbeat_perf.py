@@ -70,6 +70,7 @@ def _create_stale_heartbeat(heartbeat_file: Path, stale_seconds: int) -> None:
         json.dump(heartbeat_data, f)
 
 
+@pytest.mark.us_531
 def test_heartbeat_stall_detection_latency(tmp_path: Path, monkeypatch: Any) -> None:
     """Benchmark detection latency for a stalled worker.
 
@@ -124,6 +125,7 @@ def test_heartbeat_stall_detection_latency(tmp_path: Path, monkeypatch: Any) -> 
     print(f"  Overhead: {(elapsed_latency / timeout_sec - 1) * 100:.1f}%")
 
 
+@pytest.mark.us_531
 def test_heartbeat_detection_latency_stability(tmp_path: Path, monkeypatch: Any) -> None:
     """Verify detection latency is stable across multiple runs.
 
@@ -179,6 +181,7 @@ def test_heartbeat_detection_latency_stability(tmp_path: Path, monkeypatch: Any)
         print(f"  Run {i}: {latency:.3f}s ({variance_pct:+.1f}%)")
 
 
+@pytest.mark.us_531
 def test_heartbeat_fresh_worker_not_detected_as_timeout(tmp_path: Path, monkeypatch: Any) -> None:
     """Verify that a fresh heartbeat is NOT detected as timed out.
 
@@ -217,6 +220,7 @@ def test_heartbeat_fresh_worker_not_detected_as_timeout(tmp_path: Path, monkeypa
     assert workers[0]["current_story"] == "US-FRESH"
 
 
+@pytest.mark.us_531
 def test_heartbeat_multiple_workers_stale_detection(tmp_path: Path, monkeypatch: Any) -> None:
     """Verify detection correctly identifies stale workers among mixed states.
 
@@ -285,6 +289,7 @@ def test_heartbeat_multiple_workers_stale_detection(tmp_path: Path, monkeypatch:
     print(f"  worker-3: {workers_by_id['worker-3']['state']} (borderline)")
 
 
+@pytest.mark.us_531
 def test_heartbeat_malformed_file_skipped(tmp_path: Path, monkeypatch: Any) -> None:
     """Verify that malformed heartbeat files are gracefully skipped.
 
