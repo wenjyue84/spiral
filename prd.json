@@ -1728,7 +1728,16 @@
       "_antiPatterns": [
         "oversized_diff: produced 2761 lines but limit is 800. Keep total insertions+deletions under 800 lines."
       ],
-      "last_attempted": "2026-04-11T15:18:37Z"
+      "last_attempted": "2026-04-11T15:18:37Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n`tests/test_check_federated_deps.py` exists with 26 tests, all passing. It was committed in US-685 and covers cycles, orphans, and namespace validation.\n\n## Problem Identified\nUS-1210 needs regression tests for US-685's `check-federated-deps` feature. Those tests already exist and pass — the story just needs to be marked `passes: true`.\n\n## Planned Changes\n- Run mypy/lint to confirm quality\n- Update `prd.json`: set `passes: true` for US-1210\n- Update `progress.txt`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\", \"progress.txt\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\nAll checks pass. Now update prd.json:\nNow append to progress.txt and commit:\n58 lines, well within the 800 limit.\nDone. US-1210 is complete.\n\n**What happened:** The regression tests for `check-federated-deps` (US-685) already existed in `tests/test_check_federated_deps.py` with 26 passing tests. The previous attempt failed by trying to create a duplicate test file + adding unrelated UCB1 routing code (~2761 lines). This attempt:\n\n1. Recognized the tests already existed and passed\n2. Fixed 2 mypy strict errors (`dict[str, list]` → `dict[str, list[Any]]`)\n3. Verified 26/26 tests pass, mypy clean, ruff clean\n4. Marked `passes: true` and committed (57 lines total)"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 460,
+        "tokensAfterMasking": 459,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1211",
