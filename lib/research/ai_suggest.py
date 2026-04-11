@@ -21,6 +21,7 @@ Story generation:
 """
 
 import argparse
+import glob
 import json
 import os
 import re
@@ -59,6 +60,47 @@ def clear_queue(queue_path: str) -> None:
         pass
 
 
+def load_learned_patterns(patterns_dir: str = ".spiral") -> list[str]:
+    """Load latest learned patterns and extract top 5 by frequency.
+
+    Returns:
+        List of formatted pattern strings (e.g., "Pattern: ... (frequency: N)")
+        Empty list if no patterns file found or patterns cannot be extracted.
+    """
+    # Find all learned_patterns_iter_*.json files
+    pattern_files = glob.glob(os.path.join(patterns_dir, "learned_patterns_iter_*.json"))
+    if not pattern_files:
+        return []
+
+    # Sort to get the highest-numbered file (most recent iteration)
+    latest_file = sorted(pattern_files)[-1]
+
+    try:
+        with open(latest_file, encoding="utf-8") as f:
+            data: dict[str, Any] = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+
+    # Extract patterns — expect {"patterns": [{"pattern": "...", "frequency": N}, ...]}
+    patterns_list: list[dict[str, Any]] = data.get("patterns", [])
+    if not patterns_list:
+        return []
+
+    # Sort by frequency (descending) and take top 5
+    sorted_patterns = sorted(patterns_list, key=lambda p: p.get("frequency", 0), reverse=True)
+    top_patterns = sorted_patterns[:5]
+
+    # Format as bullet points
+    formatted: list[str] = []
+    for p in top_patterns:
+        pattern_text = p.get("pattern", "")
+        frequency = p.get("frequency", 0)
+        if pattern_text:
+            formatted.append(f"- {pattern_text} (frequency: {frequency})")
+
+    return formatted
+
+
 def _claude_cmd() -> str:
     """Return the Claude CLI executable, using .cmd on Windows."""
     if sys.platform == "win32":
@@ -67,7 +109,12 @@ def _claude_cmd() -> str:
 
 
 def _build_prompt(
-    prd: dict[str, Any], existing_titles: list[str], completed_titles: list[str], focus: str, n: int
+    prd: dict[str, Any],
+    existing_titles: list[str],
+    completed_titles: list[str],
+    focus: str,
+    n: int,
+    patterns: list[str] | None = None,
 ) -> str:
     goals: list[str] = prd.get("goals", [])
     goals_str = "\n".join(f"{i + 1}. {g}" for i, g in enumerate(goals)) or "(no goals defined)"
@@ -84,6 +131,12 @@ def _build_prompt(
         )
         dedup_instruction = ' Avoid any similarity to the "Already Done" section.'
 
+    # Learned patterns section (if any)
+    patterns_section = ""
+    if patterns:
+        patterns_str = "\n".join(patterns)
+        patterns_section = f"\n\nLessons Learned from Past Implementations:\n{patterns_str}\n"
+
     return f"""\
 You are a product owner for SPIRAL (a self-iterating autonomous development system written in Python + Bash).
 
@@ -91,7 +144,7 @@ Project goals:
 {goals_str}
 {focus_line}
 These stories exist (pending or in progress) — context only:
-{titles_str}{completed_section}
+{titles_str}{completed_section}{patterns_section}
 
 Suggest exactly {n} new user stories that advance the project goals above.{dedup_instruction}
 Each story MUST:
@@ -112,12 +165,13 @@ def _suggest_via_llm(
     focus: str,
     n: int,
     model: str | None = None,
+    patterns: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     if n <= 0:
         return []
     if model is None:
         model = os.environ.get("SPIRAL_AI_SUGGEST_MODEL", _DEFAULT_MODEL)
-    prompt = _build_prompt(prd, existing_titles, completed_titles, focus, n)
+    prompt = _build_prompt(prd, existing_titles, completed_titles, focus, n, patterns=patterns)
     cmd = [
         _claude_cmd(),
         "-p",
@@ -262,6 +316,9 @@ def main() -> int:
             if title:
                 completed_titles.append(title)
 
+    # Load learned patterns from Phase L (US-1213)
+    learned_patterns = load_learned_patterns()
+
     # Check pending cap — skip LLM call if already at limit
     if args.max_pending > 0 and args.pending >= args.max_pending:
         print(f"  [A] Pending cap reached ({args.pending}/{args.max_pending}) — skipping LLM suggest")
@@ -274,11 +331,14 @@ def main() -> int:
             completed_titles=completed_titles,
             focus=args.focus,
             n=args.max_suggest,
+            patterns=learned_patterns,
         )
         if generated:
             print(f"  [A] Generated {len(generated)} AI suggestion(s) via LLM")
         if completed_titles:
             print(f"  [A] Injected {len(completed_titles)} completed stories into prompt for dedup")
+        if learned_patterns:
+            print(f"  [A] Injected {len(learned_patterns)} learned pattern(s) into prompt")
 
     all_suggestions = queued + generated
 
