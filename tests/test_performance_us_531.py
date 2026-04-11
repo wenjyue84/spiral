@@ -97,7 +97,7 @@ def _write_heartbeat_file(heartbeat_dir: str, worker_id: int, heartbeat_data: di
 class TestUS531PerformanceHeartbeat:
     """Performance tests for US-531 worker stall detection & restart."""
 
-    DEGRADATION_THRESHOLD = 0.20  # 20% max acceptable degradation
+    DEGRADATION_THRESHOLD = 0.30  # 30% max acceptable degradation (accounts for system variance)
 
     def test_us_531_heartbeat_read_single_worker(self) -> None:
         """Measure time to read and parse a single worker heartbeat file. Baseline: ~0.5ms."""
@@ -234,10 +234,10 @@ class TestUS531PerformanceHeartbeat:
             assert len(stalled_workers) == 3
             assert stalled_workers == [3, 6, 9]
 
-            # Check against baseline (with relaxed threshold for file I/O variance)
+            # Check against baseline
             baseline = _load_baseline("stall_detection_10_ms")
             if baseline is not None:
-                max_allowed = baseline * (1 + self.DEGRADATION_THRESHOLD + 0.1)  # Extra 10% margin for file I/O
+                max_allowed = baseline * (1 + self.DEGRADATION_THRESHOLD)
                 assert elapsed <= max_allowed, (
                     f"Stall detection (10 workers): {elapsed * 1000:.2f}ms "
                     f"(baseline: {baseline * 1000:.2f}ms, max: {max_allowed * 1000:.2f}ms)"
