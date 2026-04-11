@@ -1492,8 +1492,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T10:17:25Z"
     },
     {
       "id": "US-1199",
@@ -1647,75 +1648,6 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_629 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1208",
-      "title": "[Performance Test] Phase I: Distribute Federated Stories to Workers by Sub-Project with Isolated Wor",
-      "priority": "medium",
-      "description": "Write performance benchmark for the operation in US-636. Story description: Extend Phase I parallel worker distribution to respect sub_project field in federated prd.json. Route stories to dedicated sub-project workers, prevent cross-project file contamination, ensure each worktree is isolated to its sub-project namespace.",
-      "acceptanceCriteria": [
-        "Performance test measures key metrics for US-636",
-        "Baseline captured and acceptable threshold defined",
-        "Test fails if response time degrades more than 20% from baseline"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_636 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1209",
-      "title": "[Regression Test] CLI: spiral trace-dependencies <story-id> - Federated Cross-Project Dependency Res",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-675. Story description: New CLI command that recursively resolves and visualizes a story's full dependency chain across federated sub-projects. Detects circular dependencies, displays file paths, and marks sub-project boundaries. Critical for multi-project workflows where US-001 in project-a may depend on PROJECT-B-US-005.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-675",
-        "Test would reliably fail if the US-675 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_675 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1210",
-      "title": "[Regression Test] CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Mu",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-685. Story description: New CLI command that validates federated prd.json for dependency graph issues: circular dependencies (A→B→C→A), orphan stories (missing sub-project references), and namespace conflicts.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-685",
-        "Test would reliably fail if the US-685 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_685 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1211",
-      "title": "[Regression Test] Integration Test: Federated Phase G with Cross-Project CHANGELOG and Dependency Or",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-697. Story description: Add integration test verifying Phase G correctly generates CHANGELOG.md when using federated prd.json with multiple sub-projects that have cross-project story dependencies. Validates story ordering in CHANGELOG respects dependency graph.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-697",
-        "Test would reliably fail if the US-697 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_697 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
