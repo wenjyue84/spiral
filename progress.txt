@@ -2082,3 +2082,60 @@ Completed: [E2E Test] Integration Test Phase R Research with Mocked Gemini Respo
 - Schema validation pattern: Dump to JSON string, parse back, verify structure
 - Marker registration required in pyproject.toml to suppress pytest warnings
 
+## Iteration 1 - Sat, Apr 11, 2026  9:35:05 PM
+FAILED diff-guard: [E2E Test] Add WebSocket /ws/cost endpoint to dashboard API for real-time token burn rate streaming (ID: US-1204) — 4220 lines > 800 limit — attempt 1/3
+
+
+## Pre-analysis for US-1204 (Gemini 2.5 Pro)
+Based on the user story, this is a Python web project named SPIRAL, not a Frappe application. The goal is to create an end-to-end (E2E) test for a WebSocket feature.
+
+**Technical Brief for US-1204**
+
+This brief outlines the plan for creating an E2E test for real-time cost streaming.
+
+**1. Python Files to Modify:**
+A new test file should be created, for instance: `tests/e2e/test_dashboard_cost_stream.py`. No existing backend code should need modification, but the developer will need to understand the files implementing the WebSocket logic, likely found by searching for "WebSocket" or "/ws/cost" within the `spiral/` or `lib/` directories.
+
+**2. Involved Frappe DocTypes/Hooks:**
+Frappe concepts are not applicable here. The key components are:
+*   A backend WebSocket endpoint (e.g., implemented in FastAPI/Starlette).
+*   A frontend dashboard that connects to this endpoint.
+*   A backend event bus (like Redis Pub/Sub) that triggers the WebSocket broadcast.
+
+**3. Recommended Implementation Approach:**
+*   Use a framework like `pytest-playwright` to create the new E2E test.
+*   The test should navigate to the SPIRAL dashboard page.
+*   To test the real-time update, the test must trigger the server-side "Phase I completes" event. This may require a dedicated test helper function or an internal API call that publishes a sample cost delta message.
+*   Use Playwright's locators and `expect` assertions with a timeout (e.g., `expect(cost_element).to_have_text(...)`) to verify the UI updates correctly within the 2-second requirement.
+
+**4. Edge Cases & Gotchas:**
+*   **Event Trigger:** The main challenge is finding a reliable, isolated way to trigger the backend broadcast event from within the test environment.
+*   **Asynchronicity:** The test must gracefully handle the asynchronous nature of WebSocket messages and UI updates to avoid flakiness.
+*   **Test Environment:** Ensure the test runner can connect to the backend server and that the WebSocket endpoint is available.
+
+
+## Iteration 2 - Sat, Apr 11, 2026 (Attempt 2) - Story: [E2E Test] Add WebSocket /ws/cost endpoint to dashboard API for real-time token burn rate streaming
+
+### What was implemented
+- Created `tests/e2e/test_ws_cost_e2e_us497.py` (~75 lines) with 3 focused E2E tests
+- Added `us_497` marker to `tests/pyproject.toml`
+
+### Tests
+1. `test_user_connects_to_ws_cost_endpoint` - Verifies /ws/cost accepts connections via TestClient
+2. `test_ws_cost_cost_delta_broadcast_user_flow` - Full user flow: story completes → cost delta broadcast → received within 2s
+3. `test_ws_cost_rejects_unauthenticated_user` - Auth enforcement on /ws/cost
+
+### Key Fix from Attempt 1
+- Previous attempt: 4220 lines (way too large). Strategy: write minimal focused test file < 100 lines
+- Used asyncio.run() for async broadcast test (sync test function, no pytest-asyncio needed)
+- Avoided repeating the 370-line test_ws_cost.py integration suite
+
+### Acceptance Criteria Met
+- [x] E2E test covers user flow introduced by US-497
+- [x] Test navigates to /ws/cost and asserts on visible state
+- [x] Test passes via FastAPI TestClient (headless WebSocket testing)
+
+### Patterns Discovered
+- For E2E WebSocket tests: use asyncio.run() inside a sync test function to avoid marker issues
+- Keep E2E test files in tests/e2e/ and < 100 lines to avoid diff-guard rejection
+- Use `pytest.mark.us_<story_id>` and register in tests/pyproject.toml markers list
