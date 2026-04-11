@@ -1096,3 +1096,33 @@ This story is for a `pytest` and Playwright E2E test; the initial context about 
 *   Ensure tests are idempotent by clearing the SQLite DB and `results.tsv` on setup/teardown.
 *   The frontend is likely asynchronous; use Playwright's `expect()` and web-first assertions to wait for elements to stabilize before asserting.
 *   The test depends on the full stack (data store, API, UI). Confirm the API is running before the E2E test suite is initiated.
+## Iteration 1 - Sat, Apr 11, 2026  3:32:51 PM
+Completed: [E2E Test] Dashboard Persistence: SQLite Historical Metrics Store for 7-Day Trends (ID: US-1190) in 18m
+
+
+## Pre-analysis for US-1191 (Gemini 2.5 Pro)
+Based on the user story, here is a technical brief for the implementation:
+
+**Project:** Spiral Python Application
+**Story:** US-1191 - E2E Test for Phase Burn Rate Dashboard
+
+**1. Python Files to Modify:**
+*   **New File:** `tests/test_us1030_e2e_burn_rate.py`. The technical notes (`-k us_1030`) suggest a dedicated test file.
+*   **Reference File:** The API endpoint logic for `/api/dashboard/phase-burn-rate` is likely located in `main.py` or a file within the `spiral/` or `lib/` directory. This should be reviewed to understand the calculation logic.
+*   **Possible Addition:** `tests/conftest.py` might need a new pytest fixture to create a temporary `results.tsv` for the test.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. The project is a Python web application, not a Frappe application. No Frappe elements are involved.
+
+**3. Recommended Implementation Approach:**
+1.  Use `pytest` with a browser testing library like `pytest-playwright` (as implied by the AC).
+2.  Create a pytest fixture that generates a mock `results.tsv` file with predictable data and timestamps.
+3.  The test function should launch the app and navigate to the UI page that displays the phase burn rate.
+4.  Use browser locators to find the HTML elements for "current" and "30-second lagging average" rates.
+5.  Assert that the values displayed on the page correctly match calculations based on the mock `results.tsv` data.
+
+**4. Edge Cases & Gotchas:**
+*   **Data Source:** The test must create and clean up its own `results.tsv` file to ensure repeatable results.
+*   **Lagging Average:** The mock data's timestamps must be crafted carefully to validate the 30-second lagging average calculation.
+*   **UI State:** Test for scenarios where `results.tsv` is empty or contains no recent data, and assert the UI displays a sensible default (e.g., "0" or "N/A").
+

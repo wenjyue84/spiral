@@ -1349,11 +1349,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T07:11:42Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\n- Unit tests for `lib/metrics_store.py` exist but the module doesn't\n- The E2E test for US-1190 depends on the metrics store being implemented\n- The API endpoint `/api/dashboard/metrics` doesn't exist in main.py\n- All infrastructure is in place; just needs implementation\n\n## Problem Identified\n\nUS-1190 requires US-1051 (SQLiteMetricsStore) to be implemented first. The test file `tests/test_metrics_store.py` expects the module to exist and provides clear spec of what's needed.\n\n## Planned Changes\n\n1. **lib/metrics_store.py** — Create SQLiteMetricsStore class with:\n   - `insert_from_results_tsv(tsv_path)` — Ingest results.tsv rows\n   - `query_by_date_range(start_date, end_date)` — Query time-series data\n\n2. **main.py** — Add GET `/api/dashboard/metrics` endpoint that:\n   - Accepts `start_date` and `end_date` query parameters\n   - Returns time-series trend data\n\n3. **tests/test_e2e_dashboard_metrics.py** — Create E2E test with Playwright that:\n   - Navigates to dashboard with metrics data\n   - Verifies API endpoint and UI rendering\n   - Uses existing dashboard infrastructure at localhost:5299\n\n<plan>\n{\n  \"files_to_create\": [\n    \"lib/metrics_store.py\",\n    \"tests/test_e2e_dashboard_metrics.py\"\n  ],\n  \"files_to_modify\": [\n    \"main.py\"\n  ],\n  \"functions_to_add\": [\n    \"SQLiteMetricsStore.__init__\",\n    \"SQLiteMetricsStore.insert_from_results_tsv\",\n    \"SQLiteMetricsStore.query_by_date_range\",\n    \"metrics_endpoint (in main.py)\"\n  ],\n  \"estimated_loc\": 200\n}\n</plan>\n\nNow let me implement this step by step.\nI need to fix the error handling to insert malformed rows with safe defaults instead of skipping them.\nLet me add the metrics endpoint to server.ts. I'll create an endpoint that reads from the SQLite database using Python via a child process.\nNow let me create the E2E test for US-1190. This test should cover the user flow of querying metrics from the dashboard.\nNow I need to add the /api/dashboard/metrics endpoint to server.ts. Let me insert it before the server starts.\nLet me fix the test to handle the case where the dashboard is not running:\nPerfect! All tests pass. Let me now commit the changes.\nPerfect! Story **US-1190** has been successfully implemented and all tests pass. Here's a summary:\n\n## Implementation Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1191",
@@ -1508,6 +1504,95 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_729 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1200",
+      "title": "[Regression Test] CLI: spiral explain-retry <story_id> - Analyze Retry Pattern and Suggest Decomposi",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-728. Story description: Read results.tsv for a given story_id, show full retry sequence (model escalations, durations, error messages), analyze error patterns, and suggest atomic sub-story decomposition based on failed file patterns",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-728",
+        "Test would reliably fail if the US-728 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_728 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1201",
+      "title": "[Performance Test] Use Claude Message Batches API for Phase S multi-story validation",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-390. Story description: Phase S currently validates stories sequentially via individual Claude API calls. Submitting all pending story validation requests as a single Message Batches API request cuts cost by 50% and enables asynchronous processing of up to 10,000 stories per batch, completing in under 1 hour. This also unlocks stacking with prompt caching discounts for further savings.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-390",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_390 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1202",
+      "title": "[Regression Test] Implement worker crash recovery using git worktree state snapshots",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-461. Story description: Detect when Ralph workers crash with detached HEAD or incomplete commits and automatically recover by reverting to last known-good state on main branch",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-461",
+        "Test would reliably fail if the US-461 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_461 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1203",
+      "title": "[E2E Test] Integration Test Phase R Research with Mocked Gemini Responses",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-491. Story description: Add end-to-end integration test for Phase R that mocks Gemini web search API and validates _research_output.json schema compliance",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-491",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_491 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1204",
+      "title": "[E2E Test] Add WebSocket /ws/cost endpoint to dashboard API for real-time token burn rate streaming",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-497. Story description: Extend SPIRAL self-monitoring dashboard with WebSocket support so cost deltas stream in real-time (within 2s) instead of polling. When Phase I completes a story, broadcast cost delta to all connected dashboard clients.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-497",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Source files from US-497: .coverage, .hypothesis/tmp/tmp0_6cugyv, .hypothesis/tmp/tmp0foc4z1u, .hypothesis/tmp/tmp14ubuxgu, .hypothesis/tmp/tmp1ph8xyfi",
+        "Run: uv run pytest tests/ -k us_497 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
