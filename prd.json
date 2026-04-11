@@ -1605,7 +1605,16 @@
       "_antiPatterns": [
         "oversized_diff: produced 4220 lines but limit is 800. Keep total insertions+deletions under 800 lines."
       ],
-      "last_attempted": "2026-04-11T13:35:07Z"
+      "last_attempted": "2026-04-11T13:35:07Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `tests/test_ws_cost.py` exists (370 lines) — unit/integration tests for WebSocket cost broadcasting\n- `lib/dashboard/api.py` has `/ws/cost` endpoint at line 615\n- `lib/dashboard/cost_broadcaster.py` has the `broadcast_cost_delta` and `ConnectionManager`\n- `tests/e2e/` has E2E test pattern using TestClient + async fixtures\n\n## Problem Identified\nUS-1204 needs an E2E test for the `/ws/cost` user flow (US-497 feature). Previous attempt generated 4220 lines (exceeded 800 limit). Need a focused <100 line test file.\n\n## Planned Changes\n- Create `tests/e2e/test_ws_cost_e2e_us497.py` (~75 lines) with 3 focused E2E tests using `pytest.mark.us_497`\n- Add `us_497` marker to `tests/pyproject.toml`\n\n<plan>\n{\n  \"files_to_create\": [\"tests/e2e/test_ws_cost_e2e_us497.py\"],\n  \"files_to_modify\": [\"tests/pyproject.toml\"],\n  \"functions_to_add\": [\"test_user_connects_to_ws_cost_endpoint\", \"test_ws_cost_cost_delta_broadcast_user_flow\", \"test_ws_cost_rejects_unauthenticated_user\"],\n  \"estimated_loc\": 80\n}\n</plan>\nAll 3 tests pass. Let me check the diff size:\nGood - the new E2E test file is untracked. Now let me update prd.json and progress.txt:\n193 lines total — well within the 800-line limit. Let me commit:\nDone. Here's what was implemented:\n\n**US-1204 — `/ws/cost` E2E test** ✅\n\nCreated `tests/e2e/test_ws_cost_e2e_us497.py` (75 lines) with 3 focused tests:\n\n1. **`test_user_connects_to_ws_cost_endpoint`** — user navigates to `/ws/cost`, connection is accepted\n2. **`test_ws_cost_cost_delta_broadcast_user_flow`** — full user flow: story completes → cost delta broadcast → message received with correct schema (`story_id`, `cost_delta`, `timestamp`)\n3. **`test_ws_cost_rejects_unauthenticated_user`** — auth enforcement rejects wrong API key\n\n**Key fix vs Attempt 1:** Previous attempt was 4220 lines. This is 75 lines by using `asyncio.run()` inside sync test functions and avoiding duplication with the existing 370-line `test_ws_cost.py` integration suite.\n\nAll 3 tests pass. Diff size: 193 lines (well under 800 limit)."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 291,
+        "tokensAfterMasking": 291,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1205",

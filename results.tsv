@@ -50,3 +50,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T12:30:32Z	19	1	US-1201	[Performance Test] Use Claude Message Batches API for Phase S multi-story validation	keep	792	haiku	0	b03bd697d6b1aacd7b6e50cb0f60372a510e73ab	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T12:43:06Z	19	2	US-1200	[Regression Test] CLI: spiral explain-retry <story_id> - Analyze Retry Pattern and Suggest Decomposi	keep	722	haiku	0	3fe34ec70d7d1fe9f9f38daf41ad487a293632c6	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T13:03:26Z	20	1	US-1202	[Regression Test] Implement worker crash recovery using git worktree state snapshots	keep	849	haiku	0	8bab52c67c8a58baf59a879ddcf68d5d27aaf463	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-11T13:35:05Z	21	1	US-1204	[E2E Test] Add WebSocket /ws/cost endpoint to dashboard API for real-time token burn rate streaming	reject	684	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
