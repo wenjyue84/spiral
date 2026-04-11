@@ -1528,11 +1528,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T11:42:03Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- US-728 implementation exists in `lib/commands/explain_retry.py` with two main functions:\n  - `explain_retry_sequence()`: reads results.tsv for a story_id and returns full retry sequence with attempt metadata\n  - `suggest_decomposition()`: aggregates failed_files patterns and suggests story splits\n- The feature is integrated into main.py's CLI via `cmd_explain_retry()`\n- Recent test regression pattern (US-729) shows class/function names must include story ID for `-k` filter discovery\n\n## Problem Identified\nNo regression test exists for US-728. Without it, the `spiral explain-retry` command and its decomposition suggestions could be broken or removed without detection. The test needs to:\n1. Verify retry sequence extraction from results.tsv\n2. Verify decomposition suggestions from failed file patterns\n3. Verify error category classification\n4. Test edge cases and boundary conditions\n\n## Planned Changes\n- Create `tests/test_explain_retry_us728.py` with comprehensive regression test suite:\n  - `TestUS728ExplainRetrySequence` — 5 tests for sequence extraction\n  - `TestUS728DecompositionSuggestion` — 4 tests for decomposition logic\n  - `TestUS728ErrorCategorization` — 3 tests for error classification\n  - `TestUS728EdgeCases` — 4 tests for boundary conditions\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_explain_retry_us728.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_us_728_sequence_basic\", \"test_us_728_sequence_escalation\", \"test_us_728_decompose_multiple_dirs\", \"test_us_728_categorize_scope_overrun\"],\n  \"estimated_loc\": 85\n}\n</plan>\n\nNow I'll create the regression test:\nPerfect! I have successfully implemented story **US-1200** - a comprehensive regression test for the US-728 feature (`spiral explain-retry`).\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1201",
@@ -1730,6 +1726,58 @@
       ]
     },
     {
+      "id": "US-1211",
+      "title": "[Regression Test] Integration Test: Federated Phase G with Cross-Project CHANGELOG and Dependency Or",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-697. Story description: Add integration test verifying Phase G correctly generates CHANGELOG.md when using federated prd.json with multiple sub-projects that have cross-project story dependencies. Validates story ordering in CHANGELOG respects dependency graph.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-697",
+        "Test would reliably fail if the US-697 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "In ralph.sh around line 700 (before spawning Claude), find the most similar passed story",
+        "Use jq to extract passed stories filesTouch arrays from prd.json",
+        "Jaccard similarity: intersection/union of filesTouch arrays",
+        "git show <commit_hash> --stat to get the diff, pipe to head -200 for truncation",
+        "_passedCommit field on stories holds the commit hash",
+        "Inject as: echo \"## Reference: Similar story US-XXX implementation\" >> context_file"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku",
+      "filesTouch": [
+        "ralph/ralph.sh",
+        "ralph/lib/model_routing.sh"
+      ]
+    },
+    {
+      "id": "US-1212",
+      "title": "[E2E Test] Phase M Story Reordering by Dependency Graph for Optimal Merge Order",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-698. Story description: Topologically sort pending stories by dependency graph before merge to minimize implementation conflicts and rework. Stories should be merged after their dependencies are satisfied.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-698",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Story picker is in spiral.sh Phase I block — look for NEXT_STORY selection logic",
+        "Add a Python helper lib/routing/story_scorer.py that takes prd.json + results.tsv and outputs story ID",
+        "Score = P(success) * priority_weight * (1 / (1 + retry_count))",
+        "P(success) from results.tsv: group by (model, complexity, tag_prefix), compute pass_rate",
+        "Requires US-1210 UCB1 data — same results.tsv parsing can be shared"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku",
+      "filesTouch": [
+        "spiral.sh",
+        "lib/routing/route_stories.py"
+      ]
+    },
+    {
       "id": "US-1213",
       "title": "Phase A: Read Phase L learned patterns and inject into gap analysis prompt",
       "description": "Sub-story of US-1209. Read the latest .spiral/learned_patterns_iter_*.json file in ai_suggest.py. Extract the top 5 patterns by frequency. Append them as a Lessons Learned section to the LLM prompt used for gap analysis. If no patterns file exists, skip silently.",
@@ -1793,6 +1841,57 @@
         "phase-i",
         "shinka-evolve"
       ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1215",
+      "title": "[Regression Test] Phase A: Constitution-Aware Story Generation with Quality Scoring",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-791. Story description: Score AI-generated story candidates against the constitution before proposing them to Phase S. Low-score candidates are filtered pre-validation, reducing wasted Phase S cycles and improving story quality from the source.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-791",
+        "Test would reliably fail if the US-791 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_791 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1216",
+      "title": "[Regression Test] Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-772. Story description: After Phase I completes a research-sourced story, tag it with implementation metrics (pass/fail, retry count, cost). Aggregate scores per research prompt to identify which strategies yield implementable stories.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-772",
+        "Test would reliably fail if the US-772 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_772 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1217",
+      "title": "[Regression Test] Phase T: Flaky Test Detection - Skip Story Generation for Intermittent Failures",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-774. Story description: Track test failure history across iterations. Tests failing <50% of the time across last 5 iterations are flagged flaky and excluded from story generation.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-774",
+        "Test would reliably fail if the US-774 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_774 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     }
   ]

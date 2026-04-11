@@ -1750,3 +1750,49 @@ This brief is for implementing a regression test for the `spiral explain-retry` 
 *   `story_id` not found within the `results.tsv` file.
 *   Stories with no retries or only successful attempts.
 *   Ensuring the test does not rely on any global state or existing `results.tsv` files.
+## Iteration 1 - Sat, Apr 11, 2026  8:01:57 PM
+Completed: [Regression Test] CLI: spiral explain-retry <story_id> - Analyze Retry Pattern and Suggest Decomposi (ID: US-1200) in 17m
+
+
+## Pre-analysis for US-1201 (Gemini 2.5 Pro)
+Based on the user story JSON and project context, this is a Python project, not a Frappe application. The request to analyze it for a "Frappe/Python user story in the lhdn_payroll_integration app" appears to be incorrect.
+
+Here is the technical brief for implementing the performance test as described in story US-1201.
+
+---
+
+### **Technical Brief: US-1201 Performance Benchmark**
+
+This brief outlines the implementation strategy for creating a performance test for the Claude Message Batches API integration used in multi-story validation.
+
+**1. Files to Modify / Create:**
+
+*   **`tests/performance/test_batch_validation_perf.py` (New File):** A new test file should be created to house the performance benchmark. Using a separate `performance` subdirectory keeps these specialized tests organized.
+*   **`lib/batch_validate.py` (Primary Target):** This is the most likely location for the core logic of US-390, which orchestrates the batching and submission of stories to the Claude API. The performance test will call functions within this file.
+*   **`tests/test_batch_validate.py`:** The existing functional test for US-390 (run with `-k us_390`) should be reviewed for existing mocks and fixtures that can be reused.
+
+**2. Involved Frappe/Python Components:**
+
+*   **Frappe Components:** None. This is not a Frappe project.
+*   **Python Components:**
+    *   **`pytest`:** The primary testing framework.
+    *   **`pytest-benchmark`:** The recommended library for creating and managing performance benchmarks.
+    *   **`unittest.mock`:** To mock the actual Claude API client, preventing real API calls during tests.
+
+**3. Recommended Implementation Approach:**
+
+1.  **Setup Benchmark:** In the new performance test file, use the `@pytest.mark.benchmark` group.
+2.  **Create Data Fixture:** Implement a pytest fixture that generates a large, configurable number of mock "story" objects (e.g., 1,000+) to simulate a realistic batch.
+3.  **Mock API Client:** Mock the Claude API client used in `lib/batch_validate.py`. The mock should simulate the asynchronous nature of the Batch API, returning a pre-canned successful response after a realistic delay without making a network call.
+4.  **Write Test Function:** Create a test function `test_batch_validation_performance(benchmark, mock_stories_fixture)`.
+5.  **Execute & Measure:** Inside the test, call the main batch validation function (e.g., `run_batch_validation(mock_stories_fixture)`) wrapped in the `benchmark()` callable.
+6.  **Establish Baseline:** Run the test once to establish a baseline execution time. Store this baseline value, for example, in a JSON file or directly in the test code.
+7.  **Assert Against Threshold:** Add an assertion to fail the test if `benchmark.stats.mean` exceeds the established baseline by more than the 20% acceptance criteria.
+
+**4. Edge Cases & Gotchas:**
+
+*   **API Mocking:** The mock must be robust. It should not only prevent egress calls but also accurately simulate the expected data structure in the response to ensure the code path is fully exercised.
+*   **Test Data Volume:** The volume of mock stories should be high enough to provide meaningful performance data but low enough to not excessively slow down the CI/CD pipeline or consume too much memory.
+*   **Baseline Stability:** Performance benchmarks can be sensitive to the host machine's load. The baseline should be established in a controlled environment, and tests should be run with flags like `--benchmark-disable-gc` to improve result stability.
+*   **Asynchronous Behavior:** The test must correctly handle and measure the total time for the asynchronous batch operation, which may involve polling for a result. The mock should facilitate simulating this workflow.
+
