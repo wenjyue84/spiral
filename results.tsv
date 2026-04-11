@@ -64,3 +64,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T16:26:01Z	26	1	US-1215	[Regression Test] Phase A: Constitution-Aware Story Generation with Quality Scoring	reject	732	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-11T16:35:45Z	26	2	US-1215	[Regression Test] Phase A: Constitution-Aware Story Generation with Quality Scoring	keep	364	sonnet	1	8ce5e13c629525abac0680b3eb429a146d2c831b	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-11T17:08:55Z	27	1	US-1216	[Regression Test] Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome	reject	702	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-11T17:19:52Z	27	2	US-1216	[Regression Test] Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome	keep	489	sonnet	1	cf52feae386c9b2e7b29a1c2b9625c85ca5b1333	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				

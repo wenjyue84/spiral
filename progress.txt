@@ -2741,3 +2741,33 @@ This is a Python/pytest project, not a Frappe application. The user story requir
 ### Gotchas
 - Previous attempt created 2815-line diff by writing too much. Minimal 67-line file suffices.
 - No need to duplicate test_research_quality.py tests; 3 targeted tests covering core AC are enough
+## Iteration 2 - Sun, Apr 12, 2026  1:19:52 AM
+Completed: [Regression Test] Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome (ID: US-1216) in 8m
+
+
+## Pre-analysis for US-1217 (Gemini 2.5 Pro)
+Based on the user story, this is a technical brief for the implementation agent.
+
+**Objective:** Create a pytest regression test for feature US-774, which identifies and excludes intermittently failing ("flaky") tests from the story generation process.
+
+**Affected Files:**
+*   **`lib/flaky_detector.py`**: The main subject of the test. Contains the logic for identifying flaky failures.
+*   **`lib/generate_test_stories.py`**: The consumer of the flaky flag. The test should verify that this module skips story creation for flaky tests.
+*   **`tests/test_flaky_detector.py`** (New File): The new regression test file. It should be discoverable with `pytest -k us_774`.
+
+**Frappe Context:**
+*   No Frappe DocTypes or hooks are relevant. The project is a Python application, and the "Frappe" context appears to be erroneous.
+
+**Implementation Approach:**
+1.  Create `tests/test_flaky_detector.py`.
+2.  In the test, mock the data source that provides test failure history across iterations.
+3.  Simulate a test failing less than 50% of the time (e.g., 2 out of 5 runs).
+4.  Call the flaky detection logic and assert the test is flagged as flaky.
+5.  Verify that the story generation process is subsequently skipped.
+6.  Add a counter-example test for a consistently failing test (e.g., 5 out of 5 runs) to ensure it is NOT flagged as flaky.
+
+**Gotchas & Edge Cases:**
+*   Test the boundary condition: a failure rate of exactly 50%.
+*   Verify behavior for tests with fewer than 5 historical runs.
+*   Ensure a brand new failure is not incorrectly flagged as flaky.
+

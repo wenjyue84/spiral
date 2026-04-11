@@ -1876,21 +1876,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_failureReason": "oversized_diff: produced 2815 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 2815 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ],
-      "last_attempted": "2026-04-11T17:08:57Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`lib/research_quality.py` implements US-772: scoring research stories by retry count, aggregating quality metrics. Tests exist in `test_research_quality.py` but none have `us_772` in names, so `-k us_772` matches nothing.\n\n## Problem Identified\nThe `uv run pytest tests/ -k us_772 -v` filter matches zero tests. A regression test file with `us_772` in the test function names is needed.\n\n## Planned Changes\n- Create `tests/test_regression_us_772.py` with 3 minimal regression tests named with `us_772` that import directly from `research_quality` module\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_regression_us_772.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_us_772_scoring_formula\", \"test_us_772_aggregate_filters_research_source\", \"test_us_772_aggregate_uses_retry_count\"],\n  \"estimated_loc\": 55\n}\n</plan>\nWait, `import pytest` is at the bottom — ruff will flag the import ordering. Let me fix that:\nLet me check how other tests import pytest to avoid ruff I001:\nThe import order looks correct. Let me run the tests to verify they pass:\nAll 3 tests pass. Now verify the `-k us_772` filter works and run pre-commit:\n3 passed. The errors are pre-existing, not from my changes. Run pre-commit on the new file:\nAll clean. Now check the diff size:\n67 lines. Now update prd.json to mark story as passing:\nNow update progress.txt and commit:\nDone. Here's a summary:\n\n**US-1216 implemented successfully.**\n\n- Created `tests/test_regression_us_772.py` — 67 lines, 3 targeted tests\n- Tests named `test_us_772_*` so `pytest -k us_772` finds them\n- Covers the core US-772 behaviors: scoring formula, source filtering, retry-count aggregation\n- All 3 tests pass; ruff, mypy clean\n\nThe key fix from attempt 1: instead of a large comprehensive test file (2815 lines), this is a minimal 67-line file with exactly the tests needed to guard against US-772 regression.\nThe mypy failures are all pre-existing errors in other files (`lib/research/research_cache.py`, `lib/core/locked_append_tsv.py`, etc.) — none are from my new test file. My file passed mypy cleanly (confirmed earlier with the direct run).\n\nThe story is done — commit `14c627f8` is already in place, US-1216 marked `passes: true`."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 512,
-        "tokensAfterMasking": 511,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1217",
@@ -2110,6 +2096,23 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_652 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1230",
+      "title": "[Regression Test] CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-642. Story description: New CLI command computing semantic similarity between story description and historical stories in results.tsv, outputting complexity score (1-10) and similar past story references. Helps triage stories and select initial model for Phase I.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-642",
+        "Test would reliably fail if the US-642 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_642 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

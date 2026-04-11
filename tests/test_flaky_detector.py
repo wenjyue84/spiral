@@ -25,6 +25,7 @@ def tmp_spiral_home():
         yield tmp
 
 
+@pytest.mark.us_774
 def test_record_test_result_creates_history_file(tmp_spiral_home):
     """AC: record_test_result() creates .spiral/test_failure_history.json"""
     test_id = "tests.unit.test_example.test_basic"
@@ -39,6 +40,7 @@ def test_record_test_result_creates_history_file(tmp_spiral_home):
     assert history[test_id]["results"] == [1]  # 1 = pass
 
 
+@pytest.mark.us_774
 def test_record_test_result_pass_fail(tmp_spiral_home):
     """AC: record_test_result() tracks passes and failures correctly"""
     test_id = "tests.unit.test_example.test_func"
@@ -53,6 +55,7 @@ def test_record_test_result_pass_fail(tmp_spiral_home):
     assert history[test_id]["results"] == [1, 0, 1]  # pass, fail, pass
 
 
+@pytest.mark.us_774
 def test_is_flaky_test_with_insufficient_history(tmp_spiral_home):
     """AC: is_flaky_test() returns False when < window_size results exist"""
     test_id = "tests.unit.test_example.test_insufficient"
@@ -64,6 +67,7 @@ def test_is_flaky_test_with_insufficient_history(tmp_spiral_home):
     assert not is_flaky_test(test_id, window_size=5, spiral_home=tmp_spiral_home)
 
 
+@pytest.mark.us_774
 def test_is_flaky_test_failing_once_in_five(tmp_spiral_home):
     """AC: test failing 1/5 iterations is flaky (20% failure rate < 50% threshold)"""
     test_id = "tests.unit.test_example.test_one_fail"
@@ -77,6 +81,7 @@ def test_is_flaky_test_failing_once_in_five(tmp_spiral_home):
     assert is_flaky_test(test_id, window_size=5, threshold=0.5, spiral_home=tmp_spiral_home)
 
 
+@pytest.mark.us_774
 def test_is_flaky_test_failing_three_in_five(tmp_spiral_home):
     """Test failing 3/5 (60%) is NOT flaky when threshold is 0.5"""
     test_id = "tests.unit.test_example.test_not_flaky"
@@ -90,6 +95,7 @@ def test_is_flaky_test_failing_three_in_five(tmp_spiral_home):
     assert not is_flaky_test(test_id, window_size=5, threshold=0.5, spiral_home=tmp_spiral_home)
 
 
+@pytest.mark.us_774
 def test_get_flaky_tests_returns_all_flaky(tmp_spiral_home):
     """AC: get_flaky_tests() returns list of all flaky tests"""
     # Record 3 tests: 2 flaky, 1 not flaky
@@ -121,6 +127,7 @@ def test_get_flaky_tests_returns_all_flaky(tmp_spiral_home):
     assert test_ids[2] not in flaky
 
 
+@pytest.mark.us_774
 def test_get_flaky_tests_with_rates(tmp_spiral_home):
     """AC: get_flaky_tests_with_rates() returns test names with failure rates"""
     test_id = "tests.unit.test_rates.test_example"
