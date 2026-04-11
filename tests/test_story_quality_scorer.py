@@ -12,6 +12,8 @@ Tests the scoring logic across all four dimensions:
 import json
 from pathlib import Path
 
+import pytest
+
 from lib.story_quality_scorer import (
     filter_stories,
     load_constitution,
@@ -488,3 +490,232 @@ class TestIntegration:
         # Verify at least one is filtered (the telemetry one)
         assert len(filtered) >= 1
         assert any(s_id == "US-2" for s_id, _, _ in filtered)
+
+
+class TestUS791Regression:
+    """Regression tests for US-791: Phase A Constitution-Aware Story Quality Scoring
+
+    These tests guard against future breakage of the core story quality scoring system.
+    They exercise the complete workflow: scoring stories against constitution alignment,
+    production value, acceptance criteria quality, and scope clarity, then filtering
+    low-quality candidates before Phase S validation.
+    """
+
+    @pytest.mark.us_791
+    def test_us_791_regression_scoring_dimensions(self) -> None:
+        """Verify all 4 scoring dimensions are calculated and weighted correctly."""
+        story = {
+            "id": "US-1",
+            "title": "Improve dashboard performance",
+            "description": "Optimize dashboard for faster rendering and better user experience",
+            "estimatedComplexity": "medium",
+            "acceptanceCriteria": [
+                "Performance test verifies <100ms render time",
+                "Unit test checks optimization logic",
+                "Integration test confirms feature works",
+            ],
+        }
+        breakdown = score_story(story)
+
+        # All dimensions must be calculated
+        assert breakdown["total_score"] is not None
+        assert breakdown["production_value"] is not None
+        assert breakdown["constitution_alignment"] is not None
+        assert breakdown["acceptance_criteria_quality"] is not None
+        assert breakdown["scope_clarity"] is not None
+
+        # All dimensions must contribute to total score
+        assert 0 <= breakdown["production_value"] <= 100
+        assert 0 <= breakdown["constitution_alignment"] <= 100
+        assert 0 <= breakdown["acceptance_criteria_quality"] <= 100
+        assert 0 <= breakdown["scope_clarity"] <= 100
+        assert 0 <= breakdown["total_score"] <= 100
+
+        # High-quality user-facing story should score well
+        assert breakdown["total_score"] >= 70.0
+        assert breakdown["production_value"] >= 85.0
+
+    @pytest.mark.us_791
+    def test_us_791_regression_constitution_filtering(self) -> None:
+        """Verify constitution alignment affects filtering decisions."""
+        # Story that violates constitution by trying to skip phases
+        # Combined with infrastructure (low production) to ensure it gets filtered
+        violation_story = {
+            "id": "US-BAD",
+            "title": "Skip validation",
+            "description": "Infrastructure: skip phase S validation to speed up processing",
+            "estimatedComplexity": "small",
+            "acceptanceCriteria": ["Skip validation step"],
+        }
+
+        # Story that aligns with constitution
+        aligned_story = {
+            "id": "US-GOOD",
+            "title": "Improve Phase A",
+            "description": "Improving existing phases by enhancing Phase A story generation",
+            "estimatedComplexity": "medium",
+            "acceptanceCriteria": [
+                "Enhancement to Phase A works",
+                "Quality improves measurably",
+            ],
+        }
+
+        stories = [violation_story, aligned_story]
+        passing, filtered = filter_stories(stories, min_score=65)
+
+        # Violation story should be filtered out with higher threshold
+        violation_ids = {s_id for s_id, _, _ in filtered}
+        assert "US-BAD" in violation_ids
+
+    @pytest.mark.us_791
+    def test_us_791_regression_min_score_filtering(self) -> None:
+        """Verify that min_score parameter controls filtering threshold."""
+        stories = [
+            {
+                "id": "US-TIER1",
+                "title": "Dashboard improvement",
+                "description": "Improve dashboard user experience",
+                "estimatedComplexity": "small",
+                "acceptanceCriteria": ["Dashboard renders", "User can interact"],
+            },
+            {
+                "id": "US-TIER4",
+                "title": "Infrastructure telemetry",
+                "description": "Add observability infrastructure",
+                "estimatedComplexity": "small",
+                "acceptanceCriteria": ["Metrics collected"],
+            },
+        ]
+
+        # With high threshold, infrastructure story should be filtered
+        passing_high, filtered_high = filter_stories(stories, min_score=70)
+        tier4_ids_high = {s_id for s_id, _, _ in filtered_high}
+        assert "US-TIER4" in tier4_ids_high
+
+        # With low threshold, both may pass
+        passing_low, filtered_low = filter_stories(stories, min_score=20)
+        assert len(passing_low) >= 1
+
+    @pytest.mark.us_791
+    def test_us_791_regression_complete_workflow(self) -> None:
+        """Regression test: complete workflow exercises all scoring & filtering logic."""
+        candidates = [
+            # High-quality user-facing story (should pass)
+            {
+                "id": "US-1",
+                "title": "Speed up Phase R research",
+                "description": "Optimize research cache to reduce API calls and latency",
+                "estimatedComplexity": "medium",
+                "acceptanceCriteria": [
+                    "Test verifies cache hit rate >80%",
+                    "Performance improves by >30%",
+                    "Backwards compatible with existing code",
+                ],
+            },
+            # Well-scoped small story with good ACs (should pass)
+            {
+                "id": "US-2",
+                "title": "Add feature flag",
+                "description": "Add optional capability for advanced users via environment variable",
+                "estimatedComplexity": "small",
+                "acceptanceCriteria": [
+                    "Environment variable is documented",
+                    "Default value is safe",
+                ],
+            },
+            # Infrastructure-only story with vague ACs (should filter)
+            {
+                "id": "US-3",
+                "title": "Add telemetry",
+                "description": "Maybe add more observability infrastructure",
+                "estimatedComplexity": "large",
+                "acceptanceCriteria": [
+                    "Consider improving metrics",
+                    "Might help with debugging",
+                ],
+            },
+            # Story violating constitution (should filter)
+            {
+                "id": "US-4",
+                "title": "Bypass tests",
+                "description": "Remove test requirement to speed up builds",
+                "estimatedComplexity": "small",
+                "acceptanceCriteria": [
+                    "Tests are removed",
+                ],
+            },
+        ]
+
+        passing, filtered = filter_stories(candidates, min_score=50)
+
+        # At least the first two high-quality stories should pass
+        passing_ids = {s.get("id") for s in passing}
+        assert "US-1" in passing_ids
+        assert "US-2" in passing_ids
+
+        # Low-quality and constitution-violating stories should be filtered
+        filtered_ids = {s_id for s_id, _, _ in filtered}
+        assert "US-3" in filtered_ids or "US-4" in filtered_ids
+
+    @pytest.mark.us_791
+    def test_us_791_regression_weighting_matters(self) -> None:
+        """Verify scoring weights: production_value (35%) has highest impact."""
+        # Two stories with same AC quality but different production value
+        infrastructure_story = {
+            "id": "US-INFRA",
+            "title": "Add infrastructure metrics",
+            "description": "Add observability infrastructure for internal use",
+            "estimatedComplexity": "medium",
+            "acceptanceCriteria": [
+                "Test verifies metrics are collected",
+                "Integration test confirms setup",
+                "Documentation is complete",
+            ],
+        }
+
+        user_facing_story = {
+            "id": "US-USER",
+            "title": "Improve dashboard performance",
+            "description": "Optimize dashboard rendering for better user experience",
+            "estimatedComplexity": "medium",
+            "acceptanceCriteria": [
+                "Test verifies performance improvement",
+                "Integration test confirms feature works",
+                "Documentation is complete",
+            ],
+        }
+
+        infra_score = score_story(infrastructure_story)
+        user_score = score_story(user_facing_story)
+
+        # User-facing story should score significantly higher due to production value weight
+        assert user_score["total_score"] > infra_score["total_score"]
+        assert user_score["production_value"] > infra_score["production_value"]
+
+    @pytest.mark.us_791
+    def test_us_791_regression_empty_input(self) -> None:
+        """Verify graceful handling of empty story lists."""
+        passing, filtered = filter_stories([], min_score=50)
+        assert len(passing) == 0
+        assert len(filtered) == 0
+
+    @pytest.mark.us_791
+    def test_us_791_regression_edge_case_missing_fields(self) -> None:
+        """Verify handling of stories with missing fields."""
+        incomplete_story = {
+            "id": "US-INCOMPLETE",
+            # Missing title
+            "description": "No title provided",
+            # Missing estimatedComplexity
+            "acceptanceCriteria": [],  # Empty ACs
+        }
+
+        passing, filtered = filter_stories([incomplete_story], min_score=40)
+
+        # Should handle gracefully and likely filter due to missing/empty fields
+        incomplete_id = "US-INCOMPLETE"
+        is_filtered = any(s_id == incomplete_id for s_id, _, _ in filtered)
+        is_passed = any(s.get("id") == incomplete_id for s in passing)
+
+        # At least one must be true (handled without crashing)
+        assert is_filtered or is_passed

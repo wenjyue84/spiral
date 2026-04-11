@@ -2589,3 +2589,33 @@ This technical brief is based on the provided JSON for story US-1212. Note that 
 - Previous attempt failed (5114 lines) by creating massive test file; minimal approach (96 lines) works
 - `prd_merge(..., skip_quota=True)` avoids env var quota setup in tests
 - `_wait_for_dashboard()` called at module import time so the skipif evaluates once per session
+## Iteration 2 - Sat, Apr 11, 2026 11:55:33 PM
+Completed: [E2E Test] Phase M Story Reordering by Dependency Graph for Optimal Merge Order (ID: US-1212) in 8m
+
+
+## Pre-analysis for US-1215 (Gemini 2.5 Pro)
+This is not a Frappe application; the context points to a Python-based AI workflow tool named "Spiral". The request is to create a regression test for an existing feature.
+
+**Technical Brief for Claude**
+
+**Objective:** Implement a regression test for story US-791, which filters AI-generated story candidates based on a quality score from a "constitution".
+
+**1. Target Files for Testing:**
+-   The core logic likely resides in `lib/ai_suggest.py`, `lib/decompose_story.py`, or a similar module responsible for AI-driven story generation.
+-   The "constitution" and scoring logic might be in a validation module like `lib/arch_validators.py` or `lib/consistency_check.py`.
+
+**2. Files to Modify:**
+-   A new or existing test file in the `tests/` directory. Based on the technical notes (`pytest -k us_791`), a file like `tests/test_story_generation.py` or `tests/test_ai_features.py` is the appropriate place.
+-   No Frappe DocTypes or hooks are involved.
+
+**3. Implementation Approach:**
+-   Create a new Pytest function, e.g., `test_us_791_constitution_filter_rejects_low_score_candidates`.
+-   Use `pytest.mark.parametrize` to test multiple scenarios.
+-   Mock the AI model call that generates story candidates to return a controlled list of "good" (high-score) and "bad" (low-score) candidates.
+-   Invoke the story generation/suggestion function that triggers the US-791 constitution scoring feature.
+-   Assert that the "bad" candidate is filtered out and only the "good" candidate is passed to the next stage (e.g., saved or sent to "Phase S").
+
+**4. Edge Cases & Gotchas:**
+-   **Mocking is crucial:** The test must not make live AI model calls. Mock the generation and scoring process for deterministic results.
+-   **Observability:** Ensure you can verify that a candidate was filtered. This may require mocking a downstream function to check what it receives.
+-   **Constitution Loading:** The test may need to provide a simplified, mock "constitution" file/object for the scoring logic to use.

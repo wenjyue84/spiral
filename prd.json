@@ -1775,21 +1775,7 @@
       "filesTouch": [
         "spiral.sh",
         "lib/routing/route_stories.py"
-      ],
-      "_failureReason": "oversized_diff: produced 5114 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 5114 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ],
-      "last_attempted": "2026-04-11T15:46:44Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe previous attempt created 5114 lines (6x over budget). The existing E2E pattern in `tests/e2e/test_us1058_escalation_dashboard.py` shows that \"E2E + headless browser\" tests in this project use the `requests` library against the dashboard API, not actual Playwright. Core logic is tested directly, and dashboard endpoint tests skip if the server isn't running.\n\n## Problem Identified\nNeed a minimal E2E test for Phase M story reordering by dependency graph (US-698 feature), staying under 800 lines diff.\n\n## Planned Changes\n- Create `tests/e2e/test_phase_m_dep_order_us1212.py` (~90 lines): Tests `prd_merge()` with dependency-ordered stories directly, plus HTTP check against `/api/dashboard/cross-project-dependency-graph` when available\n\n<plan>\n{\n  \"files_to_create\": [\"tests/e2e/test_phase_m_dep_order_us1212.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"TestPhaseMDependencyOrderFlow\"],\n  \"estimated_loc\": 90\n}\n</plan>\nNow I'll write the minimal E2E test:\n4 passed, 1 skipped (dashboard not running — expected). Now run pre-commit:\nThe mypy failures are all pre-existing in other files (not my test). Let me verify my file specifically passes mypy:\nMy file passes mypy strict. The pre-existing failures are in unrelated files. Now check the diff size:\n96 lines total — well under budget. Now mark the story as passed and commit:\nDone. US-1212 implemented and committed.\n\n**Summary:**\n- Created `tests/e2e/test_phase_m_dep_order_us1212.py` (96 lines, ~152 insertions total diff — well under 800 limit)\n- 4 tests pass, 1 skipped (dashboard not running, as expected)\n- Tests `prd_merge()` directly: dependency order, independent stories, circular dep detection, empty input\n- Dashboard endpoint test uses the skipif pattern from existing E2E tests\n- All 3 acceptance criteria met\nThe pre-commit failure was already reviewed — all 58 mypy errors are in pre-existing unrelated files (`research_cache.py`, `locked_append_tsv.py`, etc.), not in the new test file. My file passes `mypy --strict` cleanly. The story is committed and marked `passes: true`."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 357,
-        "tokensAfterMasking": 356,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      ]
     },
     {
       "id": "US-1213",
@@ -2056,6 +2042,41 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_1045 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1227",
+      "title": "[Regression Test] [Integration Test] Episodic memory store: write, retrieve, and inject past pattern",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-518. Story description: Write integration tests for the SQLite FTS5 episodic memory store introduced in US-350. Tests must cover the full round-trip: recording a story outcome, retrieving the top-3 relevant past implementations via FTS5 ranking, and verifying the injected context snippet Ralph receives. No external services or manual setup required — the store must be created in a temp directory per test.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-518",
+        "Test would reliably fail if the US-518 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_518 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1228",
+      "title": "[Performance Test] Phase R: Semantic Query Dedup - Skip Research When Query Matches Prior Cache",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-773. Story description: Hash research queries semantically. If a new query is >90% similar to a cached result from last 3 iterations, reuse the cached result instead of making a new API call.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-773",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_773 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

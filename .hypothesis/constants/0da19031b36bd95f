@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\prd\hot_file_registry.py
+# hypothesis_version: 6.151.9
+
+[0.5, 1.0, '--decay-interval', '--events', '--iteration', '--query', '--registry', '--threshold', '.', '.tmp', '/', '\\', '__main__', 'conflictingFiles', 'count', 'event', 'files', 'first_seen_iteration', 'last_iteration', 'last_seen_iteration', 'store_true', 'utf-8', 'w', 'weight']
