@@ -1438,3 +1438,18 @@ Here is the technical brief for the implementing agent:
 *   **Environment:** The test environment requires the `git` executable to be available in the system's `PATH`.
 *   **Clean Assertions:** The test must explicitly check for both the correct branch (`main`) and a clean working directory (no modified or untracked files).
 
+
+## Iteration N - Story: [Security Test] Auth/Permission for context_guard.py Token Logic (US-1252)
+
+### What was implemented
+- Created lib/context_guard.py (missing dependency from US-529 which was marked passes but file was never committed)
+- Functions: estimate_phase_i_tokens (raises ValueError for non-string input), trim_prompt_sections (removes example sections over threshold, _token_limit override for testability)
+- Created tests/test_context_guard_security.py with two tests named *_us_529 to match -k us_529 filter
+
+### Patterns discovered
+- US-529 was marked passes=true but lib/context_guard.py was never actually created; security test story required creating the dependency first
+- _token_limit override parameter is the cleanest way to test threshold-based trim logic without huge test prompts
+
+### Gotchas
+- pytest -k us_529 requires test function names to contain "us_529" as substring
+- ruff format reformats the ValueError line; run ruff format before committing
