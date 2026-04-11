@@ -1940,3 +1940,64 @@ Implement a Pytest regression test to ensure the "Ralph" worker process correctl
 *   **Cleanup:** Confirm the testing framework properly handles the cleanup of the temporary repositories after each test run.
 *   **Dependencies:** The test will have a hard dependency on a local Git installation.
 
+
+## Pre-analysis for US-1202 (Gemini 2.5 Pro)
+This user story is not related to Frappe or the `lhdn_payroll_integration` app. It describes a regression test for a Python-based worker process named "Ralph" that interacts with Git.
+
+Here is the technical brief for the Claude agent:
+
+**Subject: Technical Brief for US-1202: Regression Test for Worker Crash Recovery**
+
+**1. Core Task:**
+Implement a Pytest regression test to ensure the "Ralph" worker process correctly recovers from a Git crash scenario (e.g., detached HEAD, incomplete commit) by resetting the worktree to the last known-good state.
+
+**2. Key Files & Modules:**
+*   **Test File (New):** Create a new test file, likely `tests/test_worker_recovery.py` or `tests/test_us461_crash_recovery.py`.
+*   **Likely Target Module:** The recovery logic implemented in US-461, which needs to be imported and executed by the test. This is probably located in a file like `ralph/worker.py`, `lib/git_utils.py`, or `lib/crash_handler.py`.
+*   **Test Fixtures:** Utilize Pytest fixtures (`tmp_path`) to create isolated, temporary Git repositories for testing.
+
+**3. Implementation Approach:**
+1.  Define a test function (e.g., `test_recovers_from_detached_head`).
+2.  Use a Pytest `tmp_path` fixture to create a clean, temporary directory.
+3.  Inside the test, programmatically initialize a new Git repository in `tmp_path`. Create a `main` branch with a "known-good" commit.
+4.  Simulate a crash state by running Git commands to create a detached HEAD or a corrupted commit state.
+5.  Invoke the crash recovery function from the application's source code, passing the path to the temporary repository.
+6.  Assert that the repository HEAD is now pointing to the "known-good" commit on the `main` branch and the working directory is clean.
+
+**4. Edge Cases & Gotchas:**
+*   **State Simulation:** Be precise in scripting the exact Git states (detached HEAD, corrupt index) that the recovery logic is designed to handle.
+*   **Test Isolation:** Ensure all Git operations occur strictly within the temporary directory provided by the `tmp_path` fixture to avoid interfering with the project's actual Git repository.
+*   **Cleanup:** Confirm the testing framework properly handles the cleanup of the temporary repositories after each test run.
+*   **Dependencies:** The test will have a hard dependency on a local Git installation.
+
+## Iteration N - Story: US-1202 - [Regression Test] Implement worker crash recovery using git worktree state snapshots
+
+### What was implemented
+- **Regression test for US-461 (worker crash recovery)**:
+  - Added `@pytest.mark.us_461` decorator to all 4 test methods in `TestDetachedHeadRecovery` class
+  - Tests verify core observable behavior of `recover_detached_worktree()` function in `lib/impl/commit_revert.sh`:
+    1. `test_detached_head_triggers_recovery` - Verifies detection and recovery from detached HEAD
+    2. `test_recovery_leaves_clean_worktree` - Verifies working tree cleanup after recovery
+    3. `test_recovery_noop_on_clean_branch` - Verifies no-op behavior on clean branches
+    4. `test_recovery_fails_on_nonexistent_worktree` - Verifies error handling for nonexistent paths
+
+### Pytest Marker Registration
+- Added `us_461` marker to `tests/pyproject.toml` markers list
+- Enables test discovery with: `uv run pytest tests/ -k us_461 -v`
+- All 4 tests pass successfully when run with `-k us_461` filter
+
+### Acceptance Criteria Met
+- [x] Regression test covers core observable behaviour of US-461 (detached HEAD detection, recovery, cleanup, status codes)
+- [x] Test would reliably fail if the US-461 feature were removed or broken (function removal would cause script sourcing to fail; logic changes would fail assertions)
+- [x] Tests runnable with: `uv run pytest tests/ -k us_461 -v` (all 4 tests discovered and passing)
+
+### Files Changed
+- `tests/test_crash_recovery.py`: Added `import pytest` and `@pytest.mark.us_461` decorators to 4 test methods
+- `tests/pyproject.toml`: Added `us_461: regression tests for worker crash recovery using git worktree state snapshots (US-461)` to markers list
+- `prd.json`: US-1202 marked passes=true
+
+### Patterns Discovered
+- Regression tests for completed features use pytest marks following pattern `@pytest.mark.us_<story_id>`
+- Marks must be registered in `tests/pyproject.toml` markers list to suppress warnings
+- Regression tests verify both positive behavior (recovery succeeds) and edge cases (no-op, error handling)
+- Tests use temp directories and bash script sourcing to test shell-based recovery logic from Python tests
