@@ -11,6 +11,7 @@ US-785: Phase L Retry Pattern Analysis
 import json
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -341,8 +342,8 @@ class TestAnalyzePatterns:
             prd_file = Path(tmpdir) / "prd.json"
             retry_file = Path(tmpdir) / "retry-counts.json"
 
-            prd_data = {"userStories": []}
-            retry_data = {}
+            prd_data: dict[str, list[dict[str, Any]]] = {"userStories": []}
+            retry_data: dict[str, int] = {}
 
             with open(prd_file, "w") as f:
                 json.dump(prd_data, f)
@@ -385,3 +386,157 @@ class TestSavePatterns:
                 loaded = json.load(f)
                 assert loaded["iteration"] == 2
                 assert loaded["data"] == "second"
+
+
+@pytest.mark.us_785
+class TestPatternMemoryIntegration:
+    """Test integration: pattern analysis with episodic memory storage."""
+
+    def test_patterns_match_episodic_memory_structure(self) -> None:
+        """Verify analyzed patterns can be stored in episodic memory format."""
+        from lib.episodic_memory import EpisodicMemory
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Setup: Create PRD with stories of varying retry counts
+            prd_data: dict[str, list[dict[str, Any]]] = {
+                "userStories": [
+                    {
+                        "id": "US-easy-1",
+                        "title": "Easy: Single AC",
+                        "description": "Simple UI text update in lib/",
+                        "acceptanceCriteria": ["Change text"],
+                        "tags": ["ui"],
+                        "filesTouch": ["lib/ui.py"],
+                        "passes": True,
+                    },
+                    {
+                        "id": "US-easy-2",
+                        "title": "Easy: Two ACs",
+                        "description": "Quick feature flag update",
+                        "acceptanceCriteria": ["Add flag", "Use flag"],
+                        "tags": ["feature"],
+                        "filesTouch": ["lib/flags.py"],
+                        "passes": True,
+                    },
+                    {
+                        "id": "US-hard-1",
+                        "title": "Hard: Complex Refactor",
+                        "description": "Database migration with multiple tests and lib updates",
+                        "acceptanceCriteria": ["Create migration", "Run tests", "Verify data", "Update lib"],
+                        "tags": ["database", "migration"],
+                        "filesTouch": ["lib/db.py", "tests/test_db.py", "lib/models.py"],
+                        "passes": True,
+                    },
+                ]
+            }
+
+            retry_data: dict[str, int] = {
+                "US-easy-1": 0,
+                "US-easy-2": 1,
+                "US-hard-1": 5,
+            }
+
+            prd_path = Path(tmpdir) / "prd.json"
+            retry_path = Path(tmpdir) / "retry-counts.json"
+            mem_path = Path(tmpdir) / "episodic_memory.jsonl"
+
+            with open(prd_path, "w") as f:
+                json.dump(prd_data, f)
+            with open(retry_path, "w") as f:
+                json.dump(retry_data, f)
+
+            # Execute: Analyze patterns
+            patterns = analyze_patterns(str(prd_path), str(retry_path), iteration=1)
+
+            # Verify pattern structure can be stored in episodic memory
+            memory = EpisodicMemory(str(mem_path))
+
+            # Store the pattern analysis result as an episodic memory record
+            pattern_record = {
+                "title": "Retry Pattern Analysis",
+                "approach": "Clustered stories by retry count and extracted common traits",
+                "outcome": "patterns_extracted",
+                "insight": patterns.get("insights", {}),
+                "summary": patterns.get("summary", {}),
+            }
+            memory.write("US-785-pattern-analysis", pattern_record)
+
+            # Verify the record was stored and can be retrieved
+            assert mem_path.exists(), "Episodic memory file was not created"
+
+            # Read back and verify structure
+            stored_records = memory._load_all_records()
+            assert len(stored_records) == 1
+            stored = stored_records[0]
+
+            assert stored["story_id"] == "US-785-pattern-analysis"
+            assert "timestamp" in stored
+            assert stored["outcome"] == "patterns_extracted"
+            assert "insight" in stored
+            assert "summary" in stored
+
+            # Verify pattern insights distinguish easy from hard stories
+            insights = patterns["insights"]
+            assert insights.get("easy_count", 0) >= 2
+            assert insights.get("hard_count", 0) >= 1
+            assert insights.get("easy_avg_ac_count", 0) < insights.get("hard_avg_ac_count", 0)
+
+    def test_retry_patterns_detectdifference_between_easy_and_hard(self) -> None:
+        """Regression test: ensure pattern analysis reliably detects easy vs hard stories."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create test data where easy stories have fewer ACs and hard stories have more
+            prd_data: dict[str, list[dict[str, Any]]] = {
+                "userStories": [
+                    {
+                        "id": f"US-easy-{i}",
+                        "title": f"Easy Story {i}",
+                        "description": "Simple fix",
+                        "acceptanceCriteria": ["AC1"],
+                        "tags": [],
+                        "filesTouch": ["lib/x.py"],
+                        "passes": True,
+                    }
+                    for i in range(3)
+                ]
+                + [
+                    {
+                        "id": f"US-hard-{i}",
+                        "title": f"Hard Story {i}",
+                        "description": "Complex refactor with many changes",
+                        "acceptanceCriteria": [f"AC{j}" for j in range(1, 6)],
+                        "tags": [],
+                        "filesTouch": ["lib/a.py", "lib/b.py", "tests/test_a.py", "tests/test_b.py"],
+                        "passes": True,
+                    }
+                    for i in range(3)
+                ]
+            }
+
+            retry_data: dict[str, int] = {f"US-easy-{i}": i for i in range(3)} | {
+                f"US-hard-{i}": 3 + i for i in range(3)
+            }
+
+            prd_path = Path(tmpdir) / "prd.json"
+            retry_path = Path(tmpdir) / "retry-counts.json"
+
+            with open(prd_path, "w") as f:
+                json.dump(prd_data, f)
+            with open(retry_path, "w") as f:
+                json.dump(retry_data, f)
+
+            patterns = analyze_patterns(str(prd_path), str(retry_path))
+
+            # AC: Pattern analysis must distinguish easy (0-1 retries) from hard (3+ retries)
+            easy_0 = patterns["summary"]["0_retries"]
+            easy_1 = patterns["summary"]["1_retry"]
+            hard_3plus = patterns["summary"]["3plus_retries"]
+
+            assert easy_0["count"] == 1, "Should have exactly 1 story with 0 retries"
+            assert easy_1["count"] == 1, "Should have exactly 1 story with 1 retry"
+            assert hard_3plus["count"] == 3, "Should have exactly 3 stories with 3+ retries"
+
+            # Key insight: average AC count should show hard stories are more complex
+            insights = patterns["insights"]
+            assert insights["easy_avg_ac_count"] < insights["hard_avg_ac_count"], (
+                "Hard stories must have higher avg AC count than easy stories"
+            )
