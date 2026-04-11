@@ -822,7 +822,7 @@ def main() -> int:
             _pending = _reorder_stories(_pending)
         prd["userStories"] = _pending + _done
         print(f"[merge] Topological reorder: {len(_pending)} pending stories ordered by dependency graph")
-    except Exception as _exc:
+    except (ImportError, ValueError, TypeError, RuntimeError) as _exc:
         # Fallback: priority sort if topological reorder unavailable
         logging.warning(
             "Topological reorder skipped, falling back to priority sort: %s: %s",

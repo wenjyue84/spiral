@@ -56,6 +56,11 @@ try:
 except ImportError:
     httpx = None  # type: ignore[assignment]
 
+# Exceptions that indicate streaming failure; httpx.HTTPError included when httpx is available
+_STREAM_ERRORS: tuple[type[Exception], ...] = (
+    (json.JSONDecodeError, OSError, httpx.HTTPError) if httpx is not None else (json.JSONDecodeError, OSError)
+)
+
 __all__ = [
     "build_batch_requests",
     "submit_batch",
@@ -431,7 +436,7 @@ def validate_story_sync(
                 phase="S",
             )
             return _parse_llm_json(text)
-        except (json.JSONDecodeError, OSError) as e:
+        except _STREAM_ERRORS as e:
             # Fall through to blocking HTTP call on streaming error
             logging.warning("Streaming validation failed; falling back to blocking HTTP call: %s", str(e), exc_info=True)
 

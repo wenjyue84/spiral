@@ -931,3 +931,6 @@ This user story appears to be for a local Python project, not a Frappe app. The 
 ## Iteration 2 - Sat, Apr 11, 2026  1:33:15 PM
 Completed: Phase M: Lower dedup threshold after 3 consecutive all-rejected merge iterations (ID: US-1186) in 2m
 
+## Iteration 3 - Sat, Apr 11, 2026  1:40:53 PM
+FAILED diagnosis-block gate: Phase S: Replace bare except clauses with logged exceptions in batch_validate.py (ID: US-1187) — no diagnosis block found — attempt 1/3
+
