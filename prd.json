@@ -1298,7 +1298,7 @@
         "No bare except or generic catch-all patterns remain in merge_stories.py or batch_validate.py"
       ],
       "dependencies": [],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "lib/prd/batch_validate.py",
         "lib/prd/merge_stories.py"
