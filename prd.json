@@ -2244,7 +2244,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -2539,6 +2539,27 @@
         "File to create: .cliff.toml (git-cliff config grouping commits by [Conventional Commits] footer 'Story: US-NNN')",
         "File to create: tests/test_phase_g_changelog.bats (test git-cliff config parsing, verify CHANGELOG.md structure and story grouping)",
         "Test command: tests/bats-core/bin/bats tests/test_phase_g_changelog.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1254",
+      "title": "Dashboard API: GET /api/dashboard/throughput (Stories Completed Per Hour)",
+      "priority": "medium",
+      "description": "Add REST endpoint to dashboard API that aggregates completed story counts from results.tsv by hour, enabling real-time throughput visualization. Returns hourly time series for the current iteration to track how many stories complete per hour.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/throughput returns JSON: [{hour: '2026-04-05T14:00', count: 3, stories: ['US-100', 'US-101']}, ...] for all hours in current iteration",
+        "Endpoint filters results.tsv to only stories with status='passed' in current iteration (extracted from .spiral/_checkpoint.json)",
+        "Endpoint caches results for 5 seconds to avoid repeated file I/O"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dashboard_api/throughput.py (parse results.tsv, group by completion hour, aggregate counts)",
+        "File to edit: dashboard/app.py (add Flask/FastAPI GET /api/dashboard/throughput route calling throughput.aggregate())",
+        "File to create: tests/test_dashboard_throughput_api.py (test hour parsing, filtering by iteration, caching behavior)",
+        "Test command: uv run pytest tests/test_dashboard_throughput_api.py::test_hourly_aggregation -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
