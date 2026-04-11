@@ -303,11 +303,11 @@ def _load_raw(path: str) -> dict[str, Any]:
 
 
 def load_fallback_counter(scratch_dir: str = ".spiral") -> int:
-    """Load consecutive all-rejected iteration counter from .spiral/dedup_fallback_count.json.
+    """Load consecutive all-rejected iteration counter from .spiral/_merge_reject_streak.json.
 
     Returns 0 if file doesn't exist (no prior rejections).
     """
-    counter_path = os.path.join(scratch_dir, "dedup_fallback_count.json")
+    counter_path = os.path.join(scratch_dir, "_merge_reject_streak.json")
     if not os.path.isfile(counter_path):
         return 0
     try:
@@ -319,8 +319,8 @@ def load_fallback_counter(scratch_dir: str = ".spiral") -> int:
 
 
 def save_fallback_counter(count: int, scratch_dir: str = ".spiral") -> None:
-    """Persist consecutive all-rejected iteration counter to .spiral/dedup_fallback_count.json."""
-    counter_path = os.path.join(scratch_dir, "dedup_fallback_count.json")
+    """Persist consecutive all-rejected iteration counter to .spiral/_merge_reject_streak.json."""
+    counter_path = os.path.join(scratch_dir, "_merge_reject_streak.json")
     os.makedirs(scratch_dir, exist_ok=True)
     with open(counter_path, "w", encoding="utf-8") as f:
         json.dump({"count": count}, f)
@@ -562,17 +562,17 @@ def main() -> int:
         print(f"[merge] Overflow (carried from previous iteration): {len(overflow_candidates)} candidates")
     print(f"[merge] Test candidates: {len(test_candidates)}, Research candidates: {len(research_candidates)}")
 
-    # ── US-1134: Calculate effective dedup threshold for fallback mechanism ──────
+    # ── US-1186: Calculate effective dedup threshold for fallback mechanism ──────
     total_input_candidates = len(test_candidates) + len(research_candidates) + len(overflow_candidates)
     effective_threshold = 0.6  # Default Jaccard threshold used in is_duplicate()
     threshold_lowered = False
 
     # Apply fallback threshold lowering if consecutive all-rejected iterations reached limit
     if fallback_iters > 0 and fallback_counter >= fallback_iters:
-        effective_threshold = max(0.60, effective_threshold - 0.05)  # Floor at 0.60
+        effective_threshold = 0.45  # Lower to 0.45 to allow slightly different stories through
         threshold_lowered = True
         print(
-            f"[merge] Applying fallback threshold {effective_threshold:.2f} (normal: 0.60) "
+            f"[merge] WARNING: Applying fallback threshold {effective_threshold:.2f} (normal: 0.60) "
             f"— {fallback_counter} consecutive all-rejected iterations"
         )
 

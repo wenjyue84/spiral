@@ -1246,25 +1246,25 @@ class TestFallbackThresholdLogic:
         assert load_fallback_counter(scratch_dir) == 0
 
     def test_effective_threshold_lowering(self) -> None:
-        """Calculate effective threshold: lower by 0.05 after fallback_iters, floor at 0.60."""
+        """Calculate effective threshold: lower to 0.45 after fallback_iters."""
         base_threshold = 0.60
         fallback_iters = 3
         fallback_counter = 3
 
-        # After 3 consecutive rejections, lower by 0.05
+        # After 3 consecutive rejections, lower to 0.45
         effective = base_threshold
         if fallback_counter >= fallback_iters:
-            effective = max(0.60, effective - 0.05)
+            effective = 0.45
 
-        # 0.60 - 0.05 = 0.55, but floored at 0.60 → 0.60
-        assert effective == 0.60
+        # Threshold lowered from 0.60 to 0.45
+        assert effective == 0.45
 
-    def test_effective_threshold_never_below_floor(self) -> None:
-        """Even after multiple fallback iterations, threshold never goes below 0.60."""
-        base_threshold = 0.60
-        for fallback_counter in range(1, 10):
-            effective = max(0.60, base_threshold - 0.05)
-            assert effective >= 0.60, f"Threshold {effective} is below floor 0.60"
+    def test_effective_threshold_consistent_at_0_45(self) -> None:
+        """When fallback is active, threshold is consistently 0.45 regardless of iteration count."""
+        fallback_iters = 3
+        for fallback_counter in range(fallback_iters, 10):
+            effective = 0.45 if fallback_counter >= fallback_iters else 0.60
+            assert effective == 0.45, f"Threshold {effective} should be 0.45 when fallback active"
 
     def test_fallback_disabled_when_iters_zero(self) -> None:
         """When SPIRAL_DEDUP_FALLBACK_ITERS=0, no fallback mechanism is used."""
@@ -1273,7 +1273,7 @@ class TestFallbackThresholdLogic:
 
         # No fallback when iters is 0
         if fallback_iters > 0 and fallback_counter >= fallback_iters:
-            effective_threshold = max(0.60, 0.60 - 0.05)
+            effective_threshold = 0.45
         else:
             effective_threshold = 0.60
 
