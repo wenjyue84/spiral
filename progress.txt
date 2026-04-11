@@ -630,3 +630,31 @@ This brief is for implementing an E2E test for the Spiral project, as described 
 ### Gotchas
 - Must update token_index incrementally after each `seen_titles.append(title)` to keep index in sync
 - The index is not updated for leftover/overflow candidates (cap-hit) because they're not added to seen_titles either — consistent behavior
+## Iteration 1 - Sat, Apr 11, 2026 12:24:19 PM
+Completed: Phase M: Build token index once per merge instead of per-candidate (O(n²) fix) (ID: US-1180) in 4m
+
+
+## Pre-analysis for US-1184 (Gemini 2.5 Pro)
+Based on the user story, here is a technical brief for the agent:
+
+This story concerns a shell and Python-based workflow, not a Frappe application. The goal is to generate a JSON test report from a shell command's output.
+
+**1. Files to Modify:**
+*   `lib/phases/phase_v_validate.sh`: This script executes `SPIRAL_VALIDATE_CMD` and will need to be updated to capture its output and call a report generation script.
+*   `lib/check_done.py`: This script needs to be checked to ensure it correctly locates the new report inside a timestamped subdirectory of `test-reports/`.
+*   New file: `lib/generate_test_report.py` (recommended): A new Python script to handle parsing the command output and creating the `report.json` file.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This project does not use the Frappe framework. The core components are shell scripts and standalone Python modules.
+
+**3. Implementation Approach:**
+1.  In `lib/phases/phase_v_validate.sh`, capture the exit code and redirect stdout from `SPIRAL_VALIDATE_CMD` to a file.
+2.  Create `lib/generate_test_report.py` that accepts the output file path and exit code as arguments.
+3.  The Python script will parse the output to extract pass/fail/error counts.
+4.  It will then create a timestamped directory (`test-reports/<timestamp>`) and write the results to `report.json`.
+5.  Call this new Python script from `lib/phases/phase_v_validate.sh` after the test command completes.
+
+**4. Edge Cases & Gotchas:**
+*   The output format of `SPIRAL_VALIDATE_CMD` is undefined; the parsing logic must be robust against variations.
+*   As per the AC, if parsing the output fails, the script must fall back to using the command's exit code to generate a simple report (e.g., `fail_count: 1` if exit code is non-zero).
+*   Ensure file I/O operations have appropriate error handling (e.g., permissions to write to `test-reports/`).

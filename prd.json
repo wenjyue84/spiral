@@ -1132,17 +1132,7 @@
         "performance",
         "phase-m"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-04-11T04:18:20Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`merge_stories.py` calls `_build_token_index(seen_titles)` inline inside each `is_duplicate()` call within 3 candidate processing loops. Each call rebuilds the entire token index from scratch, causing O(n²) work.\n\n## Problem Identified\n3 occurrences of `token_index=_build_token_index(seen_titles)` passed inline to `is_duplicate()`. Must build once before the loops and update incrementally.\n\n## Planned Changes\n- `lib/prd/merge_stories.py`: Build token index once before candidate loops, pass it; update index after each accepted story\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"lib/prd/merge_stories.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 15\n}\n</plan>\nNow I have the full picture. The fix is 4 surgical edits:\n1. Build token index once after `seen_titles` is initialized\n2. Replace each inline `_build_token_index(seen_titles)` with the pre-built `token_index`\n3. Update index incrementally when a title is accepted\nNow replace the 3 inline `_build_token_index(seen_titles)` calls with the pre-built `token_index`, and update the index after each accepted story:\nNow verify all 3 inline calls are gone and only the pre-built reference remains:\nThe 3 inline `_build_token_index(seen_titles)` calls are gone. `_build_token_index` is now called exactly once (line 640), and the index is updated incrementally at lines 678, 724, 767.\n\nNow run the tests:\nAll 68 tests pass. Mark story as complete and commit:\n12 lines changed — well within the budget. Commit:\nDone. US-1180 complete:\n\n- **12 lines changed** (vs 1644 in the failed attempt) — 4 surgical edits\n- `_build_token_index()` called once at line 640, before all candidate loops\n- Token index updated incrementally (`token_index[title] = normalize(title)`) after each accepted story\n- All 68 existing tests pass"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 209,
-        "tokensAfterMasking": 208,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1181",
@@ -1335,6 +1325,95 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_1050 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1190",
+      "title": "[E2E Test] Dashboard Persistence: SQLite Historical Metrics Store for 7-Day Trends",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1051. Story description: Build lib/metrics_store.py with SQLiteMetricsStore class that persists phase timing and cost data from results.tsv into timestamped rows. Add GET /api/dashboard/metrics?start_date=2026-03-20&end_date=2026-03-27 endpoint to query time-series trend data for cost burn rate and phase throughput visualization.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1051",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1051 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1191",
+      "title": "[E2E Test] GET /api/dashboard/phase-burn-rate: Burn Rate Calculation from results.tsv",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1030. Story description: HTTP endpoint that reads results.tsv, groups rows by active phase, and returns current tokens/sec plus a 30-second lagging average. Enables cost-overrun detection by exposing per-phase token velocity as a REST resource.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1030",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1030 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1192",
+      "title": "[Performance Test] Test Phase R Research Cache Hit/Miss Counting and LRU Eviction",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1026. Story description: Write integration tests that verify Phase R's deduplication cache correctly counts Gemini API calls vs cache hits, and enforces LRU eviction when the cache reaches its size limit. Validates functional correctness of the research cache without any performance measurement.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1026",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1026 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1193",
+      "title": "[Performance Test] Benchmark Phase R Research Cache Latency Savings (≥30% Target)",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1027. Story description: Write a benchmark test that measures Phase R execution time with cache enabled (warm) versus a mocked uncached baseline and asserts at least 30% latency improvement for repeated queries. Results are printed to stdout so CI logs capture the savings.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1027",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1027 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1194",
+      "title": "[Regression Test] Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loo",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1007. Story description: For Phase-enhancement stories (title contains 'Phase X:'), verify that new Python modules are actually called from spiral.sh in the corresponding phase section. Catches implementations that exist but are never integrated into the autonomous loop.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1007",
+        "Test would reliably fail if the US-1007 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1007 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

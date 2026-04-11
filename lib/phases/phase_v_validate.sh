@@ -311,9 +311,12 @@ run_phase_validate() {
 
     # Run the project's validation command (with optional timeout)
     _VALIDATE_EXIT=0
+    _TEST_OUTPUT_FILE="$SCRATCH_DIR/test_output_${SPIRAL_ITER}.log"
+    mkdir -p "$SCRATCH_DIR"
+
     if [[ "${SPIRAL_VALIDATE_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
       _VALIDATE_START=$(date +%s)
-      (cd "$REPO_ROOT" && timeout --kill-after=30 "${SPIRAL_VALIDATE_TIMEOUT}" bash -c "eval \"\$_EFFECTIVE_VALIDATE_CMD\"" 2>&1) || _VALIDATE_EXIT=$?
+      (cd "$REPO_ROOT" && timeout --kill-after=30 "${SPIRAL_VALIDATE_TIMEOUT}" bash -c "eval \"\$_EFFECTIVE_VALIDATE_CMD\"" 2>&1) | tee "$_TEST_OUTPUT_FILE" || _VALIDATE_EXIT=$?
       _VALIDATE_ELAPSED=$(($(date +%s) - _VALIDATE_START))
       if [[ "$_VALIDATE_EXIT" -eq 124 ]]; then
         echo ""
@@ -322,7 +325,43 @@ run_phase_validate() {
         _VALIDATE_EXIT=1
       fi
     else
-      (cd "$REPO_ROOT" && eval "$_EFFECTIVE_VALIDATE_CMD" 2>&1) || _VALIDATE_EXIT=$?
+      (cd "$REPO_ROOT" && eval "$_EFFECTIVE_VALIDATE_CMD" 2>&1) | tee "$_TEST_OUTPUT_FILE" || _VALIDATE_EXIT=$?
+    fi
+
+    # ── US-1184: Generate test report JSON ──────────────────────────────────────
+    # Parse test output and write report.json so Phase C can find results
+    _REPORT_PATH=""
+    if [[ -f "$_TEST_OUTPUT_FILE" && -s "$_TEST_OUTPUT_FILE" ]]; then
+      _REPORT_PATH=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality/parse_test_output.py" \
+        --format auto \
+        --input "$_TEST_OUTPUT_FILE" \
+        --output-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
+        --exit-code "$_VALIDATE_EXIT" 2>/dev/null || echo "")
+      if [[ -n "$_REPORT_PATH" && -f "$_REPORT_PATH" ]]; then
+        echo "  [V] Test report written to $_REPORT_PATH"
+        log_spiral_event "phase_v_report_generated" \
+          "\"report_path\":\"$(basename $(dirname $_REPORT_PATH))\",\"exit_code\":$_VALIDATE_EXIT,\"iteration\":$SPIRAL_ITER"
+      else
+        # Fallback: create minimal report from exit code
+        _FALLBACK_TS=$(date +%Y%m%d-%H%M%S)
+        _FALLBACK_DIR="$REPO_ROOT/$SPIRAL_REPORTS_DIR/$_FALLBACK_TS"
+        mkdir -p "$_FALLBACK_DIR"
+        _FALLBACK_REPORT="$_FALLBACK_DIR/report.json"
+        printf '{"timestamp":"%s","exit_code":%d,"summary":{"passed":0,"failed":0,"errored":0,"skipped":0,"total":0}}\n' \
+          "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" "$_VALIDATE_EXIT" >"$_FALLBACK_REPORT"
+        echo "  [V] Fallback test report created: $_FALLBACK_REPORT"
+        _REPORT_PATH="$_FALLBACK_REPORT"
+      fi
+    else
+      # No test output captured; create a fallback report
+      _FALLBACK_TS=$(date +%Y%m%d-%H%M%S)
+      _FALLBACK_DIR="$REPO_ROOT/$SPIRAL_REPORTS_DIR/$_FALLBACK_TS"
+      mkdir -p "$_FALLBACK_DIR"
+      _FALLBACK_REPORT="$_FALLBACK_DIR/report.json"
+      printf '{"timestamp":"%s","exit_code":%d,"summary":{"passed":0,"failed":0,"errored":0,"skipped":0,"total":0}}\n' \
+        "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" "$_VALIDATE_EXIT" >"$_FALLBACK_REPORT"
+      echo "  [V] Test output not captured; fallback report created: $_FALLBACK_REPORT"
+      _REPORT_PATH="$_FALLBACK_REPORT"
     fi
 
     # ── Optional: AC Verification (US-1005) ────────────────────────────────────
