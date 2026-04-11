@@ -1213,7 +1213,7 @@
         "If SPIRAL_VALIDATE_CMD fails to produce parseable output, a fallback report is created from exit code"
       ],
       "dependencies": [],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "lib/phases/phase_v_validate.sh"
       ],
@@ -1414,6 +1414,24 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_1007 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1195",
+      "title": "[Performance Test] Phase C: Phase Timing Baseline and Regression Detector",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1008. Story description: Record execution time baseline (P50/P90) for each SPIRAL phase from the last 10 iterations. After each iteration, check if any phase exceeded 2x its P90 baseline. Flags performance regression before it compounds across iterations.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1008",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1008 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
