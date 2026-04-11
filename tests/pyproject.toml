@@ -36,6 +36,7 @@ markers = [
     "us_1062: regression tests for Phase S validation confidence scorer (US-1062)",
     "us_1027: performance tests for Phase R research cache latency savings (US-1027)",
     "us_1008: performance tests for Phase C: phase timing baseline and regression detector (US-1195)",
+    "us_491: E2E integration tests for Phase R research with mocked Gemini responses (US-1203)",
 ]
 
 [tool.coverage.run]
