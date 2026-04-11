@@ -2694,3 +2694,50 @@ This is a Python/pytest project, not a Frappe application. The user story requir
 *   **State Dependencies:** The scoring logic may read from or write to files (e.g., `prd.json`). Ensure tests use temporary files/directories (`tmp_path` fixture) to avoid side effects.
 *   **Test Naming:** The test function must contain "us_772" in its name to be picked up by the command in the technical notes (`... -k us_772`).
 
+## Iteration 1 - Sun, Apr 12, 2026  1:08:55 AM
+FAILED diff-guard: [Regression Test] Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome (ID: US-1216) — 2815 lines > 800 limit — attempt 1/3
+
+
+## Pre-analysis for US-1216 (Gemini 2.5 Pro)
+This is a Python/pytest project, not a Frappe application. The user story requires creating a regression test for an existing feature (US-772) that scores the outcome of implemented user stories.
+
+### 1. Files to Modify
+
+*   **`tests/test_story_scoring.py`** (or create a new file like **`tests/test_regression_us_772.py`**): This is where the new pytest-based regression test will be written. The name should align with existing test file conventions.
+*   **`lib/analyze_results.py`**: This is the most likely candidate for the core logic of US-772, which aggregates scores from implementation outcomes.
+*   **`lib/episodic_memory.py`** or **`lib/story_importer.py`**: One of these likely handles the loading and initial representation of the story data that the scoring feature consumes.
+
+### 2. Frappe DocTypes / Hooks Involved
+
+*   None. This is a standard Python project. The key components are Python modules in the `lib/` directory and test cases in the `tests/` directory.
+
+### 3. Recommended Implementation Approach
+
+1.  **Create a Test Fixture:** In the test file, create a pytest fixture that provides sample story data. This data should represent a set of "research-sourced stories" linked to a common research prompt.
+2.  **Simulate Implementation:** Prepare mock implementation-result data (e.g., Python dicts) that includes `pass/fail` status, `retry count`, and `cost` for the stories from the fixture.
+3.  **Invoke Scoring Logic:** Write a test function that calls the primary function from `lib/analyze_results.py` (or wherever the US-772 logic resides), passing it the mock stories and results.
+4.  **Assert on Output:** The test must assert that the stories are correctly updated/tagged with the implementation metrics and, critically, that the final aggregated score for the research prompt is calculated as expected. Use `pytest.approx` for any floating-point comparisons (e.g., cost).
+
+### 4. Edge Cases & Gotchas
+
+*   **Data Schema:** The test needs to correctly mock the structure of story objects and the implementation metric events.
+*   **No Results:** Test the case where a story has no implementation results. The scoring logic should handle this gracefully without crashing.
+*   **State Dependencies:** The scoring logic may read from or write to files (e.g., `prd.json`). Ensure tests use temporary files/directories (`tmp_path` fixture) to avoid side effects.
+*   **Test Naming:** The test function must contain "us_772" in its name to be picked up by the command in the technical notes (`... -k us_772`).
+
+
+## Iteration N - Story: [Regression Test] Phase R: Research Quality Feedback Loop
+
+### What was implemented
+- Created tests/test_regression_us_772.py with 3 minimal regression tests
+- Tests named test_us_772_* so -k us_772 filter finds them
+- All 3 tests pass; 67 lines total (well within 800-line diff budget)
+
+### Patterns discovered
+- Existing test_research_quality.py had full tests but none with us_772 in name
+- The -k us_772 filter requires test function names containing us_772
+- Import order: stdlib -> pytest (third-party) -> sys.path statement -> local imports
+
+### Gotchas
+- Previous attempt created 2815-line diff by writing too much. Minimal 67-line file suffices.
+- No need to duplicate test_research_quality.py tests; 3 targeted tests covering core AC are enough
