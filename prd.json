@@ -2123,7 +2123,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-11T20:32:09Z"
+      "last_attempted": "2026-04-11T20:32:09Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nUS-642 implements the `spiral predict-story-complexity` CLI command that:\n- Computes semantic similarity between story description and historical stories from results.tsv\n- Outputs complexity score (1-10) with label (easy/medium/hard)\n- Returns similar past story references\n- Also provides `recommend_model_from_history()` for historical model routing\n\nThe feature is implemented in `lib/routing/complexity_scorer.py` and exposed via CLI in `main.py`.\n\n## Problem Identified\n\nStory US-1230 requires a regression test that guards against future breakage of US-642. No tests currently exist for this feature.\n\n## Planned Changes\n\nI will create `tests/test_us_642_regression.py` with comprehensive regression tests covering:\n1. Core observable behavior: `predict_story_complexity()` returns expected output structure\n2. Complexity score computation from retry patterns\n3. Semantic similarity matching to find similar stories\n4. Historical model routing recommendations\n5. Edge cases: empty history, missing file, invalid inputs\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_us_642_regression.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 220\n}\n</plan>\n\nNow I'll execute the plan by writing the regression test file:\nNow let me run the regression tests to verify they all pass:\nExcellent! All tests pass. Let me verify the tests can be discovered with the `-k us_642` pattern as specified in the technical notes:\nNow let me run the quality checks - mypy and ruff:\nPerfect! All quality checks pass. Now let me update prd.json to mark the story as complete:\nGreat! Now let me commit the changes with pre-commit hooks verification:\nPerfect! Let me verify one final time that all tests pass and the story is complete:\nExcellent! Story **US-1230** is now complete. Here's a summary of what was implemented:\n\n## Summary"
+      }
     },
     {
       "id": "US-1231",
