@@ -4,6 +4,9 @@ Covers AC1: decompose_exhausted_story returns 4 sub-stories with _parent_id,
   _decomposed_from_iteration; parent marked _decomposed=True, _decomposed_count=4.
 Covers AC3: integration -- 3 escalation attempts trigger decompose -> 4 children
   with correct _parent_id, re-queued (passes=False), at least 1 can pass.
+
+Regression test for US-1043: Automatic story decomposition when Phase I retry loop
+exhausts all 3 escalation levels (haiku→sonnet→opus).
 """
 
 from __future__ import annotations
@@ -43,12 +46,14 @@ def _prd(story_id: str = "US-100") -> dict[str, Any]:
 # -- AC1: sub-story fields ----------------------------------------------------
 
 
+@pytest.mark.us_1043
 def test_returns_four_sub_stories() -> None:
     result = decompose_exhausted_story("US-100", _prd(), max_stories_ceiling=100)
     children = [s for s in result["userStories"] if s.get("_parent_id") == "US-100"]
     assert len(children) == 4
 
 
+@pytest.mark.us_1043
 def test_sub_stories_have_parent_id_field() -> None:
     result = decompose_exhausted_story("US-100", _prd(), max_stories_ceiling=100)
     children = [s for s in result["userStories"] if s.get("_parent_id") == "US-100"]
@@ -56,6 +61,7 @@ def test_sub_stories_have_parent_id_field() -> None:
         assert child["_parent_id"] == "US-100"
 
 
+@pytest.mark.us_1043
 def test_sub_stories_have_decomposed_from_iteration() -> None:
     result = decompose_exhausted_story("US-100", _prd(), max_stories_ceiling=100, iteration=3)
     children = [s for s in result["userStories"] if s.get("_parent_id") == "US-100"]
@@ -63,6 +69,7 @@ def test_sub_stories_have_decomposed_from_iteration() -> None:
         assert child["_decomposed_from_iteration"] == 3
 
 
+@pytest.mark.us_1043
 def test_parent_marked_decomposed_with_count() -> None:
     result = decompose_exhausted_story("US-100", _prd(), max_stories_ceiling=100)
     parent = next(s for s in result["userStories"] if s["id"] == "US-100")
@@ -70,11 +77,13 @@ def test_parent_marked_decomposed_with_count() -> None:
     assert parent["_decomposed_count"] == 4
 
 
+@pytest.mark.us_1043
 def test_ceiling_enforcement() -> None:
     with pytest.raises(ValueError, match="ceiling"):
         decompose_exhausted_story("US-100", _prd(), max_stories_ceiling=4)
 
 
+@pytest.mark.us_1043
 def test_children_have_small_complexity() -> None:
     result = decompose_exhausted_story("US-100", _prd(), max_stories_ceiling=100)
     children = [s for s in result["userStories"] if s.get("_parent_id") == "US-100"]
@@ -101,11 +110,13 @@ def _simulate_exhaustion(story_id: str, prd: dict[str, Any]) -> tuple[dict[str, 
     raise RuntimeError("Ladder not exhausted")
 
 
+@pytest.mark.us_1043
 def test_ladder_is_three_models() -> None:
     _, models = _simulate_exhaustion("US-100", _prd())
     assert models == ["haiku", "sonnet", "opus"]
 
 
+@pytest.mark.us_1043
 def test_triple_retry_produces_four_children_with_parent_id() -> None:
     updated, _ = _simulate_exhaustion("US-100", _prd())
     children = [s for s in updated["userStories"] if s.get("_parent_id") == "US-100"]
@@ -114,6 +125,7 @@ def test_triple_retry_produces_four_children_with_parent_id() -> None:
         assert child["_parent_id"] == "US-100"
 
 
+@pytest.mark.us_1043
 def test_children_requeued_for_phase_i() -> None:
     updated, _ = _simulate_exhaustion("US-100", _prd())
     children = [s for s in updated["userStories"] if s.get("_parent_id") == "US-100"]
@@ -121,6 +133,7 @@ def test_children_requeued_for_phase_i() -> None:
         assert child["passes"] is False
 
 
+@pytest.mark.us_1043
 def test_at_least_one_child_can_pass() -> None:
     updated, _ = _simulate_exhaustion("US-100", _prd())
     children = [s for s in updated["userStories"] if s.get("_parent_id") == "US-100"]
