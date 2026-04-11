@@ -1493,12 +1493,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T10:17:25Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/dashboard/worker_swimlane.py` is fully implemented with data layer functions\n- API endpoint `GET /api/dashboard/worker-phase-swimlane` exists in `lib/dashboard/api.py`\n- Unit tests exist in `test_worker_swimlane.py` (marked as US-749)\n- Integration endpoint tests exist in `test_worker_swimlane_endpoint.py`\n- No E2E browser tests exist yet\n\n## Problem Identified\nNeed to create an E2E test using Playwright that:\n1. Verifies the dashboard loads and can fetch worker phase status via API\n2. Tests the complete user flow: navigate to dashboard → fetch worker swimlane data → verify structure\n3. Must be discoverable by `pytest -k us_749`\n4. Must pass in headless browser mode\n\n## Planned Changes\nCreate `tests/test_e2e_worker_swimlane_us_749.py` with:\n- AsyncIO pytest tests using playwright\n- Test data setup (checkpoint + worker heartbeat files)\n- E2E flow tests: navigate dashboard → fetch API → verify data\n- Test both empty and populated worker states\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_e2e_worker_swimlane_us_749.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow I'll implement the E2E test:\n## Summary"
-      },
-      "_passedCommit": "5afbc133f510f2bcb8f9a81c4f0d0fa4fa506f3c"
+      "model": "haiku"
     },
     {
       "id": "US-1199",
@@ -1515,8 +1510,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T10:33:38Z"
+      "model": "haiku"
     },
     {
       "id": "US-1200",
@@ -1661,131 +1655,90 @@
     },
     {
       "id": "US-1208",
-      "title": "Phase A: Pre-filter candidates with TF-IDF similarity before LLM validation (ShinkaEvolve novelty rejection)",
-      "description": "Inspired by ShinkaEvolve's novelty rejection-sampling. Phase A generates 5 candidates then sends ALL to Phase S for LLM validation, even obvious duplicates. Add a fast TF-IDF cosine similarity pre-filter in ai_suggest.py that rejects candidates with >0.85 similarity to existing prd.json titles BEFORE the LLM call. Reuse _compute_tfidf_matrix() from validate_stories.py. This prevents the 'stuck at 100%' problem where Phase A wastes tokens validating duplicates.",
-      "priority": "critical",
+      "title": "[Performance Test] Phase I: Distribute Federated Stories to Workers by Sub-Project with Isolated Wor",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-636. Story description: Extend Phase I parallel worker distribution to respect sub_project field in federated prd.json. Route stories to dedicated sub-project workers, prevent cross-project file contamination, ensure each worktree is isolated to its sub-project namespace.",
       "acceptanceCriteria": [
-        "ai_suggest.py computes TF-IDF similarity of each candidate title against all existing prd.json titles before returning candidates",
-        "Candidates with cosine similarity > 0.85 to any existing title are dropped with a log message",
-        "The TF-IDF matrix is built once per Phase A invocation, not per candidate",
-        "A test verifies that a candidate with 90% title overlap is rejected before LLM validation"
+        "Performance test measures key metrics for US-636",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_636 -v"
       ],
       "dependencies": [],
+      "estimatedComplexity": "medium",
       "passes": false,
-      "filesTouch": [
-        "lib/research/ai_suggest.py",
-        "lib/prd/validate_stories.py"
-      ],
-      "estimatedComplexity": "small",
-      "tags": [
-        "performance",
-        "phase-a",
-        "shinka-evolve"
-      ]
+      "model": "haiku"
     },
     {
       "id": "US-1209",
-      "title": "Phase L: Inject learned patterns into Phase A and Ralph prompts (ShinkaEvolve meta-scratchpad)",
-      "description": "Inspired by ShinkaEvolve's meta-scratchpad system. Phase L already extracts patterns from completed stories into .spiral/learned_patterns_iter_N.json, but these patterns are never injected back into Phase A or Ralph. Read the latest learned_patterns file and append a 'Lessons from past implementations' section to: (1) Phase A's gap analysis prompt, (2) Ralph's system prompt via SPIRAL_CONTEXT injection. This creates an accelerating improvement curve where later iterations benefit from earlier learnings.",
-      "priority": "high",
+      "title": "[Regression Test] CLI: spiral trace-dependencies <story-id> - Federated Cross-Project Dependency Res",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-675. Story description: New CLI command that recursively resolves and visualizes a story's full dependency chain across federated sub-projects. Detects circular dependencies, displays file paths, and marks sub-project boundaries. Critical for multi-project workflows where US-001 in project-a may depend on PROJECT-B-US-005.",
       "acceptanceCriteria": [
-        "Phase A reads the latest .spiral/learned_patterns_iter_*.json and includes top 5 patterns in its LLM prompt",
-        "Ralph's implementation prompt includes a 'Learned Patterns' section with the top 3 most relevant patterns for the current story's tags",
-        "If no learned_patterns file exists, both phases proceed without injection (no error)",
-        "A test verifies that patterns from iteration N appear in the Phase A prompt for iteration N+1"
+        "Regression test covers core observable behaviour of US-675",
+        "Test would reliably fail if the US-675 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_675 -v"
       ],
       "dependencies": [],
-      "passes": false,
-      "filesTouch": [
-        "lib/research/ai_suggest.py",
-        "ralph/ralph.sh",
-        "lib/phases/phase_l_learning.sh"
-      ],
       "estimatedComplexity": "medium",
-      "tags": [
-        "improvement",
-        "phase-l",
-        "phase-a",
-        "shinka-evolve"
-      ]
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1210",
-      "title": "Phase I: UCB1 bandit-based model selection from results.tsv history (ShinkaEvolve adaptive model routing)",
-      "description": "Inspired by ShinkaEvolve's UCB1 multi-armed bandit for LLM ensemble selection. Currently SPIRAL uses fixed escalation (haiku->sonnet->opus on retry). Instead, analyze results.tsv to compute per-model success rates by story tag and complexity. Use UCB1 formula: score = success_rate + sqrt(2 * ln(total_attempts) / model_attempts) to pick the starting model. E.g., if [Security Test] stories always fail on haiku, start them on sonnet. Saves ~2 retries per story.",
-      "priority": "high",
+      "title": "[Regression Test] CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Mu",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-685. Story description: New CLI command that validates federated prd.json for dependency graph issues: circular dependencies (A→B→C→A), orphan stories (missing sub-project references), and namespace conflicts.",
       "acceptanceCriteria": [
-        "A new function ucb1_select_model(story_tags, complexity, results_tsv_path) returns the recommended starting model",
-        "The function reads results.tsv, groups by model and story tag, computes success rate and UCB1 exploration bonus",
-        "If fewer than 3 data points exist for a tag, falls back to the default classify_model() behavior",
-        "resolve_model() in ralph.sh calls the UCB1 selector for retry 0 (first attempt) instead of always starting with haiku",
-        "A test verifies that a model with 80% success rate on security tests is preferred over one with 20%"
+        "Regression test covers core observable behaviour of US-685",
+        "Test would reliably fail if the US-685 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_685 -v"
       ],
       "dependencies": [],
-      "passes": false,
-      "filesTouch": [
-        "lib/routing/model_router.py",
-        "ralph/ralph.sh"
-      ],
       "estimatedComplexity": "medium",
-      "tags": [
-        "performance",
-        "phase-i",
-        "model-routing",
-        "shinka-evolve"
-      ]
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1211",
-      "title": "Phase I: Inject most-similar passed story diff as implementation reference (ShinkaEvolve crossover)",
-      "description": "Inspired by ShinkaEvolve's crossover mutations. When Ralph implements a story, find the most similar already-passed story by filesTouch overlap and inject its commit diff as reference context. E.g., implementing 'Phase V test report fix' gets the diff from the successful 'Phase C check_done fix'. This gives Ralph a concrete example of how similar problems were solved in this codebase.",
+      "title": "[Regression Test] Integration Test: Federated Phase G with Cross-Project CHANGELOG and Dependency Or",
       "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-697. Story description: Add integration test verifying Phase G correctly generates CHANGELOG.md when using federated prd.json with multiple sub-projects that have cross-project story dependencies. Validates story ordering in CHANGELOG respects dependency graph.",
       "acceptanceCriteria": [
-        "Before Phase I spawns Ralph, find the passed story with highest filesTouch Jaccard similarity to the current story",
-        "If similarity > 0.3 and the story has a _passedCommit, inject the commit diff (git show _passedCommit) into Ralph's context",
-        "The injected diff is truncated to 200 lines max to avoid context overflow",
-        "If no similar story exists or similarity < 0.3, skip injection (no error)",
-        "A test verifies that a story touching tests/test_foo.py gets the diff of a passed story that also touched tests/"
+        "Regression test covers core observable behaviour of US-697",
+        "Test would reliably fail if the US-697 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_697 -v"
       ],
       "dependencies": [],
-      "passes": false,
-      "filesTouch": [
-        "ralph/ralph.sh",
-        "lib/context/repo_map.py"
-      ],
       "estimatedComplexity": "medium",
-      "tags": [
-        "improvement",
-        "phase-i",
-        "shinka-evolve"
-      ]
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1212",
-      "title": "Phase I: Weighted story selection by expected success probability (ShinkaEvolve fitness-weighted parent sampling)",
-      "description": "Inspired by ShinkaEvolve's weighted parent selection that balances exploitation and exploration. Currently SPIRAL picks stories by priority then ID order. Instead, score each pending story: P(success) = historical_pass_rate(model, complexity, tags) * (1 / (1 + retry_count)). Pick the story with highest expected value. This ensures easy stories are done first (quick wins) while hard stories get deferred until the model routing learns enough.",
+      "title": "[E2E Test] Phase M Story Reordering by Dependency Graph for Optimal Merge Order",
       "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-698. Story description: Topologically sort pending stories by dependency graph before merge to minimize implementation conflicts and rework. Stories should be merged after their dependencies are satisfied.",
       "acceptanceCriteria": [
-        "A function score_story_priority(story, results_tsv) returns a float score combining success probability and retry penalty",
-        "Phase I picks the pending story with the highest score instead of simple priority+ID order",
-        "Stories with 0 retries and matching historical success rate > 60% are prioritized",
-        "Stories with 3+ retries get a penalty factor but are never completely skipped",
-        "A test verifies that a small/haiku story with 90% historical success beats a large/opus story with 20% success"
+        "E2E test covers the user flow introduced by US-698",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
       ],
-      "dependencies": [
-        "US-1210"
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_698 -v"
       ],
-      "passes": false,
-      "filesTouch": [
-        "spiral.sh",
-        "lib/prd/merge_stories.py"
-      ],
+      "dependencies": [],
       "estimatedComplexity": "medium",
-      "tags": [
-        "improvement",
-        "phase-i",
-        "shinka-evolve"
-      ]
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }

@@ -43,3 +43,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T09:06:45Z	13	1	US-1194	[Regression Test] Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loo	keep	810	haiku	0	8d07ac29fe8c0140a97fca85ff3627736a4e73e3	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T09:59:31Z	14	1	US-1197	[Performance Test] Integration Test: Verify Worker Sub-Project Isolation Under 3-Worker Federated Lo	reject	993	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T10:09:27Z	14	2	US-1197	[Performance Test] Integration Test: Verify Worker Sub-Project Isolation Under 3-Worker Federated Lo	keep	453	sonnet	1	a046b8fcbea81b4268e45a40a227dbc180f809ee	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-11T10:33:36Z	15	1	US-1198	[E2E Test] Dashboard: Implement worker_swimlane.py with phase status logic	keep	935	haiku	0	5afbc133f510f2bcb8f9a81c4f0d0fa4fa506f3c	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0

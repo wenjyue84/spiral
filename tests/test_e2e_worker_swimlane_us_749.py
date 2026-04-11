@@ -133,16 +133,14 @@ class TestE2EWorkerSwimlaneUS749:
                                 # Verify types
                                 assert isinstance(worker["worker_id"], str), "worker_id should be string"
                                 assert isinstance(worker["current_phase"], str), "current_phase should be string"
-                                assert isinstance(
-                                    worker["phase_start_time"], (int, float)
-                                ), "phase_start_time should be numeric"
-                                assert isinstance(
-                                    worker["estimated_completion_seconds"], (int, float)
-                                ), "estimated_completion_seconds should be numeric"
+                                assert isinstance(worker["phase_start_time"], (int, float)), (
+                                    "phase_start_time should be numeric"
+                                )
+                                assert isinstance(worker["estimated_completion_seconds"], (int, float)), (
+                                    "estimated_completion_seconds should be numeric"
+                                )
 
-                            logger.info(
-                                f"✓ Worker swimlane data structure validated for {len(workers)} workers"
-                            )
+                            logger.info(f"✓ Worker swimlane data structure validated for {len(workers)} workers")
                         else:
                             logger.info("✓ Worker swimlane endpoint returns empty workers list (no active workers)")
 
