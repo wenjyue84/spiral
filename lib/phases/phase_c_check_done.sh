@@ -26,18 +26,9 @@
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && echo "Source this file, do not execute it directly." && exit 1
 
 run_phase_check_done() {
-  # ── Phase P: PUSH ──────────────────────────────────────────────────────────
-  echo ""
-  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-    echo "  [Phase P] PUSH — skipped (--dry-run)"
-  else
-    echo "  [Phase P] PUSH — pushing commits to origin/main..."
-    if git -C "$REPO_ROOT" push origin main 2>&1; then
-      echo "  [P] Pushed to origin/main successfully"
-    else
-      echo "  [P] WARNING: Push to origin/main failed (check remote/connectivity)"
-    fi
-  fi
+  # Note: Phase P (push) is handled by run_phase_push() in phase_p_push.sh,
+  # which is called before this function (see spiral.sh:1374).
+  # This function focuses on Phase C (check_done) logic only.
 
   # ── US-1088: Recover any orphaned prd.json writes from crashed workers ──────
   if [[ -f "${SCRATCH_DIR:-}/_prd_journal.jsonl" || -f ".spiral/_prd_journal.jsonl" ]]; then
