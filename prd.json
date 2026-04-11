@@ -2198,7 +2198,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-11T21:33:17Z"
+      "last_attempted": "2026-04-11T21:33:17Z",
+      "_phaseI": {
+        "diagnosisBlock": "### Current State\n- Story US-1234 is an E2E test requirement for the `/api/dashboard/costs-by-project` endpoint (US-582 feature)\n- Backend endpoint is already implemented in `lib/dashboard/api.py` at line 961\n- Endpoint returns story cards with: story_id, sub_project, total_cost, status, attempt_count, model\n- Multiple E2E test examples exist in `tests/e2e/` following Playwright async/await pattern\n- Dashboard is served at `http://localhost:5299`\n\n### Problem Identified\nThe story requires an E2E test that covers:\n1. The HTTP endpoint `/api/dashboard/costs-by-project` returns properly structured data\n2. Dashboard UI displays the costs-by-project visualization\n3. Test passes in headless browser (Playwright)\n\n### Planned Changes\n- Create `tests/e2e/test_us_582_e2e_costs_by_project.py` with E2E test class\n- Test 1: Verify endpoint returns proper JSON structure with story_cards array\n- Test 2: Verify dashboard page displays the costs-by-project visualization\n- Test 3: Verify story cards display with cost information visible\n- Test 4: Verify cards are sorted by cost (highest first)\n- All tests use Playwright async/await pattern, handle 404/missing data gracefully\n\n<plan>\n{\n  \"files_to_create\": [\"tests/e2e/test_us_582_e2e_costs_by_project.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"TestCostsByProject class with 4 async test methods\"],\n  \"estimated_loc\": 250\n}\n</plan>\n\nNow I'll implement the E2E test:\n## Summary"
+      }
     },
     {
       "id": "US-1235",
