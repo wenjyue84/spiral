@@ -438,7 +438,9 @@ def validate_story_sync(
             return _parse_llm_json(text)
         except _STREAM_ERRORS as e:
             # Fall through to blocking HTTP call on streaming error
-            logging.warning("Streaming validation failed; falling back to blocking HTTP call: %s", str(e), exc_info=True)
+            logging.warning(
+                "Streaming validation failed; falling back to blocking HTTP call: %s", str(e), exc_info=True
+            )
 
     # Fallback: blocking HTTP call via urllib
     url = f"{base_url}/v1/messages"

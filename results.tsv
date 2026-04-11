@@ -31,8 +31,8 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T04:24:19Z	2	1	US-1180	Phase M: Build token index once per merge instead of per-candidate (O(n²) fix)	keep	247	sonnet	1	b44a13dd55a7dfe89bacc72afce38b57a0d5c63f	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T04:51:25Z	4	1	US-1181	Phase P: Add git pull --rebase before push to fix non-fast-forward failures	keep	315	haiku	0	e401119c4439072dd63d20c34a6724b0877b82d9	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T04:56:47Z	4	2	US-1182	Phase T: Fix --output-format CLI argument error in spiral-core synthesize command	keep	217	haiku	0	9fa6a84d1596975dd9e1196169ec7419772caa7c	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
-2026-04-11T05:28:20Z	6	1	US-1186	Phase M: Lower dedup threshold after 3 consecutive all-rejected merge iterations	reject	870	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-04-11T05:33:15Z	6	2	US-1186	Phase M: Lower dedup threshold after 3 consecutive all-rejected merge iterations	keep	157	sonnet	1	b7b7474299bdd53f7a1595c907c2b05dc9290ea5	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-04-11T05:40:52Z	6	3	US-1187	Phase S: Replace bare except clauses with logged exceptions in batch_validate.py	reject	453	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-04-11T06:18:35Z	8	1	US-1188	[E2E Test] Model Escalation Prediction Engine with Dashboard Endpoint	keep	1663	haiku	0	6f8273246b3255457f20f2d30620077f1bf37408	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-04-11T06:56:30Z	9	1	US-1189	[Regression Test] Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits	keep	1338	haiku	0	14032da52cada65c4a079215bffeeab9205c4945	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-11T05:28:20Z	6	1	US-1186	Phase M: Lower dedup threshold after 3 consecutive all-rejected merge iterations	reject	870	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-11T05:33:15Z	6	2	US-1186	Phase M: Lower dedup threshold after 3 consecutive all-rejected merge iterations	keep	157	sonnet	1	b7b7474299bdd53f7a1595c907c2b05dc9290ea5	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-11T05:40:52Z	6	3	US-1187	Phase S: Replace bare except clauses with logged exceptions in batch_validate.py	reject	453	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-11T06:18:35Z	8	1	US-1188	[E2E Test] Model Escalation Prediction Engine with Dashboard Endpoint	keep	1663	haiku	0	6f8273246b3255457f20f2d30620077f1bf37408	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-11T06:56:30Z	9	1	US-1189	[Regression Test] Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits	keep	1338	haiku	0	14032da52cada65c4a079215bffeeab9205c4945	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
