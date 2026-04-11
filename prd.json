@@ -1634,12 +1634,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T13:57:49Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe SPIRAL project has implemented US-617 (Phase M topological sorting for federated stories) in `lib/impl/phase_m_federated_order.py`. Tests for this feature exist in:\n- `tests/test_regression_us_617.py` (5 marked with `@pytest.mark.us_617`)\n- `tests/test_phase_m_federated_order.py` (additional integration tests)\n\nRunning the tests with `-k us_617` shows all 5 tests pass. The feature works correctly.\n\n## Problem Identified\n\nStory US-1206 requires a **regression test** that would:\n1. Cover core observable behavior of US-617\n2. Reliably fail if the US-617 feature is removed or broken\n\nThe tests exist in `test_regression_us_617.py`, but the story is marked `passes: false`, suggesting the acceptance criteria may not be fully satisfied yet. The tests need verification that they would actually fail if the implementation is broken.\n\n## Planned Changes\n\nAccording to the technical notes and pre-analysis, I will:\n1. **Verify existing tests** cover the core observable behaviors properly\n2. **Enhance test coverage** if needed to ensure tests fail when the feature is removed\n3. **Document** that regression tests for US-617 are properly guarding against breakage\n4. **Run the tests** to confirm they pass and validate the implementation\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/test_regression_us_617.py\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 30\n}\n</plan>\n\nNow let me verify the tests would actually fail if the implementation is broken by examining what would happen if key functions were removed:\nPerfect! The regression tests for US-617 already exist and are comprehensive. Now let me verify they pass and work correctly:\nExcellent! All 5 US-617 regression tests pass. Now let me run quality checks to ensure everything is in order:\nPerfect! All quality checks pass. Now let me update prd.json to mark US-1206 as passing:\nPerfect! **Story US-1206 is now complete and passing.** Here's the summary:\n\n## Implementation Summary"
-      },
-      "_passedCommit": "44545b7d008c23fe4be3137abac4a0f6ac5edb81"
+      "model": "haiku"
     },
     {
       "id": "US-1207",
@@ -1657,11 +1652,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T14:08:04Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- The `lib/federated_status.py` module is already implemented with functions to aggregate story status across federated sub-projects\n- No E2E test exists yet for this feature\n- The test should be discoverable by `pytest -k us_629`\n- No CLI command has been wired yet for federated-status\n\n## Problem Identified\nUS-1207 requires an E2E test that covers the federated-status feature from US-629. The test should verify:\n1. The feature aggregates status across federated sub-projects correctly\n2. Output formats (JSON and table) work as expected  \n3. Cost calculations and token aggregation are accurate\n\n## Planned Changes\n- Create `tests/test_e2e_federated_status_us_629.py` with comprehensive E2E tests\n- Tests will cover: aggregation logic, output formats, edge cases, and integration with prd.json structure\nNow let me run the tests to verify they pass:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1208",
@@ -1914,6 +1905,91 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_782 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1219",
+      "title": "[Regression Test] Phase L: Retry Pattern Analysis - Extract What Makes Stories Easy vs Hard",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-785. Story description: Cluster completed stories by retry count and extract common traits of 1-try passes vs 5-retry failures. Store patterns in episodic memory for future runs.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-785",
+        "Test would reliably fail if the US-785 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_785 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1220",
+      "title": "[Regression Test] Phase I: Partial Victory Commit - Save Working ACs When Full Story Fails",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-787. Story description: When a story fails because 1 of N acceptance criteria cannot be met, commit the passing ACs and decompose only the failing ones into sub-stories.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-787",
+        "Test would reliably fail if the US-787 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_787 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1221",
+      "title": "[Regression Test] Phase I: Stuck Story Diagnosis - Classify Repeated Failures by Root Cause",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-788. Story description: After 3 identical failures, classify root cause: model-resolvable, scope-too-large, missing-knowledge, or external-dependency. Skip futile retries and suggest targeted action.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-788",
+        "Test would reliably fail if the US-788 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_788 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1222",
+      "title": "[Regression Test] Phase V: AC Assertion Extractor - Parse Acceptance Criteria into Executable Checks",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1004. Story description: Extract executable verification assertions from AC text (e.g. 'exits 0', 'file X exists', 'JSON contains field Y'). Generate per-story assertion files that can be programmatically verified, closing the gap between 'tests pass' and 'AC actually satisfied'.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1004",
+        "Test would reliably fail if the US-1004 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1004 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1223",
+      "title": "[Regression Test] Phase V: AC Verification Runner - Execute Extracted Assertions Post-Implementation",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1005. Story description: After pytest passes in Phase V, run an additional AC assertion verification pass. Execute each extracted assertion independently, report per-AC pass/fail results, and fail the story if zero assertions pass.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1005",
+        "Test would reliably fail if the US-1005 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1005 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

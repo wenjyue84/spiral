@@ -2306,3 +2306,32 @@ Completed: [Regression Test] Phase M: Optimize Merge Order for Federated Stories
 - Handles scenarios where a `sub_project_path` is invalid or the directory is missing.
 - Correctly skips sub-projects that do not contain a `results.tsv` file.
 - Robustness against empty or malformed data within `results.tsv` files.
+## Iteration 2 - Sat, Apr 11, 2026 10:24:24 PM
+Completed: [E2E Test] CLI: spiral federated-status — Unified Multi-Project Story Summary with Cost Breakdown (ID: US-1207) in 15m
+
+
+## Pre-analysis for US-1208 (Gemini 2.5 Pro)
+### Technical Brief: US-1208 - Performance Benchmark for Story Distribution
+
+**Project Context:** This story applies to the "Spiral" Python project, a task distribution system. The reference to Frappe in the prompt appears to be incorrect based on the codebase structure and story content. The central data structure is the `prd.json` file, not a Frappe DocType.
+
+**1. Python Files to Modify:**
+*   **New File:** A new performance test file should be created, likely at `tests/benchmarks/test_federated_distribution.py`.
+*   **Files Under Test (Do Not Modify):** The benchmark will execute and measure the logic responsible for story distribution. Based on the project and story US-636, this logic is likely located in files such as `lib/main.py`, `lib/federated_merge_prd.py`, and any modules responsible for worker management or task routing.
+
+**2. Frappe DocTypes & Hooks Involved:**
+*   **DocTypes:** None. The key data input is the `prd.json` file, which contains the list of stories, including the `sub_project` field.
+*   **Hooks:** None. The process is a script-based workflow.
+
+**3. Recommended Implementation Approach:**
+*   Utilize the `pytest-benchmark` library to create the performance test.
+*   Construct a representative test `prd.json` with a significant number of stories distributed across several `sub_project` namespaces.
+*   The test function will invoke the main story distribution entry point that was implemented in US-636.
+*   The `benchmark()` fixture will wrap this function call to measure key metrics like execution time.
+*   The test must capture a performance baseline and fail if subsequent runs degrade by more than the 20% threshold specified in the acceptance criteria.
+
+**4. Edge Cases & Gotchas:**
+*   **Mock External I/O:** The logic in `ai_suggest.py` (mentioned in technical notes) may involve LLM calls. These must be mocked to ensure the benchmark measures only the data processing and distribution logic, not network latency.
+*   **Test Data Consistency:** The performance is sensitive to the input `prd.json`. Use a static, version-controlled file for the benchmark to ensure results are repeatable.
+*   **State Isolation:** The benchmark must run in an isolated environment. Ensure that worktrees or state generated during the test run are properly cleaned up to prevent polluting subsequent runs.
+
