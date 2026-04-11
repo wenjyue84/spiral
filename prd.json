@@ -1385,12 +1385,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T08:19:48Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe test file `tests/test_perf_research_cache_us1026.py` exists with 5 test classes that measure:\n- Cache hit performance (1000 queries)\n- Cache miss performance (100 queries)\n- LRU eviction performance\n- Performance regression detection (20% threshold)\n- Mixed workload performance\n\n## Problem Identified\n1. Only the last test class (TestCacheOperationsPerformanceSuite) has `@pytest.mark.benchmark` decorator\n2. The other 4 test classes lack this marker, making them inconsistent\n3. Benchmark tests are excluded from default pytest runs due to config `-m 'not benchmark'`\n4. Tests can't capture baselines properly when run under xdist parallelization\n5. No baseline data has been captured for the research cache benchmarks yet\n\n## Planned Changes\n1. Add `@pytest.mark.benchmark(group=\"research-cache-us1026\")` to all 4 remaining test classes\n2. This ensures all performance tests are grouped together and properly categorized\n3. Running `pytest tests/test_perf_research_cache_us1026.py --override-ini=\"addopts=\" --benchmark-min-rounds=3` will capture baselines\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_perf_research_cache_us1026.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 20\n}\n</plan>\n\nNow I'll implement this by adding the benchmark marker to all test classes:\nNow let me verify that all tests are properly marked and can be collected:\nExcellent! All 5 tests are now properly marked. Let me run them to capture baselines:\nPerfect! All 5 tests pass with baselines captured. Let me verify the baselines were saved:\nNow let me verify the implementation with quality checks:\nPerfect! All tests pass and all acceptance criteria are met. Now let me commit these changes and update the prd.json:\nLet me verify one final time that all quality checks pass:\n## Summary"
-      },
-      "_passedCommit": "7ddb7fd8001e12224a123332b0735f6cab27550b"
+      "model": "haiku"
     },
     {
       "id": "US-1193",
@@ -1408,11 +1403,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T08:29:43Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe test file `tests/test_research_cache_benchmark.py` exists and contains three test methods that:\n- Benchmark cache latency savings\n- Count hits/misses for identical queries  \n- Verify cache misses for novel queries\n\nHowever, the test is **missing the `@pytest.mark.us_1027` decorator** which is required by the story's technical notes (\"Run: uv run pytest tests/ -k us_1027 -v\").\n\n## Problem Identified\n\n1. **Missing pytest marker** — Tests can't be discovered with `-k us_1027`\n2. **No baseline tracking** — AC #2 requires \"baseline captured and acceptable threshold defined\"\n3. **AC #3 not fully met** — \"Test fails if response time degrades more than 20% from baseline\" requires comparing against a persisted baseline\n\n## Planned Changes\n\n- Add `@pytest.mark.us_1027` to the test class to enable `-k us_1027` discovery\n- Implement baseline capture mechanism (JSON file in `.spiral/`) to store baseline metrics\n- Add assertion to detect >20% degradation from baseline\n- Keep stdout printing for CI logs (already implemented)\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/test_research_cache_benchmark.py\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 40\n}\n</plan>\n\nNow let me implement the changes:\nNow let me update the main test method to capture and compare baseline metrics:\nNow let me update the assertion section to include baseline comparison:\nNow let me verify the test can be discovered with the `-k us_1027` marker:\nLet me run the test with `-s` to capture stdout output:\nLet me register the `us_1027` marker in the pytest configuration:\nLet me run the test again to verify there are no more marker warnings:\nNow let me verify the implementation meets the quality standards by running a broader test:\nLet me fix the type error:\nLet me verify the type check passes now:\nLet me run the test one more time to ensure it still works:\nLet me verify the test can be discovered with the exact command from the story:\nLet me see the test results:\nLet me see the failure details:\nLet me run the test directly to see the failure:\nLet me check what's happening with the parallel test run. Let me run without the parallel setup to see if that's the issue:\nLet me run all tests in the file to ensure they all pass:\nNow let me commit the changes. First, let me check the git status:\nLet me update prd.json to mark US-1193 as passing:\nNow let me commit the changes:\nLet me verify the implementation one final time:\nLet me verify the output metrics are being printed correctly:\nPerfect! Let me verify the commit was successful:\nLet me run the test using the exact command from the story's technical notes:\nLet me verify the test discovery with a simpler output:\nLet me check the failure details by running with more verbose output:\nLet me check all tests with the us_1027 marker:\nLet me check if the baseline file might be causing issues. Let me remove it and run the test again:\nPerfect! Let me run the final verification to ensure all tests pass:\nLet me verify the git status:\nLet me update progress.txt to document the completion of this story:\nLet me commit the progress.txt update:\nPerfect! Let me verify the final commit was successful:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1194",
@@ -1548,6 +1539,94 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_390 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1202",
+      "title": "[Regression Test] Implement worker crash recovery using git worktree state snapshots",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-461. Story description: Detect when Ralph workers crash with detached HEAD or incomplete commits and automatically recover by reverting to last known-good state on main branch",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-461",
+        "Test would reliably fail if the US-461 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_461 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1203",
+      "title": "[E2E Test] Integration Test Phase R Research with Mocked Gemini Responses",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-491. Story description: Add end-to-end integration test for Phase R that mocks Gemini web search API and validates _research_output.json schema compliance",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-491",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_491 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1204",
+      "title": "[E2E Test] Add WebSocket /ws/cost endpoint to dashboard API for real-time token burn rate streaming",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-497. Story description: Extend SPIRAL self-monitoring dashboard with WebSocket support so cost deltas stream in real-time (within 2s) instead of polling. When Phase I completes a story, broadcast cost delta to all connected dashboard clients.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-497",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Source files from US-497: .coverage, .hypothesis/tmp/tmp0_6cugyv, .hypothesis/tmp/tmp0foc4z1u, .hypothesis/tmp/tmp14ubuxgu, .hypothesis/tmp/tmp1ph8xyfi",
+        "Run: uv run pytest tests/ -k us_497 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1205",
+      "title": "[Regression Test] Integration Test: Phase V Pytest Output Parsing with Subprocess Mock",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-512. Story description: Create tests/test_phase_v_integration.py that patches subprocess.run to return synthetic pytest output at a 60% pass rate. Verify Phase V correctly parses the output, tags failed stories with _test_failures, and emits the correct routing decision (retry vs proceed).",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-512",
+        "Test would reliably fail if the US-512 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_512 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1206",
+      "title": "[Regression Test] Integration Test: Phase V Multi-Format Output and Retry-Exhaustion Routing",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-513. Story description: Extend tests/test_phase_v_integration.py with parametrized tests for vitest (❯ marker) and bats (not ok N) output formats, failure category extraction (AssertionError, TimeoutError), and retry-exhaustion routing — stories with >3 retries must be archived with _retries_exhausted.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-513",
+        "Test would reliably fail if the US-513 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_513 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
