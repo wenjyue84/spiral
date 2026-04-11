@@ -1567,7 +1567,8 @@
       "last_attempted": "2026-04-11T12:48:48Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe existing test file `tests/test_crash_recovery.py` contains comprehensive tests for the US-461 detached HEAD recovery feature:\n- `test_detached_head_triggers_recovery()` — verifies recovery from detached HEAD\n- `test_recovery_leaves_clean_worktree()` — verifies working tree cleanup\n- `test_recovery_noop_on_clean_branch()` — verifies no-op on clean state\n- `test_recovery_fails_on_nonexistent_worktree()` — error handling\n\nThese tests exercise the `recover_detached_worktree()` function from `lib/impl/commit_revert.sh` (US-461).\n\n## Problem Identified\n\nThe tests exist but are **not discoverable** with `-k us_461` because they lack pytest marks. The story requires:\n1. ✓ Core observable behavior coverage (already exists)\n2. ✓ Would fail if feature removed (already true)\n3. ✗ Discoverable via `pytest tests/ -k us_461` (not currently)\n\n## Planned Changes\n\nAdd `@pytest.mark.us_461` decorator to all test methods in `test_crash_recovery.py` to make them discoverable with the `-k us_461` pytest filter.\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_crash_recovery.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow let me execute the plan by adding pytest marks to the existing tests:\nNow let me verify the tests can be discovered and run with the `-k us_461` filter:\nPerfect! All tests pass. Let me verify with the exact command from the technical notes:\nNow let me run the pre-commit checks to ensure everything is properly formatted:\nPerfect! All quality checks pass. Now let me commit the changes:\nLet me do a final verification that the solution works as expected:\nPerfect! All tests pass successfully. Let me verify the git log to confirm the commits:\n## Summary"
-      }
+      },
+      "_passedCommit": "8bab52c67c8a58baf59a879ddcf68d5d27aaf463"
     },
     {
       "id": "US-1203",
@@ -1584,8 +1585,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T13:03:28Z"
     },
     {
       "id": "US-1204",
