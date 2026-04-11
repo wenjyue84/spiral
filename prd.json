@@ -1133,7 +1133,16 @@
         "phase-m"
       ],
       "model": "haiku",
-      "last_attempted": "2026-04-11T04:18:20Z"
+      "last_attempted": "2026-04-11T04:18:20Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n`merge_stories.py` calls `_build_token_index(seen_titles)` inline inside each `is_duplicate()` call within 3 candidate processing loops. Each call rebuilds the entire token index from scratch, causing O(n²) work.\n\n## Problem Identified\n3 occurrences of `token_index=_build_token_index(seen_titles)` passed inline to `is_duplicate()`. Must build once before the loops and update incrementally.\n\n## Planned Changes\n- `lib/prd/merge_stories.py`: Build token index once before candidate loops, pass it; update index after each accepted story\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"lib/prd/merge_stories.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 15\n}\n</plan>\nNow I have the full picture. The fix is 4 surgical edits:\n1. Build token index once after `seen_titles` is initialized\n2. Replace each inline `_build_token_index(seen_titles)` with the pre-built `token_index`\n3. Update index incrementally when a title is accepted\nNow replace the 3 inline `_build_token_index(seen_titles)` calls with the pre-built `token_index`, and update the index after each accepted story:\nNow verify all 3 inline calls are gone and only the pre-built reference remains:\nThe 3 inline `_build_token_index(seen_titles)` calls are gone. `_build_token_index` is now called exactly once (line 640), and the index is updated incrementally at lines 678, 724, 767.\n\nNow run the tests:\nAll 68 tests pass. Mark story as complete and commit:\n12 lines changed — well within the budget. Commit:\nDone. US-1180 complete:\n\n- **12 lines changed** (vs 1644 in the failed attempt) — 4 surgical edits\n- `_build_token_index()` called once at line 640, before all candidate loops\n- Token index updated incrementally (`token_index[title] = normalize(title)`) after each accepted story\n- All 68 existing tests pass"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 209,
+        "tokensAfterMasking": 208,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1181",

@@ -11,9 +11,7 @@ import sys
 from typing import Any
 
 
-def validate_federated_namespaces(
-    prd: dict[str, Any], repos: list[str]
-) -> dict[str, Any]:
+def validate_federated_namespaces(prd: dict[str, Any], repos: list[str]) -> dict[str, Any]:
     """
     Validate all story IDs match federated namespace pattern.
 
@@ -58,8 +56,7 @@ def validate_federated_namespaces(
         repo, is_valid = _validate_namespace_pattern(story_id, repos)
         if not is_valid:
             errors.append(
-                f"[{story_id}] Invalid namespace. Expected format: "
-                f"{{REPO}}_{{TYPE}}-{{NUMBER}} where REPO in {repos}"
+                f"[{story_id}] Invalid namespace. Expected format: {{REPO}}_{{TYPE}}-{{NUMBER}} where REPO in {repos}"
             )
             failed_count += 1
         else:
@@ -72,8 +69,7 @@ def validate_federated_namespaces(
                 dep_repo, is_valid = _validate_namespace_pattern(dep_id, repos)
                 if repo and dep_repo and repo != dep_repo:
                     errors.append(
-                        f"[{story_id}] Cross-repo dependency rejected: "
-                        f"{repo} story cannot depend on {dep_id}"
+                        f"[{story_id}] Cross-repo dependency rejected: {repo} story cannot depend on {dep_id}"
                     )
                     failed_count += 1
                     passed_count = max(0, passed_count - 1)

@@ -587,3 +587,46 @@ This brief outlines the plan for implementing an automated story acceptance crit
 ### Gotchas
 - Test names must include `us_1037` (not just the class or file name) for the `-k us_1037` pytest filter to work
 - Worker-phase-swimlane endpoint returns `{"workers": []}` (not 4xx) on errors — only auth middleware returns 401/403
+## Iteration 1 - Sat, Apr 11, 2026 12:01:41 PM
+FAILED diff-guard: Phase M: Build token index once per merge instead of per-candidate (O(n²) fix) (ID: US-1180) — 1644 lines > 800 limit — attempt 1/3
+
+
+## Pre-analysis for US-1178 (Gemini 2.5 Pro)
+This brief is for implementing an E2E test for the Spiral project, as described in US-1178.
+
+**1. Files to Modify:**
+*   **Create:** `tests/test_us1070_e2e_data_integrity.py`. The name will match the `pytest -k us_1070` filter in the technical notes.
+*   **Reference:** The test will likely need to import and call the main application loop from `main.py` or a core orchestrator module in the `lib/` directory.
+*   **Reference:** Schemas for validation will likely be loaded from files like `prd.schema.json`.
+*   **Reference:** The test should read `spiralspiral_events.jsonl` or a similar artifact to inspect the output of each phase.
+
+**2. Key Components Involved:**
+*   **Testing Framework:** `pytest`, likely using the `pytest-playwright` plugin for browser automation.
+*   **Core Logic:** The "SPIRAL loop" orchestrator which manages the R→T→S→M→I→V→C phase transitions.
+*   **UI:** The test will interact with the `spiral-ui` frontend application.
+*   **Data Schemas:** The JSON schemas that define the expected output for each phase of the SPIRAL loop.
+
+**3. Implementation Approach:**
+*   Write a new `pytest` test function (`def test_us1070_...`) using the Playwright fixture.
+*   The test will drive the `spiral-ui` to initiate a full R→C loop execution.
+*   After each phase is triggered via the UI, the test must inspect the resulting data. The best source for this is likely the `spiralspiral_events.jsonl` log file.
+*   For each phase's output, load the corresponding JSON schema and validate the output data structure against it.
+*   Assert that UI elements correctly reflect the current state of the SPIRAL loop.
+
+**4. Edge Cases & Gotchas:**
+*   The primary challenge is capturing the intermediate state/output of each phase in an E2E context. Relying on a structured log file or a debug API endpoint will be critical.
+*   The test must handle the asynchronous nature of the UI and backend processing, using Playwright's auto-waiting capabilities to ensure stability.
+*   Ensure the test environment is reset to a clean state before each run to guarantee idempotency.
+
+## Iteration - Story: US-1180 - Phase M: Build token index once per merge instead of per-candidate (O(n²) fix)
+
+### What was implemented
+- **lib/prd/merge_stories.py**: Build token index once after `seen_titles` is initialized (line 640), pass `token_index` to all 3 `is_duplicate()` calls; update index incrementally with `token_index[title] = normalize(title)` after each accepted story
+
+### Patterns discovered
+- Previous attempt (attempt 1) failed the diff-guard (1644 lines) because it rewrote the whole file instead of making surgical edits
+- The fix is 12 lines changed — just 4 targeted Edit calls: add index init, replace 3 inline calls, add 3 incremental updates
+
+### Gotchas
+- Must update token_index incrementally after each `seen_titles.append(title)` to keep index in sync
+- The index is not updated for leftover/overflow candidates (cap-hit) because they're not added to seen_titles either — consistent behavior
