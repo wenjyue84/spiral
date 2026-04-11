@@ -2369,6 +2369,97 @@
       "model": "haiku"
     },
     {
+      "id": "US-1245",
+      "title": "[Performance Test] Phase E batch enrichment to reduce per-story Claude CLI overhead",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1101. Story description: Phase E enriches stories one-at-a-time, each requiring a separate Claude CLI invocation (~3s startup per call). Batch 5-10 stories into a single enrichment prompt, reducing N calls to ceil(N/5) calls. For 20 stories, this cuts from 60s to 12s of CLI overhead alone.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1101",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1101 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1246",
+      "title": "[Regression Test] Incremental test execution in Phase V using pytest --lf and changed-file detection",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1102. Story description: Phase V runs the full test suite every iteration even when only 2-3 files changed. Use pytest --lf (last-failed) for retry iterations and pytest --co combined with git diff to identify tests affected by changed files. Run only affected tests first; if they pass, skip the full suite. Full suite runs every 5th iteration as a safety net (configurable via SPIRAL_FULL_TEST_EVERY_N).",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1102",
+        "Test would reliably fail if the US-1102 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1102 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1247",
+      "title": "[Performance Test] File-locked spiral_events.jsonl writes to prevent corruption on Windows",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-1104. Story description: Multiple workers and the main process concurrently append to spiral_events.jsonl (run_parallel_ralph.sh lines 942, 985, 1114, 1223 plus worker_heartbeat.sh and commit_revert.sh). On Windows, concurrent file opens can corrupt lines or drop writes. Replace all raw printf >> appends with a locked_append_jsonl() function that acquires a file lock (flock on Linux, LockFileEx on Windows via Python) before writing.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-1104",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1104 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1248",
+      "title": "[E2E Test] Add cumulative cost and stories-passed trend chart to analytics",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1112. Story description: The analytics summary only shows a single total cost number with no over-time view. Add a dual-axis line chart below the summary bar: x-axis = iteration number, left y-axis = cumulative API cost ($), right y-axis = cumulative stories passed. Both lines on the same chart show the economic efficiency curve. Data: group results.tsv by spiral_iter, accumulate cost and passed count per iteration.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1112",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Source files from US-1112: spiral-ui/src/components/AnalyticsTab.tsx, spiral-ui/src/server/analyticsApi.ts",
+        "Run: uv run pytest tests/ -k us_1112 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1249",
+      "title": "[E2E Test] Add filter controls to analytics retry history table",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1115. Story description: The retry history table has no way to slice the data. Add a filter bar above the table with three dropdowns: (1) Failure Type - filters by failure_root_cause value; (2) Model Tier - haiku/sonnet/opus/all; (3) Outcome - passed/skipped/decomposed/all. The existing Most Recent / Most Retried sort toggle should remain. Show empty state message when no rows match filters.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1115",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Source files from US-1115: spiral-ui/src/components/analytics/FailureRetryDashboard.tsx, spiral-ui/src/components/AnalyticsTab.tsx",
+        "Run: uv run pytest tests/ -k us_1115 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1250",
       "title": "Create E2E Integration Test Harness and Fixtures for SPIRAL",
       "priority": "high",
@@ -2387,11 +2478,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T22:35:39Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `tests/conftest.py` exists with many fixtures but is missing `mock_ralph_env` and `mock_prd_fixture`\n- `tests/fixtures/` directory exists  \n- `test_spiral_e2e_integration.py` doesn't exist yet\n\n## Problem Identified\nNeed to create E2E integration test infrastructure for SPIRAL:\n1. Mock environment variables (`SPIRAL_VALIDATE_CMD`, `SPIRAL_MODEL_ROUTING=fixed`)\n2. Mock `ralph.sh` script that exits 0 and writes to `results.tsv`\n3. Mock PRD fixture with one deterministic story (UT-001)\n\n## Planned Changes\n1. **tests/conftest.py**: Add `mock_ralph_env` and `mock_prd_fixture` fixtures\n2. **tests/fixtures/mock_spiral_prd.json**: Create single-story PRD file\n3. **tests/test_spiral_e2e_integration.py**: Create test file with fixture validation test\n\n<plan>\n{\n  \"files_to_create\": [\n    \"tests/fixtures/mock_spiral_prd.json\",\n    \"tests/test_spiral_e2e_integration.py\"\n  ],\n  \"files_to_modify\": [\n    \"tests/conftest.py\"\n  ],\n  \"functions_to_add\": [\n    \"mock_ralph_env\",\n    \"mock_prd_fixture\",\n    \"TestSpiralE2EIntegration\"\n  ],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow I'll execute the plan:\nPerfect! I've successfully implemented **US-1250: Create E2E Integration Test Harness and Fixtures for SPIRAL**.\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1251",
