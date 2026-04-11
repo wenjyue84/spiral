@@ -1600,22 +1600,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_failureReason": "oversized_diff: produced 4220 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 4220 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ],
-      "last_attempted": "2026-04-11T13:35:07Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `tests/test_ws_cost.py` exists (370 lines) — unit/integration tests for WebSocket cost broadcasting\n- `lib/dashboard/api.py` has `/ws/cost` endpoint at line 615\n- `lib/dashboard/cost_broadcaster.py` has the `broadcast_cost_delta` and `ConnectionManager`\n- `tests/e2e/` has E2E test pattern using TestClient + async fixtures\n\n## Problem Identified\nUS-1204 needs an E2E test for the `/ws/cost` user flow (US-497 feature). Previous attempt generated 4220 lines (exceeded 800 limit). Need a focused <100 line test file.\n\n## Planned Changes\n- Create `tests/e2e/test_ws_cost_e2e_us497.py` (~75 lines) with 3 focused E2E tests using `pytest.mark.us_497`\n- Add `us_497` marker to `tests/pyproject.toml`\n\n<plan>\n{\n  \"files_to_create\": [\"tests/e2e/test_ws_cost_e2e_us497.py\"],\n  \"files_to_modify\": [\"tests/pyproject.toml\"],\n  \"functions_to_add\": [\"test_user_connects_to_ws_cost_endpoint\", \"test_ws_cost_cost_delta_broadcast_user_flow\", \"test_ws_cost_rejects_unauthenticated_user\"],\n  \"estimated_loc\": 80\n}\n</plan>\nAll 3 tests pass. Let me check the diff size:\nGood - the new E2E test file is untracked. Now let me update prd.json and progress.txt:\n193 lines total — well within the 800-line limit. Let me commit:\nDone. Here's what was implemented:\n\n**US-1204 — `/ws/cost` E2E test** ✅\n\nCreated `tests/e2e/test_ws_cost_e2e_us497.py` (75 lines) with 3 focused tests:\n\n1. **`test_user_connects_to_ws_cost_endpoint`** — user navigates to `/ws/cost`, connection is accepted\n2. **`test_ws_cost_cost_delta_broadcast_user_flow`** — full user flow: story completes → cost delta broadcast → message received with correct schema (`story_id`, `cost_delta`, `timestamp`)\n3. **`test_ws_cost_rejects_unauthenticated_user`** — auth enforcement rejects wrong API key\n\n**Key fix vs Attempt 1:** Previous attempt was 4220 lines. This is 75 lines by using `asyncio.run()` inside sync test functions and avoiding duplication with the existing 370-line `test_ws_cost.py` integration suite.\n\nAll 3 tests pass. Diff size: 193 lines (well under 800 limit)."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 291,
-        "tokensAfterMasking": 291,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_passedCommit": "a67286a3cc4dff26377484275a6c1e2cdfa1c2e3"
+      "model": "haiku"
     },
     {
       "id": "US-1205",
@@ -1632,11 +1617,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T13:40:20Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- File `tests/test_phase_v_integration.py` exists with comprehensive Phase V tests, including subprocess mocking patterns\n- File `tests/pyproject.toml` has pytest markers defined for other stories (us_461, us_390, us_1062, etc.)\n- No tests with `us_512` marker exist yet for regression testing\n\n## Problem Identified  \nStory US-1205 requires a **regression test** guarding against breakage of US-512 (Phase V pytest output parsing with subprocess mock). The test must:\n1. Be discoverable with `uv run pytest tests/ -k us_512 -v`\n2. Cover core observable behavior of subprocess mocking + pytest output parsing\n3. Would fail if the US-512 feature were removed\n\n## Planned Changes\n1. **tests/pyproject.toml**: Add `us_512` marker to pytest markers list\n2. **tests/test_phase_v_integration.py**: Add `TestUS512RegressionPhaseVParsingWithMock` class with:\n   - `@pytest.mark.us_512` decorator\n   - 4 focused regression test methods covering subprocess mock + parsing workflow\n   - Methods named `test_us_512_*` for consistency\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/pyproject.toml\",\n    \"tests/test_phase_v_integration.py\"\n  ],\n  \"functions_to_add\": [\n    \"TestUS512RegressionPhaseVParsingWithMock.test_us_512_subprocess_mock_returns_pytest_output\",\n    \"TestUS512RegressionPhaseVParsingWithMock.test_us_512_parse_and_tag_from_mocked_output\",\n    \"TestUS512RegressionPhaseVParsingWithMock.test_us_512_routing_decision_based_on_failures\",\n    \"TestUS512RegressionPhaseVParsingWithMock.test_us_512_end_to_end_mock_parse_tag_route\"\n  ],\n  \"estimated_loc\": 80\n}\n</plan>\n\nNow let me implement the regression tests:\nNow let me verify the regression tests work:\nPerfect! Story **US-1205** is now complete. Here's a summary of what was implemented:\n\n## ✅ Story US-1205 Complete"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1206",
@@ -1941,6 +1922,40 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_785 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1220",
+      "title": "[Regression Test] Phase I: Partial Victory Commit - Save Working ACs When Full Story Fails",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-787. Story description: When a story fails because 1 of N acceptance criteria cannot be met, commit the passing ACs and decompose only the failing ones into sub-stories.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-787",
+        "Test would reliably fail if the US-787 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_787 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1221",
+      "title": "[Regression Test] Phase I: Stuck Story Diagnosis - Classify Repeated Failures by Root Cause",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-788. Story description: After 3 identical failures, classify root cause: model-resolvable, scope-too-large, missing-knowledge, or external-dependency. Skip futile retries and suggest targeted action.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-788",
+        "Test would reliably fail if the US-788 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_788 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

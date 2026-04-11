@@ -52,3 +52,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T13:03:26Z	20	1	US-1202	[Regression Test] Implement worker crash recovery using git worktree state snapshots	keep	849	haiku	0	8bab52c67c8a58baf59a879ddcf68d5d27aaf463	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T13:35:05Z	21	1	US-1204	[E2E Test] Add WebSocket /ws/cost endpoint to dashboard API for real-time token burn rate streaming	reject	684	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-11T13:40:18Z	21	2	US-1204	[E2E Test] Add WebSocket /ws/cost endpoint to dashboard API for real-time token burn rate streaming	keep	289	sonnet	1	a67286a3cc4dff26377484275a6c1e2cdfa1c2e3	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-11T13:48:08Z	21	3	US-1205	[Regression Test] Integration Test: Phase V Pytest Output Parsing with Subprocess Mock	keep	446	haiku	0	9307dd1e5ab5fa545dc48f40c5d48cd8936e061f	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				

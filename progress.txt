@@ -2205,3 +2205,30 @@ Here is the technical brief for the Claude agent:
 *   **Pytest Output Format:** The synthetic `pytest` output string must be formatted realistically, as the parsing logic may be sensitive to the exact structure of `PASSED`/`FAILED` lines and the final summary block.
 *   **Test Isolation:** Ensure the test is hermetic. It should create its own in-memory story data for the function to process, rather than relying on any database state.
 
+## Iteration 3 - Sat, Apr 11, 2026  9:48:08 PM
+Completed: [Regression Test] Integration Test: Phase V Pytest Output Parsing with Subprocess Mock (ID: US-1205) in 7m
+
+
+## Pre-analysis for US-1206 (Gemini 2.5 Pro)
+This user story is for a regression test, not a new feature, and it belongs to the Spiral project, not a Frappe application. The goal is to ensure the topological sorting of federated stories, implemented in US-617, remains functional.
+
+**Technical Brief for US-1206**
+
+*   **Primary File for Modification:** A new test will be added to `tests/test_federation.py`. This file likely contains existing tests for federated story handling.
+
+*   **Core Logic File (for reference):** The test will target the sorting logic within `lib/federation/ordering.py` (or a similarly named file responsible for `phase_m_federated_order`). This file contains the topological sort implementation.
+
+*   **Involved Frappe Elements:** None. This is a pure Python backend task within the Spiral project's internal tooling. No DocTypes or Frappe hooks are involved.
+
+*   **Implementation Approach:**
+    1.  Create a new test function, e.g., `test_us1206_federated_merge_order_handles_cross_project_dependencies`.
+    2.  In the test, construct a list of mock "story" objects (dictionaries or simple objects) that represent federated stories.
+    3.  Define a dependency chain in the mock data (e.g., Story C depends on B, B depends on A). The initial list provided to the sorter should be in a deliberately incorrect order (e.g., `[C, A, B]`).
+    4.  Pass this unsorted list to the topological sort function imported from the core logic file.
+    5.  Assert that the returned list of stories is in the correct topological order (e.g., `[A, B, C]`).
+
+*   **Edge Cases & Gotchas:**
+    *   The test should also assert that the sorting function correctly raises an exception when presented with a circular dependency (e.g., A -> B -> A).
+    *   Mock data must accurately reflect the real story objects, especially the keys used for the story `id` and `dependencies` list.
+    *   Ensure the test would fail if the sorting logic were removed, for instance by asserting the incorrectly ordered list is *not* equal to the function's output.
+
