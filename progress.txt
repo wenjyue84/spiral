@@ -2541,3 +2541,51 @@ Enhanced and validated regression test suite for US-697 (Phase G CHANGELOG gener
 - Class-level pytest markers need both class and method decorators
 - filesTouch in prd.json (ralph.sh, model_routing.sh) are mismatched; actual files are in lib/impl and tests/
 - Pre-commit hooks use Python 3.12 but test runs on both 3.12 and 3.13
+## Iteration 1 - Sat, Apr 11, 2026 11:46:42 PM
+FAILED diff-guard: [E2E Test] Phase M Story Reordering by Dependency Graph for Optimal Merge Order (ID: US-1212) — 5114 lines > 800 limit — attempt 1/3
+
+
+## Pre-analysis for US-1212 (Gemini 2.5 Pro)
+This technical brief is based on the provided JSON for story US-1212. Note that the story content pertains to the Spiral project's internal tooling and does not involve a Frappe application as suggested in the prompt's context.
+
+**Subject:** Technical Brief for US-1212: E2E Test for Story Reordering
+
+**1. Python Files to Modify:**
+*   **New Test File:** Create a new end-to-end test file, likely at `tests/e2e/test_story_dependency_sorting.py`. This will contain the Playwright test logic.
+*   **Core Logic (Reference):** The feature being tested is implemented in `lib/routing/route_stories.py` and potentially a new `lib/routing/story_scorer.py`, which are called from `spiral.sh`. These files will be the subject of the test but not modified by it.
+
+**2. Frappe DocTypes/Hooks Involved:**
+*   None. This user story is not related to the Frappe framework. It concerns the project's internal command-line and routing scripts for managing development stories.
+
+**3. Recommended Implementation Approach:**
+1.  Use Python's Playwright library to write the E2E test.
+2.  In the test setup, programmatically generate mock `prd.json` and `results.tsv` files.
+3.  The mock `prd.json` should contain a few stories with a clear dependency graph (e.g., story 'B' depends on 'A').
+4.  The mock `results.tsv` should provide predictable success probabilities to control the scoring logic.
+5.  Execute the story selection/ordering logic, likely by invoking the relevant function in `lib/routing/route_stories.py` or running `spiral.sh` as a subprocess.
+6.  The test should then navigate a headless browser to the spiral-ui page that displays the story queue.
+7.  Assert that the story order rendered in the UI respects the topological sort from the dependency graph (i.e., story 'A' appears before 'B').
+
+**4. Edge Cases & Gotchas:**
+*   **Circular Dependencies:** The test suite must include a case where the mock `prd.json` has a circular dependency to verify the system handles this error gracefully.
+*   **Test Isolation:** Ensure the test runs in a sandboxed environment, using its own mock data files, to avoid interfering with the actual `prd.json`.
+*   **UI/Backend Sync:** The test must confirm that the UI correctly reflects the output of the backend sorting script, accounting for any potential caching or state delays.
+*   **Complex Graphs:** Test with a mix of dependent and independent stories to ensure the sorting correctly prioritizes dependent stories while still scoring and ranking others.
+
+
+## Iteration 2 - Story: US-1212 - [E2E Test] Phase M Story Reordering by Dependency Graph
+
+### What was implemented
+- Created `tests/e2e/test_phase_m_dep_order_us1212.py` (96 lines) with 5 tests
+- Tests `prd_merge()` from `lib/spiral/phase_m.py` directly for dependency ordering
+- Covers: dependency order respected, independent stories preserved, circular dep detection, empty input, dashboard endpoint (skip if unavailable)
+
+### Patterns discovered
+- E2E tests in this project do NOT require actual Playwright; HTTP requests + direct function calls suffice
+- Dashboard endpoint tests use `@pytest.mark.skipif(not _wait_for_dashboard(), ...)` pattern
+- Pre-existing mypy errors in unrelated files don't block story pass if new file passes strict mypy
+
+### Gotchas
+- Previous attempt failed (5114 lines) by creating massive test file; minimal approach (96 lines) works
+- `prd_merge(..., skip_quota=True)` avoids env var quota setup in tests
+- `_wait_for_dashboard()` called at module import time so the skipif evaluates once per session
