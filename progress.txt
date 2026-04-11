@@ -1,3 +1,51 @@
+## Iteration [N] - Story: US-1218 - [Regression Test] Phase V: Blame Attribution
+
+### What was implemented
+Added `@pytest.mark.us_782` decorators to all 8 test classes in `tests/test_blame_attribution.py`
+covering the blame attribution feature (US-782). Added `us_782` marker definition to `tests/pyproject.toml`.
+
+**Test Classes Marked:**
+- `TestExtractTestFile` - 4 tests for pytest node ID parsing
+- `TestExtractSourceFile` - 3 tests for source file name extraction
+- `TestParseTestResults` - 3 tests for test results JSON parsing
+- `TestFindNewlyFailedTests` - 4 tests for newly failed test detection
+- `TestAttributeTestToFile` - 4 tests for test-to-file matching logic
+- `TestBlameTests` - 2 tests for main blame attribution workflow
+- `TestIntegration` - 1 integration test with file I/O
+
+All 21 tests pass via `uv run pytest tests/ -k us_782 -v`
+
+### Quality Checks Passed
+
+✓ All 21 tests pass with us_782 marker
+✓ Type checking: `uv run mypy tests/test_blame_attribution.py --strict`
+✓ Linting: `uv run ruff check tests/test_blame_attribution.py`
+✓ Formatting: Already properly formatted
+
+### Acceptance Criteria Met
+
+✓ **AC1:** Regression test covers core observable behaviour of US-782
+   - Tests cover test file extraction, source file extraction, test results parsing
+   - Tests verify newly failed test detection (passed→failed transitions)
+   - Tests verify attribution matching (test name to changed source files)
+   - Tests verify full workflow with realistic baseline and new results
+
+✓ **AC2:** Test would reliably fail if the US-782 feature were removed or broken
+   - Test assertions validate matching logic, parsing, and attribution
+   - Removing any function from lib/test_blame.py would cause import failure
+   - Changing attribution heuristics would cause test assertion failures
+
+### Patterns Discovered
+
+- Regression tests discovered with `pytest -k us_NNN` where NNN is the story ID
+- Markers defined in tests/pyproject.toml with description format
+- `@pytest.mark.us_NNN` decorators applied at class level to mark all contained tests
+- Existing comprehensive test file already covered all observable behavior
+
+### Gotchas
+
+None encountered. Test file was already well-structured and comprehensive.
+
 ## Iteration [N] - Story: US-1217 - [Regression Test] Phase T: Flaky Test Detection
 
 ### What was implemented
@@ -2814,4 +2862,32 @@ Based on the user story, this is a technical brief for the implementation agent.
 *   Test the boundary condition: a failure rate of exactly 50%.
 *   Verify behavior for tests with fewer than 5 historical runs.
 *   Ensure a brand new failure is not incorrectly flagged as flaky.
+
+## Iteration 3 - Sun, Apr 12, 2026  1:47:12 AM
+Completed: [Regression Test] Phase T: Flaky Test Detection - Skip Story Generation for Intermittent Failures (ID: US-1217) in 3m
+
+
+## Pre-analysis for US-1218 (Gemini 2.5 Pro)
+**Technical Brief for US-1218: Blame Attribution Regression Test**
+
+**Project Context:** This story is for the "Spiral" Python project, a CI/automation tool. It is not a Frappe application. The objective is to write a `pytest` regression test for the existing failure attribution feature, originally implemented in story US-782.
+
+**1. Python Files to Modify:**
+*   **Create:** A new test file, likely `tests/test_failure_attribution.py`. The test function name must contain `us_782` to be targeted by the specified run command.
+*   **Reference/Import:** The test will call functions from `lib/failure_attribution.py` and potentially `lib/analyze_failures.py`, which contain the core logic for US-782.
+
+**2. Frappe Components Involved:**
+*   None. This is a pure Python `pytest` task. No Frappe DocTypes or hooks are relevant.
+
+**3. Recommended Implementation Approach:**
+1.  Use `pytest` to define a test, e.g., `test_us_782_regression_for_blame_attribution`.
+2.  In the test, construct two mock test result datasets: a "baseline" (all passing) and a "current" run (with a new failure).
+3.  Mock the necessary story metadata to link the code change that "caused" the failure to a specific story ID.
+4.  Call the core function from `lib/failure_attribution.py` that performs the analysis, passing it the mock data.
+5.  Assert that the function's output correctly attributes the new test failure to the correct mock story ID.
+
+**4. Edge Cases & Gotchas:**
+*   The mock data for test results and story metadata must be accurate.
+*   The test should account for multiple stories being processed in the same batch.
+*   Ensure the attribution logic is robust against flaky tests that might have failed in the baseline.
 
