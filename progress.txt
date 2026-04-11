@@ -1,3 +1,41 @@
+## Iteration 3 - Sun, Apr 12, 2026  2:45:00 AM
+Completed: [Regression Test] Phase V: AC Assertion Extractor - Parse Acceptance Criteria into Executable Checks (ID: US-1222) in 15m
+
+### What was implemented
+- Added comprehensive regression test suite for US-1004 (AC Assertion Extractor) feature
+- Marked all 8 existing test classes in `tests/test_ac_assertion_extractor.py` with `@pytest.mark.us_1004`
+  - TestExtractExitCode: 6 tests (pattern matching for exit codes)
+  - TestExtractFileExists: 5 tests (file creation patterns)
+  - TestExtractTestCommand: 7 tests (test runner commands)
+  - TestExtractJsonField: 7 tests (JSON field assertions)
+  - TestExtractLogGrep: 9 tests (log/grep assertions)
+  - TestExtractAssertions: 4 tests (full integration)
+  - TestExtractorPriority: 2 tests (extraction priority)
+  - TestEdgeCases: 5 tests (special conditions)
+- Added new `TestCLIIntegration` class with 2 integration tests:
+  1. `test_cli_main_with_temp_prd`: Verifies main() creates output with correct structure
+  2. `test_observable_end_to_end_workflow`: Tests full workflow with mixed AC types (5 types extracted, 1 manual review)
+- Total: 52 tests passing with pytest -k us_1004 -v
+
+### Quality checks passed
+- MyPy --strict: ✓ Success: no issues found
+- Ruff lint: ✓ All checks passed
+- Ruff format: ✓ Code properly formatted
+- All 52 tests pass in parallel with xdist
+
+### Key findings
+- US-1004 feature is fully implemented and production-ready
+- 5 assertion patterns working correctly: exit_code, file_exists, test_command, json_field, log_grep
+- Tests comprehensively cover observable behavior that would catch future breakage
+- Regression test suite would fail if:
+  - Any pattern extractor is removed or broken
+  - Metadata structure changes (timestamp format, field names, counts)
+  - Edge cases like blank AC items or special characters aren't handled
+
+### Patterns discovered
+- Existing test suite was excellent but needed pytest marker for discovery
+- CLI observable behavior (file structure, output JSON format) is critical for regression testing
+- Mixed AC types (5 in one story) properly detected and routed to different extractors
 
 ## Pre-analysis for US-1219 (Gemini 2.5 Pro)
 This user story is not related to Frappe or the `lhdn_payroll_integration` app. It pertains to the Spiral project itself, focusing on creating a regression test for an internal feature (US-785) that analyzes story completion patterns.
