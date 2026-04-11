@@ -1091,8 +1091,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T04:01:44Z"
+      "model": "haiku"
     },
     {
       "id": "US-1179",
@@ -1106,6 +1105,227 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_1064 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1180",
+      "title": "Phase M: Build token index once per merge instead of per-candidate (O(n²) fix)",
+      "description": "merge_stories.py rebuilds the token index for ALL existing titles on EVERY candidate story (lines 666, 711, 749). With 48 stories and 38+ candidates × 3 groups, this causes ~45,000 index rebuilds per iteration. Build the index once before processing candidate groups and reuse it.",
+      "priority": "critical",
+      "acceptanceCriteria": [
+        "_build_token_index() is called at most once per merge invocation, before the candidate loops",
+        "The token index is passed as a parameter to dedup checks instead of rebuilt inline",
+        "Phase M merge time decreases by at least 50% on a 48-story PRD with 38 candidates",
+        "All existing merge_stories tests pass unchanged"
+      ],
+      "dependencies": [],
+      "passes": true,
+      "filesTouch": [
+        "lib/prd/merge_stories.py"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "performance",
+        "phase-m"
+      ],
+      "model": "haiku",
+      "last_attempted": "2026-04-11T04:18:20Z"
+    },
+    {
+      "id": "US-1181",
+      "title": "Phase P: Add git pull --rebase before push to fix non-fast-forward failures",
+      "description": "Phase P push fails every iteration with non-fast-forward rejection because origin/main has diverged. Add git fetch + rebase before push. If rebase has conflicts, log a warning and skip push (do not abort the loop).",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "Phase P runs git fetch origin main and git rebase origin/main before git push",
+        "If rebase succeeds, push proceeds normally",
+        "If rebase fails due to conflicts, Phase P logs WARNING and continues without push",
+        "Phase P never aborts the SPIRAL loop due to push failures"
+      ],
+      "dependencies": [],
+      "passes": false,
+      "filesTouch": [
+        "spiral.sh"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "bug-fix",
+        "phase-p"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1182",
+      "title": "Phase T: Fix --output-format CLI argument error in spiral-core synthesize command",
+      "description": "Phase T test synthesis fails every iteration with: unexpected argument --output-format found, tip: a similar argument exists: --output. The spiral-core binary CLI changed but the caller in phase_rt_parallel.sh still passes the old flag name.",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "Phase T invocation uses --output instead of --output-format",
+        "spiral-core synthesize command succeeds and produces test story candidates",
+        "Phase T generates at least 1 test story candidate when test failures exist in test-reports/"
+      ],
+      "dependencies": [],
+      "passes": false,
+      "filesTouch": [
+        "lib/phases/phase_rt_parallel.sh"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "bug-fix",
+        "phase-t"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1183",
+      "title": "Cleanup: Auto-delete stale .tmp files in .spiral/ older than 30 minutes",
+      "description": "56+ stale _claude_raw_*.tmp files accumulate in .spiral/ every iteration (ASSERT FAIL orphan_tmpfiles). Add cleanup at iteration start: delete .tmp files older than 30 minutes. Use find on Linux/macOS, PowerShell on Windows.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "At the start of each iteration, files matching .spiral/_claude_raw_*.tmp older than 30 minutes are deleted",
+        "Cleanup works on both Unix (find -mmin) and Windows (PowerShell Get-ChildItem)",
+        "Cleanup logs how many files were deleted",
+        "The ASSERT FAIL orphan_tmpfiles warning no longer fires after cleanup"
+      ],
+      "dependencies": [],
+      "passes": false,
+      "filesTouch": [
+        "spiral.sh"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "cleanup",
+        "windows"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1184",
+      "title": "Phase V: Fix test report generation so check_done sees results",
+      "description": "Phase V validation runs SPIRAL_VALIDATE_CMD but no test report is written to test-reports/. Phase C always warns: No test report found. Ensure SPIRAL_VALIDATE_CMD output is captured as a JSON report in test-reports/<timestamp>/report.json with pass/fail counts.",
+      "priority": "critical",
+      "acceptanceCriteria": [
+        "After Phase V runs SPIRAL_VALIDATE_CMD, a report.json file exists in test-reports/ with pass_count, fail_count, error_count fields",
+        "Phase C check_done finds the test report and does not warn about missing reports",
+        "If SPIRAL_VALIDATE_CMD fails to produce parseable output, a fallback report is created from exit code"
+      ],
+      "dependencies": [],
+      "passes": false,
+      "filesTouch": [
+        "lib/phases/phase_v_validate.sh"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "bug-fix",
+        "phase-v"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1185",
+      "title": "Phase I: Complete rollback implementation stubs in commit_revert.sh",
+      "description": "commit_revert.sh has TODO stubs at lines 295 and 319 for merge+quality-gate assertion and branch-drop+reset. These are never executed, meaning failed implementations cannot recover automatically. Implement the actual rollback logic using git checkout and branch deletion.",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "commit_revert.sh rollback function restores the repo to the pre-story commit state on quality gate failure",
+        "commit_revert.sh merge function runs all 5 quality gates before finalizing",
+        "If any quality gate fails, the worktree branch is dropped and working tree restored",
+        "A test verifies rollback restores the repo to pre-story state"
+      ],
+      "dependencies": [],
+      "passes": false,
+      "filesTouch": [
+        "lib/impl/commit_revert.sh"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "bug-fix",
+        "phase-i",
+        "quality-gates"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1186",
+      "title": "Phase M: Lower dedup threshold after 3 consecutive all-rejected merge iterations",
+      "description": "When Phase M rejects all candidates as duplicates for 3+ consecutive iterations, it should log a prominent warning and temporarily lower the Jaccard dedup threshold from 0.6 to 0.45 to allow slightly different stories through. Reset the counter when a story is successfully merged.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "A counter tracks consecutive all-rejected iterations in .spiral/_merge_reject_streak.json",
+        "After 3 consecutive all-rejected iterations, Jaccard threshold lowers from 0.6 to 0.45",
+        "A WARNING log message is emitted when threshold is lowered",
+        "Counter resets to 0 when at least 1 story is successfully merged"
+      ],
+      "dependencies": [],
+      "passes": false,
+      "filesTouch": [
+        "lib/prd/merge_stories.py"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "improvement",
+        "phase-m",
+        "dedup"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1187",
+      "title": "Phase S: Replace bare except clauses with logged exceptions in batch_validate.py",
+      "description": "batch_validate.py line 428 and merge_stories.py line 818 use bare except/catch-all patterns that swallow errors silently. Replace with specific exception types and add logging so validation failures are diagnosable.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "batch_validate.py:428 catches specific exception types (httpx.HTTPError, json.JSONDecodeError) instead of bare Exception",
+        "merge_stories.py:818 logs the exception message before falling back to priority sort",
+        "All caught exceptions are logged at WARNING level with traceback context",
+        "No bare except or generic catch-all patterns remain in merge_stories.py or batch_validate.py"
+      ],
+      "dependencies": [],
+      "passes": false,
+      "filesTouch": [
+        "lib/prd/batch_validate.py",
+        "lib/prd/merge_stories.py"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "quality",
+        "error-handling"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1188",
+      "title": "[E2E Test] Model Escalation Prediction Engine with Dashboard Endpoint",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1058. Story description: Predict when stories will escalate to sonnet/opus models based on token spend trajectory. Helps forecast implementation complexity and cost before Phase I completes. Provides CLI analyzer and real-time dashboard endpoint.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1058",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1058 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1189",
+      "title": "[Regression Test] Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1050. Story description: Implement sub-project story quota enforcement in Phase M merge logic. Add SPIRAL_QUOTA_<SUBPROJECT>=N config option (e.g. SPIRAL_QUOTA_FRONTEND=30). Phase M rejects prd.json merge if any sub-project exceeds its quota, logs quota_exceeded event to results.tsv.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1050",
+        "Test would reliably fail if the US-1050 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1050 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

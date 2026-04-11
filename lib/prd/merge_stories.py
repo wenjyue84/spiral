@@ -636,6 +636,9 @@ def main() -> int:
     seen_titles: list[str] = list(existing_titles)
     seen_epics: list[str] = list(existing_epics)
 
+    # ── US-1180: Build token index once for all candidate loops (O(n) not O(n²)) ──
+    token_index: dict[str, set[str]] = _build_token_index(seen_titles)
+
     # ── Tag test candidates with source if not already set ────────────────────
     for story in test_candidates:
         if "_source" not in story:
@@ -663,7 +666,7 @@ def main() -> int:
             threshold=effective_threshold,
             candidate_epic=cand_epic,
             existing_epics=seen_epics,
-            token_index=_build_token_index(seen_titles),
+            token_index=token_index,
         ):
             print(f"[merge] Skip duplicate (test): {title[:80]}")
             continue
@@ -672,6 +675,7 @@ def main() -> int:
         dedup_hashes.add(content_hash)
         new_stories.append(story)
         seen_titles.append(title)
+        token_index[title] = normalize(title)
         seen_epics.append(cand_epic)
 
     # ── Promote test-story/test-fix from research pool to Group 1 ───────────────
@@ -708,7 +712,7 @@ def main() -> int:
                 threshold=effective_threshold,
                 candidate_epic=cand_epic,
                 existing_epics=seen_epics,
-                token_index=_build_token_index(seen_titles),
+                token_index=token_index,
             ):
                 print(f"[merge] Skip duplicate (promoted): {title[:80]}")
                 continue
@@ -717,6 +721,7 @@ def main() -> int:
             dedup_hashes.add(content_hash)
             new_stories.append(story)
             seen_titles.append(title)
+            token_index[title] = normalize(title)
             seen_epics.append(cand_epic)
         research_candidates = _remaining_research
 
@@ -746,7 +751,7 @@ def main() -> int:
             threshold=effective_threshold,
             candidate_epic=cand_epic,
             existing_epics=seen_epics,
-            token_index=_build_token_index(seen_titles),
+            token_index=token_index,
         ):
             print(f"[merge] Skip duplicate (research): {title[:80]}")
             continue
@@ -759,6 +764,7 @@ def main() -> int:
             dedup_hashes.add(content_hash)
             new_stories.append(story)
             seen_titles.append(title)
+            token_index[title] = normalize(title)
             seen_epics.append(cand_epic)
 
     # ── US-1134: Detect and handle all-rejected iteration (dense backlog deadlock) ──
