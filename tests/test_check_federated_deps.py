@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 from check_federated_deps import (
@@ -255,13 +256,13 @@ class TestValidate:
 
     def test_empty_prd(self) -> None:
         """Empty prd.json."""
-        prd: dict[str, list] = {"userStories": []}
+        prd: dict[str, list[Any]] = {"userStories": []}
         result = validate(prd)
         assert result["valid"] is True
 
     def test_prd_missing_userstories(self) -> None:
         """prd.json missing userStories key."""
-        prd: dict[str, list] = {}
+        prd: dict[str, list[Any]] = {}
         result = validate(prd)
         assert result["valid"] is True
 

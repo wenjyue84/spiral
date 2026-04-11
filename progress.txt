@@ -2414,3 +2414,49 @@ This is a Python CLI regression test, not a Frappe story. The context about "lhd
 *   The test should check for both simple (A->B->A) and longer (A->B->C->A) circular dependency chains.
 *   The test must confirm the command fails as expected (e.g., non-zero exit code or exception) when issues are found, not just that it prints an error.
 
+## Iteration 1 - Sat, Apr 11, 2026 11:18:35 PM
+FAILED diff-guard: [Regression Test] CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Mu (ID: US-1210) — 2761 lines > 800 limit — attempt 1/3
+
+
+## Pre-analysis for US-1210 (Gemini 2.5 Pro)
+This is a Python CLI regression test, not a Frappe story. The context about "lhdn_payroll_integration" and "Frappe" should be disregarded. The technical notes in the JSON also appear to be from a different, unrelated story about model routing and should be ignored.
+
+**Project:** Spiral CLI (Python)
+**Goal:** Create a regression test for the `spiral check-federated-deps` command.
+
+**1. Key Files:**
+*   **To Create:** `tests/test_check_federated_deps.py`. This new file will contain the regression test logic.
+*   **To Read/Import:** `lib/check_federated_deps.py`. This is the source code for the feature being tested. The test will import its core logic to execute against test data.
+*   **To Reference:** `prd.schema.json`. This file defines the structure of the data file being validated and is useful for creating accurate mock data.
+
+**2. Involved Frappe/App Components:**
+*   **DocTypes/Hooks:** None. This is a pure Python application. The primary data structure is the federated `prd.json` file.
+
+**3. Recommended Implementation Approach:**
+1.  In `tests/test_check_federated_deps.py`, use `pytest`.
+2.  Define separate test functions for each validation rule:
+    *   `test_detects_circular_dependencies`: Create an in-memory dictionary or temporary JSON file representing a `prd.json` with a story dependency loop (e.g., US-1 -> US-2 -> US-1).
+    *   `test_detects_orphan_stories`: Create mock data with a story that references a non-existent sub-project.
+    *   `test_valid_graph_passes`: Create a well-formed mock `prd.json` with no issues.
+3.  Import the main validation function from `lib/check_federated_deps.py` and call it against the mock data.
+4.  Assert that the function raises an appropriate error (e.g., `SystemExit` or a custom exception) for invalid data and runs without error for valid data.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the mock `prd.json` data accurately reflects the schema, especially the structure of the `dependencies` and sub-project fields.
+*   The test should check for both simple (A->B->A) and longer (A->B->C->A) circular dependency chains.
+*   The test must confirm the command fails as expected (e.g., non-zero exit code or exception) when issues are found, not just that it prints an error.
+
+
+## Iteration [N] - Story: US-1210 - [Regression Test] CLI: spiral check-federated-deps
+
+### What was implemented
+- Fixed 2 mypy strict errors in tests/test_check_federated_deps.py (lines 258, 264: `dict[str, list]` → `dict[str, list[Any]]`, added `from typing import Any`)
+- All 26 tests pass covering cycles, orphans, and namespace validation
+
+### Patterns discovered
+- Regression test story US-1210 targets code already tested in US-685 commit (a51daa9d)
+- The test file existed and passed; only mypy fixes needed
+
+### Gotchas
+- Previous attempt (2761 lines) failed because it re-created tests + added UCB1 routing
+- `dict[str, list]` needs type param: use `dict[str, list[Any]]` for mypy --strict compliance

@@ -1718,12 +1718,17 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         "lib/routing/route_stories.py",
         "ralph/lib/model_routing.sh"
-      ]
+      ],
+      "_failureReason": "oversized_diff: produced 2761 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
+      "_antiPatterns": [
+        "oversized_diff: produced 2761 lines but limit is 800. Keep total insertions+deletions under 800 lines."
+      ],
+      "last_attempted": "2026-04-11T15:18:37Z"
     },
     {
       "id": "US-1211",
