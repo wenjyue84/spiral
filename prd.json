@@ -1475,21 +1475,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_failureReason": "oversized_diff: produced 1209 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 1209 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ],
-      "last_attempted": "2026-04-11T09:59:34Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe story US-1197 needs a performance benchmark for the US-752 federated worker isolation operation. The previous attempt failed with 1209 lines (limit 800). There's already an existing test file `test_federated_worker_isolation_load.py` (211 lines) that covers the functional aspects.\n\n## Problem Identified\nNeed a compact performance test that measures timing of the US-752 operations (fixture load, story distribution, isolation check), captures a baseline, and fails if >20% degradation. Previous attempt was too large.\n\n## Planned Changes\n- Create a single new file `tests/test_perf_us752_isolation.py` (~75 lines)\n- No modifications to existing files\n- Three test functions matching `-k us_752`\n- Self-contained with stdlib only (no project lib imports)\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_perf_us752_isolation.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_us752_fixture_load_performance\", \"test_us752_regression_threshold\", \"test_us752_distribution_metrics\"],\n  \"estimated_loc\": 75\n}\n</plan>\nAll 3 tests pass. Let me also verify it matches the `-k us_752` filter and check the diff size:\nThe tests don't match `-k us_752` (need underscore). Let me fix the function names:\nNow check diff size and run pre-commit:\nAll checks pass. Now update prd.json and commit:\n229 lines — well under the 800 limit. Now commit:\nDone. US-1197 is implemented and committed.\n\n**Summary:**\n- Created `tests/test_perf_us752_isolation.py` (82 lines, 229 total diff lines — well under 800 limit)\n- Three tests matching `-k us_752` filter:\n  1. `test_us_752_fixture_load_performance` — times the full load+distribute+isolate pipeline, captures baseline, enforces 20% threshold\n  2. `test_us_752_regression_threshold` — verifies the 20% logic itself (15% passes, 25% fails)\n  3. `test_us_752_distribution_metrics` — measures each phase individually with absolute bounds\n- No external dependencies, stdlib-only approach kept the diff minimal\n- All ruff, mypy strict, and pytest checks pass"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 303,
-        "tokensAfterMasking": 302,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1198",
@@ -1626,6 +1612,110 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_512 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1206",
+      "title": "[Regression Test] Phase M: Optimize Merge Order for Federated Stories with Cross-Project Dependencie",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-617. Story description: Add topological sorting in Phase M (lib/impl/phase_m_federated_order.py) that orders federated stories before merge so that stories with cross-project dependencies are merged in correct sequence (dependency stories first). Prevents Phase I from attempting to implement stories whose dependencies haven't been merged yet.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-617",
+        "Test would reliably fail if the US-617 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_617 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1207",
+      "title": "[E2E Test] CLI: spiral federated-status — Unified Multi-Project Story Summary with Cost Breakdown",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-629. Story description: Add CLI command to aggregate story status across federated sub-project PRDs: reads .spiral/prd.json federated structure, iterates sub_project_path entries, aggregates story counts and tokens from sub-project results.tsv files, outputs unified health dashboard in JSON or table format.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-629",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_629 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1208",
+      "title": "[Performance Test] Phase I: Distribute Federated Stories to Workers by Sub-Project with Isolated Wor",
+      "priority": "medium",
+      "description": "Write performance benchmark for the operation in US-636. Story description: Extend Phase I parallel worker distribution to respect sub_project field in federated prd.json. Route stories to dedicated sub-project workers, prevent cross-project file contamination, ensure each worktree is isolated to its sub-project namespace.",
+      "acceptanceCriteria": [
+        "Performance test measures key metrics for US-636",
+        "Baseline captured and acceptable threshold defined",
+        "Test fails if response time degrades more than 20% from baseline"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_636 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1209",
+      "title": "[Regression Test] CLI: spiral trace-dependencies <story-id> - Federated Cross-Project Dependency Res",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-675. Story description: New CLI command that recursively resolves and visualizes a story's full dependency chain across federated sub-projects. Detects circular dependencies, displays file paths, and marks sub-project boundaries. Critical for multi-project workflows where US-001 in project-a may depend on PROJECT-B-US-005.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-675",
+        "Test would reliably fail if the US-675 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_675 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1210",
+      "title": "[Regression Test] CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Mu",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-685. Story description: New CLI command that validates federated prd.json for dependency graph issues: circular dependencies (A→B→C→A), orphan stories (missing sub-project references), and namespace conflicts.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-685",
+        "Test would reliably fail if the US-685 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_685 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1211",
+      "title": "[Regression Test] Integration Test: Federated Phase G with Cross-Project CHANGELOG and Dependency Or",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-697. Story description: Add integration test verifying Phase G correctly generates CHANGELOG.md when using federated prd.json with multiple sub-projects that have cross-project story dependencies. Validates story ordering in CHANGELOG respects dependency graph.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-697",
+        "Test would reliably fail if the US-697 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_697 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
