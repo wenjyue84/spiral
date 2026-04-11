@@ -292,7 +292,85 @@ commit_or_revert() {
       write-entry --journal "$_TXN_JOURNAL" --story-id "$story_id" \
       --operation update --prd "$_PRD" --backup "$_BAK" 2>/dev/null || true
 
-    # TODO: implement merge + quality gate assertion
+    # ── Merge worker branch into main ────────────────────────────────────────
+    local _merge_status=0
+    local _merge_start
+    _merge_start=$(date +%s%3N)
+
+    # Attempt merge with --no-edit to suppress editor
+    if ! git merge --no-edit "$worker_branch" 2>&1; then
+      _merge_status=$?
+      echo "[Phase I / commit] WARNING: Merge failed with status $_merge_status"
+      # Abort the merge to restore clean state
+      git merge --abort 2>/dev/null || true
+      passes="false"
+    else
+      # Check for merge conflicts (git merge --no-edit may succeed but leave conflicts)
+      if git diff --name-only --diff-filter=U 2>/dev/null | grep -q .; then
+        echo "[Phase I / commit] WARNING: Merge produced conflicts — aborting"
+        git merge --abort 2>/dev/null || true
+        passes="false"
+      fi
+    fi
+
+    # If merge succeeded, run quality gates
+    if [[ "$passes" == "true" ]]; then
+      echo "[Phase I / commit] Running quality gates for $story_id"
+      local _gates_cmd="${SPIRAL_VALIDATE_CMD:-uv run pytest tests/ -v --tb=short}"
+      local _gates_timeout="${SPIRAL_VALIDATE_TIMEOUT:-300}"
+
+      # Run quality gates with timeout
+      if [[ "$_gates_timeout" -gt 0 ]]; then
+        timeout "$_gates_timeout" bash -c "$_gates_cmd" >/dev/null 2>&1
+        _merge_status=$?
+      else
+        bash -c "$_gates_cmd" >/dev/null 2>&1
+        _merge_status=$?
+      fi
+
+      if [[ $_merge_status -ne 0 ]]; then
+        echo "[Phase I / commit] Quality gates FAILED — reverting merge"
+        # Revert merge to restore pre-merge state
+        git reset --hard HEAD~1 2>/dev/null || true
+        passes="false"
+      else
+        echo "[Phase I / commit] Quality gates PASSED — committing $story_id"
+
+        # Get story title from prd.json for commit message
+        local _story_title
+        _story_title=$("${SPIRAL_PYTHON:-uv run python}" -c "
+import json, sys
+try:
+  with open('${_PRD}', 'r', encoding='utf-8') as f:
+    prd = json.load(f)
+  story = next((s for s in prd.get('userStories', []) if s.get('id') == '${story_id}'), None)
+  if story:
+    print(story.get('title', '${story_id}'))
+  else:
+    print('${story_id}')
+except:
+  print('${story_id}')
+" 2>/dev/null) || _story_title="$story_id"
+
+        # Create commit with standardized message
+        git commit --allow-empty -m "feat: $story_id - $_story_title
+
+Story ID: $story_id
+Phase I: Merged and validated via quality gates.
+
+Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>" 2>/dev/null || true
+
+        echo "[Phase I / commit] Successfully committed $story_id"
+      fi
+    fi
+
+    # Log merge/quality gate result
+    local _merge_elapsed=$(($(date +%s%3N) - _merge_start))
+    if [[ "$passes" == "true" ]]; then
+      log_rollback_event "$story_id" "success" "$_merge_elapsed"
+    else
+      log_rollback_event "$story_id" "merge_or_gates_failed" "$_merge_elapsed"
+    fi
 
     # ── Protected-path audit (second defense after PreToolUse hook) ──
     # Catches modifications even if the hook was bypassed via Bash tool.
@@ -309,13 +387,46 @@ commit_or_revert() {
     # ── Episodic memory write (non-fatal) ────────────────────────────
     if [[ "${SPIRAL_EPISODIC_MEMORY:-false}" == "true" ]]; then
       _approach="$(grep -A 15 "Story:.*${story_id}" "${SPIRAL_ROOT:-./}/progress.txt" 2>/dev/null | tail -15 | tr '\n' ' ' | cut -c1-300)"
+      local _mem_status="$([ "$passes" = "true" ] && echo "pass" || echo "fail")"
       uv run python lib/resilience/episodic_memory.py write \
         "${SPIRAL_EPISODIC_DB:-.spiral/episodic_memory.db}" \
-        "$story_id" "unknown" "${_approach:-no summary}" "pass" "${SPIRAL_ITERATION:-0}" \
+        "$story_id" "unknown" "${_approach:-no summary}" "$_mem_status" "${SPIRAL_ITERATION:-0}" \
         2>/dev/null || true
     fi
   else
     echo "[Phase I / revert] $story_id failed — discarding $worker_branch"
-    # TODO: implement branch drop + git reset
+
+    # ── Restore transactional snapshot ──────────────────────────────────────
+    local _restore_start
+    _restore_start=$(date +%s%3N)
+    local _restore_status=0
+
+    # Restore git stash and delete newly created files
+    if ! restore_snapshot "${SCRATCH_DIR:-${SPIRAL_ROOT:-.}/.spiral}/snapshots" "."; then
+      _restore_status=$?
+      echo "[Phase I / revert] WARNING: Snapshot restore partially failed (status $_restore_status)"
+    fi
+
+    # Discard any uncommitted changes in working tree
+    git reset HEAD 2>/dev/null || true
+    git checkout -- . 2>/dev/null || true
+    git clean -fd 2>/dev/null || true
+
+    # Drop the worker branch if it exists
+    if [[ -n "$worker_branch" ]]; then
+      if git rev-parse --verify "$worker_branch" >/dev/null 2>&1; then
+        git branch -D "$worker_branch" 2>/dev/null || true
+        echo "[Phase I / revert] Dropped branch $worker_branch"
+      fi
+    fi
+
+    # Log rollback event
+    local _revert_elapsed=$(($(date +%s%3N) - _restore_start))
+    if [[ $_restore_status -eq 0 ]]; then
+      log_rollback_event "$story_id" "rollback_success" "$_revert_elapsed"
+    else
+      log_rollback_event "$story_id" "rollback_with_warnings" "$_revert_elapsed" \
+        "Snapshot restore status: $_restore_status"
+    fi
   fi
 }

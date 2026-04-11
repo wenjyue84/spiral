@@ -733,3 +733,33 @@ The spiral-core binary CLI changed its flag name from `--output-format` to `--ou
 - Git diff shows minimal, focused changes: 2 insertions, 2 deletions
 - Git commit created successfully
 - prd.json updated with passes: true for US-1182
+## Iteration 2 - Sat, Apr 11, 2026 12:56:48 PM
+Completed: Phase T: Fix --output-format CLI argument error in spiral-core synthesize command (ID: US-1182) in 3m
+
+
+## Pre-analysis for US-1185 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-1185: Implement Rollback in commit_revert.sh**
+
+**Clarification:** The user story concerns a shell script (`commit_revert.sh`) for git operations, not a Frappe/Python application. The following brief is based on the JSON data provided.
+
+**1. Files to Modify:**
+*   `lib/impl/commit_revert.sh`: This is the primary file for implementation.
+*   A new test script will be needed to verify the rollback functionality as per the acceptance criteria.
+
+**2. Frappe DocTypes/Hooks Involved:**
+*   None. This task is isolated to shell scripting and git repository manipulation.
+
+**3. Recommended Implementation Approach:**
+*   Before the merge process begins, the script must capture the initial state: the current commit hash (`git rev-parse HEAD`) and branch name.
+*   Locate the `TODO` at line 295 to implement the loop that runs the five quality gates.
+*   If any quality gate returns a non-zero exit code, trigger the rollback logic.
+*   The rollback logic (at `TODO` on line 319) should use the captured state to:
+    1.  `git reset --hard <initial_commit_hash>` to restore the files.
+    2.  `git checkout <initial_branch_name>` to return to the starting branch.
+    3.  `git branch -D <feature_branch>` to delete the failed branch.
+
+**4. Edge Cases & Gotchas:**
+*   **Dirty Working Tree:** The script should check for a clean working state (`git status --porcelain`) before starting and exit if uncommitted changes are present to avoid data loss.
+*   **State Capture:** The initial commit hash and branch name are critical. Their capture must be foolproof.
+*   **Test Environment:** The new test must reliably simulate a quality gate failure to ensure the rollback path is actually executed and can be asserted.
+
