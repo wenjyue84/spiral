@@ -2001,3 +2001,84 @@ Implement a Pytest regression test to ensure the "Ralph" worker process correctl
 - Marks must be registered in `tests/pyproject.toml` markers list to suppress warnings
 - Regression tests verify both positive behavior (recovery succeeds) and edge cases (no-op, error handling)
 - Tests use temp directories and bash script sourcing to test shell-based recovery logic from Python tests
+## Iteration 1 - Sat, Apr 11, 2026  9:03:26 PM
+Completed: [Regression Test] Implement worker crash recovery using git worktree state snapshots (ID: US-1202) in 14m
+
+
+## Pre-analysis for US-1203 (Gemini 2.5 Pro)
+This is a Python `pytest` integration test, not a Frappe or browser-based E2E test. The references to Frappe in the prompt and headless browsers in the AC seem to be incorrect based on the project structure and the specific technical notes.
+
+**Technical Brief for Claude**
+
+*   **Objective**: Implement a Python integration test for the US-491 "Phase R Research" feature. The test will mock the Gemini web search API and validate the schema of the `_research_output.json` file it produces.
+
+*   **Files to Modify**:
+    *   Create a new test file: `tests/test_us_491_phase_r_research.py`.
+    *   The code to be tested is likely in `lib/research.py` or a similar module responsible for the research phase logic.
+
+*   **Frappe DocTypes/Hooks**: None. This is a standard Python project using `pytest`.
+
+*   **Implementation Approach**:
+    1.  Use `pytest` and `unittest.mock` (or `pytest-mock`).
+    2.  In the new test file, create a test function (e.g., `test_phase_r_research_flow`).
+    3.  Use `@mock.patch('lib.research.call_gemini_api')` (or the correct path to the API call) to intercept the external web search.
+    4.  Configure the mock to return a predefined, structured response that mimics a successful Gemini API result.
+    5.  Invoke the main entry point function for the "Phase R Research" process.
+    6.  After execution, verify that `_research_output.json` is created.
+    7.  Load the content of `_research_output.json` and validate it against its corresponding schema (`prd.schema.json` or a more specific research schema if available) using the `jsonschema` library.
+
+*   **Edge Cases & Gotchas**:
+    *   **Mocking**: Ensure the mock accurately reflects the real API's data structure. Also, test the system's behavior when the mock is configured to simulate an API error.
+    *   **State & Cleanup**: The test should run hermetically. Ensure it does not rely on pre-existing state and cleans up any generated artifacts like `_research_output.json` upon completion, possibly using a `pytest` fixture.
+    *   **Test Discovery**: The test name must match the `-k us_491` filter mentioned in the technical notes for it to be picked up by the test runner (e.g., name the test `test_us_491_...`).
+## Iteration 1 - Sat, Apr 11, 2026 10:07:12 PM
+Completed: [E2E Test] Integration Test Phase R Research with Mocked Gemini Responses (ID: US-1203) in 8m
+
+### What was implemented
+- **Integration test for Phase R research** (US-1203):
+  - Created `tests/integration/test_phase_r_research_us_491.py` with 7 comprehensive pytest tests
+  - Tests validate Phase R research output JSON schema compliance: `{"stories": [...]}`
+  - Tests verify mocked Gemini API integration with Claude research agent flow
+  - Tests check story candidate structure with required fields (id, title, description, priority, source)
+  - Tests verify research fallback behavior (empty array on failure)
+  - Tests validate multiple story candidates and cached research marker (US-520)
+  - All tests marked with `@pytest.mark.us_491` for discovery via `uv run pytest tests/ -k us_491 -v`
+
+### Pytest Marker Registration
+- Added `us_491` marker to `tests/pyproject.toml` markers list
+- Enables test discovery with: `uv run pytest tests/ -k us_491 -v`
+- All 7 tests pass successfully
+
+### Test Coverage
+1. `test_phase_r_output_schema_valid_json` - Validates output is JSON with "stories" key
+2. `test_phase_r_output_with_story_candidates` - Validates story fields (id, title, description, priority, source)
+3. `test_phase_r_empty_research_fallback` - Validates empty array fallback on research failure
+4. `test_phase_r_mocked_gemini_integration` - End-to-end mocked Gemini + Claude integration
+5. `test_phase_r_research_output_schema_compliance` - Schema validation for required fields
+6. `test_phase_r_multiple_research_stories` - Validates multiple story candidates in output
+7. `test_phase_r_research_marked_cached` - Validates _cached marker (US-520) for cached research
+
+### Quality Checks Passed
+- All 7 tests passing
+- mypy strict: No issues
+- ruff lint: All checks passed
+- ruff format: Code formatted correctly
+- Pre-commit hooks: Ready for commit
+
+### Acceptance Criteria Met
+- [x] E2E integration test covers Phase R research flow (validated with mocked APIs)
+- [x] Tests validate _research_output.json schema compliance (valid JSON, required fields, proper structure)
+- [x] Tests pass in headless execution (pytest in CI environment)
+- [x] Tests discoverable and runnable with: `uv run pytest tests/ -k us_491 -v`
+
+### Files Changed
+- `tests/integration/test_phase_r_research_us_491.py`: New test file with 7 tests (+~180 lines)
+- `tests/pyproject.toml`: Registered `us_491` marker in markers list
+- `prd.json`: US-1203 marked passes=true
+
+### Patterns Discovered
+- Integration tests use mock fixtures from conftest.py (MockGeminiAPI, MockClaudeAPI)
+- Test class pattern: Organize related tests in a class decorated with `@pytest.mark.us_<story_id>`
+- Schema validation pattern: Dump to JSON string, parse back, verify structure
+- Marker registration required in pyproject.toml to suppress pytest warnings
+
