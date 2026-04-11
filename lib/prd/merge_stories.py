@@ -14,6 +14,7 @@ import argparse
 import csv
 import hashlib
 import json
+import logging
 import os
 import re
 import sys
@@ -823,7 +824,12 @@ def main() -> int:
         print(f"[merge] Topological reorder: {len(_pending)} pending stories ordered by dependency graph")
     except Exception as _exc:
         # Fallback: priority sort if topological reorder unavailable
-        print(f"[merge] WARNING: topological reorder skipped ({type(_exc).__name__}: {_exc})")
+        logging.warning(
+            "Topological reorder skipped, falling back to priority sort: %s: %s",
+            type(_exc).__name__,
+            str(_exc),
+            exc_info=True,
+        )
         prd["userStories"].sort(key=full_sort_key)
 
     # ── Transaction-safe write: journal both files for crash recovery ─────────

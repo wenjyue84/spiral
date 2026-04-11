@@ -33,6 +33,7 @@ validate_story_sync_votes(story, goal_text, forbidden_phrases, api_key, base_url
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 import urllib.error
@@ -49,6 +50,11 @@ try:
     from llm_client import stream_completion
 except ImportError:
     stream_completion = None
+
+try:
+    import httpx
+except ImportError:
+    httpx = None  # type: ignore[assignment]
 
 __all__ = [
     "build_batch_requests",
@@ -425,9 +431,9 @@ def validate_story_sync(
                 phase="S",
             )
             return _parse_llm_json(text)
-        except Exception:
-            # Fall through to blocking HTTP call on any error
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            # Fall through to blocking HTTP call on streaming error
+            logging.warning("Streaming validation failed; falling back to blocking HTTP call: %s", str(e), exc_info=True)
 
     # Fallback: blocking HTTP call via urllib
     url = f"{base_url}/v1/messages"

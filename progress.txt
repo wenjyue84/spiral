@@ -898,3 +898,6 @@ This user story appears to be for a local Python project, not a Frappe app. The 
 *   **State Reset:** The counter must only be reset by a successful merge. Ensure that script failures or iterations with no candidates do not affect the counter.
 *   **Concurrency:** Assumed to be a single-process script. If it can run in parallel, file locking on the streak JSON might be needed to prevent race conditions.
 
+## Iteration 2 - Sat, Apr 11, 2026  1:33:15 PM
+Completed: Phase M: Lower dedup threshold after 3 consecutive all-rejected merge iterations (ID: US-1186) in 2m
+

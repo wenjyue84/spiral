@@ -1283,7 +1283,8 @@
         "tokensAfterMasking": 582,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "_passedCommit": "b7b7474299bdd53f7a1595c907c2b05dc9290ea5"
     },
     {
       "id": "US-1187",
@@ -1307,7 +1308,8 @@
         "quality",
         "error-handling"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-11T05:33:18Z"
     },
     {
       "id": "US-1188",
