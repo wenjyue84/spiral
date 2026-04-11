@@ -419,3 +419,124 @@ class TestIntegration:
             assert isinstance(result, dict)
             assert "story_id" in result
             assert result["story_id"] == "US-1004"
+
+
+class TestUS1006RegressionDeadFeatureDetection:
+    """Regression tests for US-1006: Dead Feature Detector.
+
+    These tests verify the core observable behavior: the system detects unreferenced
+    functions/classes and correctly skips referenced ones. Tests would fail if the
+    dead feature detection were broken or removed.
+    """
+
+    def test_us_1006_detects_unreferenced_function(self) -> None:
+        """US-1006 Regression: Unreferenced functions are detected as dead."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+
+            # Initialize git
+            subprocess.run(
+                ["git", "init"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=5,
+            )
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=5,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=5,
+            )
+
+            # Initial commit (empty file)
+            module_file = tmpdir_path / "mymodule.py"
+            module_file.write_text("")
+            subprocess.run(
+                ["git", "add", "mymodule.py"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=5,
+            )
+            subprocess.run(
+                ["git", "commit", "-m", "init"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=5,
+            )
+
+            # Add an unreferenced function
+            module_file.write_text("def unreferenced_helper():\n    return 42\n")
+
+            result = detect_dead_features("US-1006", ["mymodule.py"], repo_root=tmpdir)
+
+            # Verify structure
+            assert result["story_id"] == "US-1006"
+            assert result["total_features"] > 0, "Should detect the unreferenced function"
+            assert len(result["dead_features"]) > 0, "dead_features list should not be empty"
+
+            # Verify unreferenced function is in dead features
+            dead_names = [df["name"] for df in result["dead_features"]]
+            assert "unreferenced_helper" in dead_names, "unreferenced_helper should be detected"
+
+    def test_us_1006_excludes_referenced_function(self) -> None:
+        """US-1006 Regression: Referenced functions are NOT detected as dead."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+
+            # Initialize git
+            subprocess.run(
+                ["git", "init"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=5,
+            )
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=5,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=5,
+            )
+
+            # Initial commit (empty)
+            module_file = tmpdir_path / "mymodule.py"
+            module_file.write_text("")
+            caller_file = tmpdir_path / "caller.py"
+            caller_file.write_text("")
+
+            subprocess.run(
+                ["git", "add", "mymodule.py", "caller.py"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=5,
+            )
+            subprocess.run(
+                ["git", "commit", "-m", "init"],
+                cwd=tmpdir,
+                capture_output=True,
+                timeout=5,
+            )
+
+            # Add a referenced function
+            module_file.write_text("def referenced_helper():\n    return 42\n")
+            caller_file.write_text("from mymodule import referenced_helper\nresult = referenced_helper()\n")
+
+            result = detect_dead_features("US-1006", ["mymodule.py"], repo_root=tmpdir)
+
+            # Verify structure
+            assert result["story_id"] == "US-1006"
+
+            # Verify referenced function is NOT in dead features
+            dead_names = [df["name"] for df in result["dead_features"]]
+            assert "referenced_helper" not in dead_names, "referenced_helper should NOT be detected as dead"
