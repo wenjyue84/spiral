@@ -1455,8 +1455,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T09:26:25Z"
     },
     {
       "id": "US-1197",
@@ -1611,58 +1612,6 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_512 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1206",
-      "title": "[Regression Test] Integration Test: Phase V Multi-Format Output and Retry-Exhaustion Routing",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-513. Story description: Extend tests/test_phase_v_integration.py with parametrized tests for vitest (❯ marker) and bats (not ok N) output formats, failure category extraction (AssertionError, TimeoutError), and retry-exhaustion routing — stories with >3 retries must be archived with _retries_exhausted.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-513",
-        "Test would reliably fail if the US-513 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_513 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1207",
-      "title": "[Regression Test] Integration Test: SPIRAL Happy Path - Complete Loop from Phase R to C",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-553. Story description: Add end-to-end integration test executing a full SPIRAL iteration with mocked Claude API, verifying all phases (R→T→S→M→I→V→C) execute sequentially, workers complete successfully, and stories reach completion status. Validates core orchestration and state consistency.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-553",
-        "Test would reliably fail if the US-553 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_553 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1208",
-      "title": "[Performance Test] lib: Worker Load Balancer — Distribute Stories Across Parallel Workers by Complex",
-      "priority": "medium",
-      "description": "Write performance benchmark for the operation in US-562. Story description: Implement story-to-worker assignment optimizer that distributes pending stories across parallel workers to minimize execution variance. Computes story complexity from forecast tokens + dependency count. Used in Phase I before spawning worker pool to prevent hot spots (one worker getting all hard stories).",
-      "acceptanceCriteria": [
-        "Performance test measures key metrics for US-562",
-        "Baseline captured and acceptable threshold defined",
-        "Test fails if response time degrades more than 20% from baseline"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_562 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

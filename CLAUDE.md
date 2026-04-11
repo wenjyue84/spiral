@@ -175,3 +175,6 @@ To profile a slow SPIRAL Python phase without modifying source code:
 - `.spiral/` is scratch/runtime state (gitignored). `.spiral-workers/` holds git worktrees.
 - Ralph's agent prompt lives at `ralph/CLAUDE.md` — edit this to change how the implementation agent behaves
 - Templates for new projects: `templates/prd.example.json`, `templates/spiral.config.example.sh`
+- `lib/spiral-core/src/merge.rs` uses `truncate_title()` for UTF-8-safe string truncation (fixed 2026-04-11)
+- `lib/cli_subcommands.sh` uses `${VAR:-default}` for all optional variables under `set -u`
+- `.spiral/ui-phase-config.json` controls which phases are enabled/disabled in the UI — `"R": true` must be set for story discovery
