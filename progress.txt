@@ -1113,3 +1113,31 @@ This appears to be a Python/FastAPI project, not a Frappe application. The task 
 *   **Floating Point:** When asserting `total_cost`, use `pytest.approx()` to handle potential floating-point inaccuracies.
 *   **UI Selectors:** The test will be more robust if it uses stable `data-testid` attributes instead of CSS classes or XPath.
 
+## Iteration 2 - Sun, Apr 12, 2026  5:45:17 AM
+Completed: [E2E Test] Dashboard endpoint GET /api/dashboard/costs-by-project aggregating results.tsv (ID: US-1234) in 11m
+
+
+## Pre-analysis for US-1235 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-1235: Performance Test for /profile API**
+
+This brief outlines the implementation plan for creating a performance benchmark for the `/profile` API endpoint as described in user story US-1235.
+
+**1. Python Files to Modify:**
+*   **Primary Target:** Create a new test file at `tests/performance/test_profile_endpoint.py`.
+*   **Dependencies:** Add the `pytest-benchmark` library to the project's development dependencies in `pyproject.toml`.
+
+**2. Frappe DocTypes & Hooks:**
+*   **Correction:** This is a pure Python testing task, not a Frappe framework task. No Frappe DocTypes or hooks are involved. The work will be confined to `pytest` and the test files.
+
+**3. Implementation Approach:**
+1.  Utilize the `pytest-benchmark` library for measuring performance.
+2.  Create a `pytest` fixture to generate a large, representative `results.tsv` file before the test runs. The endpoint's performance is dependent on this file's size and complexity.
+3.  Write a test function, `test_profile_endpoint_performance(benchmark, client)`, that uses the project's API test client to call the `/profile` endpoint.
+4.  Wrap the API call within the `benchmark()` callable provided by the fixture to measure execution time.
+5.  Establish a performance baseline by running `pytest --benchmark-save=profile_endpoint` and commit the resulting baseline file.
+
+**4. Edge Cases & Gotchas:**
+*   The generated `results.tsv` must be realistic to get a meaningful benchmark. An overly simple file will yield misleading results.
+*   Performance can vary between environments. Baselines should be generated and compared on the same machine type (e.g., the CI runner).
+*   The test must fail if performance degrades beyond the 20% threshold specified in the AC, which can be configured with `pytest-benchmark` comparison flags.
+

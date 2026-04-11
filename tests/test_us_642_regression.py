@@ -214,9 +214,9 @@ def test_us_642_find_similar_stories_ranking() -> None:
     # Verify results are sorted by similarity (descending)
     if len(similar) >= 2:
         for i in range(len(similar) - 1):
-            assert (
-                similar[i]["similarity"] >= similar[i + 1]["similarity"]
-            ), "Results should be sorted by similarity descending"
+            assert similar[i]["similarity"] >= similar[i + 1]["similarity"], (
+                "Results should be sorted by similarity descending"
+            )
 
 
 @pytest.mark.us_642
