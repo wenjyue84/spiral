@@ -1,4 +1,35 @@
-## Iteration 12 - Sun, Apr 12, 2026  [Current]
+## Iteration 13 - Sun, Apr 12, 2026
+Completed: Create E2E Integration Test Harness and Fixtures for SPIRAL (ID: US-1250) in ~5m
+
+### What was implemented
+- Created pytest fixtures in tests/conftest.py:
+  1. **mock_ralph_env**: Sets up mocked environment with SPIRAL_VALIDATE_CMD, SPIRAL_MODEL_ROUTING=fixed, and a mock ralph.sh script in PATH
+  2. **mock_prd_fixture**: Provides path to deterministic mock PRD file (tests/fixtures/mock_spiral_prd.json)
+- Created tests/fixtures/mock_spiral_prd.json with one test story (id=UT-001, passes=false)
+- Created tests/test_spiral_e2e_integration.py with test class and fixture validation test
+
+### Quality checks passed
+- MyPy --strict: ✓ No issues found
+- Ruff format: ✓ Applied formatting
+- Pytest: ✓ test_fixtures_load_without_error passes
+- Fixtures load without error: ✓ Verified
+
+### Key findings
+- Fixtures properly isolate temporary directories for mock scripts and PRD files
+- Mock ralph.sh writes tab-separated results to results.tsv for realistic test simulation
+- PRD fixture has fallback: tries to use checked-in file first, creates in tmp_path if needed
+- Test validates all three AC requirements: env vars set, PRD file valid, fixtures load
+
+### Patterns discovered
+- Pytest fixtures with yield pattern for resource cleanup
+- Type hints required for mypy --strict on new code
+- JSON formatting must avoid trailing commas (JSON spec compliant)
+- Test discovery works with --collect-only despite xdist parallelization warnings
+
+### Gotchas
+- Ruff formatter tried to add trailing comma in JSON (invalid syntax) — had to fix manually
+- Pre-commit hooks run slowly on Windows; individual tool checks are faster for iteration
+
 Completed: [Performance Test] Dashboard /profile endpoint for phase duration analytics (ID: US-1235) in ~15m
 
 ### What was implemented
@@ -1301,4 +1332,3 @@ This user story describes a pure Python/pytest task, not a Frappe/ERPNext one. I
     *   **Simulating Crashes:** A "detached HEAD" is straightforward. Simulating a *partial commit* is more complex and less deterministic; focus on the detached HEAD scenario first.
     *   **Dependency Mocking:** The recovery function may have dependencies (e.g., a logger, configuration objects). These may need to be mocked for the test to run in isolation.
     *   **Robust Assertions:** Check both the branch name and the cleanliness of the working directory to fully confirm recovery.
-
