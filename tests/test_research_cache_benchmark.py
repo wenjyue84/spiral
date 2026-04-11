@@ -8,12 +8,15 @@ US-1027: Benchmark Phase R Research Cache Latency Savings (≥30% Target)
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
+
+import pytest
 
 # Add lib/ to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "research"))
@@ -23,7 +26,31 @@ from research_cache import (
     record_query_result,
 )
 
+BASELINE_FILE = Path(".spiral") / "research_cache_baseline.json"
 
+
+def _load_baseline() -> dict[str, Any] | None:
+    """Load baseline metrics from .spiral/research_cache_baseline.json."""
+    if not BASELINE_FILE.exists():
+        return None
+    try:
+        with open(BASELINE_FILE, "r", encoding="utf-8") as f:
+            data: Any = json.load(f)
+            if isinstance(data, dict):
+                return data
+            return None
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _save_baseline(baseline: dict[str, Any]) -> None:
+    """Save baseline metrics to .spiral/research_cache_baseline.json."""
+    BASELINE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(BASELINE_FILE, "w", encoding="utf-8") as f:
+        json.dump(baseline, f, indent=2)
+
+
+@pytest.mark.us_1027
 class TestCacheLatencySavings:
     """Benchmark suite for Phase R research cache latency."""
 
@@ -36,8 +63,11 @@ class TestCacheLatencySavings:
         - Cached run: repeats 6 queries with cache enabled (should be fast)
         - Uncached baseline: disables cache and runs 6 queries (simulates API calls)
 
-        Asserts: cached_time <= uncached_time * 0.70 (30% improvement)
-        Prints: cached_ms, uncached_ms, pct_saved to stdout
+        Asserts:
+        - AC1: cached_time <= uncached_time * 0.70 (≥30% improvement)
+        - AC2: Captures baseline metrics and compares against persisted baseline
+        - AC3: Fails if response time degrades >20% from baseline
+        - Prints: cached_ms, uncached_ms, pct_saved to stdout
         """
         cache_path = tmp_path / "research_cache.json"
 
@@ -123,6 +153,9 @@ class TestCacheLatencySavings:
         uncached_ms = uncached_time * 1000
         pct_saved = ((uncached_ms - cached_ms) / uncached_ms) * 100 if uncached_ms > 0 else 0
 
+        # Load existing baseline (AC2)
+        baseline = _load_baseline()
+
         # Print benchmark results to stdout (captured by pytest -s)
         print()
         print("=" * 70)
@@ -131,6 +164,13 @@ class TestCacheLatencySavings:
         print(f"Cached run (6 queries):     {cached_ms:8.2f} ms  ({cached_api_calls} API calls)")
         print(f"Uncached baseline (6 API):  {uncached_ms:8.2f} ms  ({uncached_api_calls} API calls)")
         print(f"Latency improvement:        {pct_saved:8.2f}%")
+
+        # AC3: Compare against baseline threshold (20% degradation tolerance)
+        if baseline is not None:
+            baseline_cached_ms = baseline["cached_ms"]
+            degradation_pct = ((cached_ms - baseline_cached_ms) / baseline_cached_ms) * 100
+            print(f"Previous baseline:          {baseline_cached_ms:8.2f} ms")
+            print(f"Degradation from baseline:  {degradation_pct:8.2f}%")
         print("=" * 70)
 
         # AC1: Assert cached_time <= uncached_time * 0.70 (≥30% improvement)
@@ -142,6 +182,17 @@ class TestCacheLatencySavings:
         assert cached_ms > 0, "Cached run should have measurable latency"
         assert uncached_ms > 0, "Uncached baseline should have measurable latency"
         assert pct_saved >= 30.0, f"Latency improvement {pct_saved:.2f}% below 30% target"
+
+        # AC3: Fail if response time degrades more than 20% from baseline
+        if baseline is not None:
+            degradation_pct = ((cached_ms - baseline["cached_ms"]) / baseline["cached_ms"]) * 100
+            assert degradation_pct <= 20.0, (
+                f"Cache latency degraded {degradation_pct:.2f}% from baseline {baseline['cached_ms']:.2f} ms. "
+                f"Exceeded 20% threshold. Current: {cached_ms:.2f} ms"
+            )
+
+        # Save current metrics as baseline for next run
+        _save_baseline({"cached_ms": cached_ms, "uncached_ms": uncached_ms, "pct_saved": pct_saved})
 
     def test_cache_deduplication_count(self, tmp_path: Path) -> None:
         """Verify cache deduplication correctly counts hits/misses for identical queries."""
