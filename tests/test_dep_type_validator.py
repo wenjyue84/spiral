@@ -199,3 +199,105 @@ class TestEdgeCases:
         )
         violations = DependencyTypeValidator().validate(stories)
         assert "remediation" in violations[0].lower()
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for US-729 (DependencyTypeValidator)
+# ---------------------------------------------------------------------------
+
+
+class TestUS729RegressionDependencyValidation:
+    """Regression tests for US-729 to guard against future breakage.
+
+    These tests verify the core observable behavior of the dependency
+    type validator and would fail if the feature were removed or broken.
+    Run with: uv run pytest tests/ -k us_729 -v
+    """
+
+    def test_us_729_constraint_enforcement_feature_to_infrastructure(self) -> None:
+        """US-729: feature → infrastructure is the valid constraint."""
+        stories = _make_stories(
+            {"id": "US-1", "type": "feature", "dependencies": ["US-2"]},
+            {"id": "US-2", "type": "infrastructure"},
+        )
+        violations = DependencyTypeValidator().validate(stories)
+        assert violations == [], "feature → infrastructure should be valid per US-729"
+
+    def test_us_729_constraint_enforcement_feature_to_database_invalid(self) -> None:
+        """US-729: feature → database constraint violation must be detected."""
+        stories = _make_stories(
+            {"id": "US-1", "type": "feature", "dependencies": ["US-2"]},
+            {"id": "US-2", "type": "database"},
+        )
+        violations = DependencyTypeValidator().validate(stories)
+        assert len(violations) == 1, "feature → database should produce 1 violation"
+        assert "US-1" in violations[0], "Violation must identify source story"
+        assert "US-2" in violations[0], "Violation must identify target story"
+
+    def test_us_729_constraint_enforcement_database_to_infrastructure(self) -> None:
+        """US-729: database → infrastructure is the valid constraint."""
+        stories = _make_stories(
+            {"id": "US-1", "type": "database", "dependencies": ["US-2"]},
+            {"id": "US-2", "type": "infrastructure"},
+        )
+        violations = DependencyTypeValidator().validate(stories)
+        assert violations == [], "database → infrastructure should be valid per US-729"
+
+    def test_us_729_constraint_enforcement_infrastructure_no_dependencies(self) -> None:
+        """US-729: infrastructure stories may not depend on anything."""
+        stories = _make_stories(
+            {"id": "US-1", "type": "infrastructure", "dependencies": ["US-2"]},
+            {"id": "US-2", "type": "feature"},
+        )
+        violations = DependencyTypeValidator().validate(stories)
+        assert len(violations) == 1, "infrastructure → feature should produce violation"
+
+    def test_us_729_error_message_includes_rule_id(self) -> None:
+        """US-729: Violation message must include stable rule ID for automation."""
+        stories = _make_stories(
+            {"id": "US-1", "type": "feature", "dependencies": ["US-2"]},
+            {"id": "US-2", "type": "database"},
+        )
+        violations = DependencyTypeValidator().validate(stories)
+        assert "DEP_TYPE_FEATURE_DATABASE" in violations[0], (
+            "Error message must include rule ID for tooling integration"
+        )
+
+    def test_us_729_error_message_includes_remediation(self) -> None:
+        """US-729: Violation message must include remediation guidance."""
+        stories = _make_stories(
+            {"id": "US-1", "type": "feature", "dependencies": ["US-2"]},
+            {"id": "US-2", "type": "database"},
+        )
+        violations = DependencyTypeValidator().validate(stories)
+        assert "remediation" in violations[0].lower(), "Error message must guide user toward fix"
+
+    def test_us_729_error_message_includes_allowed_list(self) -> None:
+        """US-729: Violation message must show allowed target types."""
+        stories = _make_stories(
+            {"id": "US-1", "type": "feature", "dependencies": ["US-2"]},
+            {"id": "US-2", "type": "database"},
+        )
+        violations = DependencyTypeValidator().validate(stories)
+        assert "infrastructure" in violations[0], "Error message must list allowed target types"
+
+    def test_us_729_batch_validation_collects_all_violations(self) -> None:
+        """US-729: Validator must report all violations, not stop on first."""
+        stories = _make_stories(
+            {"id": "US-1", "type": "feature", "dependencies": ["US-2"]},
+            {"id": "US-2", "type": "database"},
+            {"id": "US-3", "type": "infrastructure", "dependencies": ["US-4"]},
+            {"id": "US-4", "type": "feature"},
+        )
+        violations = DependencyTypeValidator().validate(stories)
+        assert len(violations) == 2, "Validator must report all constraint violations in one call"
+
+    def test_us_729_custom_rules_override_defaults(self) -> None:
+        """US-729: Validator must accept custom rules for extensibility."""
+        custom_rules = {"feature": [], "infrastructure": ["database"]}
+        stories = _make_stories(
+            {"id": "US-1", "type": "infrastructure", "dependencies": ["US-2"]},
+            {"id": "US-2", "type": "database"},
+        )
+        violations = DependencyTypeValidator(rules=custom_rules).validate(stories)
+        assert violations == [], "Custom rules should override defaults for flexible validation"
