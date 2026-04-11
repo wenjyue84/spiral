@@ -1892,8 +1892,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T17:30:57Z"
     },
     {
       "id": "US-1218",
@@ -2043,76 +2044,6 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_1045 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1227",
-      "title": "[Regression Test] [Integration Test] Episodic memory store: write, retrieve, and inject past pattern",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-518. Story description: Write integration tests for the SQLite FTS5 episodic memory store introduced in US-350. Tests must cover the full round-trip: recording a story outcome, retrieving the top-3 relevant past implementations via FTS5 ranking, and verifying the injected context snippet Ralph receives. No external services or manual setup required — the store must be created in a temp directory per test.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-518",
-        "Test would reliably fail if the US-518 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_518 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1228",
-      "title": "[Performance Test] Phase R: Semantic Query Dedup - Skip Research When Query Matches Prior Cache",
-      "priority": "medium",
-      "description": "Write performance benchmark for the operation in US-773. Story description: Hash research queries semantically. If a new query is >90% similar to a cached result from last 3 iterations, reuse the cached result instead of making a new API call.",
-      "acceptanceCriteria": [
-        "Performance test measures key metrics for US-773",
-        "Baseline captured and acceptable threshold defined",
-        "Test fails if response time degrades more than 20% from baseline"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_773 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1229",
-      "title": "[E2E Test] Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker Ac",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-652. Story description: Create a timeline visualization showing each worker's time spent in each phase (R/T/S/M/I/V/C) across iterations. Identify phase bottlenecks and worker imbalances. Export as interactive HTML/SVG from dashboard API.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-652",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_652 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1230",
-      "title": "[Regression Test] CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-642. Story description: New CLI command computing semantic similarity between story description and historical stories in results.tsv, outputting complexity score (1-10) and similar past story references. Helps triage stories and select initial model for Phase I.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-642",
-        "Test would reliably fail if the US-642 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_642 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
