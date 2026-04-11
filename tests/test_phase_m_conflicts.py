@@ -66,6 +66,7 @@ US_458 = _make_story(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.us_584
 def test_build_conflict_matrix() -> None:
     """build_conflict_matrix shows lib/shared.py owned by both US-456 and US-457."""
     matrix = build_conflict_matrix([US_456, US_457])
@@ -76,6 +77,7 @@ def test_build_conflict_matrix() -> None:
     assert "US-457" in owners, "US-457 should claim lib/shared.py"
 
 
+@pytest.mark.us_584
 def test_build_conflict_matrix_no_conflict() -> None:
     """Stories with no shared files produce a matrix with no multi-owner entries."""
     matrix = build_conflict_matrix([US_456, US_458])
@@ -83,12 +85,14 @@ def test_build_conflict_matrix_no_conflict() -> None:
     assert not conflicts, "No conflict expected between US-456 and US-458"
 
 
+@pytest.mark.us_584
 def test_extract_story_files_parses_technical_notes() -> None:
     files = extract_story_files(US_456)
     assert "lib/shared.py" in files
     assert "lib/utils.py" in files
 
 
+@pytest.mark.us_584
 def test_extract_story_files_falls_back_to_filesTouch() -> None:
     story = {
         "id": "US-999",
@@ -105,6 +109,7 @@ def test_extract_story_files_falls_back_to_filesTouch() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.us_584
 def test_conflict_report_written(tmp_path: pytest.TempPathFactory) -> None:
     """Conflict report written to .spiral/_merge_conflicts.json with correct schema."""
     out = str(tmp_path / "_merge_conflicts.json")
@@ -132,6 +137,7 @@ def test_conflict_report_written(tmp_path: pytest.TempPathFactory) -> None:
     assert "lib/shared.py" in us456_entry["conflicting_files"]
 
 
+@pytest.mark.us_584
 def test_conflict_report_written_empty_when_no_conflicts(tmp_path: pytest.TempPathFactory) -> None:
     """No-conflict scenarios produce an empty list in the report."""
     out = str(tmp_path / "_merge_conflicts.json")
@@ -149,6 +155,7 @@ def test_conflict_report_written_empty_when_no_conflicts(tmp_path: pytest.TempPa
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.us_584
 def test_phase_m_exits_1_on_conflict(tmp_path: pytest.TempPathFactory) -> None:
     """run() returns exit code 1 when _merge_conflicts.json is non-empty."""
     out = str(tmp_path / "_merge_conflicts.json")
@@ -156,6 +163,7 @@ def test_phase_m_exits_1_on_conflict(tmp_path: pytest.TempPathFactory) -> None:
     assert exit_code == 1, "Should return 1 when conflicts exist"
 
 
+@pytest.mark.us_584
 def test_phase_m_exits_0_on_no_conflict(tmp_path: pytest.TempPathFactory) -> None:
     """run() returns exit code 0 when there are no file conflicts."""
     out = str(tmp_path / "_merge_conflicts.json")

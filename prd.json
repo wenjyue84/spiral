@@ -2173,8 +2173,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-11T21:26:46Z"
     },
     {
       "id": "US-1234",
@@ -2327,23 +2328,6 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_1092 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1243",
-      "title": "[Regression Test] Model routing cost-per-win calibration from results.tsv history",
-      "priority": "medium",
-      "description": "Write regression test to guard against future breakage of US-1093. Story description: Enhance lib/llm_router.py to read results.tsv and compute cost_per_pass for each model tier (haiku/sonnet/opus) grouped by story complexity bin. Use this to dynamically adjust escalation thresholds: if sonnet shows 2x cost for only 10% quality gain over haiku in a given complexity range, skip sonnet and escalate directly to opus. Store calibration data in .spiral/routing_calibration.json.",
-      "acceptanceCriteria": [
-        "Regression test covers core observable behaviour of US-1093",
-        "Test would reliably fail if the US-1093 feature were removed or broken"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_1093 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
