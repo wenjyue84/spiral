@@ -1,3 +1,32 @@
+## Iteration N - Story: US-1196 - [Regression Test] Phase V: Dead Feature Detector
+
+### What was implemented
+- **tests/test_dead_feature_detector.py** added regression test class:
+  - Added `TestUS1006RegressionDeadFeatureDetection` class to test observable behavior of dead feature detection
+  - Test 1: `test_us_1006_detects_unreferenced_function()` - Verifies unreferenced functions ARE detected as dead
+    - Creates temp git repo with unreferenced function in new commit
+    - Calls detect_dead_features() and asserts the function appears in dead_features list
+  - Test 2: `test_us_1006_excludes_referenced_function()` - Verifies referenced functions are NOT marked as dead
+    - Creates temp git repo with function that is imported and called
+    - Calls detect_dead_features() and asserts the function does NOT appear in dead_features list
+  - Both tests use tempfile.TemporaryDirectory for isolation and git initialization for realistic scenario
+
+### Patterns discovered
+- Regression tests need "us_1006" in the test function/class name to be discoverable with `-k us_1006` filter
+- Testing dead feature detector requires setting up isolated git repos with git config and commits
+- The feature correctly distinguishes referenced vs unreferenced symbols via grep-based search
+- Tests verify end-to-end behavior rather than unit-level implementation details
+
+### Acceptance Criteria Met
+- [x] Regression test covers core observable behaviour of US-1006 (dead feature detection works)
+- [x] Test would reliably fail if the US-1006 feature were removed or broken (tests directly verify detection logic)
+- [x] Tests can be run with: `uv run pytest tests/ -k us_1006 -v`
+
+### Files Changed
+- `tests/test_dead_feature_detector.py`: +121 lines (new TestUS1006RegressionDeadFeatureDetection class with 2 test methods)
+- `prd.json`: US-1196 marked passes=true
+- All existing tests continue to pass (15 tests in test_dead_feature_detector.py total)
+
 ## Iteration N - Story: US-1187 - Phase S: Replace bare except clauses with logged exceptions
 
 ### What was implemented
@@ -1383,3 +1412,34 @@ This is a Python/Pytest project, not a Frappe app. The goal is to build a perfor
 *   **Cold Starts:** The baseline will be unstable for the first 10 runs. The test should only start failing after at least 10 data points have been collected.
 *   **SPIRAL Phases:** The story mentions timing individual "phases." The implementation will need to identify and instrument these specific phases within the US-1008 operation. This may require refactoring the original function to yield control or use callbacks.
 *   **Data Persistence:** Ensure the JSON file path is relative to the project root and the `.spiral` directory is used for persistence between runs.
+
+## Pre-analysis for US-1196 (Gemini 2.5 Pro)
+Based on the user story, here is a technical brief for the implementation task.
+
+**Project Context Correction:** The user story is for a Python-based command-line tool ("Spiral"), not a Frappe application. There are no Frappe DocTypes or hooks involved. The implementation should focus on standard Python files and `pytest`.
+
+**1. Files to Modify/Examine:**
+*   **Modify:** `tests/test_dead_feature_detector.py`
+    *   Add a new regression test function to this existing test file.
+*   **Examine:** `lib/dead_feature_detector.py`
+    *   This file contains the core logic for the feature that needs to be tested. Understand its inputs and outputs.
+*   **Examine:** `main.py`, `spiral.sh`
+    *   These are the primary entry points for the application, which the detector uses to find "live" code.
+
+**2. Implementation Approach:**
+The goal is to write a regression test in `tests/test_dead_feature_detector.py` that fails if the dead feature detection logic is broken.
+
+*   Use `pytest` and its `tmp_path` fixture to create an isolated test environment.
+*   **Test 1 (Dead Code Detection):**
+    1.  Create a temporary Python file (e.g., `tmp_path / "new_feature.py"`) with a function that is defined but never called (e.g., `def unreachable_function(): ...`).
+    2.  Invoke the `DeadFeatureDetector` logic from `lib/dead_feature_detector.py`.
+    3.  Assert that the detector correctly identifies and reports `unreachable_function`.
+*   **Test 2 (Live Code Confirmation):**
+    1.  Create two temporary files. One defines a function, and the other (acting as an entry point) imports and calls it.
+    2.  Run the detector on this setup.
+    3.  Assert that the function is NOT reported as dead code.
+
+**3. Edge Cases & Gotchas:**
+*   The test must be hermetic, exclusively using temporary files created within the test function to avoid side effects.
+*   The detector's effectiveness relies on a complete list of project entry points. The test should confirm behavior against a well-defined, simple set of mock entry points.
+*   The core logic likely uses Abstract Syntax Trees (`ast` module) to find definitions and calls. The regression test will inherently guard against breakages in that parsing logic.
