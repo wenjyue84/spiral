@@ -67,36 +67,38 @@ class TestParseResultsTsv:
                 delimiter="\t",
             )
             writer.writeheader()
-            writer.writerows([
-                {
-                    "timestamp": "2026-03-20T04:00:00Z",
-                    "spiral_iter": "1",
-                    "story_title": "[Regression Test] CLI: check-federated-deps",
-                    "status": "pass",
-                    "model": "haiku",
-                },
-                {
-                    "timestamp": "2026-03-20T04:10:00Z",
-                    "spiral_iter": "1",
-                    "story_title": "[Regression Test] Another Test",
-                    "status": "reject",
-                    "model": "haiku",
-                },
-                {
-                    "timestamp": "2026-03-20T04:20:00Z",
-                    "spiral_iter": "2",
-                    "story_title": "[Regression Test] Third Test",
-                    "status": "pass",
-                    "model": "sonnet",
-                },
-                {
-                    "timestamp": "2026-03-20T04:30:00Z",
-                    "spiral_iter": "2",
-                    "story_title": "[Security Test] Auth Control",
-                    "status": "pass",
-                    "model": "sonnet",
-                },
-            ])
+            writer.writerows(
+                [
+                    {
+                        "timestamp": "2026-03-20T04:00:00Z",
+                        "spiral_iter": "1",
+                        "story_title": "[Regression Test] CLI: check-federated-deps",
+                        "status": "pass",
+                        "model": "haiku",
+                    },
+                    {
+                        "timestamp": "2026-03-20T04:10:00Z",
+                        "spiral_iter": "1",
+                        "story_title": "[Regression Test] Another Test",
+                        "status": "reject",
+                        "model": "haiku",
+                    },
+                    {
+                        "timestamp": "2026-03-20T04:20:00Z",
+                        "spiral_iter": "2",
+                        "story_title": "[Regression Test] Third Test",
+                        "status": "pass",
+                        "model": "sonnet",
+                    },
+                    {
+                        "timestamp": "2026-03-20T04:30:00Z",
+                        "spiral_iter": "2",
+                        "story_title": "[Security Test] Auth Control",
+                        "status": "pass",
+                        "model": "sonnet",
+                    },
+                ]
+            )
             temp_path = f.name
 
         try:
@@ -177,7 +179,7 @@ class TestSelectBestModel:
         """Model with fewer attempts but decent win rate might win due to exploration term."""
         groups = {
             ("haiku", "[Regression Test]"): {"wins": 5, "attempts": 100},  # 0.05
-            ("sonnet", "[Regression Test]"): {"wins": 3, "attempts": 5},     # 0.6
+            ("sonnet", "[Regression Test]"): {"wins": 3, "attempts": 5},  # 0.6
         }
         best = select_best_model("[Regression Test]", groups)
         # sonnet: 0.6 + sqrt(2*ln(105)/5) ≈ 0.6 + sqrt(3.19) ≈ 0.6 + 1.78 ≈ 2.38
@@ -216,37 +218,45 @@ class TestRegressionUCB1Integration:
             writer.writeheader()
             # [Regression Test] stories: haiku 7/10, sonnet 9/10
             for i in range(7):
-                writer.writerow({
-                    "timestamp": f"2026-03-20T04:{i:02d}:00Z",
-                    "spiral_iter": "1",
-                    "story_title": f"[Regression Test] Test {i}",
-                    "status": "pass",
-                    "model": "haiku",
-                })
+                writer.writerow(
+                    {
+                        "timestamp": f"2026-03-20T04:{i:02d}:00Z",
+                        "spiral_iter": "1",
+                        "story_title": f"[Regression Test] Test {i}",
+                        "status": "pass",
+                        "model": "haiku",
+                    }
+                )
             for i in range(3):
-                writer.writerow({
-                    "timestamp": f"2026-03-20T05:{i:02d}:00Z",
-                    "spiral_iter": "1",
-                    "story_title": f"[Regression Test] Test {i+10}",
-                    "status": "reject",
-                    "model": "haiku",
-                })
+                writer.writerow(
+                    {
+                        "timestamp": f"2026-03-20T05:{i:02d}:00Z",
+                        "spiral_iter": "1",
+                        "story_title": f"[Regression Test] Test {i + 10}",
+                        "status": "reject",
+                        "model": "haiku",
+                    }
+                )
             for i in range(9):
-                writer.writerow({
-                    "timestamp": f"2026-03-20T06:{i:02d}:00Z",
-                    "spiral_iter": "2",
-                    "story_title": f"[Regression Test] Test {i+20}",
-                    "status": "pass",
-                    "model": "sonnet",
-                })
+                writer.writerow(
+                    {
+                        "timestamp": f"2026-03-20T06:{i:02d}:00Z",
+                        "spiral_iter": "2",
+                        "story_title": f"[Regression Test] Test {i + 20}",
+                        "status": "pass",
+                        "model": "sonnet",
+                    }
+                )
             for i in range(1):
-                writer.writerow({
-                    "timestamp": f"2026-03-20T07:{i:02d}:00Z",
-                    "spiral_iter": "2",
-                    "story_title": f"[Regression Test] Test {i+30}",
-                    "status": "reject",
-                    "model": "sonnet",
-                })
+                writer.writerow(
+                    {
+                        "timestamp": f"2026-03-20T07:{i:02d}:00Z",
+                        "spiral_iter": "2",
+                        "story_title": f"[Regression Test] Test {i + 30}",
+                        "status": "reject",
+                        "model": "sonnet",
+                    }
+                )
             temp_path = f.name
 
         try:

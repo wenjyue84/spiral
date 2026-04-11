@@ -96,9 +96,27 @@ class TestAggregateProjectMetrics:
     def test_average_duration_calculation(self) -> None:
         """Average duration is calculated from valid duration_sec values."""
         results = [
-            {"status": "pass", "cache_read_tokens": "0", "cache_creation_tokens": "0", "model": "sonnet", "duration_sec": "10.0"},
-            {"status": "pass", "cache_read_tokens": "0", "cache_creation_tokens": "0", "model": "sonnet", "duration_sec": "20.0"},
-            {"status": "pass", "cache_read_tokens": "0", "cache_creation_tokens": "0", "model": "sonnet", "duration_sec": "30.0"},
+            {
+                "status": "pass",
+                "cache_read_tokens": "0",
+                "cache_creation_tokens": "0",
+                "model": "sonnet",
+                "duration_sec": "10.0",
+            },
+            {
+                "status": "pass",
+                "cache_read_tokens": "0",
+                "cache_creation_tokens": "0",
+                "model": "sonnet",
+                "duration_sec": "20.0",
+            },
+            {
+                "status": "pass",
+                "cache_read_tokens": "0",
+                "cache_creation_tokens": "0",
+                "model": "sonnet",
+                "duration_sec": "30.0",
+            },
         ]
         metrics = calculate_project_metrics("proj-d", results)
         assert metrics["avg_duration_s"] == 20.0
@@ -142,10 +160,39 @@ class TestAggregateFederatedStories:
             # Create results.tsv
             results_file = tmpdir_path / "results.tsv"
             with open(results_file, "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=["story_id", "status", "cache_read_tokens", "cache_creation_tokens", "model", "duration_sec"], delimiter="\t")
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=[
+                        "story_id",
+                        "status",
+                        "cache_read_tokens",
+                        "cache_creation_tokens",
+                        "model",
+                        "duration_sec",
+                    ],
+                    delimiter="\t",
+                )
                 writer.writeheader()
-                writer.writerow({"story_id": "US-001", "status": "pass", "cache_read_tokens": "1000", "cache_creation_tokens": "500", "model": "sonnet", "duration_sec": "10"})
-                writer.writerow({"story_id": "US-002", "status": "pass", "cache_read_tokens": "2000", "cache_creation_tokens": "1000", "model": "sonnet", "duration_sec": "20"})
+                writer.writerow(
+                    {
+                        "story_id": "US-001",
+                        "status": "pass",
+                        "cache_read_tokens": "1000",
+                        "cache_creation_tokens": "500",
+                        "model": "sonnet",
+                        "duration_sec": "10",
+                    }
+                )
+                writer.writerow(
+                    {
+                        "story_id": "US-002",
+                        "status": "pass",
+                        "cache_read_tokens": "2000",
+                        "cache_creation_tokens": "1000",
+                        "model": "sonnet",
+                        "duration_sec": "20",
+                    }
+                )
 
             result = aggregate_federated_stories(prd_file, results_globs=["results.tsv"])
             assert len(result["projects"]) == 1
@@ -171,11 +218,49 @@ class TestAggregateFederatedStories:
 
             results_file = tmpdir_path / "results.tsv"
             with open(results_file, "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=["story_id", "status", "cache_read_tokens", "cache_creation_tokens", "model", "duration_sec"], delimiter="\t")
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=[
+                        "story_id",
+                        "status",
+                        "cache_read_tokens",
+                        "cache_creation_tokens",
+                        "model",
+                        "duration_sec",
+                    ],
+                    delimiter="\t",
+                )
                 writer.writeheader()
-                writer.writerow({"story_id": "US-001", "status": "pass", "cache_read_tokens": "1000", "cache_creation_tokens": "500", "model": "sonnet", "duration_sec": "10"})
-                writer.writerow({"story_id": "US-002", "status": "pass", "cache_read_tokens": "1000", "cache_creation_tokens": "500", "model": "sonnet", "duration_sec": "10"})
-                writer.writerow({"story_id": "US-003", "status": "reject", "cache_read_tokens": "500", "cache_creation_tokens": "250", "model": "haiku", "duration_sec": "5"})
+                writer.writerow(
+                    {
+                        "story_id": "US-001",
+                        "status": "pass",
+                        "cache_read_tokens": "1000",
+                        "cache_creation_tokens": "500",
+                        "model": "sonnet",
+                        "duration_sec": "10",
+                    }
+                )
+                writer.writerow(
+                    {
+                        "story_id": "US-002",
+                        "status": "pass",
+                        "cache_read_tokens": "1000",
+                        "cache_creation_tokens": "500",
+                        "model": "sonnet",
+                        "duration_sec": "10",
+                    }
+                )
+                writer.writerow(
+                    {
+                        "story_id": "US-003",
+                        "status": "reject",
+                        "cache_read_tokens": "500",
+                        "cache_creation_tokens": "250",
+                        "model": "haiku",
+                        "duration_sec": "5",
+                    }
+                )
 
             result = aggregate_federated_stories(prd_file, results_globs=["results.tsv"])
             assert len(result["projects"]) == 2
@@ -231,11 +316,39 @@ class TestAggregateFederatedStories:
 
             results_file = tmpdir_path / "results.tsv"
             with open(results_file, "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=["story_id", "status", "cache_read_tokens", "cache_creation_tokens", "model"], delimiter="\t")
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=["story_id", "status", "cache_read_tokens", "cache_creation_tokens", "model"],
+                    delimiter="\t",
+                )
                 writer.writeheader()
-                writer.writerow({"story_id": "US-001", "status": "pass", "cache_read_tokens": "1000", "cache_creation_tokens": "500", "model": "sonnet"})
-                writer.writerow({"story_id": "US-002", "status": "reject", "cache_read_tokens": "500", "cache_creation_tokens": "250", "model": "haiku"})
-                writer.writerow({"story_id": "US-003", "status": "pass", "cache_read_tokens": "2000", "cache_creation_tokens": "1000", "model": "sonnet"})
+                writer.writerow(
+                    {
+                        "story_id": "US-001",
+                        "status": "pass",
+                        "cache_read_tokens": "1000",
+                        "cache_creation_tokens": "500",
+                        "model": "sonnet",
+                    }
+                )
+                writer.writerow(
+                    {
+                        "story_id": "US-002",
+                        "status": "reject",
+                        "cache_read_tokens": "500",
+                        "cache_creation_tokens": "250",
+                        "model": "haiku",
+                    }
+                )
+                writer.writerow(
+                    {
+                        "story_id": "US-003",
+                        "status": "pass",
+                        "cache_read_tokens": "2000",
+                        "cache_creation_tokens": "1000",
+                        "model": "sonnet",
+                    }
+                )
 
             result = aggregate_federated_stories(prd_file, results_globs=["results.tsv"])
             summary = result["summary"]
@@ -316,7 +429,15 @@ class TestFormatOutputs:
                     "avg_duration_s": 15.0,
                 }
             ],
-            "summary": {"total_projects": 1, "total_stories": 2, "passed": 2, "failed": 0, "pending": 0, "tokens_used": 3000, "cost_usd": 9.0},
+            "summary": {
+                "total_projects": 1,
+                "total_stories": 2,
+                "passed": 2,
+                "failed": 0,
+                "pending": 0,
+                "tokens_used": 3000,
+                "cost_usd": 9.0,
+            },
         }
 
         json_str = format_json_output(data)

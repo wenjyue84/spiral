@@ -45,9 +45,7 @@ def parse_results_tsv(tsv_path: str) -> dict[tuple[str, str], dict[str, Any]]:
             ...
         }
     """
-    groups: dict[tuple[str, str], dict[str, Any]] = defaultdict(
-        lambda: {"wins": 0, "attempts": 0}
-    )
+    groups: dict[tuple[str, str], dict[str, Any]] = defaultdict(lambda: {"wins": 0, "attempts": 0})
 
     if not Path(tsv_path).exists():
         return groups
@@ -108,23 +106,15 @@ def calculate_ucb1_score(
     exploit = wins / attempts if attempts > 0 else 0.0
 
     # Total number of attempts across all groups for this tag
-    total_attempts: int = sum(
-        g["attempts"] for (m, t), g in groups.items() if t == tag
-    )
+    total_attempts: int = sum(g["attempts"] for (m, t), g in groups.items() if t == tag)
 
     # Exploration term (boost uncertainty)
-    explore = (
-        math.sqrt(2.0 * math.log(total_attempts) / attempts)
-        if total_attempts > 0 and attempts > 0
-        else 0.0
-    )
+    explore = math.sqrt(2.0 * math.log(total_attempts) / attempts) if total_attempts > 0 and attempts > 0 else 0.0
 
     return exploit + explore
 
 
-def select_best_model(
-    tag: str, groups: dict[tuple[str, str], dict[str, Any]]
-) -> str | None:
+def select_best_model(tag: str, groups: dict[tuple[str, str], dict[str, Any]]) -> str | None:
     """Select the best model for a given story tag using UCB1.
 
     Returns the model with the highest UCB1 score, or None if no valid models.
@@ -133,9 +123,7 @@ def select_best_model(
     if not models:
         return None
 
-    scores = {
-        model: calculate_ucb1_score(model, tag, groups) for model in models
-    }
+    scores = {model: calculate_ucb1_score(model, tag, groups) for model in models}
     # Filter out penalty scores
     valid_scores = {m: s for m, s in scores.items() if s >= 0.0}
 
@@ -147,12 +135,8 @@ def select_best_model(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="UCB1-based model selection from results.tsv"
-    )
-    parser.add_argument(
-        "--results-tsv", required=True, help="Path to results.tsv file"
-    )
+    parser = argparse.ArgumentParser(description="UCB1-based model selection from results.tsv")
+    parser.add_argument("--results-tsv", required=True, help="Path to results.tsv file")
     parser.add_argument(
         "--story-tag",
         required=True,

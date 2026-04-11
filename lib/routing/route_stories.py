@@ -88,9 +88,7 @@ def _try_load_semantic_router() -> Optional[Any]:
     return result[0]
 
 
-def select_model_with_ucb1(
-    story: dict[str, Any], complexity_score: int, results_tsv_path: str | None = None
-) -> str:
+def select_model_with_ucb1(story: dict[str, Any], complexity_score: int, results_tsv_path: str | None = None) -> str:
     """Select model using complexity score, optionally refined by UCB1 historical data.
 
     US-1210: If results.tsv exists, uses UCB1 algorithm to select model based on
@@ -167,9 +165,7 @@ def route_stories(prd_path: str, profile: str, results_tsv_path: str | None = No
             if profile == "auto":
                 # US-453: Use regex-based complexity scoring on acceptance criteria
                 # US-1210: Optionally refine with UCB1 historical data
-                assigned_model = select_model_with_ucb1(
-                    story, complexity_score, results_tsv_path
-                )
+                assigned_model = select_model_with_ucb1(story, complexity_score, results_tsv_path)
                 print(f"  [router] Story '{story.get('id')}' -> score: {complexity_score} -> model: {assigned_model}")
             else:
                 # User forced a specific model (e.g., "opus", "sonnet", "haiku")

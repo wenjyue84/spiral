@@ -1723,22 +1723,7 @@
       "filesTouch": [
         "lib/routing/route_stories.py",
         "ralph/lib/model_routing.sh"
-      ],
-      "_failureReason": "oversized_diff: produced 2761 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 2761 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ],
-      "last_attempted": "2026-04-11T15:18:37Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`tests/test_check_federated_deps.py` exists with 26 tests, all passing. It was committed in US-685 and covers cycles, orphans, and namespace validation.\n\n## Problem Identified\nUS-1210 needs regression tests for US-685's `check-federated-deps` feature. Those tests already exist and pass — the story just needs to be marked `passes: true`.\n\n## Planned Changes\n- Run mypy/lint to confirm quality\n- Update `prd.json`: set `passes: true` for US-1210\n- Update `progress.txt`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\", \"progress.txt\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\nAll checks pass. Now update prd.json:\nNow append to progress.txt and commit:\n58 lines, well within the 800 limit.\nDone. US-1210 is complete.\n\n**What happened:** The regression tests for `check-federated-deps` (US-685) already existed in `tests/test_check_federated_deps.py` with 26 passing tests. The previous attempt failed by trying to create a duplicate test file + adding unrelated UCB1 routing code (~2761 lines). This attempt:\n\n1. Recognized the tests already existed and passed\n2. Fixed 2 mypy strict errors (`dict[str, list]` → `dict[str, list[Any]]`)\n3. Verified 26/26 tests pass, mypy clean, ruff clean\n4. Marked `passes: true` and committed (57 lines total)"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 460,
-        "tokensAfterMasking": 459,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_passedCommit": "639d4c0e6d2c3ae2b7933f5fcbc0d3bde69dc82d"
+      ]
     },
     {
       "id": "US-1211",
@@ -1764,8 +1749,7 @@
       "filesTouch": [
         "ralph/ralph.sh",
         "ralph/lib/model_routing.sh"
-      ],
-      "last_attempted": "2026-04-11T15:23:26Z"
+      ]
     },
     {
       "id": "US-1212",
@@ -2006,6 +1990,58 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_1005 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1224",
+      "title": "[Regression Test] Phase I Automatic Story Decomposition on Triple Retry Exhaustion with Validation",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1043. Story description: Implement automatic story decomposition when Phase I retry loop exhausts all 3 escalation levels (haiku→sonnet→opus). Decomposes into 4 atomic sub-stories with file-level scope reduction, validates decomposition doesn't exceed prd.json story limits, and records decomposition metadata for learning.",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1043",
+        "Test would reliably fail if the US-1043 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1043 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1225",
+      "title": "[Regression Test] Federation: File Conflict Detection Across Sub-Projects with Patch Visualization",
+      "priority": "medium",
+      "description": "Write regression test to guard against future breakage of US-1044. Story description: Detect when 2+ sub-projects plan to modify the same file, generate conflict report with visual diff and suggest resolution strategy",
+      "acceptanceCriteria": [
+        "Regression test covers core observable behaviour of US-1044",
+        "Test would reliably fail if the US-1044 feature were removed or broken"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1044 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1226",
+      "title": "[E2E Test] Dashboard: Story Retry Exhaustion Analyzer - GET /api/dashboard/stuck-stories",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1045. Story description: Identify stories stuck in retry loop with 3+ attempts, analyze model escalation pattern (haiku→sonnet→opus), and suggest atomic decomposition strategy",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1045",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Run: uv run pytest tests/ -k us_1045 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
