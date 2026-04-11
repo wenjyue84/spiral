@@ -1,0 +1,4 @@
+# file: /home/user/spiral/lib/spiral/validate_results_tsv.py
+# hypothesis_version: 6.151.9
+
+[1000000, '__main__', 'check_counts', 'checks_run', 'errors', 'replace', 'rows', 'story_id', 'token', 'utf-8', 'warnings']

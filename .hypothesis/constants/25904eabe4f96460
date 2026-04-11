@@ -1,0 +1,4 @@
+# file: /home/user/spiral/lib/txn_journal.py
+# hypothesis_version: 6.151.9
+
+['resilience', 'txn_journal.py', 'utf-8']

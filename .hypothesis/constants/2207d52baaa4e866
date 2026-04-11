@@ -1,0 +1,4 @@
+# file: /home/user/spiral/lib/commands/explain_retry.py
+# hypothesis_version: 6.151.9
+
+[0.0, 300, ', ', 'attempt', 'duration_sec', 'error_category', 'haiku', 'model', 'results.tsv', 'root', 'scope_overrun', 'status', 'tokens', 'unknown']

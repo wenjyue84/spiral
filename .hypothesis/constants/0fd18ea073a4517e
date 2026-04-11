@@ -1,0 +1,4 @@
+# file: /home/user/spiral/lib/phases/validate.py
+# hypothesis_version: 6.151.9
+
+['<unknown>', 'DEP_TYPE', 'database', 'dependencies', 'feature', 'id', 'infrastructure', 'type']

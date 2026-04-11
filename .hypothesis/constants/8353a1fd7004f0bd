@@ -1,0 +1,4 @@
+# file: /home/user/spiral/lib/core/story_helpers.py
+# hypothesis_version: 6.151.9
+
+[100, 'filesTouch', 'medium', 'priority', 'priorityScore', 'technicalHints']
