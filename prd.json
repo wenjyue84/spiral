@@ -2210,11 +2210,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nI've reviewed the repository structure and found:\n- Story US-1235 requires a performance test for the /profile endpoint (implemented in US-522)\n- The /profile endpoint is at `lib/dashboard/api.py` lines 68-156\n- It reads `results.tsv` and returns JSON with: mean phase durations, slowest 5 stories, escalation frequency\n- Similar performance tests exist in `tests/test_perf_*.py` following a consistent pattern\n- Tests use fixtures to create synthetic results.tsv, measure wall time, compare against baseline, and fail if degradation > 20%\n\n## Problem Identified\n\nNeed to write a performance benchmark test for the /profile endpoint that:\n1. Measures endpoint response time on baseline (100 rows) and threshold (1000 rows) datasets\n2. Captures baseline metrics\n3. Fails if response time degrades more than 20% between baseline and threshold datasets\n4. Is discoverable via `pytest tests/ -k us_522 -v`\n\n## Planned Changes\n\n- Create `tests/test_perf_us_522_profile_endpoint.py` with:\n  - Fixture: synthetic 100-row results.tsv (baseline)\n  - Fixture: synthetic 1000-row results.tsv (10x threshold)\n  - Test: baseline latency measurement and validation\n  - Test: degradation threshold check (20% max)\n  - Test: response data validation (structure and content)\n  - All tests marked with `@pytest.mark.us_522`\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_perf_us_522_profile_endpoint.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_profile_endpoint_baseline\", \"test_profile_endpoint_threshold_degradation\", \"test_profile_endpoint_response_structure\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow implementing...\n\n## Diagnosis Block"
-      },
-      "_passedCommit": "3667b8552b3e7bad4c7ddc629b1b163c1436373e"
+      "model": "haiku"
     },
     {
       "id": "US-1236",
@@ -2232,11 +2228,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-11T22:13:23Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nLooking at the story US-1236, I need to create a performance benchmark test that:\n1. Measures Phase S story validation throughput using the Batch API (from `lib/batch_validate.py`)\n2. Compares it against sequential baseline validation\n3. Ensures batch method doesn't degrade throughput more than 20%\n4. Captures latency and cost metrics\n\nThe codebase has:\n- `lib/prd/batch_validate.py` with batch validation functions\n- `lib/prd/validate_stories.py` with sequential validation logic\n- Existing benchmark infrastructure in `tests/benchmarks/` using pytest-benchmark\n\n## Problem Identified\n\nNeed to create a new performance benchmark test that:\n- Sets up test story data\n- Runs sequential validation and captures throughput\n- Runs batch validation and captures throughput\n- Asserts batch throughput ≥ 80% of sequential (per AC3: no more than 20% degradation)\n- Instruments cost metrics from both approaches\n\n## Planned Changes\n\n**Create:** `tests/benchmarks/test_us_524_phase_s_perf.py`\n- Import batch_validate functions\n- Import validate_stories functions\n- Create test fixture with sample stories\n- Test sequential validation baseline\n- Test batch validation baseline\n- Assertions on throughput ratio and latency\n\n<plan>\n{\n  \"files_to_create\": [\"tests/benchmarks/test_us_524_phase_s_perf.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_sequential_validation_baseline\", \"test_batch_validation_baseline\", \"test_batch_vs_sequential_throughput_ratio\"],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow I'll implement this story:\nPerfect! I've successfully implemented story **US-1236** - Performance Test for Phase S batch validation vs sequential. Here's a summary:\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1237",
@@ -2423,6 +2415,44 @@
       ],
       "technicalNotes": [
         "Run: uv run pytest tests/ -k us_1104 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1248",
+      "title": "[E2E Test] Add cumulative cost and stories-passed trend chart to analytics",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1112. Story description: The analytics summary only shows a single total cost number with no over-time view. Add a dual-axis line chart below the summary bar: x-axis = iteration number, left y-axis = cumulative API cost ($), right y-axis = cumulative stories passed. Both lines on the same chart show the economic efficiency curve. Data: group results.tsv by spiral_iter, accumulate cost and passed count per iteration.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1112",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Source files from US-1112: spiral-ui/src/components/AnalyticsTab.tsx, spiral-ui/src/server/analyticsApi.ts",
+        "Run: uv run pytest tests/ -k us_1112 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1249",
+      "title": "[E2E Test] Add filter controls to analytics retry history table",
+      "priority": "medium",
+      "description": "Write end-to-end user flow test for the feature in US-1115. Story description: The retry history table has no way to slice the data. Add a filter bar above the table with three dropdowns: (1) Failure Type - filters by failure_root_cause value; (2) Model Tier - haiku/sonnet/opus/all; (3) Outcome - passed/skipped/decomposed/all. The existing Most Recent / Most Retried sort toggle should remain. Show empty state message when no rows match filters.",
+      "acceptanceCriteria": [
+        "E2E test covers the user flow introduced by US-1115",
+        "Test navigates to relevant page(s) and asserts on visible state",
+        "Test passes in headless browser (Playwright/Cypress/similar)"
+      ],
+      "technicalNotes": [
+        "Source files from US-1115: spiral-ui/src/components/analytics/FailureRetryDashboard.tsx, spiral-ui/src/components/AnalyticsTab.tsx",
+        "Run: uv run pytest tests/ -k us_1115 -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",

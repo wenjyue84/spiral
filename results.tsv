@@ -83,3 +83,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T21:33:15Z	35	1	US-1233	[Regression Test] Phase M Conflict Detection — Identify File-Level Collisions in Federated Projects	keep	347	haiku	0	bfdd052d89ea8328d977d4a490ac4c63531ac4f5	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T21:45:17Z	35	2	US-1234	[E2E Test] Dashboard endpoint GET /api/dashboard/costs-by-project aggregating results.tsv	keep	693	haiku	0	0d77642b588a8dff177f33c4c961a57486237783	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-11T22:13:21Z	36	1	US-1235	[Performance Test] Dashboard /profile endpoint for phase duration analytics	keep	706	haiku	0	3667b8552b3e7bad4c7ddc629b1b163c1436373e	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-11T22:26:11Z	36	2	US-1236	[Performance Test] [Performance Test] Benchmark Phase S batch validation vs sequential	keep	732	haiku	0	0f4574f6f7b0640890e0b39c56529001a254bf90	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				

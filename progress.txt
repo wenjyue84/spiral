@@ -1269,3 +1269,36 @@ All 3 tests pass successfully with clean benchmark statistics:
 ✓ AC1: Performance test measures key metrics for Phase S validation (sequential/batch latency, cost)
 ✓ AC2: Baseline captured via pytest-benchmark (auto-saved baseline files in .benchmarks/)
 ✓ AC3: Tests include assertions that fail if response time degrades >20% from baseline
+## Iteration 2 - Sun, Apr 12, 2026  6:26:11 AM
+Completed: [Performance Test] [Performance Test] Benchmark Phase S batch validation vs sequential (ID: US-1236) in 12m
+
+
+## Pre-analysis for US-1237 (Gemini 2.5 Pro)
+This user story describes a pure Python/pytest task, not a Frappe/ERPNext one. It involves creating a regression test for a command-line tool's crash recovery mechanism related to Git worktrees.
+
+**Technical Brief for Implementation**
+
+1.  **Files to Modify:**
+    *   **New Test File:** Create `tests/test_crash_recovery.py`.
+    *   **Test Function:** Implement `test_us526_crash_recovery_reverts_detached_head`.
+    *   **Code Under Test:** The recovery logic is likely in `ralph/worker.py` or a related file. The test will need to import and execute the primary recovery function from this module.
+
+2.  **Frappe DocTypes / Hooks Involved:**
+    *   None. This is not a Frappe project. The implementation will use standard Python libraries (`subprocess`, `pathlib`) and the `pytest` framework.
+
+3.  **Recommended Implementation Approach:**
+    *   Use a `pytest` fixture to create and tear down a temporary Git repository for each test run.
+    *   Inside the test function:
+        1.  Create a new, temporary Git worktree from the fixture's repository.
+        2.  Simulate the "detached HEAD" crash state by checking out a specific commit hash (`git checkout HEAD~1`).
+        3.  Invoke the crash recovery function from `ralph/worker.py` on the detached worktree path.
+        4.  Use Python's `subprocess` module to run `git` commands to verify the outcome.
+        5.  Assert that the current branch is `main` (`git rev-parse --abbrev-ref HEAD`).
+        6.  Assert that the worktree is clean (`git status --porcelain` should be empty).
+
+4.  **Edge Cases & Gotchas:**
+    *   **Test Isolation:** Ensure the test fixture properly handles cleanup of the temporary git repo and worktree, even on test failure, to avoid polluting the environment.
+    *   **Simulating Crashes:** A "detached HEAD" is straightforward. Simulating a *partial commit* is more complex and less deterministic; focus on the detached HEAD scenario first.
+    *   **Dependency Mocking:** The recovery function may have dependencies (e.g., a logger, configuration objects). These may need to be mocked for the test to run in isolation.
+    *   **Robust Assertions:** Check both the branch name and the cleanliness of the working directory to fully confirm recovery.
+
