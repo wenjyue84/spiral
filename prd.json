@@ -1386,7 +1386,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-11T08:19:48Z"
+      "last_attempted": "2026-04-11T08:19:48Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe test file `tests/test_perf_research_cache_us1026.py` exists with 5 test classes that measure:\n- Cache hit performance (1000 queries)\n- Cache miss performance (100 queries)\n- LRU eviction performance\n- Performance regression detection (20% threshold)\n- Mixed workload performance\n\n## Problem Identified\n1. Only the last test class (TestCacheOperationsPerformanceSuite) has `@pytest.mark.benchmark` decorator\n2. The other 4 test classes lack this marker, making them inconsistent\n3. Benchmark tests are excluded from default pytest runs due to config `-m 'not benchmark'`\n4. Tests can't capture baselines properly when run under xdist parallelization\n5. No baseline data has been captured for the research cache benchmarks yet\n\n## Planned Changes\n1. Add `@pytest.mark.benchmark(group=\"research-cache-us1026\")` to all 4 remaining test classes\n2. This ensures all performance tests are grouped together and properly categorized\n3. Running `pytest tests/test_perf_research_cache_us1026.py --override-ini=\"addopts=\" --benchmark-min-rounds=3` will capture baselines\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_perf_research_cache_us1026.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 20\n}\n</plan>\n\nNow I'll implement this by adding the benchmark marker to all test classes:\nNow let me verify that all tests are properly marked and can be collected:\nExcellent! All 5 tests are now properly marked. Let me run them to capture baselines:\nPerfect! All 5 tests pass with baselines captured. Let me verify the baselines were saved:\nNow let me verify the implementation with quality checks:\nPerfect! All tests pass and all acceptance criteria are met. Now let me commit these changes and update the prd.json:\nLet me verify one final time that all quality checks pass:\n## Summary"
+      }
     },
     {
       "id": "US-1193",
