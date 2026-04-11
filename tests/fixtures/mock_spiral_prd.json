@@ -1,0 +1,23 @@
+{
+    "schemaVersion": 1,
+    "productName": "MockSPIRAL",
+    "branchName": "main",
+    "overview": "Mock PRD for SPIRAL E2E integration testing",
+    "goals": ["Test SPIRAL end-to-end with deterministic single story"],
+    "userStories": [
+        {
+            "id": "UT-001",
+            "title": "Mock Story for E2E Testing",
+            "priority": "high",
+            "description": "A deterministic mock story used by SPIRAL E2E integration tests.",
+            "acceptanceCriteria": [
+                "Story ID is UT-001",
+                "Story passes without external dependencies"
+            ],
+            "technicalNotes": [],
+            "dependencies": [],
+            "estimatedComplexity": "small",
+            "passes": false
+        }
+    ]
+}

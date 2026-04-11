@@ -486,3 +486,94 @@ def mock_gemini_api() -> MockGeminiAPI:
     Returns a mock Gemini API that simulates web search responses without external calls.
     """
     return MockGeminiAPI()
+
+
+# ── US-1250: E2E Integration Test Harness ──────────────────────────────────────
+
+
+@pytest.fixture
+def mock_ralph_env(tmp_path: Path) -> dict[str, str]:
+    """Fixture: Set up mocked environment for SPIRAL E2E testing.
+
+    Creates a temporary mock ralph.sh script that:
+    - Exits 0 (success)
+    - Writes a passing result to results.tsv
+    - Sets environment variables for SPIRAL_VALIDATE_CMD and SPIRAL_MODEL_ROUTING
+
+    Yields:
+        dict: Environment dict with mock PATH and SPIRAL config vars
+    """
+    # Create a temp directory for the mock ralph.sh
+    mock_bin_dir = tmp_path / "mock_bin"
+    mock_bin_dir.mkdir()
+
+    # Create a mock ralph.sh script
+    mock_ralph = mock_bin_dir / "ralph.sh"
+    mock_ralph_content = """#!/bin/bash
+# Mock ralph.sh for SPIRAL E2E testing
+# Simulates successful story implementation
+
+STORY_ID="${1:-UT-001}"
+RESULTS_FILE="${2:-results.tsv}"
+
+# Write a passing result to results.tsv (tab-separated: story_id, model, status, tokens, cost, duration)
+echo -e "$STORY_ID\\thaiku\\tpass\\t100\\t0.001\\t5" >> "$RESULTS_FILE"
+
+exit 0
+"""
+    mock_ralph.write_text(mock_ralph_content)
+    mock_ralph.chmod(0o755)
+
+    # Create environment dict with mocked PATH
+    env: dict[str, str] = os.environ.copy()
+    env["PATH"] = str(mock_bin_dir) + os.pathsep + env.get("PATH", "")
+    env["SPIRAL_VALIDATE_CMD"] = "echo 'mock validate'"
+    env["SPIRAL_MODEL_ROUTING"] = "fixed"
+    env["SPIRAL_MODEL_FIXED"] = "haiku"
+
+    yield env
+
+    # Cleanup is automatic with tmp_path fixture
+
+
+@pytest.fixture
+def mock_prd_fixture(tmp_path: Path) -> str:
+    """Fixture: Provide path to mock_spiral_prd.json.
+
+    Returns the path to tests/fixtures/mock_spiral_prd.json, or creates one
+    in tmp_path if it doesn't exist in the repo.
+
+    Yields:
+        str: Path to the mock PRD file
+    """
+    # First try to use the checked-in fixture
+    repo_root = Path(__file__).parent.parent
+    mock_prd_path = repo_root / "tests" / "fixtures" / "mock_spiral_prd.json"
+
+    if mock_prd_path.exists():
+        yield str(mock_prd_path)
+    else:
+        # Fall back to creating one in tmp_path
+        tmp_mock_prd = tmp_path / "mock_spiral_prd.json"
+        mock_prd_data: dict[str, Any] = {
+            "schemaVersion": 1,
+            "productName": "MockSPIRAL",
+            "branchName": "main",
+            "overview": "Mock PRD for SPIRAL E2E testing",
+            "goals": ["Test SPIRAL end-to-end"],
+            "userStories": [
+                {
+                    "id": "UT-001",
+                    "title": "Mock Story for E2E Testing",
+                    "priority": "high",
+                    "description": "Deterministic mock story for E2E tests",
+                    "acceptanceCriteria": ["Story ID is UT-001"],
+                    "technicalNotes": [],
+                    "dependencies": [],
+                    "estimatedComplexity": "small",
+                    "passes": False,
+                }
+            ],
+        }
+        tmp_mock_prd.write_text(json.dumps(mock_prd_data, indent=2))
+        yield str(tmp_mock_prd)
