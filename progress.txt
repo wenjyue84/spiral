@@ -1,3 +1,47 @@
+## Iteration N - Story: US-1185 - Phase I: Complete rollback implementation stubs in commit_revert.sh
+
+### What was implemented
+- **lib/impl/commit_revert.sh** `commit_or_revert()` function:
+  - **Success path**: Merge worker branch with conflict detection, run quality gates (SPIRAL_VALIDATE_CMD), commit if gates pass
+    - Git merge with `--no-edit` flag suppresses editor
+    - Detect unmerged files via `git diff --name-only --diff-filter=U`
+    - On merge failure or conflicts: abort merge and mark passes=false
+    - Run quality gates with timeout (SPIRAL_VALIDATE_TIMEOUT)
+    - On gate failure: `git reset --hard HEAD~1` to revert merge
+    - Extract story title from prd.json for standardized commit message
+    - Log merge/gate results to spiral_events.jsonl
+  - **Failure path**: Restore snapshot, cleanup branch, log rollback
+    - Call `restore_snapshot()` to apply stash and delete new non-git files
+    - Clean up uncommitted changes with git reset/checkout/clean
+    - Drop worker branch with `git branch -D`
+    - Log rollback status (success or warning) with elapsed time
+
+### Patterns discovered
+- Git merge conflicts detectable via `git diff --name-only --diff-filter=U` even when merge appears to succeed
+- Quality gate command run with timeout to prevent hangs: `timeout $seconds bash -c "$cmd"`
+- Story title extraction from prd.json requires error handling (story may not exist in prd.json)
+- Event logging captures timing (elapsed_ms) and status (success/merge_or_gates_failed/rollback_success/rollback_with_warnings)
+- Merge revert via `git reset --hard HEAD~1` is safe because merge --abort only cleans MERGE_HEAD state
+- Branch deletion safe even if branch doesn't exist (check with `git rev-parse --verify`)
+
+### Gotchas
+- `git merge --abort` must be called AFTER attempting merge (it only works in merge state)
+- Conflict detection happens AFTER successful merge command (conflicts exist in working tree)
+- Story title lookup can fail silently; fallback to story_id is safe
+- Episodic memory status must reflect final passes value (true/false) after all checks
+- Protected-path audit still applies even after merge (catches core file modifications)
+
+### Acceptance Criteria Met
+- [x] rollback function restores repo to pre-story state on failure (restore_snapshot + git cleanup)
+- [x] merge function runs all quality gates before finalizing (SPIRAL_VALIDATE_CMD with timeout)
+- [x] worktree branch dropped on failure (git branch -D)
+- [x] tests verify rollback (TestManifestGeneration, TestRollbackLogEvent, TestSnapshotShellIntegration: 9 tests passing)
+
+### Files Changed
+- `lib/impl/commit_revert.sh`: +155 lines (success path ~75 lines, failure path ~35 lines, helpers used)
+- `prd.json`: US-1185 passes=true
+- All pre-commit checks pass (shellcheck, shfmt, linting)
+
 ## Iteration N - Story: US-1152 - Phase E: Inject Top-3 Similar Passing Stories as Ralph Reference Implementations
 
 ### What was implemented
