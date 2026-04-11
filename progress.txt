@@ -2280,3 +2280,29 @@ This user story is for a regression test, not a new feature, and it belongs to t
     *   The test should also assert that the sorting function correctly raises an exception when presented with a circular dependency (e.g., A -> B -> A).
     *   Mock data must accurately reflect the real story objects, especially the keys used for the story `id` and `dependencies` list.
     *   Ensure the test would fail if the sorting logic were removed, for instance by asserting the incorrectly ordered list is *not* equal to the function's output.
+## Iteration 1 - Sat, Apr 11, 2026 10:08:02 PM
+Completed: [Regression Test] Phase M: Optimize Merge Order for Federated Stories with Cross-Project Dependencie (ID: US-1206) in 9m
+
+
+## Pre-analysis for US-1207 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-1207: E2E Test for `spiral federated-status` CLI**
+
+**1. Files to Modify/Create:**
+- Create a new E2E test file, likely `tests/test_cli_federated_status.py`, to house the new test case.
+- The feature's implementation, which the test will target, is located in `lib/federated_status.py`.
+
+**2. Frappe Context:**
+- This story pertains to a Python CLI tool. It is not a Frappe application, so no DocTypes or hooks are involved.
+
+**3. Recommended Test Implementation:**
+- Utilize `pytest` and fixtures to dynamically create a temporary mock federated project structure.
+- This structure must contain a root `.spiral/prd.json` defining `sub_project_path` entries.
+- Populate sub-project directories with mock `results.tsv` files containing sample story and token data.
+- Use Python's `subprocess` or a similar test utility to execute the `spiral federated-status` command.
+- Capture stdout and assert that the output (both default table and JSON format) reflects the correct aggregated counts from the mock data.
+
+**4. Edge Cases to Cover:**
+- Command fails gracefully if the root `prd.json` is missing, malformed, or lacks a federation section.
+- Handles scenarios where a `sub_project_path` is invalid or the directory is missing.
+- Correctly skips sub-projects that do not contain a `results.tsv` file.
+- Robustness against empty or malformed data within `results.tsv` files.

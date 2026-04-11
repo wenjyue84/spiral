@@ -2231,4 +2231,3 @@ This user story is for a regression test, not a new feature, and it belongs to t
     *   The test should also assert that the sorting function correctly raises an exception when presented with a circular dependency (e.g., A -> B -> A).
     *   Mock data must accurately reflect the real story objects, especially the keys used for the story `id` and `dependencies` list.
     *   Ensure the test would fail if the sorting logic were removed, for instance by asserting the incorrectly ordered list is *not* equal to the function's output.
-
