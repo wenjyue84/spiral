@@ -173,7 +173,7 @@ run_phase_rt_parallel() {
             --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
             --output "$TEST_OUTPUT" \
             --repo-root "$REPO_ROOT" \
-            ${SPIRAL_TEST_OUTPUT_FORMAT:+--output-format "$SPIRAL_TEST_OUTPUT_FORMAT"} \
+            ${SPIRAL_TEST_OUTPUT_FORMAT:+--output "$SPIRAL_TEST_OUTPUT_FORMAT"} \
             ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
         else
           "$SPIRAL_CORE_BIN" synthesize \
@@ -181,7 +181,7 @@ run_phase_rt_parallel() {
             --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
             --output "$TEST_OUTPUT" \
             --repo-root "$REPO_ROOT" \
-            ${SPIRAL_TEST_OUTPUT_FORMAT:+--output-format "$SPIRAL_TEST_OUTPUT_FORMAT"} \
+            ${SPIRAL_TEST_OUTPUT_FORMAT:+--output "$SPIRAL_TEST_OUTPUT_FORMAT"} \
             ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
         fi
       else
