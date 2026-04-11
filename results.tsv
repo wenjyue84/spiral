@@ -66,3 +66,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T17:08:55Z	27	1	US-1216	[Regression Test] Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome	reject	702	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-11T17:19:52Z	27	2	US-1216	[Regression Test] Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome	keep	489	sonnet	1	cf52feae386c9b2e7b29a1c2b9625c85ca5b1333	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-11T17:42:48Z	28	2	US-1217	[Regression Test] Phase T: Flaky Test Detection - Skip Story Generation for Intermittent Failures	reject	148	sonnet	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-11T17:47:12Z	28	3	US-1217	[Regression Test] Phase T: Flaky Test Detection - Skip Story Generation for Intermittent Failures	keep	238	sonnet	1	4d4602e00300d47af722906dc79b69240934dc0d	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
