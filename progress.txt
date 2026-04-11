@@ -1,3 +1,43 @@
+## Iteration 5 - Sun, Apr 12, 2026  3:05:00 AM
+Completed: [Regression Test] Phase I Automatic Story Decomposition on Triple Retry Exhaustion with Validation (ID: US-1224) in 5m
+
+### What was implemented
+- Added `@pytest.mark.us_1043` decorator to all 10 existing tests in `tests/test_auto_decompose.py`
+- Tests now discoverable with: `uv run pytest tests/ -k us_1043 -v`
+- Regression test suite covers core observable behavior of US-1043:
+  1. **AC1 (6 tests)**: Sub-story field validation
+     - Returns exactly 4 sub-stories with _parent_id field set
+     - Each sub-story has _decomposed_from_iteration metadata
+     - Parent marked with _decomposed=True, _decomposed_count=4
+     - Ceiling validation prevents exceeding story limit
+     - Sub-stories have small complexity
+  2. **AC3 (4 tests)**: Triple retry escalation integration
+     - Ladder progression: haiku→sonnet→opus (3 models)
+     - Triple exhaustion produces 4 children with _parent_id
+     - Children re-queued with passes=False
+     - At least one child can pass (demonstrating re-queueing works)
+
+### Quality checks passed
+- MyPy --strict: ✓ Success: no issues found
+- Ruff lint: ✓ All checks passed
+- Ruff format: ✓ Code properly formatted
+- All 10 tests pass with xdist parallelization
+
+### Key findings
+- Existing test_auto_decompose.py already had comprehensive coverage for US-1043
+- Tests verify all observable behavior: metadata fields, ceiling enforcement, escalation path
+- Regression suite would fail if:
+  - decompose_exhausted_story is removed or broken
+  - Sub-story count changes from 4
+  - Metadata fields (_parent_id, _decomposed_from_iteration) are missing
+  - Ceiling validation logic is removed
+  - Model escalation path changes
+
+### Patterns discovered
+- Previous regression tests follow same pattern: add @pytest.mark.us_XXXX to existing tests
+- Story-based test discovery enables selective regression testing per feature
+- Comprehensive unit tests can be repurposed as regression tests with minimal change
+
 ## Iteration 4 - Sun, Apr 12, 2026  2:50:00 AM
 Completed: [Regression Test] Phase V: AC Verification Runner - Execute Extracted Assertions Post-Implementation (ID: US-1223) in 10m
 
@@ -289,3 +329,37 @@ Based on the story and file structure, here is the technical brief:
 *   Handle malformed assertion input gracefully.
 *   The test must reliably simulate the post-implementation state ("after pytest passes") mentioned in the story.
 *   Focus on testing the "observable behaviour" of the runner, not its internal implementation details.
+## Iteration 2 - Sun, Apr 12, 2026  2:59:39 AM
+Completed: [Regression Test] Phase V: AC Verification Runner - Execute Extracted Assertions Post-Implementation (ID: US-1223) in 10m
+
+
+## Pre-analysis for US-1224 (Gemini 2.5 Pro)
+Based on the user story, this is a regression test for an internal feature of the Spiral project, not a Frappe application. The request to prepare for a "Frappe/Python user story in the lhdn_payroll_integration app" appears to be incorrect context.
+
+Here is the technical brief for implementing the regression test within the Spiral project:
+
+### Technical Brief: US-1224 Regression Test
+
+*   **Python Files to Modify:**
+    *   `tests/test_story_decomposition.py`: This is the most likely candidate for the new regression test. If it doesn't exist, create it.
+    *   `lib/decompose_story.py`: This module likely contains the core logic for story decomposition that will be tested.
+    *   `lib/main_loop.py` or similar: The test will need to interact with the main execution loop where the retry/escalation logic resides to trigger the decomposition.
+
+*   **Frappe DocTypes / Hooks:**
+    *   Not applicable. This project is not a Frappe application.
+
+*   **Recommended Implementation Approach:**
+    1.  Create a new test function in `tests/test_story_decomposition.py` (e.g., `test_us1043_decomposition_on_triple_retry`).
+    2.  Use `pytest.mark.parametrize` or a fixture to set up a test scenario with a complex user story that is designed to fail.
+    3.  Mock the AI model providers (Haiku, Sonnet, Opus) to consistently return a failure/rejection status for the initial story.
+    4.  Invoke the main processing loop that handles the story execution and retry escalation.
+    5.  Assert that after three failed attempts, the `decompose_story` function is called.
+    6.  Verify that the original story is marked appropriately (e.g., 'decomposed', 'rejected') and that 4 new, smaller-scoped sub-stories are added to the product requirements (`prd.json`).
+    7.  Assert that the decomposition metadata (e.g., source story ID, reason) is recorded.
+
+*   **Edge Cases & Gotchas:**
+    *   **Mocking:** Ensure the mocking of AI model failures is robust and accurately simulates the escalation path from Haiku to Sonnet to Opus.
+    *   **State Management:** The test must properly manage and assert changes to the application's state, particularly the contents of the `prd.json` file, without creating side effects for other tests. Use temporary files or fixtures.
+    *   **Validation Logic:** The test should include a case to verify the validation step that prevents decomposition if it would exceed the maximum story limit in `prd.json`.
+    *   **Idempotency:** The decomposition logic might have guards against being run multiple times. The test needs to ensure it's triggering the logic under the correct pre-conditions.
+
