@@ -1523,3 +1523,32 @@ This is a Python/Pytest project, not a Frappe application. The request to write 
 *   UI selectors might be brittle. Use stable selectors like `data-testid` if available.
 *   The dashboard may load data asynchronously. Use explicit waits (e.g., `expect(page.locator(...)).to_be_visible()`) to avoid flaky tests.
 
+
+## Pre-analysis for US-1198 (Gemini 2.5 Pro)
+This is a Python/Pytest project, not a Frappe application. The request to write a test for "lhdn_payroll_integration" is incorrect based on the provided story and should be disregarded. The focus is on writing a `pytest`-based E2E test for the "Spiral" dashboard.
+
+### Technical Brief for US-1198
+
+**Objective:** Write a passing E2E test for the worker swimlane dashboard feature.
+
+**1. Files to Modify:**
+*   **Create/Edit Test File:** A new or existing Pytest E2E test file, likely located at `tests/test_e2e_dashboard.py` or a similar path. The test function should be named to be discoverable by `pytest -k us_749`.
+
+**2. Key Components Involved:**
+*   **Data Layer (to be tested):** `lib/dashboard/worker_swimlane.py`
+*   **Data Sources (to be mocked):**
+    *   `.spiral/_checkpoint.json`
+    *   Worker heartbeat files (format to be inferred from `worker_swimlane.py`)
+*   **Testing Framework:** `pytest` with an E2E library like `pytest-playwright`.
+
+**3. Implementation Approach:**
+1.  **Setup Test Data:** Before the test runs, programmatically create mock `.spiral/_checkpoint.json` and worker heartbeat files with known states (e.g., specific phases, timestamps).
+2.  **Launch & Navigate:** Start the web application and use the E2E test framework to navigate to the dashboard swimlane page.
+3.  **Assert UI State:** Assert that the dashboard correctly visualizes the data from the mock files. Verify worker phases, start times, and estimated remaining times are displayed as expected.
+4.  **Teardown:** Ensure the mock data files are removed after the test completes to maintain a clean state.
+
+**4. Edge Cases & Gotchas:**
+*   The test must be self-contained and manage its own state by creating and cleaning up the necessary JSON/heartbeat files.
+*   The test will be file-I/O heavy for setup; ensure paths are handled correctly, possibly using `tmp_path` fixtures in `pytest`.
+*   UI selectors might be brittle. Use stable selectors like `data-testid` if available.
+*   The dashboard may load data asynchronously. Use explicit waits (e.g., `expect(page.locator(...)).to_be_visible()`) to avoid flaky tests.

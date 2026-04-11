@@ -1494,7 +1494,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-11T10:17:25Z"
+      "last_attempted": "2026-04-11T10:17:25Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/dashboard/worker_swimlane.py` is fully implemented with data layer functions\n- API endpoint `GET /api/dashboard/worker-phase-swimlane` exists in `lib/dashboard/api.py`\n- Unit tests exist in `test_worker_swimlane.py` (marked as US-749)\n- Integration endpoint tests exist in `test_worker_swimlane_endpoint.py`\n- No E2E browser tests exist yet\n\n## Problem Identified\nNeed to create an E2E test using Playwright that:\n1. Verifies the dashboard loads and can fetch worker phase status via API\n2. Tests the complete user flow: navigate to dashboard → fetch worker swimlane data → verify structure\n3. Must be discoverable by `pytest -k us_749`\n4. Must pass in headless browser mode\n\n## Planned Changes\nCreate `tests/test_e2e_worker_swimlane_us_749.py` with:\n- AsyncIO pytest tests using playwright\n- Test data setup (checkpoint + worker heartbeat files)\n- E2E flow tests: navigate dashboard → fetch API → verify data\n- Test both empty and populated worker states\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_e2e_worker_swimlane_us_749.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow I'll implement the E2E test:\n## Summary"
+      }
     },
     {
       "id": "US-1199",
