@@ -1,3 +1,45 @@
+## Iteration 6 - Sun, Apr 12, 2026  3:12:00 AM
+Completed: [Regression Test] Federation: File Conflict Detection Across Sub-Projects with Patch Visualization (ID: US-1225) in 4m
+
+### What was implemented
+- Added `@pytest.mark.us_1044` decorator to TestDetectFileConflicts class in `tests/test_federation_conflict.py`
+- Regression test suite covers core observable behavior of US-1044 (federation file conflict detection):
+  1. **Conflict detection (3 tests)**:
+     - Detects all common files modified by different sub-projects
+     - No false positives for single sub-project files
+     - Multiple files reported correctly in one conflict
+  2. **Conflict reporting (3 tests)**:
+     - Both sub-project names included in conflict report
+     - Story IDs from all involved sub-projects present
+     - Resolution hints generated (config, test files get specific strategies)
+  3. **Serialization & Edge cases (3 tests)**:
+     - to_dict() returns JSON-serializable structure with all required fields
+     - No conflicts for single sub-project scenarios
+     - Empty PRD returns no conflicts
+- Tests discoverable with: `uv run pytest tests/ -k us_1044 -v`
+- All 9 tests pass successfully
+
+### Quality checks passed
+- MyPy --strict: ✓ Success: no issues found
+- Ruff lint: ✓ All checks passed
+- Ruff format: ✓ Already formatted
+- All 9 tests pass with pytest -k us_1044
+
+### Key findings
+- US-1044 feature fully implemented with `detect_file_conflicts()` in `lib/federation/conflict_detector.py`
+- FileConflict dataclass provides proper encapsulation with to_dict() serialization
+- Resolution hints support different file types (config, test, source)
+- Tests comprehensively cover observable behavior from file touch extraction to resolution suggestion
+
+### Patterns discovered
+- Previous regression tests follow consistent pattern: mark existing tests with @pytest.mark.us_XXXX
+- Integration tests verify end-to-end behavior (fixture-based federated PRD simulation)
+- Test data patterns (common files, single-project, empty PRD) cover all observable scenarios
+
+### Gotchas
+- Merge conflict in prd.json resolved using "ours" version, then re-applied passes=true update
+- Pytest generates warnings about unknown mark (us_1044) but tests run correctly with -k filter
+
 ## Iteration 5 - Sun, Apr 12, 2026  3:05:00 AM
 Completed: [Regression Test] Phase I Automatic Story Decomposition on Triple Retry Exhaustion with Validation (ID: US-1224) in 5m
 
@@ -365,4 +407,36 @@ Here is the technical brief for implementing the regression test within the Spir
 
 ## Iteration 3 - Sun, Apr 12, 2026  3:06:26 AM
 Completed: [Regression Test] Phase I Automatic Story Decomposition on Triple Retry Exhaustion with Validation (ID: US-1224) in 6m
+
+
+## Pre-analysis for US-1225 (Gemini 2.5 Pro)
+I will disregard the "Frappe/Python" and "lhdn_payroll_integration" context, as the user story data and file listings clearly point to a Python-based project named "Spiral" focused on federated development, not a Frappe application. The analysis will proceed based on the provided JSON and file structure.
+
+### Technical Brief for US-1225
+
+**Objective:** Create a regression test for the file conflict detection feature (originally from US-1044) to ensure it correctly identifies when sub-projects modify the same file.
+
+**1. Primary Files for Modification:**
+*   **`tests/test_federation_scenarios.py`**: This is the most probable location for the new regression test. A new test function, like `test_us1225_file_conflict_detection_regression`, should be added here to follow existing conventions.
+
+**2. Core Logic & Involved Components:**
+*   **`lib/conflict_detector.py`**: Contains the primary business logic for detecting file conflicts between different "Project Requirement Documents" (PRDs). The test will invoke this module.
+*   **`lib/federated_merge_prd.py`**: This orchestrates the merging process and likely calls the `conflict_detector`. The test may need to simulate a merge operation initiated by this file.
+*   **`prd.json` / `prd.schema.json`**: These define the structure of the "Project Requirement Document". The test will involve creating mock PRD JSON objects that represent conflicting file modifications from different sub-projects.
+
+**3. Recommended Implementation Approach:**
+1.  **Create Mock Data**: In the test function, programmatically generate two or more mock `prd.json` dictionaries/objects.
+2.  **Simulate Conflict**: In the mock PRDs, define `file_modifications` that target the exact same file path. For example, have `sub-project-A` plan to write "Hello" to `shared/config.txt` and `sub-project-B` plan to write "World" to the same file.
+3.  **Invoke Conflict Detector**: Pass the list of mock PRDs to the main function in `lib/conflict_detector.py`.
+4.  **Assert Results**:
+    *   Assert that the detector's return value indicates a conflict was found.
+    *   Inspect the generated conflict report data structure.
+    *   Verify the report correctly identifies the conflicting file (`shared/config.txt`).
+    *   Assert that the report includes a textual diff (e.g., `--- a/shared/config.txt\n+++ b/shared/config.txt\n@@ -1 +1 @@\n-Hello\n+World`) to satisfy the "Patch Visualization" requirement.
+
+**4. Edge Cases & Gotchas:**
+*   **Definition of "Conflict"**: Ensure the test covers not just content changes, but also conflicts where one project modifies a file and another deletes it.
+*   **Report Format**: The structure of the conflict report is critical. The test must make precise assertions against this structure. Brittle assertions on the exact diff string might be problematic; prefer checking for the presence of added/removed lines.
+*   **No-Conflict Path**: Add a secondary test case to ensure the detector does *not* report conflicts for modifications to different, unrelated files. This validates the negative path.
+*   **Dependencies**: The test should be self-contained and not rely on any external files or state, creating and cleaning up any mock files as needed.
 
