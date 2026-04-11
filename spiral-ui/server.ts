@@ -317,6 +317,58 @@ app.get('/api/dashboard/retry-analysis', (req, res) => {
   }
 });
 
+// Metrics query endpoint (US-1051 / US-1190)
+app.get('/api/dashboard/metrics', (req, res) => {
+  const { start_date, end_date } = req.query;
+
+  if (!start_date || !end_date) {
+    return res.status(400).json({
+      error: 'Missing query parameters: start_date and end_date (YYYY-MM-DD format)'
+    });
+  }
+
+  try {
+    // Query metrics from SQLite via Python subprocess
+    const { execSync } = require('child_process');
+    const dbPath = join(resolve('.'), '.spiral', 'metrics.db');
+    const pythonScript = `
+import sqlite3, json, sys
+from pathlib import Path
+
+db_path = Path(r'${dbPath}')
+if not db_path.exists():
+    print(json.dumps([]))
+    sys.exit(0)
+
+try:
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.execute(
+            '''SELECT timestamp, iteration, phase, cost_tokens, duration_sec
+               FROM metrics
+               WHERE timestamp >= ? AND timestamp <= ?
+               ORDER BY timestamp ASC''',
+            (f'${start_date}T00:00:00Z', f'${end_date}T23:59:59Z')
+        )
+        rows = [dict(row) for row in cursor.fetchall()]
+        print(json.dumps(rows))
+except Exception as e:
+    print(json.dumps([]))
+`;
+
+    const output = execSync(`python -c "${pythonScript.replace(/"/g, '\\"')}"`, {
+      encoding: 'utf-8'
+    });
+
+    const data = JSON.parse(output);
+    res.json(data);
+  } catch (e) {
+    console.error('[metrics] Error querying metrics:', e);
+    // Return empty list if metrics DB doesn't exist or query fails
+    res.json([]);
+  }
+});
+
 // Start server
 server.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] SPIRAL WebSocket server listening on port ${PORT}`);
