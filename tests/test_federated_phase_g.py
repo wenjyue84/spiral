@@ -5,6 +5,9 @@ with multiple sub-projects that have cross-project story dependencies.
 
 Validates story ordering in CHANGELOG respects the dependency graph, where
 dependent stories appear after their dependencies.
+
+Regression test for US-697: Ensures Phase G handles federated CHANGELOG generation
+correctly and would fail if the feature is removed or broken.
 """
 
 from __future__ import annotations
@@ -12,6 +15,8 @@ from __future__ import annotations
 import os
 import sys
 from typing import Any
+
+import pytest
 
 # Ensure lib/ is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
@@ -202,9 +207,11 @@ def _verify_dependency_order(
     return True
 
 
+@pytest.mark.us_697
 class TestFederatedChangelogDependencyOrdering:
     """Test Phase G CHANGELOG generation for federated PRDs with cross-project dependencies."""
 
+    @pytest.mark.us_697
     def test_federated_changelog_respects_dependency_order(self) -> None:
         """[AC1-AC3] CHANGELOG respects cross-project dependency ordering.
 
@@ -263,6 +270,7 @@ class TestFederatedChangelogDependencyOrdering:
             "API internal dependency violated: US-api-001 must come before US-api-003"
         )
 
+    @pytest.mark.us_697
     def test_federated_changelog_complete_story_list(self) -> None:
         """Verify CHANGELOG contains all 6 stories from federated PRD."""
         prd = _create_federated_prd_structure()
@@ -283,6 +291,7 @@ class TestFederatedChangelogDependencyOrdering:
         stories = _extract_stories_from_changelog(changelog_content)
         assert len(stories) == 6
 
+    @pytest.mark.us_697
     def test_federated_changelog_namespace_preservation(self) -> None:
         """Verify sub-project namespace prefixes are preserved in CHANGELOG entries."""
         prd = _create_federated_prd_structure()
@@ -309,6 +318,7 @@ class TestFederatedChangelogDependencyOrdering:
 # Module-level test functions (matching acceptance criteria)
 
 
+@pytest.mark.us_697
 def test_federated_changelog_respects_dependency_order() -> None:
     """[AC1-AC3] Full test: CHANGELOG respects federated cross-project dependencies.
 
@@ -321,13 +331,93 @@ def test_federated_changelog_respects_dependency_order() -> None:
     test_instance.test_federated_changelog_respects_dependency_order()
 
 
+@pytest.mark.us_697
 def test_federated_changelog_complete_story_list() -> None:
     """Verify all 6 stories appear in federated CHANGELOG."""
     test_instance = TestFederatedChangelogDependencyOrdering()
     test_instance.test_federated_changelog_complete_story_list()
 
 
+@pytest.mark.us_697
 def test_federated_changelog_namespace_preservation() -> None:
     """Verify namespace prefixes preserved in CHANGELOG entries."""
     test_instance = TestFederatedChangelogDependencyOrdering()
     test_instance.test_federated_changelog_namespace_preservation()
+
+
+@pytest.mark.us_697
+def test_federated_changelog_circular_dependency_detection() -> None:
+    """[Regression Test] Verify circular dependency detection prevents infinite loops.
+
+    This test guards against the case where `order_federated_stories_by_dependency`
+    would fail or hang when encountering circular dependencies.
+    """
+    circular_prd = {
+        "schemaVersion": 1,
+        "productName": "CircularTest",
+        "branchName": "main",
+        "overview": "Test circular dependency detection",
+        "goals": [],
+        "userStories": [
+            {
+                "id": "US-A",
+                "title": "Story A",
+                "passes": False,
+                "priority": "high",
+                "description": "Story A depends on B",
+                "acceptanceCriteria": [],
+                "dependencies": ["US-B"],
+                "estimatedComplexity": "small",
+                "_source": "seed",
+            },
+            {
+                "id": "US-B",
+                "title": "Story B",
+                "passes": False,
+                "priority": "high",
+                "description": "Story B depends on A (circular!)",
+                "acceptanceCriteria": [],
+                "dependencies": ["US-A"],
+                "estimatedComplexity": "small",
+                "_source": "seed",
+            },
+        ],
+    }
+
+    # Should raise ValueError for circular dependency
+    with pytest.raises(ValueError, match="circular dependency"):
+        order_federated_stories_by_dependency(circular_prd["userStories"])
+
+
+@pytest.mark.us_697
+def test_federated_changelog_missing_dependency_handling() -> None:
+    """[Regression Test] Verify handling of stories with missing dependency references.
+
+    This test ensures that `order_federated_stories_by_dependency` gracefully
+    handles cases where a story references a non-existent dependency.
+    """
+    missing_dep_prd = {
+        "schemaVersion": 1,
+        "productName": "MissingDepTest",
+        "branchName": "main",
+        "overview": "Test missing dependency handling",
+        "goals": [],
+        "userStories": [
+            {
+                "id": "US-X",
+                "title": "Story X",
+                "passes": False,
+                "priority": "high",
+                "description": "Story X depends on non-existent US-Y",
+                "acceptanceCriteria": [],
+                "dependencies": ["US-Y"],
+                "estimatedComplexity": "small",
+                "_source": "seed",
+            },
+        ],
+    }
+
+    # Should handle gracefully (not crash) - missing deps are ignored
+    result = order_federated_stories_by_dependency(missing_dep_prd["userStories"])
+    assert len(result) == 1
+    assert result[0]["id"] == "US-X"

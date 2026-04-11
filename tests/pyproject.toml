@@ -40,6 +40,7 @@ markers = [
     "us_1008: performance tests for Phase C: phase timing baseline and regression detector (US-1195)",
     "us_491: E2E integration tests for Phase R research with mocked Gemini responses (US-1203)",
     "us_497: E2E tests for WebSocket /ws/cost real-time cost delta streaming (US-1204)",
+    "us_697: Regression tests for Phase G federated CHANGELOG generation with cross-project dependencies (US-697)",
 ]
 
 [tool.coverage.run]

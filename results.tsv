@@ -58,3 +58,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T14:43:25Z	23	1	US-1208	[Performance Test] Phase I: Distribute Federated Stories to Workers by Sub-Project with Isolated Wor	reject	656	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-11T14:54:46Z	23	2	US-1208	[Performance Test] Phase I: Distribute Federated Stories to Workers by Sub-Project with Isolated Wor	keep	644	sonnet	1	ee058fe8673c30b2fe28da6241c40363b872e1a1	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-11T15:18:35Z	24	1	US-1210	[Regression Test] CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Mu	reject	736	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-11T15:23:24Z	24	2	US-1210	[Regression Test] CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Mu	keep	264	sonnet	1	639d4c0e6d2c3ae2b7933f5fcbc0d3bde69dc82d	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				

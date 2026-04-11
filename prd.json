@@ -1737,7 +1737,8 @@
         "tokensAfterMasking": 459,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "_passedCommit": "639d4c0e6d2c3ae2b7933f5fcbc0d3bde69dc82d"
     },
     {
       "id": "US-1211",
@@ -1763,7 +1764,8 @@
       "filesTouch": [
         "ralph/ralph.sh",
         "ralph/lib/model_routing.sh"
-      ]
+      ],
+      "last_attempted": "2026-04-11T15:23:26Z"
     },
     {
       "id": "US-1212",

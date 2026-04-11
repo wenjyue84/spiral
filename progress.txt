@@ -2460,3 +2460,33 @@ This is a Python CLI regression test, not a Frappe story. The context about "lhd
 ### Gotchas
 - Previous attempt (2761 lines) failed because it re-created tests + added UCB1 routing
 - `dict[str, list]` needs type param: use `dict[str, list[Any]]` for mypy --strict compliance
+## Iteration 2 - Sat, Apr 11, 2026 11:23:24 PM
+Completed: [Regression Test] CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Mu (ID: US-1210) in 4m
+
+
+## Pre-analysis for US-1211 (Gemini 2.5 Pro)
+This technical brief is for implementing a regression test for a CI/CD automation script, not a Frappe/Python application as mentioned in the prompt. The user story's content is about shell scripting and JSON manipulation.
+
+**Technical Brief: US-1211 Regression Test**
+
+**1. Primary Files for Modification:**
+*   A new test file, likely `tests/test_changelog_generation.sh` or similar.
+*   `ralph/ralph.sh`: May require modification to inject test-specific configurations or context.
+*   `ralph/lib/model_routing.sh`: Potentially, if the story similarity logic is implemented there.
+
+**2. Frappe DocTypes/Hooks Involved:**
+*   None. This user story does not involve the Frappe framework. It pertains to a separate project automation tool named "Ralph".
+
+**3. Recommended Implementation Approach:**
+*   Create a new regression test script that orchestrates the test.
+*   The script should prepare a mock federated `prd.json` file with multiple sub-projects and cross-project dependencies, mimicking the conditions of US-697.
+*   Invoke the "Phase G" (CHANGELOG generation) logic from the `ralph.sh` script, passing the mock `prd.json`.
+*   The test should then parse the generated `CHANGELOG.md`.
+*   Assert that the stories within the changelog are ordered correctly according to the dependency graph defined in the mock `prd.json`.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the test environment has access to the `git` history for the `git show` command mentioned in the technical notes.
+*   The `jq` queries for parsing `prd.json` must be robust against missing or null fields.
+*   The dependency resolution logic can be complex; the test assertion needs a deterministic way to calculate the expected story order.
+*   The "Phase G" logic might have external dependencies that need to be mocked or provided during the test run.
+
