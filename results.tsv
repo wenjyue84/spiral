@@ -88,3 +88,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-11T23:29:59Z	38	2	US-1251	Write E2E Test Asserting Phase Sequence and Story State Transitions	keep	395	sonnet	1	68a96016cd3508818a9dcbca250aeed81d9faa0e	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0	unknown
 2026-04-11T23:43:23Z	39	1	US-1252	[Security Test] Auth/Permission for context_guard.py Token Logic (US-529)	keep	453	sonnet	0	8b628b91f9d87b0d02735b095307a2d9590e40ba	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-12T00:21:10Z	41	1	US-1238	[Performance Test] Perf Benchmark: E2E SPIRAL R→C Timing + results.tsv Validation for US-638	keep	1064	haiku	0	12c19f51641c9de9f22cc340b813a0b5388c2109	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-12T00:32:37Z	41	2	US-1239	[Regression Test] Derive cross-iteration story velocity model from results.tsv to improve cost estim	keep	621	haiku	0	16dcd064b95e94fb4c5c8f180c2dd083c7fe07af	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				

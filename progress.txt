@@ -1548,3 +1548,6 @@ Here is the technical brief for implementing the regression test:
 *   Test behavior with an empty or non-existent `results.tsv`. The command should fall back to default estimates without crashing.
 *   Ensure the test cleans up the synthetic `results.tsv` file after execution.
 *   Consider testing with a `results.tsv` containing malformed data or only a single data point.
+## Iteration 2 - Sun, Apr 12, 2026  8:32:37 AM
+Completed: [Regression Test] Derive cross-iteration story velocity model from results.tsv to improve cost estim (ID: US-1239) in 10m
+

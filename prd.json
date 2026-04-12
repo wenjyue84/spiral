@@ -2263,11 +2263,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Federated fixture structure exists (webapp + api projects with 6 total stories)\n- Federation merge code already creates stories with `sub_project` field\n- No performance benchmark for full SPIRAL R→C loop exists\n- Mock fixtures and E2E patterns available in conftest.py\n\n## Problem Identified\nUS-1238 requires a performance benchmark test that simulates a full SPIRAL R→C loop with federated prd.json and 2 mock workers, measuring wall-clock time per phase and validating that performance doesn't degrade more than 20% from baseline.\n\n## Planned Changes\n- Create `tests/test_perf_spiral_e2e_us_714.py` with:\n  - Fixture to merge federated prd.json (webapp + api)\n  - Mock SPIRAL phase runner (lightweight simulation of R, S, M, I, V, C phases)\n  - Baseline timing storage mechanism\n  - Performance assertions (≤20% degradation)\n  - results.tsv validation (sub_project column, all stories marked done)\n\n<plan>\n{\n  \"files_to_create\": [\n    \"tests/test_perf_spiral_e2e_us_714.py\"\n  ],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\n    \"run_mock_spiral_phases\",\n    \"validate_results_tsv\",\n    \"test_perf_spiral_e2e_r_to_c_loop\",\n    \"test_results_tsv_has_sub_project_column\"\n  ],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow I'll implement the performance benchmark test.\nPerfect! ✅ **US-1238 is now complete and passing.**\n\n## Implementation Summary"
-      },
-      "_passedCommit": "12c19f51641c9de9f22cc340b813a0b5388c2109"
+      "model": "haiku"
     },
     {
       "id": "US-1239",
@@ -2284,11 +2280,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-12T00:21:12Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/routing/velocity_model.py` implements the velocity model feature (US-352)\n- `tests/test_velocity_model.py` and `tests/test_velocity_model_regression.py` have comprehensive tests\n- No tests currently have the `@pytest.mark.us_352` marker\n- The story requires tests that can be run with `pytest -k us_352`\n\n## Problem Identified\nThe story requires regression tests marked with `@pytest.mark.us_352` to guard against future breakage of the velocity model feature (US-352). These tests must be discoverable with `pytest -k us_352 -v`.\n\n## Planned Changes\nAdd `@pytest.mark.us_352` marker to key regression tests in `test_velocity_model_regression.py` that verify:\n1. Velocity model is built from results.tsv with empirical stats\n2. Per-type metrics (mean_tokens, pass_rate, mean_retries) are computed correctly\n3. Velocity model is used for data-driven cost estimation\n4. Tests would fail if velocity model feature is removed/broken\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/test_velocity_model_regression.py\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 15\n}\n</plan>\n\nNow I'll execute the plan by adding the `@pytest.mark.us_352` marker to the tests.\nNow let me verify the changes and run the tests to ensure they pass:\nPerfect! The tests pass. Now let me register the marker in `pytest.ini` to avoid the warnings:\nNow let me verify the marker is registered and run the tests again:\nExcellent! Now let me run quality checks:\nPerfect! Now let me verify that the tests can be run with the exact command specified in the story:\nExcellent! The 6 regression tests marked with `@pytest.mark.us_352` all passed. Let me now update the prd.json to mark the story as complete:\nNow let me commit the changes:\nPerfect! Let me verify the implementation is complete by running the final checks:\n## ✅ US-1239 Complete: Regression Tests for Velocity Model (US-352)"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1240",
@@ -2568,6 +2560,27 @@
         "File to edit: dashboard/app.py (add Flask/FastAPI GET /api/dashboard/throughput route calling throughput.aggregate())",
         "File to create: tests/test_dashboard_throughput_api.py (test hour parsing, filtering by iteration, caching behavior)",
         "Test command: uv run pytest tests/test_dashboard_throughput_api.py::test_hourly_aggregation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1255",
+      "title": "[Multi-Repo] Validate Federated Story IDs Match Sub-Project Namespace Prefixes",
+      "priority": "medium",
+      "description": "Extend federated PRD validator to enforce story ID naming convention: each story in repos/PROJECT-X/ must have ID starting with 'PROJECT-X-' (derived from folder name). Reports mismatches with expected prefix and remediation guidance.",
+      "acceptanceCriteria": [
+        "CLI spiral validate-federated --namespace checks all story IDs match their sub-project folder prefix (e.g., repos/makan/ requires MAKAN-* IDs)",
+        "Error output lists each mismatch: 'repos/makan/US-100: expected MAKAN-*, got US-100' with line number in prd.json",
+        "Exit code 1 if any mismatches found; 0 if all stories pass namespace validation"
+      ],
+      "technicalNotes": [
+        "File to create: lib/federated/namespace_validator.py (scan repos/ directories, extract prefixes, validate each story ID)",
+        "File to edit: lib/federated/__init__.py (add --namespace flag to validate-federated subcommand, route to namespace_validator.validate())",
+        "File to create: tests/test_federated_namespace_validation.py (test valid prefixes, invalid/mixed prefixes, missing repos/ folder)",
+        "Test command: uv run pytest tests/test_federated_namespace_validation.py::test_story_id_mismatch_detection -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
