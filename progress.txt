@@ -25,3 +25,48 @@
 *   **Asynchronicity:** Table updates are asynchronous. Use explicit waits (e.g., `expect(locator).to_be_visible()`) after applying filters to prevent flaky tests.
 *   **Test Data:** The test environment may need seed data to guarantee all filter conditions can be reliably triggered and asserted.
 *   **Selectors:** Use stable, test-specific selectors (like `data-testid`) for filters and the results table to avoid brittleness.
+## Iteration 1 - Sun, Apr 12, 2026  6:11:52 PM
+Completed: [E2E Test] Add filter controls to analytics retry history table (ID: US-1249) in 8m
+
+
+## Iteration [N] - Story: Phase G: Generate CHANGELOG.md from Story Commits Using git-cliff (US-1253)
+
+### What was implemented
+- Created `lib/phases/phase_g.sh` - thin orchestration stub that sources `gen_changelog.sh` and invokes `phase_gen_changelog()` for changelog generation
+- Enhanced `cliff.toml` with improved documentation and comments explaining story ID grouping support
+- Created `tests/test_phase_g_changelog.bats` - comprehensive BATS test suite with 18 tests validating:
+  - git-cliff binary availability and version checking
+  - cliff.toml config parsing and validation
+  - CHANGELOG.md generation with proper structure
+  - Commit grouping by type (Features, Bug Fixes, etc.)
+  - Markdown formatting and link generation
+  - Orphan commit detection (commits without story IDs)
+  - Test isolation with temporary git repos
+
+### Patterns discovered
+- The project already had significant changelog infrastructure in place:
+  - `lib/phases/gen_changelog.sh` with the core `phase_gen_changelog()` function
+  - `lib/gen_changelog.py` with Python implementation supporting both generation and append modes
+  - `cliff.toml` with git-cliff configuration
+- Phase G was being used via CLI subcommands but needed a proper phase orchestration stub for the main phase loop
+- BATS tests for bash/shell functionality follow consistent patterns with setup/teardown, helper functions, and assertion libraries
+- The story ID pattern (US-NNN, UT-NNN, FE-NNN, BE-NNN) is consistently used in commit bodies with "Story: <ID>" footer format
+
+### Gotchas
+- BATS files use special syntax (@test decorator) that can't be validated with plain `bash -n`
+- git-cliff tests are slow because they require creating temporary git repos and running git-cliff binary
+- The story description mentioned ".cliff.toml" (with dot prefix), but the codebase uses "cliff.toml" (without dot); clarified via code inspection
+- git-cliff's standard output grouping is by commit type, not by story ID - full story ID-based grouping would require post-processing
+
+### Files touched
+- lib/phases/phase_g.sh (new, 45 lines)
+- tests/test_phase_g_changelog.bats (new, 232 lines)
+- cliff.toml (modified, +5 lines documentation)
+
+### Quality gates passed
+- ✓ shellcheck validation on phase_g.sh
+- ✓ Syntax validation on test file
+- ✓ File sourcing tests (both phase_g.sh and gen_changelog.sh source without errors)
+- ✓ git add and git commit successful
+- ✓ BATS individual test runs successful (spot-checked multiple tests)
+

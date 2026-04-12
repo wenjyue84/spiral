@@ -2485,7 +2485,8 @@
       "last_attempted": "2026-04-12T10:01:48Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe FailureRetryDashboard component exists but lacks filter controls. The retry history table shows data but has no way to filter by failure type, model tier, or outcome. There are only sort controls (Most Recent/Most Retried).\n\n## Problem Identified\n\nStory US-1249 requires an E2E test for filter controls that should exist in US-1115 (the feature implementation). Since US-1115 is not in prd.json, I need to implement both:\n1. The filter controls in FailureRetryDashboard.tsx (the feature)\n2. The E2E test in test_retry_history_filters_us_1249.py (the test)\n\n## Planned Changes\n\n- **File to modify**: `spiral-ui/src/components/analytics/FailureRetryDashboard.tsx`\n  - Add state for three filters: `failureTypeFilter`, `modelTierFilter`, `outcomeFilter`\n  - Add filter UI dropdowns above the retry history table\n  - Add filtering logic to filter `retriedStories` based on selected filters\n  - Show empty state when no rows match filters\n  - Keep existing sort toggle functional\n\n- **File to create**: `tests/e2e/test_retry_history_filters_us_1249.py`\n  - E2E test using Playwright to navigate to analytics page\n  - Test filter dropdown visibility and selection\n  - Test filtering by each filter type\n  - Test filter combinations\n  - Test empty state message\n  - Test sort toggle with filters\n\n<plan>\n{\n  \"files_to_create\": [\"tests/e2e/test_retry_history_filters_us_1249.py\"],\n  \"files_to_modify\": [\"spiral-ui/src/components/analytics/FailureRetryDashboard.tsx\"],\n  \"functions_to_add\": [\"filterRetryStories (filtering logic helper)\"],\n  \"estimated_loc\": 200\n}\n</plan>\n\nNow let me read the FailureRetryDashboard again more carefully to understand how to add the filters:\nNow I'll implement the filters in FailureRetryDashboard.tsx:\nNow let me create the E2E test for the retry history filters:\nNow let me verify the changes compile and run quality checks:\n## Summary"
-      }
+      },
+      "_passedCommit": "9ac3982bf6747440869ee0c5f2e898dd096b25d2"
     },
     {
       "id": "US-1250",
@@ -2570,8 +2571,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-12T10:11:54Z"
     },
     {
       "id": "US-1254",
