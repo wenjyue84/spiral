@@ -100,3 +100,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-12T06:06:10Z	49	1	US-1269	Fix CI Python 3.12 Matrix: Remove 3.12 from Test Matrix	reject	182	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-12T06:09:59Z	49	2	US-1269	Fix CI Python 3.12 Matrix: Remove 3.12 from Test Matrix	keep	109	sonnet	1	42e201a9992d761212a70462a9660867ffdc193d	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-12T07:26:37Z	52	1	US-1270	Fix Dependency Vulnerabilities: Upgrade cryptography and nltk	reject	541	sonnet	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-12T07:54:39Z	53	1	US-1244	[Performance Test] Worker pool pre-warming to eliminate 1.2s per-worker startup overhead	reject	654	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
