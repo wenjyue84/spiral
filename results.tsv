@@ -106,5 +106,5 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-12T09:28:11Z	55	1	US-1247	[Performance Test] File-locked spiral_events.jsonl writes to prevent corruption on Windows	reject	546	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-12T09:31:34Z	55	2	US-1247	[Performance Test] File-locked spiral_events.jsonl writes to prevent corruption on Windows	keep	180	sonnet	1	75890bfffd4b0c22d4ce00ef1b566764263528f9	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-12T09:44:32Z	55	3	US-1248	[E2E Test] Add cumulative cost and stories-passed trend chart to analytics	reject	776	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
-2026-04-12T10:11:52Z	57	1	US-1249	[E2E Test] Add filter controls to analytics retry history table	keep	488	haiku	0	9ac3982bf6747440869ee0c5f2e898dd096b25d2	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-04-12T10:49:35Z	58	1	US-1254	Dashboard API: GET /api/dashboard/throughput (Stories Completed Per Hour)	keep	458	haiku	0	795868f59ca31f1f02113d391a1b95a366d12a0b	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-12T10:11:52Z	57	1	US-1249	[E2E Test] Add filter controls to analytics retry history table	keep	488	haiku	0	9ac3982bf6747440869ee0c5f2e898dd096b25d2	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-12T10:49:35Z	58	1	US-1254	Dashboard API: GET /api/dashboard/throughput (Stories Completed Per Hour)	keep	458	haiku	0	795868f59ca31f1f02113d391a1b95a366d12a0b	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
