@@ -1,3 +1,41 @@
+## Iteration 16 - Sun, Apr 12, 2026
+Completed: Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup (ID: US-1261) in ~2m
+
+### What was implemented
+- Verified existing implementation of `federated_merge()` in `lib/impl/federated_merge.py`
+- Function accepts stories with namespace-qualified IDs (e.g., PROJ1/US-100)
+- Returns tuple of (accepted_stories, rejected_stories, error_log)
+- Deduplicates on namespace+ID pair: same-namespace duplicates are rejected
+- Identical IDs from different namespaces are both accepted
+
+### Quality checks passed
+- MyPy --strict: ✓ No issues found
+- Ruff lint: ✓ All checks passed
+- Ruff format: ✓ Already formatted
+- Pytest: ✓ Both tests pass (test_namespace_isolation, test_phase_m_integration)
+- Pre-commit hooks: ✓ All checks passed
+
+### Key findings
+- federated_merge() implementation in lib/impl/federated_merge.py (lines 17-70):
+  - Parses namespace from ID using "/" delimiter
+  - Groups stories by (namespace, base_id) key
+  - Rejects all stories in group if count > 1, accepts if count == 1
+  - Error messages include full namespaced ID and duplicate count
+- Integration with phase_m_federated_order.py: calls federated_merge() before topological sort
+- Test fixtures properly set up: federated_prd_multi_project.json with 3 test stories
+
+### Patterns discovered
+- Namespace parsing: split on "/" to extract namespace and base_id
+- Deduplication key: tuple of (namespace, base_id) for O(1) lookup
+- Error logging: messages include conflicting ID and count for debugging
+- Integration pattern: federated_merge() → accept → topological_sort → result
+
+### Gotchas
+- Empty namespace ("") is valid for non-qualified IDs
+- Default namespace is empty string, not "DEFAULT" or similar
+- Both duplicate copies are rejected (not just second occurrence)
+- Error message format: "Duplicate story ID across namespace+ID: {full_id} appears {count} times"
+
 ## Iteration 15 - Sun, Apr 12, 2026
 Completed: [Regression Test] Model routing cost-per-win calibration from results.tsv history (ID: US-1243) in ~3m
 
