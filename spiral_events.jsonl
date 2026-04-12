@@ -4214,3 +4214,13 @@
 {"ts": "2026-04-12T04:52:47.960262+00:00", "type": "route_story_assigned", "story_id": "US-1272", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"event_type": "prd_io_error", "timestamp": "2026-04-12T05:53:18.837226+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-491\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
 {"timestamp": "2026-04-12T09:34:30.512950+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Add Confidence Scoring to Intent Classification Pipeline", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"event_type": "prd_io_error", "timestamp": "2026-04-12T09:49:58.674615+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-547\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts": "2026-04-12T09:55:33.772400+00:00", "type": "route_story_assigned", "story_id": "US-1248", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T09:55:33.772908+00:00", "type": "route_story_assigned", "story_id": "US-1249", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T09:55:33.773292+00:00", "type": "route_story_assigned", "story_id": "US-1253", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T09:55:33.773635+00:00", "type": "route_story_assigned", "story_id": "US-1254", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T09:55:33.773995+00:00", "type": "route_story_assigned", "story_id": "US-1255", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T09:55:33.774335+00:00", "type": "route_story_assigned", "story_id": "US-1267", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T09:55:33.774668+00:00", "type": "route_story_assigned", "story_id": "US-1268", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T09:55:33.775028+00:00", "type": "route_story_assigned", "story_id": "US-1271", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T09:55:33.775361+00:00", "type": "route_story_assigned", "story_id": "US-1272", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
