@@ -2509,7 +2509,8 @@
       "last_attempted": "2026-04-12T04:04:59Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe code for story US-1262 is already implemented:\n- `lib/impl/phase_m_federated_order.py` imports and calls `federated_merge()` \n- It logs rejection errors to the SPIRAL log\n- Test file and fixture both exist with correct structure\n\n## Problem Identified\n\nNeed to verify that `test_phase_m_integration` test passes by running it.\n\n## Planned Changes\n\n- Run the pytest test to confirm all acceptance criteria are met\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 0\n}\n</plan>\n\nNow let me verify the test passes:\nAll acceptance criteria are met:\n- ✓ `phase_m_federated_order.py` imports and calls `federated_merge()` with error logging\n- ✓ `tests/fixtures/federated_prd_multi_project.json` has two projects with US-100 each\n- ✓ Test passes: `test_phase_m_integration`\n\nMarking story as complete:\n## ✅ Story US-1262 Complete"
-      }
+      },
+      "_passedCommit": "022f5672bec061fd1eee3a1784ad33968cf34ad1"
     },
     {
       "id": "US-1263",
@@ -2528,9 +2529,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-fix",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-12T04:10:41Z"
     },
     {
       "id": "US-1264",
