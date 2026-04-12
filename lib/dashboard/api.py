@@ -9,6 +9,7 @@ Exposes:
 - GET /api/dashboard/overview — Unified cross-project metrics endpoint
 - GET /api/dashboard/phase-cost-breakdown — Token/cost per phase from results.tsv (US-641)
 - GET /api/dashboard/worker-phase-swimlane — Worker phase status for swimlane chart (US-750)
+- GET /api/dashboard/throughput — Stories completed per hour (US-1254)
 - WebSocket /ws/cost — Real-time cost delta streaming endpoint
 - WebSocket /ws/timeline — Real-time phase transition events
 - WebSocket /ws/overview — Real-time cross-project overview updates
@@ -32,6 +33,7 @@ from ..spiral.dashboard.aggregator import aggregate_overview
 from .alerts_broadcaster import get_alerts_manager
 from .cost_broadcaster import get_manager
 from .story_broadcaster import get_story_updates_manager
+from .throughput import aggregate as aggregate_throughput
 from .timeline import get_timeline_manager, parse_timeline
 from .timeseries_store import query_timeseries
 from .worker_swimlane import get_worker_phase_status
@@ -1011,6 +1013,30 @@ async def costs_by_project_endpoint() -> dict[str, Any]:
     except Exception as e:
         logger.error(f"[/api/dashboard/costs-by-project] Error: {e}")
         return {"story_cards": []}
+
+
+@app.get("/api/dashboard/throughput")
+async def throughput_endpoint() -> dict[str, Any]:
+    """Stories completed per hour for current iteration (US-1254).
+
+    Returns hourly aggregation of passed stories from results.tsv filtered to
+    the current iteration. Caches results for 5 seconds to avoid repeated file I/O.
+
+    Returns JSON array:
+        [{
+            "hour": "2026-04-05T14:00",
+            "count": 3,
+            "stories": ["US-100", "US-101", "US-102"]
+        }, ...]
+
+    Sorted by hour ascending.
+    """
+    try:
+        result = aggregate_throughput()
+        return {"hourly_throughput": result, "total_hours": len(result)}
+    except Exception as e:
+        logger.error(f"[/api/dashboard/throughput] Error aggregating throughput: {e}")
+        return {"hourly_throughput": [], "total_hours": 0, "error": str(e)}
 
 
 # Export for use in tests and main application
