@@ -2285,7 +2285,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-12T00:21:12Z"
+      "last_attempted": "2026-04-12T00:21:12Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/routing/velocity_model.py` implements the velocity model feature (US-352)\n- `tests/test_velocity_model.py` and `tests/test_velocity_model_regression.py` have comprehensive tests\n- No tests currently have the `@pytest.mark.us_352` marker\n- The story requires tests that can be run with `pytest -k us_352`\n\n## Problem Identified\nThe story requires regression tests marked with `@pytest.mark.us_352` to guard against future breakage of the velocity model feature (US-352). These tests must be discoverable with `pytest -k us_352 -v`.\n\n## Planned Changes\nAdd `@pytest.mark.us_352` marker to key regression tests in `test_velocity_model_regression.py` that verify:\n1. Velocity model is built from results.tsv with empirical stats\n2. Per-type metrics (mean_tokens, pass_rate, mean_retries) are computed correctly\n3. Velocity model is used for data-driven cost estimation\n4. Tests would fail if velocity model feature is removed/broken\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/test_velocity_model_regression.py\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 15\n}\n</plan>\n\nNow I'll execute the plan by adding the `@pytest.mark.us_352` marker to the tests.\nNow let me verify the changes and run the tests to ensure they pass:\nPerfect! The tests pass. Now let me register the marker in `pytest.ini` to avoid the warnings:\nNow let me verify the marker is registered and run the tests again:\nExcellent! Now let me run quality checks:\nPerfect! Now let me verify that the tests can be run with the exact command specified in the story:\nExcellent! The 6 regression tests marked with `@pytest.mark.us_352` all passed. Let me now update the prd.json to mark the story as complete:\nNow let me commit the changes:\nPerfect! Let me verify the implementation is complete by running the final checks:\n## ✅ US-1239 Complete: Regression Tests for Velocity Model (US-352)"
+      }
     },
     {
       "id": "US-1240",

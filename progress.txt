@@ -1516,3 +1516,35 @@ This brief is for a `pytest` performance benchmark, not a Frappe/Python story. T
 *   **Test Flakiness:** Performance tests can be sensitive to system load. The 20% threshold provides some tolerance, but consistent test hardware is recommended.
 *   **Identifying the Loop Entrypoint:** The exact function to call for the "SPIRAL R→C loop" must be identified from the existing application code (e.g., a function in `main.py`).
 
+## Iteration 1 - Sun, Apr 12, 2026  8:21:10 AM
+Completed: [Performance Test] Perf Benchmark: E2E SPIRAL R→C Timing + results.tsv Validation for US-638 (ID: US-1238) in 17m
+
+
+## Pre-analysis for US-1239 (Gemini 2.5 Pro)
+Based on the user story, this is a command-line Python task, not a Frappe application task. The context about `lhdn_payroll_integration` seems incorrect.
+
+Here is the technical brief for implementing the regression test:
+
+**Project:** SPIRAL (Python CLI Tool)
+**Objective:** Create a regression test for the `estimate` command's data-driven forecasting feature (US-352).
+
+**1. Files to Modify:**
+*   **Create:** `tests/test_us_352_regression.py` (or similar).
+*   **Reference/Invoke:** `spiral/main.py` (specifically the function handling the `estimate` command).
+*   **Test Data:** The test will need to create a temporary, synthetic `results.tsv` file for the test run.
+
+**2. Frappe Involvement:**
+*   There are **no Frappe DocTypes or hooks** involved. This is a pure Python project.
+
+**3. Implementation Approach:**
+*   Use `pytest` and a file fixture (e.g., `tmp_path`) to create a mock `results.tsv`.
+*   Populate the mock `.tsv` with sample data where story types have clear, predictable metrics (e.g., 'feature' stories always cost $0.10, 'bug' stories always cost $0.05).
+*   Import and call the `estimate` command's core function from `main.py`.
+*   Pass the path to the mock `results.tsv` as an argument or environment variable.
+*   Assert that the command's output (the estimated cost/time) correctly matches the expected values derived from the linear regression on the mock data.
+*   The test should confirm that the system derives velocity from the file, not static defaults.
+
+**4. Edge Cases & Gotchas:**
+*   Test behavior with an empty or non-existent `results.tsv`. The command should fall back to default estimates without crashing.
+*   Ensure the test cleans up the synthetic `results.tsv` file after execution.
+*   Consider testing with a `results.tsv` containing malformed data or only a single data point.

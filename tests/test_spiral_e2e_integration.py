@@ -66,7 +66,7 @@ class TestSpiralE2EIntegration:
             "#!/bin/bash\n"
             "# Mock spiral.sh - simulates SPIRAL phase execution for E2E tests\n"
             "mkdir -p .spiral\n"
-            "echo '{\"iter\":1,\"phase\":\"C\",\"ts\":\"2026-04-12T00:00:00Z\"}'"
+            'echo \'{"iter":1,"phase":"C","ts":"2026-04-12T00:00:00Z"}\''
             " > .spiral/_checkpoint.json\n"
             "cat > prd.json << 'PRDJSON'\n"
             "{\n"
@@ -121,6 +121,4 @@ class TestSpiralE2EIntegration:
         final_prd = json.loads((project_dir / "prd.json").read_text(encoding="utf-8"))
         ut001 = next((s for s in final_prd["userStories"] if s["id"] == "UT-001"), None)
         assert ut001 is not None, "UT-001 must exist in prd.json after run"
-        assert ut001.get("status") == "done", (
-            f"UT-001 status must be 'done', got: {ut001.get('status')}"
-        )
+        assert ut001.get("status") == "done", f"UT-001 status must be 'done', got: {ut001.get('status')}"
