@@ -2301,7 +2301,8 @@
       "last_attempted": "2026-04-12T00:37:16Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n- US-1088 is already implemented in `lib/resilience/txn_journal.py`\n- The module provides crash-safe prd.json writes with backup/recovery mechanisms\n- No regression tests yet exist for this module\n\n## Problem Identified\nUS-1240 requires a regression test that would catch if the US-1088 transaction journal feature breaks. The test must verify all core observable behaviors: transaction lifecycle, backup/recovery, orphaned entry detection, and the CLI interface.\n\n## Planned Changes\n- Create `tests/test_us_1088_regression.py` with comprehensive tests covering:\n  - Transaction creation and commitment\n  - Pending/committed status tracking  \n  - Recovery of incomplete transactions\n  - Orphaned entry detection via git log\n  - Rollback of orphaned entries\n  - Backup file lifecycle\n  - CLI write-entry, verify, and recover commands\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_us_1088_regression.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_txn_journal_basic_lifecycle\", \"test_txn_journal_recovery\", \"test_txn_journal_orphaned_entries\", \"test_txn_journal_cli_interface\"],\n  \"estimated_loc\": 250\n}\n</plan>\n\nNow implementing:\nPerfect! All tests pass. Let me do one final check to verify that the story's acceptance criteria are fully met:\n## Summary"
-      }
+      },
+      "_passedCommit": "c73b8e951f0ad47fbe82cd6e45b737388799c58f"
     },
     {
       "id": "US-1241",
@@ -2317,8 +2318,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-12T00:50:42Z"
     },
     {
       "id": "US-1242",

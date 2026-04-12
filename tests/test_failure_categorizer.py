@@ -10,9 +10,12 @@ Tests verify:
 
 from __future__ import annotations
 
-from lib.failure_categorizer import categorize_failure
+import pytest
+
+from lib.failure_categorizer import categorize_failure, categorize_message
 
 
+@pytest.mark.us_1090
 class TestCategorizeFailure:
     """Test categorize_failure() function."""
 
@@ -165,3 +168,107 @@ ModuleNotFoundError: No module named 'nonexistent_module'
 
         assert failure_type == "missing_dependency"
         assert "module" in failure_message.lower()
+
+
+@pytest.mark.us_1090
+class TestCategorizeMessage:
+    """Test categorize_message() single-message classification wrapper."""
+
+    def test_categorize_single_import_error(self) -> None:
+        """categorize_message should classify single error message."""
+        message = "ModuleNotFoundError: No module named 'xyz'"
+        failure_type = categorize_message(message)
+
+        assert failure_type == "missing_dependency"
+
+    def test_categorize_single_syntax_error(self) -> None:
+        """categorize_message should handle SyntaxError."""
+        message = "SyntaxError: invalid syntax"
+        failure_type = categorize_message(message)
+
+        assert failure_type == "syntax_error"
+
+    def test_categorize_single_type_error(self) -> None:
+        """categorize_message should handle TypeError."""
+        message = "TypeError: expected str, got int"
+        failure_type = categorize_message(message)
+
+        assert failure_type == "type_error"
+
+    def test_categorize_single_context_overflow(self) -> None:
+        """categorize_message should handle context overflow."""
+        message = "Error: Context window exceeded (200k tokens)"
+        failure_type = categorize_message(message)
+
+        assert failure_type == "context_overflow"
+
+
+@pytest.mark.us_1090
+class TestFailureCategorizerIntegration:
+    """Integration tests for failure categorizer as used by Phase I."""
+
+    def test_phase_i_use_case_import_failure(self) -> None:
+        """Phase I captures ralph stderr/stdout with import failure."""
+        # Simulate ralph's actual output format
+        stderr = (
+            "Traceback (most recent call last):\n"
+            "  File '/spiral/ralph.sh', line 1000, in <module>\n"
+            "    from missing_lib import something\n"
+            "ImportError: cannot import name 'something'\n"
+        )
+        stdout = "Story US-123 started"
+        failure_type, failure_message = categorize_failure(stderr, stdout)
+
+        # Phase I should detect this as missing_dependency
+        assert failure_type == "missing_dependency"
+        assert "import" in failure_message.lower() or "missing" in failure_message.lower()
+        assert len(failure_message) <= 200
+
+    def test_phase_i_use_case_test_failure(self) -> None:
+        """Phase I captures test assertion failure during verification."""
+        stderr = ""
+        stdout = (
+            "Running test suite...\n"
+            "FAILED tests/test_new_feature.py::test_basic - "
+            "AssertionError: expected 42 but got 41\n"
+            "=== 1 failed in 0.23s ===\n"
+        )
+        failure_type, failure_message = categorize_failure(stderr, stdout)
+
+        assert failure_type == "test_assertion"
+        assert "assertion" in failure_message.lower() or "expected" in failure_message.lower()
+
+    def test_phase_i_use_case_timeout(self) -> None:
+        """Phase I captures timeout during implementation."""
+        stderr = "Execution timed out after 600 seconds (10 minutes)\nStory did not complete within the time limit\n"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
+
+        assert failure_type == "timeout"
+        assert "timed" in failure_message.lower() or "timeout" in failure_message.lower()
+
+    def test_stderr_takes_precedence_over_stdout(self) -> None:
+        """When both stderr and stdout have errors, earlier pattern wins."""
+        # missing_dependency is checked before test_assertion
+        stderr = "ImportError: missing package 'xyz'"
+        stdout = "AssertionError in test_foo"
+        failure_type, failure_message = categorize_failure(stderr, stdout)
+
+        assert failure_type == "missing_dependency"
+        assert "import" in failure_message.lower()
+
+    def test_indentation_error_classification(self) -> None:
+        """IndentationError (subtype of SyntaxError) should classify correctly."""
+        stderr = "IndentationError: expected an indented block\n  File 'test.py', line 5\n"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
+
+        assert failure_type == "syntax_error"
+
+    def test_mypy_type_error_classification(self) -> None:
+        """MyPy type checking errors should be classified as type_error."""
+        stderr = "test.py:10: error: Argument 1 to 'func' has incompatible type 'str'; expected 'int'  [arg-type]\n"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
+
+        assert failure_type == "type_error"
