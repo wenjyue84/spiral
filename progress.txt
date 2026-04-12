@@ -2103,3 +2103,19 @@ This user story does **not** involve the Frappe framework. The task is a pure Py
 *   **Complex Scopes:** The F821 errors in `research_cache.py` may be due to complex conditional imports or dynamic attribute assignments that Ruff cannot statically analyze. Careful inspection is needed.
 *   **Blind Except:** Address the single `BLE001` violation by changing `except:` to `except Exception:`.
 
+## Iteration 1 - Sun, Apr 12, 2026  2:06:10 PM
+FAILED diff-guard: Fix CI Python 3.12 Matrix: Remove 3.12 from Test Matrix (ID: US-1269) — 4353 lines > 800 limit — attempt 1/3
+
+
+## Iteration 48 - Fix CI Python 3.12 Matrix: Remove 3.12 from Test Matrix (US-1269)
+
+### What was implemented
+- Removed Python 3.11 and 3.12 from .github/workflows/ci.yml test matrix
+- Matrix now only contains ['3.13'] to match pyproject.toml requires-python >= 3.13
+- Added comment explaining the version constraint
+
+### Patterns discovered
+- Single-line CI matrix change; previous attempt (attempt 1) somehow produced 4353 lines — likely overwrote the whole file. Always use Edit tool with targeted old_string/new_string, never Write tool on large files.
+
+### Gotchas
+- Keep CI matrix changes minimal: only change the matrix array line, nothing else

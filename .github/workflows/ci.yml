@@ -178,7 +178,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.11', '3.12', '3.13']
+        # Only 3.13+ supported: pyproject.toml requires-python >= 3.13
+        python-version: ['3.13']
     permissions:
       contents: read
 
