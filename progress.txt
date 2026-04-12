@@ -1917,4 +1917,3 @@ Completed: Phase M: Wire federated_merge() and Add Multi-Project Fixture (ID: US
 
 ### Gotchas
 - None; implementation already complete and working
-
