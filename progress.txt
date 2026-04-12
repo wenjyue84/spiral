@@ -2274,3 +2274,52 @@ The goal is to test the test-runner's logic without actually running `git` or `p
 ### Gotchas
 - Attempt 1 produced 2422 lines — do NOT create large test files; 5 focused tests are enough for a regression
 - The 7 pre-existing collection errors (duckdb missing) are unrelated to this story
+## Iteration 1 - Sun, Apr 12, 2026  5:28:11 PM
+FAILED diff-guard: [Performance Test] File-locked spiral_events.jsonl writes to prevent corruption on Windows (ID: US-1247) — 2462 lines > 800 limit — attempt 1/3
+
+
+## Pre-analysis for US-1247 (Gemini 2.5 Pro)
+Here is the technical brief for story US-1247.
+
+### **Technical Brief: US-1247 Performance Test**
+
+This brief outlines the implementation of a performance test for the file-locking mechanism introduced in US-1104.
+
+**1. Python Files to Modify/Create:**
+*   **Create new test file:** `tests/test_us1247_performance.py`.
+*   **Target for testing:** The existing `locked_append_jsonl` function, likely located in a shared utility module such as `lib/io_utils.py` or `lib/file_utils.py`. The implementation uses a cross-platform file-locking library to safeguard writes to `spiral_events.jsonl`.
+
+**2. Core Components Involved:**
+*   **File:** `spiral_events.jsonl` (the resource under contention).
+*   **Test Framework:** `pytest`, likely with `pytest-benchmark` for metrics.
+*   **Concurrency:** Python's `multiprocessing` module.
+
+**3. Recommended Implementation Approach:**
+1.  Create a `pytest` test case in the new file.
+2.  Use the `multiprocessing` module to spawn a pool of worker processes (e.g., 10-20) to simulate the concurrent access described in the user story.
+3.  Within each process, call the `locked_append_jsonl` function in a rapid loop.
+4.  Utilize `pytest-benchmark` to measure the elapsed time for a fixed number of total writes across all processes (e.g., 1,000 writes).
+5.  The test will automatically save the result as a baseline on its first successful run.
+6.  On subsequent runs, the test must `assert` that the new measurement is no more than 20% slower than the stored baseline.
+
+**4. Edge Cases & Gotchas:**
+*   **Test Reliability:** Performance can fluctuate. Use sufficient iterations to establish a stable baseline.
+*   **Cleanup:** Ensure `spiral_events.jsonl` is deleted before and after the test run to guarantee a clean state.
+*   **Lock Verification:** While this is a performance test, it should implicitly verify that no data corruption occurs under load. The final file should contain the exact number of expected lines.
+
+
+## Iteration 2 - [Performance Test] File-locked spiral_events.jsonl writes (US-1247)
+
+### What was implemented
+- Created tests/test_perf_us1104_locked_append.py (80 lines, 3 tests)
+- Added @pytest.mark.us_1104 decorators; registered us_1104 in tests/pyproject.toml
+- Tests cover: single write latency (<20ms baseline), no-degradation across 10 writes (20% threshold), integrity (20 writes all readable)
+
+### Patterns discovered
+- CRITICAL: Keep test files under 80 lines. Attempt 1 was 2462 lines — fatal diff overrun
+- Follow test_perf_us1100_prewarm.py exactly: 3 focused tests, time.monotonic() not pytest-benchmark, manual 20% threshold assertion
+- sys.path.insert + direct import from lib/ works fine without conftest
+
+### Gotchas
+- locked_append_jsonl is in lib/core/spiral_io.py (not lib/io_utils.py or lib/file_utils.py)
+- Test marker must be both in pyproject.toml AND as @pytest.mark.us_1104 decorators on each test

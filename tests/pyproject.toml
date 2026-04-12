@@ -51,6 +51,7 @@ markers = [
     "us_1088: regression tests for Phase I transaction journal for crash-safe prd.json writes (US-1088)",
     "us_1100: performance tests for worker pool pre-warming startup optimization (US-1100)",
     "us_1102: regression tests for incremental Phase V test execution using --lf and changed-file detection (US-1102)",
+    "us_1104: performance tests for file-locked spiral_events.jsonl writes on Windows (US-1104)",
 ]
 
 [tool.coverage.run]
