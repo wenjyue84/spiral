@@ -103,3 +103,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-12T07:54:39Z	53	1	US-1244	[Performance Test] Worker pool pre-warming to eliminate 1.2s per-worker startup overhead	reject	654	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-12T08:02:22Z	53	2	US-1244	[Performance Test] Worker pool pre-warming to eliminate 1.2s per-worker startup overhead	keep	317	sonnet	1	2e098f150d88ab34f474d8d0ee35fadf6837360b	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-12T08:55:25Z	54	1	US-1246	[Regression Test] Incremental test execution in Phase V using pytest --lf and changed-file detection	reject	671	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-12T09:28:11Z	55	1	US-1247	[Performance Test] File-locked spiral_events.jsonl writes to prevent corruption on Windows	reject	546	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				

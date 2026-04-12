@@ -2429,7 +2429,16 @@
       "_antiPatterns": [
         "oversized_diff: produced 2462 lines but limit is 800. Keep total insertions+deletions under 800 lines."
       ],
-      "last_attempted": "2026-04-12T09:28:13Z"
+      "last_attempted": "2026-04-12T09:28:13Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n`locked_append_jsonl` exists in `lib/core/spiral_io.py`. No performance test for US-1104 exists yet. The `tests/pyproject.toml` has markers for other stories but not `us_1104`.\n\n## Problem Identified\nNeed a compact performance test for `locked_append_jsonl` — previous attempt was 2462 lines, over the 800-line limit.\n\n## Planned Changes\n- Create `tests/test_perf_us1104_locked_append.py` (~65 lines, 3 focused tests)\n- Add `us_1104` marker to `tests/pyproject.toml` (1 line)\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_perf_us1104_locked_append.py\"],\n  \"files_to_modify\": [\"tests/pyproject.toml\"],\n  \"functions_to_add\": [\"test_locked_append_single_write_latency\", \"test_locked_append_no_degradation\", \"test_locked_append_integrity\"],\n  \"estimated_loc\": 70\n}\n</plan>\nAll 3 tests pass. Let me verify the diff size:\nThe new test file isn't tracked yet. Let me check the staged status and compute actual diff:\n98 lines diff — well within the 800-line limit. Now mark the story as passing and commit:\nDone. US-1247 is complete:\n\n- Created `tests/test_perf_us1104_locked_append.py` (80 lines, 98-line diff — well under 800 limit)\n- 3 tests all pass: single write latency (<20ms), no-degradation across 10 writes (20% threshold), integrity check\n- Registered `us_1104` marker in `tests/pyproject.toml`\n- Marked `passes: true` in `prd.json`"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 279,
+        "tokensAfterMasking": 278,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1248",
