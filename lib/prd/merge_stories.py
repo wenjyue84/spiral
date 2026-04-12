@@ -571,7 +571,6 @@ def main() -> int:
     # Apply fallback threshold lowering if consecutive all-rejected iterations reached limit
     if fallback_iters > 0 and fallback_counter >= fallback_iters:
         effective_threshold = 0.45  # Lower to 0.45 to allow slightly different stories through
-        threshold_lowered = True
         print(
             f"[merge] WARNING: Applying fallback threshold {effective_threshold:.2f} (normal: 0.60) "
             f"— {fallback_counter} consecutive all-rejected iterations"

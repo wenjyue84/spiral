@@ -29,6 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from flaky_detector import is_flaky_test
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
+from test_failure_clustering import cluster_failures
 
 configure_utf8_stdout()
 

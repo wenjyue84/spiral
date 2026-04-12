@@ -210,7 +210,7 @@ def main() -> None:
         # Bump semantic version in package.json and pyproject.toml
         from lib.phases.phase_g_version_bump import bump_versions
 
-        version = bump_versions()
+        _ = bump_versions()
 
         # Generate API documentation from Python modules
         generate_api_docs()

@@ -229,7 +229,6 @@ def forecast_ceiling_cli(
 
     Returns JSON-serializable dict with forecast result and formatted message.
     """
-    prd_path_obj = Path(prd_path)
     results_path_obj = Path(results_path)
 
     rows = load_results(results_path_obj)

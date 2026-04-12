@@ -22,7 +22,7 @@ ignore_missing_imports = true
 [tool.ruff]
 target-version = "py313"
 line-length = 120
-exclude = ["lib/semantic_chunker.py"]
+exclude = ["lib/semantic_chunker.py", "tests/bats-core/**"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
@@ -40,6 +40,14 @@ ignore = ["E402"]
 "lib/**/ai_suggest.py" = ["E501"]
 "lib/**/invocation_snapshot.py" = ["E501"]
 "tests/test_phase_r_integration.py" = ["E501"]
+"tests/test_analytics_db.py" = ["E501"]
+"tests/test_dashboard_profile.py" = ["E501"]
+"tests/test_e2e_phase_burn_rate_us_1030.py" = ["E501"]
+"tests/test_performance_us_390.py" = ["E501"]
+"tests/test_phase_a_completed_dedup.py" = ["E501"]
+"tests/test_phase_g_changelog_generation.py" = ["E501"]
+"tests/test_research_cache_benchmark.py" = ["E501"]
+"tests/test_security_ci_workflows.py" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["spiral"]
