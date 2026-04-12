@@ -7,12 +7,80 @@ Cache entries older than SPIRAL_RESEARCH_CACHE_TTL are pruned automatically.
 
 from __future__ import annotations
 
+import argparse
+import hashlib
 import json
+import os
 import re
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+
+
+def _now_ts() -> float:
+    """Return current Unix timestamp."""
+    return time.time()
+
+
+def _is_valid(entry: dict[str, Any], ttl_hours: float) -> bool:
+    """Return True if the cache entry has not exceeded its TTL."""
+    if ttl_hours <= 0:
+        return False
+    fetched_ts = entry.get("fetched_ts", 0)
+    age_hours = (_now_ts() - fetched_ts) / 3600
+    return bool(age_hours < ttl_hours)
+
+
+def _cache_key(url: str) -> str:
+    """Generate a unique key from URL using first 16 chars of sha256 hash."""
+    digest = hashlib.sha256(url.strip().encode("utf-8")).hexdigest()
+    return digest[:16]
+
+
+def _cache_path(cache_dir: str, url: str) -> str:
+    """Generate cache file path for a URL."""
+    key = _cache_key(url)
+    return os.path.join(cache_dir, f"{key}.json")
+
+
+def _embedding_path(cache_dir: str, url: str) -> str:
+    """Generate embedding (.npy) file path for a URL."""
+    key = _cache_key(url)
+    return os.path.join(cache_dir, f"{key}.npy")
+
+
+def _compute_embedding(query: str) -> Any:
+    """Compute embedding vector for a query using sentence-transformers.
+
+    Returns a numpy array that can be stored in .npy format.
+    """
+    try:
+        import numpy as np
+        from sentence_transformers import SentenceTransformer
+
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+        vec: Any = model.encode([query], convert_to_numpy=True, show_progress_bar=False)[0]
+        return vec.astype(np.float32)
+    except Exception:
+        # Fallback: return a zero vector if model load fails
+        import numpy as np
+        return np.zeros(384, dtype=np.float32)
+
+
+def _cosine_similarity(vec1: Any, vec2: Any) -> float:
+    """Return cosine similarity in [0, 1] between two numpy vectors."""
+    try:
+        import numpy as np
+
+        norm_a = float(np.linalg.norm(vec1))
+        norm_b = float(np.linalg.norm(vec2))
+        if norm_a == 0.0 or norm_b == 0.0:
+            return 0.0
+        return float(np.dot(vec1, vec2) / (norm_a * norm_b))
+    except Exception:
+        return 0.0
 
 
 @dataclass
