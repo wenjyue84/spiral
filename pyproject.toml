@@ -5,6 +5,18 @@ build-backend = "setuptools.build_meta"
 [tool.uv.workspace]
 members = ["lib", "tests"]
 
+# uv-secure vulnerability scan configuration.
+# Severity threshold: only report HIGH and above (filter LOW/MEDIUM noise).
+# GHSA-r6ph-v2qm-q3c2 (cryptography 44.0.3): acknowledged — patched at 46.0.5.
+# Upgrading cryptography 44→46 forces bc-detect-secrets 1.5.43→1.5.15, which
+# causes llm-guard 0.3.16→0.3.15, then regex 2024.11.6→2024.7.24. The older
+# regex has no prebuilt wheels for CPython 3.13 on Windows and fails to build.
+# Ignored pending llm-guard releasing a version compatible with cryptography 46.
+[tool.uv-secure.vulnerability_criteria]
+severity = "high"
+ignore_vulnerabilities = ["GHSA-r6ph-v2qm-q3c2"]
+allow_unused_ignores = true
+
 [tool.coverage.run]
 source = ["spiral"]
 branch = true
