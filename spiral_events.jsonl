@@ -4073,3 +4073,19 @@
 {"ts": "2026-04-11T23:57:27.234308+00:00", "type": "route_story_assigned", "story_id": "US-1249", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-04-11T23:57:27.234671+00:00", "type": "route_story_assigned", "story_id": "US-1253", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-04-11T23:57:27.235007+00:00", "type": "route_story_assigned", "story_id": "US-1254", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-04-11T23:57:59.151442+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-419\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts": "2026-04-12T00:02:47.158934+00:00", "type": "route_story_assigned", "story_id": "US-1238", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.159433+00:00", "type": "route_story_assigned", "story_id": "US-1239", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.159872+00:00", "type": "route_story_assigned", "story_id": "US-1240", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.160256+00:00", "type": "route_story_assigned", "story_id": "US-1241", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.160661+00:00", "type": "route_story_assigned", "story_id": "US-1242", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.161056+00:00", "type": "route_story_assigned", "story_id": "US-1243", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.161490+00:00", "type": "route_story_assigned", "story_id": "US-1244", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.161899+00:00", "type": "route_story_assigned", "story_id": "US-1245", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.162392+00:00", "type": "route_story_assigned", "story_id": "US-1246", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.162802+00:00", "type": "route_story_assigned", "story_id": "US-1247", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.163192+00:00", "type": "route_story_assigned", "story_id": "US-1248", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.163601+00:00", "type": "route_story_assigned", "story_id": "US-1249", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.164007+00:00", "type": "route_story_assigned", "story_id": "US-1253", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.164385+00:00", "type": "route_story_assigned", "story_id": "US-1254", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T00:02:47.164760+00:00", "type": "route_story_assigned", "story_id": "US-1255", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
