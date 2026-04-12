@@ -2198,3 +2198,34 @@ Here is the technical brief for implementing the performance benchmark for story
 ### Gotchas
 - Attempt 1 produced 4340 lines — NEVER use subprocess to call the full bash worker script from a test file; it generates too much output noise and environment issues
 - Keep perf test files focused: 3 tests measuring the actual overhead metric (IPC file I/O), not the full end-to-end bash execution
+## Iteration 2 - Sun, Apr 12, 2026  4:02:23 PM
+Completed: [Performance Test] Worker pool pre-warming to eliminate 1.2s per-worker startup overhead (ID: US-1244) in 5m
+
+
+## Pre-analysis for US-1245 (Gemini 2.5 Pro)
+Based on the user story JSON, here is a technical brief for the implementation task.
+
+**Project Context:** This user story pertains to the "Spiral" Python project, not a Frappe application. The goal is to create a performance test using `pytest`, not to modify Frappe DocTypes or hooks.
+
+**Technical Brief for US-1245:**
+
+*   **Primary Files to Modify:**
+    *   A test file within the `tests/` directory, likely the one containing the test for "us\_1101", is the primary candidate for adding the new performance benchmark.
+    *   The logic to be tested resides in `lib/enrich_stories.py`.
+
+*   **Frappe Elements Involved:**
+    *   None. This is a Python/pytest task.
+
+*   **Recommended Implementation Approach:**
+    1.  Utilize the `pytest-benchmark` library to create the new performance test.
+    2.  Create a test function that prepares a batch of sample stories (e.g., 20 items).
+    3.  Use the `benchmark` fixture to wrap the call to the batch enrichment logic.
+    4.  To accurately measure the "CLI overhead" mentioned, the test should use Python's `subprocess` module to invoke the full application entry point, rather than just importing the Python function.
+    5.  The first successful run will establish a performance baseline; this should be saved.
+    6.  Configure the benchmark options to fail the test if the measured execution time exceeds the baseline by more than 20%.
+
+*   **Gotchas & Edge Cases:**
+    *   Test data must be consistent across runs to ensure reliable metrics.
+    *   The performance baseline is hardware-dependent and should be generated on a consistent CI runner or reference machine.
+    *   Ensure the test accurately captures the full process startup time, as this is the key metric for this story.
+

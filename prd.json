@@ -2366,22 +2366,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_failureReason": "oversized_diff: produced 4340 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 4340 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ],
-      "last_attempted": "2026-04-12T07:54:41Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe `worker_pool_init()` function exists in `lib/run_parallel_ralph.sh` (US-1100). It uses file-based IPC to pre-warm bash workers. There's no Python performance test for it yet. The `us_1100` pytest marker is already registered in `tests/pyproject.toml`.\n\n## Problem Identified\nNeed a performance test for US-1100's worker pool pre-warming that:\n1. Measures pool initialization time (directory creation + spawning N idle workers)\n2. Captures a baseline threshold (e.g., <500ms for 3 workers)\n3. Fails if init time degrades >20% from baseline\n\n## Planned Changes\n- Create ONE small file: `tests/test_perf_us1100_prewarm.py` (~70 lines)\n- Test at the Python level by measuring the file-based IPC overhead (the key performance metric — directory creation + file write/read round trips)\n- No subprocess to bash (avoids environment issues on Windows CI)\n- Uses `@pytest.mark.us_1100` so `-k us_1100` picks it up\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_perf_us1100_prewarm.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_worker_pool_init_baseline\", \"test_worker_pool_ipc_roundtrip_20pct_threshold\", \"test_worker_pool_init_no_degradation\"],\n  \"estimated_loc\": 70\n}\n</plan>\nAll 3 tests pass. Now verify the `-k us_1100` filter works:\nThe 7 errors are pre-existing import errors unrelated to my change. My 3 tests pass. Now let me check the diff size:\nAll quality checks pass. Now update prd.json and document learnings:\nDone. US-1244 implemented and committed.\n\n**What was done:**\n- Created `tests/test_perf_us1100_prewarm.py` (133 lines, well under the 800-line diff limit)\n- 3 tests marked `@pytest.mark.us_1100` — all pass, reachable via `uv run pytest tests/ -k us_1100 -v`\n- Tests the file-based IPC kernel of US-1100's worker pool at the Python level (no bash subprocess, avoids the 4340-line diff failure from attempt 1)\n- Baseline: <50ms per worker slot; 20% degradation threshold enforced"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 481,
-        "tokensAfterMasking": 480,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_passedCommit": "2e098f150d88ab34f474d8d0ee35fadf6837360b"
+      "model": "haiku"
     },
     {
       "id": "US-1245",
@@ -2399,8 +2384,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-12T08:02:25Z"
+      "model": "haiku"
     },
     {
       "id": "US-1246",
