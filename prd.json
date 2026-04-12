@@ -2588,87 +2588,24 @@
       "model": "haiku"
     },
     {
-      "id": "US-1256",
-      "title": "Dashboard API: GET /api/dashboard/model-escalation (Stories by Model Tier and Attempt Count)",
-      "priority": "medium",
-      "description": "Add REST endpoint that aggregates story attempts from results.tsv by model and retry count, enabling visualization of which stories escalate from haiku→sonnet→opus and at what cost. Returns a matrix structure suitable for heatmap rendering.",
+      "id": "US-1261",
+      "title": "Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup",
+      "priority": "high",
+      "description": "Implement federated_merge() that accepts stories with namespace-qualified IDs (e.g. PROJ1/US-100) and returns (accepted_stories, rejected_stories, error_log). Same-namespace duplicate IDs are rejected; identical IDs from different namespaces are both accepted.",
       "acceptanceCriteria": [
-        "GET /api/dashboard/model-escalation returns JSON: {US-100: {haiku: {attempt: 1, tokens: 5000, duration_s: 45}, sonnet: {attempt: 2, tokens: 12000, duration_s: 120}}, US-101: {haiku: {attempt: 1, tokens: 4500}}...}",
-        "Endpoint filters by current iteration ID and includes only stories with status='passed' or 'failed'",
-        "Endpoint joins results.tsv with prd.json to include story titles in response for legend/tooltip data"
+        "federated_merge() places both PROJ1/US-100 entries in rejected_stories when namespace+ID collides, with an error message naming the conflict",
+        "federated_merge() places both PROJ1/US-100 and PROJ2/US-100 in accepted_stories when only namespaces differ",
+        "uv run pytest tests/test_federated_merge.py::test_namespace_isolation -v passes"
       ],
       "technicalNotes": [
-        "File to create: lib/dashboard_api/model_escalation.py (group results.tsv by story_id and model, track attempt sequence, calculate token/duration stats)",
-        "File to edit: dashboard/app.py (add Flask/FastAPI GET /api/dashboard/model-escalation route)",
-        "File to create: tests/test_dashboard_model_escalation_api.py (test model grouping logic, attempt sequencing, iteration filtering, story title resolution)",
-        "Test command: uv run pytest tests/test_dashboard_model_escalation_api.py::test_escalation_matrix_structure -v"
+        "File to create: lib/impl/federated_merge.py (federated_merge(stories: list[dict]) -> tuple[list[dict], list[dict], list[str]]; key on namespace+id pair)",
+        "Test command: uv run pytest tests/test_federated_merge.py::test_namespace_isolation -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1257",
-      "title": "spiral-ui: Add Real-Time Story Success Rate Card to Dashboard",
-      "priority": "medium",
-      "description": "Add a dashboard card showing current iteration's story pass/fail counts and success percentage. Update via WebSocket when stories complete Phase V validation.",
-      "acceptanceCriteria": [
-        "Card displays: 'X Stories Passed' and 'Y% Pass Rate' for current iteration",
-        "Card updates via WebSocket endpoint /ws/story-metrics within 1.5s of Phase V story completion",
-        "Integration test: inject 5 story completion events, verify card shows 5/5 = 100%"
-      ],
-      "technicalNotes": [
-        "File to create: spiral-ui/src/components/StorySuccessCard.tsx (React card component, ~80 lines)",
-        "File to create: spiral-ui/src/hooks/useStoryMetrics.ts (WebSocket listener hook, ~40 lines)",
-        "File to modify: lib/phases/phase_v.py (emit story-metrics event after validation, ~5 lines)",
-        "Test command: uv run pytest tests/test_spiral_ui_story_metrics.py::test_card_updates_on_story_completion -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1258",
-      "title": "[Integration Test] Phase A Suggest Excludes Completed Story Titles from Dedup Set",
-      "priority": "medium",
-      "description": "Verify Phase A suggest prompt injection skips completed stories during semantic dedup, preventing near-duplicate suggestions. Mock 3 completed stories, run Phase A, assert suggested stories have <85% similarity to completed titles.",
-      "acceptanceCriteria": [
-        "Phase A prompt includes completed story titles as exclusion hints (injected from prd.json with status >= 'V')",
-        "Semantic dedup comparison ignores rows where story phase >= 'V' (completed)",
-        "Test: run Phase A with 3 completed stories + 2 AI suggestions, verify suggestions don't match >85% to any completed title"
-      ],
-      "technicalNotes": [
-        "File to modify: lib/spiral/phase_a.py (inject completed_stories_summary into system prompt, ~8 lines)",
-        "File to create: tests/test_phase_a_completed_dedup.py (mock Phase A with completed prd.json state, ~70 lines)",
-        "Test command: uv run pytest tests/test_phase_a_completed_dedup.py::test_completed_stories_excluded_from_dedup -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1259",
-      "title": "spiral-ui: Add Phase Duration Timeline Chart for Bottleneck Identification",
-      "priority": "medium",
-      "description": "Visualize how long each SPIRAL phase takes across iterations. Bar chart shows duration (ms) per phase (A, R, T, S, E, M, X, G, I, V, C, L). Highlights slowest phase in red for bottleneck detection.",
-      "acceptanceCriteria": [
-        "Chart renders 12 bars (one per phase), labeled with phase letter, duration in milliseconds",
-        "Slowest phase bar highlighted in red; others in gray",
-        "Chart updates after Phase L completes (once per iteration), pulling from .spiral/_checkpoint.json timing data"
-      ],
-      "technicalNotes": [
-        "File to create: spiral-ui/src/components/PhaseTimelineChart.tsx (Recharts bar chart, ~100 lines)",
-        "File to create: spiral-ui/src/hooks/usePhaseTimings.ts (parse checkpoint.json, calculate deltas, ~30 lines)",
-        "File to modify: spiral.sh (emit phase-timings event after Phase L checkpoint write, ~3 lines)",
-        "Manual test: run SPIRAL iteration, navigate to dashboard, verify 12 bars render with correct labels and bottleneck highlight"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-12T01:46:04Z"
     }
   ]
 }
