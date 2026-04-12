@@ -10,12 +10,16 @@
 import os
 import sys
 import time
+from typing import TYPE_CHECKING
 
 # Platform-specific imports
 if os.name == "nt":
     import msvcrt
 else:
     import fcntl
+
+if TYPE_CHECKING:
+    import msvcrt  # noqa: F401 — stub for type checking on Linux
 
 
 def locked_append_tsv(tsv_file: str, row_data: str, timeout: float = 10.0) -> None:

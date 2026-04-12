@@ -12,7 +12,11 @@ import json
 import os
 import sys
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import fcntl
+    import msvcrt
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, configure_utf8_stdout, safe_read_json

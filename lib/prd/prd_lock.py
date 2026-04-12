@@ -28,7 +28,11 @@ import sys
 import time
 from collections.abc import Callable, Generator
 from datetime import datetime, timezone
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
+
+if TYPE_CHECKING:
+    import fcntl
+    import msvcrt
 
 _T = TypeVar("_T")
 

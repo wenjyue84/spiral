@@ -295,7 +295,7 @@ def _load_raw(path: str) -> dict[str, Any]:
     with open(path, encoding="utf-8") as f:
         if path.endswith(".yaml") or path.endswith(".yml"):
             try:
-                import yaml  # type: ignore[import-untyped]
+                import yaml
 
                 return yaml.safe_load(f) or {}
             except ImportError:

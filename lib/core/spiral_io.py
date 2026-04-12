@@ -7,7 +7,11 @@ import os
 import sys
 import tempfile
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import fcntl
+    import msvcrt
 
 
 def atomic_write_json(path: str, data: Any, *, backup: bool = False) -> None:
@@ -103,7 +107,7 @@ def _posix_locked_write(filepath: str, line: str, timeout: float) -> None:
         lock_acquired = False
         while True:
             try:
-                fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)  # type: ignore[attr-defined]
+                fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                 lock_acquired = True
                 break
             except OSError:
@@ -115,7 +119,7 @@ def _posix_locked_write(filepath: str, line: str, timeout: float) -> None:
         finally:
             if lock_acquired:
                 try:
-                    fcntl.flock(fh.fileno(), fcntl.LOCK_UN)  # type: ignore[attr-defined]
+                    fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
                 except OSError:
                     pass
 

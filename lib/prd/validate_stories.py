@@ -197,7 +197,7 @@ def _load_candidates(path: str) -> list[dict]:
         with open(path, encoding="utf-8") as fh:
             if path.endswith(".yaml") or path.endswith(".yml"):
                 try:
-                    import yaml  # type: ignore[import-untyped]
+                    import yaml
 
                     data = yaml.safe_load(fh) or {}
                 except ImportError:
