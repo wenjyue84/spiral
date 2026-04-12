@@ -183,6 +183,7 @@ def _write_test_prd(path: Path) -> None:
 
 
 @pytest.mark.us_1248
+@pytest.mark.us_1112
 class TestCumulativeCostChart:
     """AC1/AC2: E2E test for cumulative cost & stories-passed trend chart."""
 

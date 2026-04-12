@@ -52,6 +52,8 @@ markers = [
     "us_1100: performance tests for worker pool pre-warming startup optimization (US-1100)",
     "us_1102: regression tests for incremental Phase V test execution using --lf and changed-file detection (US-1102)",
     "us_1104: performance tests for file-locked spiral_events.jsonl writes on Windows (US-1104)",
+    "us_1112: E2E tests for cumulative cost and stories-passed trend chart in analytics dashboard (US-1112)",
+    "us_1248: E2E tests for cumulative cost and stories-passed trend chart - user flow verification (US-1248)",
 ]
 
 [tool.coverage.run]
