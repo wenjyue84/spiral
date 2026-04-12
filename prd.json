@@ -2598,7 +2598,8 @@
       "last_attempted": "2026-04-12T10:39:27Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe project has a FastAPI dashboard API at `lib/dashboard/api.py` with existing endpoints for cost, timeline, and analytics. The `results.tsv` file tracks story execution with timestamp and status fields. The `.spiral/_checkpoint.json` contains current iteration metadata.\n\n## Problem Identified\nNeed to implement a GET /api/dashboard/throughput endpoint that aggregates completed stories from results.tsv by completion hour, returning hourly counts and story lists. Must filter by current iteration and cache for 5 seconds.\n\n## Planned Changes\n- Create `lib/dashboard/throughput.py` with throughput aggregation logic (parse results.tsv, filter by iteration and status, group by hour, aggregate)\n- Edit `lib/dashboard/api.py` to add GET /api/dashboard/throughput route\n- Create `tests/test_dashboard_throughput_api.py` with tests for hour parsing, iteration filtering, caching\n\n<plan>\n{\n  \"files_to_create\": [\"lib/dashboard/throughput.py\", \"tests/test_dashboard_throughput_api.py\"],\n  \"files_to_modify\": [\"lib/dashboard/api.py\"],\n  \"functions_to_add\": [\"aggregate\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow implementing:\nNow let me update prd.json to mark the story as complete:\nPerfect! I've successfully implemented story **US-1254** with all acceptance criteria met:\n\n## Summary"
-      }
+      },
+      "_passedCommit": "795868f59ca31f1f02113d391a1b95a366d12a0b"
     },
     {
       "id": "US-1255",
@@ -2619,7 +2620,8 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-12T10:49:37Z"
     },
     {
       "id": "US-1261",

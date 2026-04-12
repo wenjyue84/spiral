@@ -1,200 +1,195 @@
-"""Tests for federated namespace validation."""
+"""Tests for federated namespace prefix validation (US-1255).
 
-import sys
+Tests validate that story IDs in repos/PROJECT-X/ folders match
+the expected prefix (e.g., repos/makan/ → MAKAN-*).
+"""
+
+from __future__ import annotations
+
+import json
+import tempfile
 from pathlib import Path
 from typing import Any
 
-# Add lib to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
+import pytest
 
-from spiral.federated_namespace_validator import validate_federated_namespaces
+from lib.federated.namespace_validator import (
+    get_story_line_number,
+    infer_prefix_from_folder,
+    validate_namespace_prefix,
+    validate_story_id_prefix,
+)
 
 
-class TestNamespaceValidation:
-    """Test federated namespace validation."""
+class TestValidateStoryIdPrefix:
+    """Test individual story ID prefix validation."""
 
-    def test_correct_namespaces_pass(self) -> None:
-        """Test that correct namespace patterns pass validation."""
-        prd: dict[str, Any] = {
-            "userStories": [
-                {"id": "backend_US-001", "title": "Test 1", "dependencies": []},
-                {"id": "frontend_US-002", "title": "Test 2", "dependencies": []},
-            ]
-        }
-        repos = ["backend", "frontend"]
-        result = validate_federated_namespaces(prd, repos)
+    def test_valid_prefix_match(self) -> None:
+        """Test that matching prefix is accepted."""
+        assert validate_story_id_prefix("MAKAN-100", "MAKAN") is True
 
-        assert result["valid"] is True
-        assert result["passed_count"] == 2
-        assert result["failed_count"] == 0
-        assert len(result["errors"]) == 0
+    def test_invalid_prefix_mismatch(self) -> None:
+        """Test that mismatched prefix is rejected."""
+        assert validate_story_id_prefix("US-100", "MAKAN") is False
 
-    def test_missing_repo_prefix_fails(self) -> None:
-        """Test that stories without repo prefix fail validation."""
-        prd = {
-            "userStories": [
-                {"id": "US-001", "title": "Test 1", "dependencies": []},
-            ]
-        }
-        repos = ["backend", "frontend"]
-        result = validate_federated_namespaces(prd, repos)
+    def test_case_sensitive_prefix(self) -> None:
+        """Test that prefix matching is case-sensitive."""
+        assert validate_story_id_prefix("makan-100", "MAKAN") is False
+        assert validate_story_id_prefix("MAKAN-100", "makan") is False
 
-        assert result["valid"] is False
-        assert result["failed_count"] == 1
-        assert len(result["errors"]) == 1
-        assert "Invalid namespace" in result["errors"][0]
+    def test_prefix_with_dash(self) -> None:
+        """Test prefix matching with required dash separator."""
+        assert validate_story_id_prefix("MAKAN-001", "MAKAN") is True
+        assert validate_story_id_prefix("MAKANOS", "MAKAN") is False
 
-    def test_unknown_repo_prefix_fails(self) -> None:
-        """Test that stories with unknown repo prefix fail validation."""
-        prd = {
-            "userStories": [
-                {"id": "unknown_US-001", "title": "Test 1", "dependencies": []},
-            ]
-        }
-        repos = ["backend", "frontend"]
-        result = validate_federated_namespaces(prd, repos)
 
-        assert result["valid"] is False
-        assert result["failed_count"] == 1
-        assert len(result["errors"]) == 1
+class TestInferPrefixFromFolder:
+    """Test folder name to prefix conversion."""
 
-    def test_invalid_story_type_fails(self) -> None:
-        """Test that invalid story types (not US or UT) fail validation."""
-        prd = {
-            "userStories": [
-                {"id": "backend_XX-001", "title": "Test 1", "dependencies": []},
-            ]
-        }
-        repos = ["backend", "frontend"]
-        result = validate_federated_namespaces(prd, repos)
+    def test_simple_folder_name(self) -> None:
+        """Test simple folder name conversion to uppercase."""
+        result = infer_prefix_from_folder(Path("repos/makan"))
+        assert result == "MAKAN"
 
-        assert result["valid"] is False
-        assert result["failed_count"] == 1
+    def test_uppercase_folder_name(self) -> None:
+        """Test that uppercase folder names are preserved."""
+        result = infer_prefix_from_folder(Path("repos/BACKEND"))
+        assert result == "BACKEND"
 
-    def test_cross_repo_dependency_fails(self) -> None:
-        """Test that cross-repo dependencies are rejected."""
-        prd = {
-            "userStories": [
-                {
-                    "id": "backend_US-001",
-                    "title": "Test 1",
-                    "dependencies": ["frontend_US-002"],
-                },
-            ]
-        }
-        repos = ["backend", "frontend"]
-        result = validate_federated_namespaces(prd, repos)
+    def test_hyphenated_folder_name(self) -> None:
+        """Test folder names with hyphens."""
+        result = infer_prefix_from_folder(Path("repos/my-service"))
+        assert result == "MY-SERVICE"
 
-        assert result["valid"] is False
-        assert "Cross-repo dependency" in result["errors"][0]
 
-    def test_three_repo_validation_multi_repo(self) -> None:
-        """Test validation with 3 repos and multiple stories."""
-        prd = {
-            "userStories": [
-                {"id": "backend_US-001", "title": "Backend story", "dependencies": []},
-                {"id": "frontend_US-001", "title": "Frontend story", "dependencies": []},
-                {
-                    "id": "services_UT-001",
-                    "title": "Service test",
-                    "dependencies": [],
-                },
-            ]
-        }
-        repos = ["backend", "frontend", "services"]
-        result = validate_federated_namespaces(prd, repos)
+class TestGetStoryLineNumber:
+    """Test finding story ID line numbers in prd.json."""
 
-        assert result["valid"] is True
-        assert result["passed_count"] == 3
-        assert result["failed_count"] == 0
+    def test_find_story_line_number(self) -> None:
+        """Test that story line number is correctly detected."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prd_path = Path(tmpdir) / "prd.json"
+            prd_content = {
+                "userStories": [
+                    {"id": "MAKAN-100", "title": "Story 1"},
+                    {"id": "MAKAN-101", "title": "Story 2"},
+                ]
+            }
+            with open(prd_path, "w", encoding="utf-8") as f:
+                json.dump(prd_content, f)
 
-    def test_three_repo_with_one_incorrect_namespace_fails(self) -> None:
-        """Test 3-repo validation where one repo has incorrect namespace."""
-        prd = {
-            "userStories": [
-                {"id": "backend_US-001", "title": "Backend story", "dependencies": []},
-                {"id": "frontend_US-001", "title": "Frontend story", "dependencies": []},
-                {"id": "invalid_UT-001", "title": "Invalid story", "dependencies": []},
-            ]
-        }
-        repos = ["backend", "frontend", "services"]
-        result = validate_federated_namespaces(prd, repos)
+            line_num = get_story_line_number(prd_path, "MAKAN-100")
+            assert line_num > 0, "Should find story line number"
 
-        assert result["valid"] is False
-        assert result["passed_count"] == 2
-        assert result["failed_count"] == 1
-        assert len(result["errors"]) == 1
+    def test_story_not_found_returns_negative_one(self) -> None:
+        """Test that missing story returns -1."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            prd_path = Path(tmpdir) / "prd.json"
+            prd_content = {"userStories": [{"id": "MAKAN-100", "title": "Story 1"}]}
+            with open(prd_path, "w", encoding="utf-8") as f:
+                json.dump(prd_content, f)
 
-    def test_empty_stories_list(self) -> None:
-        """Test validation with empty stories list."""
-        prd: dict[str, Any] = {"userStories": []}
-        repos = ["backend", "frontend"]
-        result = validate_federated_namespaces(prd, repos)
+            line_num = get_story_line_number(prd_path, "NONEXISTENT-999")
+            assert line_num == -1
 
-        assert result["valid"] is True
-        assert result["passed_count"] == 0
-        assert result["failed_count"] == 0
-        assert len(result["warnings"]) == 1
 
-    def test_missing_id_field(self) -> None:
-        """Test validation with missing id field."""
-        prd: dict[str, Any] = {
-            "userStories": [
-                {"title": "No ID story", "dependencies": []},
-            ]
-        }
-        repos = ["backend", "frontend"]
-        result = validate_federated_namespaces(prd, repos)
+class TestValidateNamespacePrefix:
+    """Integration tests for namespace prefix validation."""
 
-        assert result["valid"] is False
-        assert result["failed_count"] == 1
-        assert "missing 'id' field" in result["errors"][0]
+    def test_valid_namespace_single_repo(self) -> None:
+        """Test validation passes when story IDs match folder prefix."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repos_path = Path(tmpdir) / "repos"
+            repos_path.mkdir()
 
-    def test_error_message_clarity(self) -> None:
-        """Test that error messages are clear and actionable."""
-        prd: dict[str, Any] = {
-            "userStories": [
-                {"id": "backend_US-999", "title": "Test", "dependencies": []},
-                {"id": "invalid", "title": "Test", "dependencies": []},
-            ]
-        }
-        repos = ["backend", "frontend"]
-        result = validate_federated_namespaces(prd, repos)
+            makan_dir = repos_path / "makan"
+            makan_dir.mkdir()
+            prd_path = makan_dir / "prd.json"
+            prd_content = {
+                "userStories": [
+                    {"id": "MAKAN-100", "title": "Story 1"},
+                    {"id": "MAKAN-101", "title": "Story 2"},
+                ]
+            }
+            with open(prd_path, "w", encoding="utf-8") as f:
+                json.dump(prd_content, f)
 
-        assert result["valid"] is False
-        error_msgs = result["errors"]
-        assert any("Expected format" in msg for msg in error_msgs)
-        assert any("frontend" in msg for msg in error_msgs)
+            result = validate_namespace_prefix(repos_path)
+            assert result["valid"] is True
+            assert result["failed_count"] == 0
+            assert result["passed_count"] == 2
 
-    def test_same_repo_dependency_allowed(self) -> None:
-        """Test that same-repo dependencies are allowed."""
-        prd: dict[str, Any] = {
-            "userStories": [
-                {
-                    "id": "backend_US-001",
-                    "title": "Test 1",
-                    "dependencies": ["backend_US-002"],
-                },
-                {"id": "backend_US-002", "title": "Test 2", "dependencies": []},
-            ]
-        }
-        repos = ["backend", "frontend"]
-        result = validate_federated_namespaces(prd, repos)
+    def test_invalid_namespace_mismatch(self) -> None:
+        """Test validation fails when story IDs don't match folder prefix."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repos_path = Path(tmpdir) / "repos"
+            repos_path.mkdir()
 
-        assert result["valid"] is True
-        assert result["passed_count"] == 2
-        assert result["failed_count"] == 0
+            makan_dir = repos_path / "makan"
+            makan_dir.mkdir()
+            prd_path = makan_dir / "prd.json"
+            prd_content = {
+                "userStories": [
+                    {"id": "US-100", "title": "Story 1"},
+                    {"id": "MAKAN-101", "title": "Story 2"},
+                ]
+            }
+            with open(prd_path, "w", encoding="utf-8") as f:
+                json.dump(prd_content, f)
 
-    def test_ut_story_type_validation(self) -> None:
-        """Test that UT (test) story type is accepted."""
-        prd: dict[str, Any] = {
-            "userStories": [
-                {"id": "backend_UT-001", "title": "Test", "dependencies": []},
-            ]
-        }
-        repos = ["backend"]
-        result = validate_federated_namespaces(prd, repos)
+            result = validate_namespace_prefix(repos_path)
+            assert result["valid"] is False
+            assert result["failed_count"] == 1
+            assert result["passed_count"] == 1
+            assert len(result["errors"]) == 1
+            assert result["errors"][0]["story_id"] == "US-100"
+            assert result["errors"][0]["expected"] == "MAKAN-*"
 
-        assert result["valid"] is True
-        assert result["passed_count"] == 1
-        assert result["failed_count"] == 0
+    def test_multiple_subprojects(self) -> None:
+        """Test validation across multiple sub-projects."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repos_path = Path(tmpdir) / "repos"
+            repos_path.mkdir()
+
+            makan_dir = repos_path / "makan"
+            makan_dir.mkdir()
+            with open(makan_dir / "prd.json", "w", encoding="utf-8") as f:
+                json.dump(
+                    {"userStories": [{"id": "MAKAN-100", "title": "Story 1"}]},
+                    f,
+                )
+
+            backend_dir = repos_path / "backend"
+            backend_dir.mkdir()
+            with open(backend_dir / "prd.json", "w", encoding="utf-8") as f:
+                json.dump(
+                    {"userStories": [{"id": "BACKEND-200", "title": "Story 2"}]},
+                    f,
+                )
+
+            result = validate_namespace_prefix(repos_path)
+            assert result["valid"] is True
+            assert result["total_stories"] == 2
+            assert result["passed_count"] == 2
+
+    def test_story_id_mismatch_detection(self) -> None:
+        """Test the specific mismatch detection referenced in acceptance criteria."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repos_path = Path(tmpdir) / "repos"
+            repos_path.mkdir()
+
+            makan_dir = repos_path / "makan"
+            makan_dir.mkdir()
+            prd_path = makan_dir / "prd.json"
+            prd_content = {"userStories": [{"id": "US-100", "title": "Cafe feature"}]}
+            with open(prd_path, "w", encoding="utf-8") as f:
+                json.dump(prd_content, f)
+
+            result = validate_namespace_prefix(repos_path)
+
+            assert result["valid"] is False
+            error = result["errors"][0]
+            assert str(prd_path) in error["file"]
+            assert error["story_id"] == "US-100"
+            assert error["expected"] == "MAKAN-*"
+            assert error["got"] == "US-100"

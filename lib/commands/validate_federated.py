@@ -337,13 +337,60 @@ def add_subparser(subparsers: Any) -> None:
         default="",
         help="Path to write JSON report (optional; prints to stdout if omitted)",
     )
+    parser.add_argument(
+        "--namespace",
+        action="store_true",
+        default=False,
+        help="Validate story IDs match sub-project folder namespace prefixes (repos/PROJECT-X/)",
+    )
 
 
 def run(args: argparse.Namespace) -> None:
     """Execute validate-federated command."""
     prd_path = Path(getattr(args, "prd", "prd.json"))
     output_path = getattr(args, "output", "")
+    use_namespace = getattr(args, "namespace", False)
 
+    # Route to namespace validation if --namespace flag is set
+    if use_namespace:
+        from lib.federated.namespace_validator import validate_namespace_prefix
+
+        report = validate_namespace_prefix("repos")
+        if output_path:
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(report, f, indent=2)
+            print(f"Report written to {output_path}")
+        else:
+            print(json.dumps(report, indent=2))
+
+        # Print summary to stderr
+        if report["errors"]:
+            print("\n[spiral] Namespace validation FAILED:", file=sys.stderr)
+            print(f"  {len(report['errors'])} mismatch(es):", file=sys.stderr)
+            for error in report["errors"]:
+                file_path = error.get("file", "?")
+                story_id = error.get("story_id", "?")
+                expected = error.get("expected", "?")
+                line = error.get("line", -1)
+                line_str = f" (line {line})" if line > 0 else ""
+                print(
+                    f"    {file_path}: expected {expected}, got {story_id}{line_str}",
+                    file=sys.stderr,
+                )
+                remediation = error.get("remediation", "")
+                if remediation:
+                    print(f"      → {remediation}", file=sys.stderr)
+            sys.exit(1)
+        else:
+            print(
+                f"\n[spiral] Namespace validation PASSED: "
+                f"All {report['total_stories']} stories match their folder prefixes",
+                file=sys.stderr,
+            )
+            sys.exit(0)
+
+    # Standard validation (non-namespace)
     report = validate_federated(prd_path)
 
     # Write or print report
