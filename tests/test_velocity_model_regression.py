@@ -11,6 +11,7 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
 from _pytest.capture import CaptureFixture
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
@@ -76,6 +77,7 @@ def _write_prd(path: Path, stories: list[dict[str, object]]) -> None:
 # ── Acceptance Criteria Tests ──────────────────────────────────────────────
 
 
+@pytest.mark.us_352
 def test_estimate_reads_results_tsv_creates_datadriven_model(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
     """Verify cmd_estimate uses velocity model data from results.tsv.
 
@@ -104,6 +106,7 @@ def test_estimate_reads_results_tsv_creates_datadriven_model(tmp_path: Path, cap
     assert model["story_types"]["test"]["mean_tokens"] > 0, "Mean tokens should be derived from duration"
 
 
+@pytest.mark.us_352
 def test_estimate_output_differs_empty_vs_populated_tsv(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
     """Verify estimate output differs between empty and populated results.tsv.
 
@@ -141,6 +144,7 @@ def test_estimate_output_differs_empty_vs_populated_tsv(tmp_path: Path, capsys: 
     assert "test" not in empty_types, "Empty model should have no story types"
 
 
+@pytest.mark.us_352
 def test_estimate_includes_per_type_metrics(tmp_path: Path) -> None:
     """Verify estimate output includes per-type mean_tokens, duration, and pass_rate.
 
@@ -210,6 +214,7 @@ def test_estimate_includes_per_type_metrics(tmp_path: Path) -> None:
     assert abs(test_metrics["pass_rate"] - expected_pass_rate) < 0.01
 
 
+@pytest.mark.us_352
 def test_estimate_fails_if_velocity_model_parsing_broken(tmp_path: Path) -> None:
     """Verify test fails if velocity model parsing is removed (negative test).
 
@@ -238,6 +243,7 @@ def test_estimate_fails_if_velocity_model_parsing_broken(tmp_path: Path) -> None
 # ── Integration Test: Full Workflow ────────────────────────────────────────
 
 
+@pytest.mark.us_352
 def test_velocity_model_integration_full_workflow(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
     """Full integration test: results.tsv → velocity model → estimate output.
 
@@ -296,6 +302,7 @@ def test_velocity_model_integration_full_workflow(tmp_path: Path, capsys: Captur
     assert "Pre-flight" in captured, "Should show pre-flight cost projection"
 
 
+@pytest.mark.us_352
 def test_load_or_build_velocity_model_caches_result(tmp_path: Path) -> None:
     """Verify load_or_build_velocity_model() caches results (US-438).
 
