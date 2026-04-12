@@ -1,8 +1,24 @@
-"""Tests for lib/context/overflow_guard.py."""
+"""Regression test for lib/context/overflow_guard.py (US-1092).
+
+This test file guards against future breakage of the context overflow guard feature
+(US-1092). It verifies that stories exceeding SPIRAL_CONTEXT_BUDGET are progressively
+trimmed, critical fields are preserved, and token budgets are enforced.
+
+The core observable behavior being tested:
+1. Stories under budget are NOT trimmed
+2. Stories over budget ARE trimmed via progressive stages
+3. Trimmed stories fit within the budget and have _context_trimmed=True
+4. Critical fields (id, title, acceptanceCriteria) survive all trimming levels
+5. Environment variable SPIRAL_CONTEXT_BUDGET is respected
+
+Run with: pytest tests/ -k us_1092 -v
+"""
 
 import json
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add lib to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
@@ -14,6 +30,7 @@ from context.overflow_guard import (
 )
 
 
+@pytest.mark.us_1092
 def test_estimate_tokens_basic() -> None:
     """Test token estimation for basic text."""
     short_text = "hello world"
@@ -23,6 +40,7 @@ def test_estimate_tokens_basic() -> None:
     assert tokens <= 5
 
 
+@pytest.mark.us_1092
 def test_estimate_tokens_longer() -> None:
     """Test token estimation scales with text length."""
     short = "hello"
@@ -35,6 +53,7 @@ def test_estimate_tokens_longer() -> None:
     assert long_tokens > short_tokens
 
 
+@pytest.mark.us_1092
 def test_guard_under_budget() -> None:
     """Test no trimming when story is under budget."""
     story = {
@@ -50,6 +69,7 @@ def test_guard_under_budget() -> None:
     assert "_context_trimmed" not in result or result["_context_trimmed"] is False
 
 
+@pytest.mark.us_1092
 def test_guard_over_budget_trims() -> None:
     """Test trimming when story exceeds budget."""
     # Create a story with very large description
@@ -75,6 +95,7 @@ def test_guard_over_budget_trims() -> None:
     assert estimated_tokens < 110000  # Should be under adjusted budget
 
 
+@pytest.mark.us_1092
 def test_trim_progressive_preserves_critical_fields() -> None:
     """Test that trimming preserves id and title."""
     large_text = "x" * 500000
@@ -94,6 +115,7 @@ def test_trim_progressive_preserves_critical_fields() -> None:
     assert trimmed["title"] == "Test Story"
 
 
+@pytest.mark.us_1092
 def test_guard_with_mock_large_prompt() -> None:
     """Test trimming with 500k char mock prompt."""
     # Create 500k char story + large ralph prompt
@@ -126,6 +148,7 @@ def test_guard_with_mock_large_prompt() -> None:
     assert final_tokens < 120000
 
 
+@pytest.mark.us_1092
 def test_guard_respects_env_budget() -> None:
     """Test that SPIRAL_CONTEXT_BUDGET env var is respected."""
     import os
@@ -150,6 +173,7 @@ def test_guard_respects_env_budget() -> None:
             del os.environ["SPIRAL_CONTEXT_BUDGET"]
 
 
+@pytest.mark.us_1092
 def test_trim_removes_optional_fields_when_needed() -> None:
     """Test that optional fields are removed under extreme budget pressure."""
     story = {
@@ -171,6 +195,7 @@ def test_trim_removes_optional_fields_when_needed() -> None:
     assert "title" in trimmed or len(trimmed) > 0
 
 
+@pytest.mark.us_1092
 def test_estimate_tokens_consistency() -> None:
     """Test that estimate_tokens is consistent."""
     text = "The quick brown fox"
@@ -179,6 +204,7 @@ def test_estimate_tokens_consistency() -> None:
     assert tokens1 == tokens2
 
 
+@pytest.mark.us_1092
 def test_no_trimming_for_small_story() -> None:
     """Test that minimal stories are never trimmed."""
     story = {
@@ -193,6 +219,7 @@ def test_no_trimming_for_small_story() -> None:
     assert "_context_trimmed" not in result or result["_context_trimmed"] is False
 
 
+@pytest.mark.us_1092
 def test_guard_with_all_field_types() -> None:
     """Test guard with various story field types."""
     story = {
