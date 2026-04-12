@@ -2297,7 +2297,8 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-12T00:37:16Z"
     },
     {
       "id": "US-1241",
@@ -2523,69 +2524,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet"
-    },
-    {
-      "id": "US-1253",
-      "title": "Phase G: Generate CHANGELOG.md from Story Commits Using git-cliff",
-      "priority": "medium",
-      "description": "Implement Phase G to auto-generate CHANGELOG.md from git commits associated with completed stories, using git-cliff for structured parsing. Groups commits by story ID (US-NNN format) and iteration, creating a human-readable changelog of features and fixes per iteration.",
-      "acceptanceCriteria": [
-        "Create lib/phases/phase_g.sh orchestrating git-cliff invocation with .cliff.toml config",
-        "CHANGELOG.md generated in repository root with sections per iteration, commits grouped by story ID",
-        "Each changelog entry includes story title (extracted from prd.json) and associated commit messages"
-      ],
-      "technicalNotes": [
-        "File to create: lib/phases/phase_g.sh (phase orchestration stub to invoke git-cliff binary and handle CHANGELOG.md output)",
-        "File to create: .cliff.toml (git-cliff config grouping commits by [Conventional Commits] footer 'Story: US-NNN')",
-        "File to create: tests/test_phase_g_changelog.bats (test git-cliff config parsing, verify CHANGELOG.md structure and story grouping)",
-        "Test command: tests/bats-core/bin/bats tests/test_phase_g_changelog.bats"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1254",
-      "title": "Dashboard API: GET /api/dashboard/throughput (Stories Completed Per Hour)",
-      "priority": "medium",
-      "description": "Add REST endpoint to dashboard API that aggregates completed story counts from results.tsv by hour, enabling real-time throughput visualization. Returns hourly time series for the current iteration to track how many stories complete per hour.",
-      "acceptanceCriteria": [
-        "GET /api/dashboard/throughput returns JSON: [{hour: '2026-04-05T14:00', count: 3, stories: ['US-100', 'US-101']}, ...] for all hours in current iteration",
-        "Endpoint filters results.tsv to only stories with status='passed' in current iteration (extracted from .spiral/_checkpoint.json)",
-        "Endpoint caches results for 5 seconds to avoid repeated file I/O"
-      ],
-      "technicalNotes": [
-        "File to create: lib/dashboard_api/throughput.py (parse results.tsv, group by completion hour, aggregate counts)",
-        "File to edit: dashboard/app.py (add Flask/FastAPI GET /api/dashboard/throughput route calling throughput.aggregate())",
-        "File to create: tests/test_dashboard_throughput_api.py (test hour parsing, filtering by iteration, caching behavior)",
-        "Test command: uv run pytest tests/test_dashboard_throughput_api.py::test_hourly_aggregation -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1255",
-      "title": "[Multi-Repo] Validate Federated Story IDs Match Sub-Project Namespace Prefixes",
-      "priority": "medium",
-      "description": "Extend federated PRD validator to enforce story ID naming convention: each story in repos/PROJECT-X/ must have ID starting with 'PROJECT-X-' (derived from folder name). Reports mismatches with expected prefix and remediation guidance.",
-      "acceptanceCriteria": [
-        "CLI spiral validate-federated --namespace checks all story IDs match their sub-project folder prefix (e.g., repos/makan/ requires MAKAN-* IDs)",
-        "Error output lists each mismatch: 'repos/makan/US-100: expected MAKAN-*, got US-100' with line number in prd.json",
-        "Exit code 1 if any mismatches found; 0 if all stories pass namespace validation"
-      ],
-      "technicalNotes": [
-        "File to create: lib/federated/namespace_validator.py (scan repos/ directories, extract prefixes, validate each story ID)",
-        "File to edit: lib/federated/__init__.py (add --namespace flag to validate-federated subcommand, route to namespace_validator.validate())",
-        "File to create: tests/test_federated_namespace_validation.py (test valid prefixes, invalid/mixed prefixes, missing repos/ folder)",
-        "Test command: uv run pytest tests/test_federated_namespace_validation.py::test_story_id_mismatch_detection -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
     }
   ]
 }

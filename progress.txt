@@ -1551,3 +1551,36 @@ Here is the technical brief for implementing the regression test:
 ## Iteration 2 - Sun, Apr 12, 2026  8:32:37 AM
 Completed: [Regression Test] Derive cross-iteration story velocity model from results.tsv to improve cost estim (ID: US-1239) in 10m
 
+
+## Pre-analysis for US-1240 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the regression test for story US-1240.
+
+***
+
+### **Technical Brief: US-1240 - `prd.json` Transaction Journal Regression Test**
+
+**1. Python Files to Modify:**
+*   Create a new test file, likely at `tests/regression/test_us1088_journal_resilience.py`.
+*   This test will import and exercise logic from `lib/resilience/txn_journal.py` and the application's startup validation routine (likely found in `main.py` or a related module) that checks the journal against git history.
+
+**2. Involved Frappe Components:**
+*   This is not a Frappe user story. The components are part of a custom Python application.
+*   **Core Components:** The `prd.json` file, the transaction journal log, the project's `git` commit history, and the startup verification logic ("Phase C").
+
+**3. Recommended Implementation Approach:**
+*   Use `pytest` fixtures to create a temporary, isolated test environment (includes a temp git repo, `prd.json`, a backup, and a journal file).
+*   **Test Case 1 (Crash Scenario):**
+    *   Programmatically add an entry to the journal file.
+    *   DO NOT commit the corresponding change to the temp `prd.json` in the git repo.
+    *   Run the startup verification function.
+    *   Assert that an orphaned entry is detected and the rollback function is called.
+    *   Assert that `prd.json` is restored from its backup.
+*   **Test Case 2 (Healthy Scenario):**
+    *   Add a journal entry and commit the `prd.json` change.
+    *   Run verification; assert that no rollback is triggered.
+
+**4. Edge Cases & Gotchas:**
+*   The test must be able to invoke the "Phase C" startup/verification logic in isolation.
+*   State management is critical. Ensure file and git operations are fully sandboxed within the test's temporary directory to prevent side effects.
+*   The test setup must correctly stage a `prd.json` backup for the rollback mechanism to use.
+
