@@ -2804,12 +2804,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-fix",
-      "model": "haiku",
-      "_failureReason": "oversized_diff: produced 2159 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 2159 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ],
-      "last_attempted": "2026-04-12T07:26:38Z"
+      "model": "haiku"
     },
     {
       "id": "US-1271",
