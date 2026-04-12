@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AgentTelemetryTable, PhaseTimingBars, PhaseTimelineChart, StoriesListAccordion, RecentActivityFeed, CollapsibleSection, FailureRetryDashboard, StuckStoriesPanel } from './analytics';
+import { AgentTelemetryTable, PhaseTimingBars, PhaseTimelineChart, StoriesListAccordion, RecentActivityFeed, CollapsibleSection, FailureRetryDashboard, StuckStoriesPanel, CumulativeCostChart } from './analytics';
 import StoryDetailPanel, { type StoryForPanel, type StoryAttempt } from './StoryDetailPanel';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -65,6 +65,7 @@ interface AnalyticsData {
   storyDetails?: Record<string, StoryForPanel>;
   storyAttempts?: Record<string, StoryAttempt[]>;
   recentActivity?: Array<{ header: string; body: string }>;
+  cumulativeTrendData?: Array<{ iter: number; cumulativeCost: number; cumulativePassed: number }>;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,7 +111,7 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
     resourceUsage, bottlenecks, iterationVelocity, qualityScores, tokenForecast,
     epics, decomposition, failureReasons, resolvedFailures, latestScreenshot, prdVelocity,
     agentTelemetry, phaseTimings, storiesList, storyDetails, storyAttempts,
-    recentActivity = [] } = data;
+    recentActivity = [], cumulativeTrendData = [] } = data;
 
   const hasData = ov.totalAttempts > 0 || ov.passed > 0;
   if (!hasData) {
@@ -191,6 +192,11 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
       {/* ── TIER 2b: Phase Duration Timeline (bottleneck identification) ──── */}
       {phaseTimings.length > 0 && (
         <PhaseTimelineChart timings={phaseTimings} />
+      )}
+
+      {/* ── TIER 2c: Cumulative Cost & Stories Passed Trend Chart ────────── */}
+      {cumulativeTrendData.length > 0 && (
+        <CumulativeCostChart data={cumulativeTrendData} />
       )}
 
       {/* ── TIER 3: Collapsible sections ──────────────────────────────────── */}

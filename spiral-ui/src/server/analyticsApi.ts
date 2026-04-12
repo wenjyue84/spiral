@@ -297,6 +297,23 @@ export function handleAnalytics(root: string, res: ServerResponse): void {
         return { attempt: attempt + 1, total: rows.length, kept, successRate: rows.length > 0 ? Math.round((kept / rows.length) * 1000) / 10 : 0 };
       });
 
+    // ── 2c. Cumulative Cost & Stories Passed (US-1112) ──────────────────────
+    const cumulativeTrendData = [...byIter.entries()]
+      .sort(([a], [b]) => a - b)
+      .reduce((acc, [iter, rows]) => {
+        const cumulativeCost = (acc[acc.length - 1]?.cumulativeCost ?? 0) + rows.reduce((sum, r) => {
+          const tier = modelTier(r.model);
+          const rate = COST_PER_HOUR[tier] ?? 0.24;
+          return sum + (r.duration_sec / 3600) * rate;
+        }, 0);
+        const cumulativePassed = (acc[acc.length - 1]?.cumulativePassed ?? 0) + rows.filter(r => r.status === 'keep' || r.status === 'pass').length;
+        return [...acc, {
+          iter,
+          cumulativeCost: Math.round(cumulativeCost * 100) / 100,
+          cumulativePassed,
+        }];
+      }, [] as Array<{ iter: number; cumulativeCost: number; cumulativePassed: number }>);
+
     // ── 5. Resource Usage ─────────────────────────────────────────────────
     const resourceUsage = [...byModel.entries()].map(([model, rows]) => {
       const wallVals = rows.map(r => r.wall_seconds).filter(v => v > 0);
@@ -698,6 +715,7 @@ export function handleAnalytics(root: string, res: ServerResponse): void {
       insights, latestScreenshot, prdVelocity,
       agentTelemetry, phaseTimings, storiesList,
       storyDetails, storyAttempts, recentActivity,
+      cumulativeTrendData,
     }));
   } catch (e) {
     res.statusCode = 500;

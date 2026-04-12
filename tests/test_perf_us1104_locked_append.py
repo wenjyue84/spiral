@@ -60,9 +60,7 @@ def test_locked_append_no_degradation(tmp_path: Path) -> None:
     print(f"  Baseline (write 1): {baseline:.2f}ms  Max allowed: {threshold:.2f}ms")
 
     for idx, ms in enumerate(latencies[1:], start=2):
-        assert ms <= threshold, (
-            f"Write {idx} took {ms:.2f}ms, exceeds 120% of baseline ({threshold:.2f}ms)"
-        )
+        assert ms <= threshold, f"Write {idx} took {ms:.2f}ms, exceeds 120% of baseline ({threshold:.2f}ms)"
 
 
 @pytest.mark.us_1104

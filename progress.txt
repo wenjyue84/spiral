@@ -2323,3 +2323,37 @@ This brief outlines the implementation of a performance test for the file-lockin
 ### Gotchas
 - locked_append_jsonl is in lib/core/spiral_io.py (not lib/io_utils.py or lib/file_utils.py)
 - Test marker must be both in pyproject.toml AND as @pytest.mark.us_1104 decorators on each test
+## Iteration 2 - Sun, Apr 12, 2026  5:31:34 PM
+Completed: [Performance Test] File-locked spiral_events.jsonl writes to prevent corruption on Windows (ID: US-1247) in 3m
+
+
+## Pre-analysis for US-1248 (Gemini 2.5 Pro)
+This user story is for a Python/React web application, not a Frappe app as mentioned in the prompt. The task is to create a Python-based end-to-end test for a new analytics chart.
+
+**Technical Brief for Claude**
+
+**1. Python Files to Modify:**
+*   **Create New File:** `tests/e2e/test_analytics_charts.py`.
+*   **Rationale:** Existing E2E tests are likely located under `tests/e2e/` and use `pytest` with the Playwright library. A new file is appropriate for this feature-specific test.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This is not a Frappe application.
+*   **Relevant Components:**
+    *   **Frontend:** `spiral-ui/src/components/AnalyticsTab.tsx` (displays the chart).
+    *   **Backend API:** `spiral-ui/src/server/analyticsApi.ts` (defines the data fetching logic). The test will validate the end result of this data being rendered.
+    *   **Data Source:** `results.tsv` file, which is processed by a Python backend script to generate the chart data.
+
+**3. Recommended Implementation Approach:**
+*   Use `pytest` and the `playwright` library for Python.
+*   Define a new test function, e.g., `test_cumulative_cost_story_trend_chart_visibility`.
+*   **Test Steps:**
+    1.  Use `page.goto()` to navigate to the analytics dashboard URL.
+    2.  Use `page.wait_for_selector()` or `expect(locator).to_be_visible()` to ensure the chart's parent container has rendered.
+    3.  Assert the presence of key chart elements like the SVG container, axis labels ("Iteration", "Cumulative API Cost ($)", "Cumulative Stories Passed"), and the chart title.
+    4.  Do *not* assert on specific SVG path data as it is brittle. Focus on the chart's existence and its structural components.
+
+**4. Edge Cases & Gotchas:**
+*   **Asynchronous Loading:** The chart data is fetched and rendered asynchronously. Use explicit waits for all elements; do not rely on fixed delays.
+*   **No Data State:** The test should handle the case where `results.tsv` might be empty. Assert that a "No data available" message appears instead of the chart.
+*   **Test Data Dependency:** The test will rely on a pre-existing `results.tsv` file. For CI/CD, ensure a consistent fixture file is used to make tests deterministic.
+*   **Selector Brittle-ness:** Use stable, test-specific selectors (e.g., `data-testid="cost-trend-chart"`) if possible, rather than CSS classes that might change.

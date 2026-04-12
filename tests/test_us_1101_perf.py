@@ -203,7 +203,7 @@ class TestBatchEnrichmentPerformance:
         if baseline is not None:
             baseline_efficiency = baseline.get("efficiency_score", 0)
             if baseline_efficiency > 0:
-                degradation_pct = ((baseline_efficiency - efficiency_score) / baseline_efficiency * 100)
+                degradation_pct = (baseline_efficiency - efficiency_score) / baseline_efficiency * 100
             else:
                 degradation_pct = 0.0
             print(f"Previous baseline:          {baseline_efficiency:8.1f}%")
@@ -243,10 +243,10 @@ class TestBatchEnrichmentPerformance:
         AC: Call reduction = (N - ceil(N/batch_size)) / N >= 80% for batch_size=5.
         """
         test_cases = [
-            (10, 5, 2),   # 10 stories, batch 5 = 2 calls (vs 10)
-            (20, 5, 4),   # 20 stories, batch 5 = 4 calls (vs 20)
+            (10, 5, 2),  # 10 stories, batch 5 = 2 calls (vs 10)
+            (20, 5, 4),  # 20 stories, batch 5 = 4 calls (vs 20)
             (20, 10, 2),  # 20 stories, batch 10 = 2 calls (vs 20)
-            (15, 3, 5),   # 15 stories, batch 3 = 5 calls (vs 15)
+            (15, 3, 5),  # 15 stories, batch 3 = 5 calls (vs 15)
         ]
 
         for num_stories, batch_size, expected_batch_calls in test_cases:
@@ -257,7 +257,7 @@ class TestBatchEnrichmentPerformance:
                 """Mock batch Claude call."""
                 call_count[0] += 1
                 story_count = min(batch_size, prompt.count('"title":'))
-                return _create_mock_batch_response(stories[: story_count])
+                return _create_mock_batch_response(stories[:story_count])
 
             with patch("lib.research.enrich_stories.call_claude", side_effect=mock_batch_call):
                 # Simulate batching
