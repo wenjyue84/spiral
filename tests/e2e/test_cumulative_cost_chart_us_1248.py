@@ -157,9 +157,7 @@ def _write_cumulative_trend_results_tsv(path: Path) -> None:
         )
 
     with open(path, "w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(
-            fh, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore"
-        )
+        writer = csv.DictWriter(fh, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore")
         writer.writeheader()
         for row in rows:
             full_row = {f: "" for f in fieldnames}
@@ -209,28 +207,21 @@ class TestCumulativeCostChart:
 
                     if response.status == 404:
                         logger.warning(
-                            "Analytics endpoint not available (404). "
-                            "This is expected if dashboard is not running."
+                            "Analytics endpoint not available (404). This is expected if dashboard is not running."
                         )
                         await browser.close()
                         pytest.skip("Analytics endpoint not available")
 
-                    assert (
-                        response.status == 200
-                    ), f"Expected 200, got {response.status}"
+                    assert response.status == 200, f"Expected 200, got {response.status}"
 
                     data = await response.json()
                     logger.info(f"Analytics response keys: {list(data.keys())}")
 
                     # Verify cumulativeTrendData is in response
-                    assert "cumulativeTrendData" in data, (
-                        "Response should contain cumulativeTrendData field"
-                    )
+                    assert "cumulativeTrendData" in data, "Response should contain cumulativeTrendData field"
 
                     trend_data = data["cumulativeTrendData"]
-                    assert isinstance(trend_data, list), (
-                        "cumulativeTrendData should be an array"
-                    )
+                    assert isinstance(trend_data, list), "cumulativeTrendData should be an array"
 
                     logger.info(f"Cumulative trend data points: {len(trend_data)}")
 
@@ -238,24 +229,16 @@ class TestCumulativeCostChart:
                         # Verify structure of each data point
                         for point in trend_data:
                             assert "iter" in point, "Each point should have iter"
-                            assert (
-                                "cumulativeCost" in point
-                            ), "Each point should have cumulativeCost"
-                            assert (
-                                "cumulativePassed" in point
-                            ), "Each point should have cumulativePassed"
+                            assert "cumulativeCost" in point, "Each point should have cumulativeCost"
+                            assert "cumulativePassed" in point, "Each point should have cumulativePassed"
 
                         # Verify monotonic increase
                         costs = [p["cumulativeCost"] for p in trend_data]
                         passed = [p["cumulativePassed"] for p in trend_data]
 
                         for i in range(1, len(costs)):
-                            assert (
-                                costs[i] >= costs[i - 1]
-                            ), f"Cumulative cost should be monotonic, got {costs}"
-                            assert (
-                                passed[i] >= passed[i - 1]
-                            ), f"Cumulative passed should be monotonic, got {passed}"
+                            assert costs[i] >= costs[i - 1], f"Cumulative cost should be monotonic, got {costs}"
+                            assert passed[i] >= passed[i - 1], f"Cumulative passed should be monotonic, got {passed}"
 
                         logger.info(f"✓ Cumulative costs: {costs}")
                         logger.info(f"✓ Cumulative passed: {passed}")
@@ -294,32 +277,22 @@ class TestCumulativeCostChart:
                     pytest.skip("Dashboard not available")
 
                 # Look for the cumulative cost chart
-                chart_title = await page.query_selector(
-                    "text=/Cumulative Cost.*Stories Passed/i"
-                )
+                chart_title = await page.query_selector("text=/Cumulative Cost.*Stories Passed/i")
 
                 if chart_title is None:
-                    logger.info(
-                        "Cumulative chart not visible — this is valid if no trend data exists"
-                    )
+                    logger.info("Cumulative chart not visible — this is valid if no trend data exists")
                     await browser.close()
                     return
 
                 logger.info("✓ Cumulative cost chart title is visible")
 
                 # Find the chart container (likely a div with SVG)
-                chart_container = await page.query_selector(
-                    "div:has(> svg):has-text('Cumulative Cost')"
-                )
+                chart_container = await page.query_selector("div:has(> svg):has-text('Cumulative Cost')")
                 if chart_container is None:
                     # Try alternative selector
-                    chart_container = await page.query_selector(
-                        "div:has(> svg)"
-                    )
+                    chart_container = await page.query_selector("div:has(> svg)")
 
-                assert chart_container is not None, (
-                    "Chart container should exist near the title"
-                )
+                assert chart_container is not None, "Chart container should exist near the title"
 
                 # Verify SVG is present
                 svg_elem = await chart_container.query_selector("svg")
@@ -328,12 +301,8 @@ class TestCumulativeCostChart:
                 logger.info("✓ Chart SVG element is present")
 
                 # Verify legend is visible (should mention both metrics)
-                legend_cost = await page.query_selector(
-                    "text=/Cumulative Cost.*\\$.*cost/i"
-                )
-                legend_passed = await page.query_selector(
-                    "text=/Cumulative.*Passed|passed/i"
-                )
+                legend_cost = await page.query_selector("text=/Cumulative Cost.*\\$.*cost/i")
+                legend_passed = await page.query_selector("text=/Cumulative.*Passed|passed/i")
 
                 if legend_cost is not None:
                     logger.info("✓ Cost legend is visible")
@@ -345,9 +314,7 @@ class TestCumulativeCostChart:
                 assert "iter" in axis_text.lower() or "iteration" in axis_text.lower(), (
                     "Chart should have iteration axis labels"
                 )
-                assert "$" in axis_text or "cost" in axis_text.lower(), (
-                    "Chart should label cost axis"
-                )
+                assert "$" in axis_text or "cost" in axis_text.lower(), "Chart should label cost axis"
 
                 logger.info("✓ Axis labels are visible in chart")
 
@@ -382,9 +349,7 @@ class TestCumulativeCostChart:
                     pytest.skip("Dashboard not available")
 
                 # Find the chart SVG
-                chart_svg = await page.query_selector(
-                    "div:has-text('Cumulative Cost') svg"
-                )
+                chart_svg = await page.query_selector("div:has-text('Cumulative Cost') svg")
 
                 if chart_svg is None:
                     logger.info("No cumulative chart found on dashboard")
@@ -397,18 +362,14 @@ class TestCumulativeCostChart:
 
                 # Each iteration should have 2 circles (cost + passed)
                 # Minimum: 2 iterations with 4 circles
-                assert len(circles) >= 2, (
-                    "Chart should have at least 2 data points"
-                )
+                assert len(circles) >= 2, "Chart should have at least 2 data points"
 
                 # Verify lines are present (path elements)
                 paths = await chart_svg.query_selector_all("path[stroke]")
                 logger.info(f"Found {len(paths)} path elements (lines)")
 
                 # Should have at least 2 lines (cost + passed)
-                assert len(paths) >= 2, (
-                    "Chart should have at least 2 data lines (cost and passed)"
-                )
+                assert len(paths) >= 2, "Chart should have at least 2 data lines (cost and passed)"
 
                 # Verify colors are different (cost=emerald, passed=violet)
                 colors = []
@@ -419,9 +380,7 @@ class TestCumulativeCostChart:
 
                 # Check for at least 2 different colors
                 unique_colors = set(filter(None, colors))
-                assert len(unique_colors) >= 1, (
-                    "Lines should have stroke colors defined"
-                )
+                assert len(unique_colors) >= 1, "Lines should have stroke colors defined"
 
                 logger.info("✓ Chart has multiple data points and connecting lines")
 
@@ -480,27 +439,21 @@ class TestCumulativeCostChart:
                     passed = point["cumulativePassed"]
                     iter_num = point["iter"]
 
-                    assert (
-                        cost >= 0
-                    ), f"Iteration {iter_num}: cost should be non-negative, got {cost}"
-                    assert (
-                        passed >= 0
-                    ), f"Iteration {iter_num}: passed should be non-negative, got {passed}"
+                    assert cost >= 0, f"Iteration {iter_num}: cost should be non-negative, got {cost}"
+                    assert passed >= 0, f"Iteration {iter_num}: passed should be non-negative, got {passed}"
 
                     if i > 0:
                         prev_cost = trend[i - 1]["cumulativeCost"]
                         prev_passed = trend[i - 1]["cumulativePassed"]
 
-                        assert (
-                            cost >= prev_cost
-                        ), f"Cost decreased from iter {trend[i-1]['iter']} to {iter_num}: {prev_cost} -> {cost}"
-                        assert (
-                            passed >= prev_passed
-                        ), f"Passed decreased from iter {trend[i-1]['iter']} to {iter_num}: {prev_passed} -> {passed}"
+                        assert cost >= prev_cost, (
+                            f"Cost decreased from iter {trend[i - 1]['iter']} to {iter_num}: {prev_cost} -> {cost}"
+                        )
+                        assert passed >= prev_passed, (
+                            f"Passed decreased from iter {trend[i - 1]['iter']} to {iter_num}: {prev_passed} -> {passed}"
+                        )
 
-                logger.info(
-                    f"✓ All cumulative values are monotonically non-decreasing across {len(trend)} iterations"
-                )
+                logger.info(f"✓ All cumulative values are monotonically non-decreasing across {len(trend)} iterations")
 
             finally:
                 await page.close()

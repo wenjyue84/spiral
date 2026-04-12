@@ -2445,4 +2445,3 @@ This user story is for a Python/React web application, not a Frappe app as menti
 *   **No Data State:** The test should handle the case where `results.tsv` might be empty. Assert that a "No data available" message appears instead of the chart.
 *   **Test Data Dependency:** The test will rely on a pre-existing `results.tsv` file. For CI/CD, ensure a consistent fixture file is used to make tests deterministic.
 *   **Selector Brittle-ness:** Use stable, test-specific selectors (e.g., `data-testid="cost-trend-chart"`) if possible, rather than CSS classes that might change.
-

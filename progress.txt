@@ -1,0 +1,27 @@
+
+## Pre-analysis for US-1249 (Gemini 2.5 Pro)
+**Correction:** This story is for a frontend E2E test, not a Frappe/Python backend task. The implementation will be in TypeScript/Python using Playwright or a similar E2E testing framework, targeting the existing React UI.
+
+**Technical Brief for US-1249**
+
+**Objective:** Create a Playwright E2E test to validate the filter controls on the analytics retry history dashboard.
+
+**Target Components (for testing):**
+*   `spiral-ui/src/components/analytics/FailureRetryDashboard.tsx`
+*   `spiral-ui/src/components/AnalyticsTab.tsx`
+
+**Test File to Create:**
+*   A new test file, likely in `tests/e2e/` or `tests/playwright/`, named e.g., `test_retry_history_filters.py`.
+
+**Implementation Approach:**
+1.  Navigate to the analytics page containing the retry history table.
+2.  Locate the three new filter dropdowns: "Failure Type," "Model Tier," and "Outcome."
+3.  Write tests to select an option in each dropdown and assert the table content updates correctly.
+4.  Test combinations of filters to ensure they work together.
+5.  Verify the "empty state" message appears when filters result in no matching rows.
+6.  Confirm the existing "Most Recent" / "Most Retried" sort toggle continues to function alongside the filters.
+
+**Gotchas & Edge Cases:**
+*   **Asynchronicity:** Table updates are asynchronous. Use explicit waits (e.g., `expect(locator).to_be_visible()`) after applying filters to prevent flaky tests.
+*   **Test Data:** The test environment may need seed data to guarantee all filter conditions can be reliably triggered and asserted.
+*   **Selectors:** Use stable, test-specific selectors (like `data-testid`) for filters and the results table to avoid brittleness.
