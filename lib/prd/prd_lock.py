@@ -31,8 +31,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
-    import fcntl
-    import msvcrt
+    pass
 
 _T = TypeVar("_T")
 

@@ -54,7 +54,7 @@ Return ONLY valid JSON (no markdown, no explanation):
 }}"""
 
     try:
-        import requests  # type: ignore[import-untyped]
+        import requests
 
         response = requests.post(
             "https://api.anthropic.com/v1/messages",

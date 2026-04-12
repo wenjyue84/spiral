@@ -19,7 +19,8 @@ else:
     import fcntl
 
 if TYPE_CHECKING:
-    import msvcrt  # noqa: F401 — stub for type checking on Linux
+    import fcntl as fcntl  # noqa: F401 — stub for type checking on Windows
+    import msvcrt as msvcrt  # noqa: F401 — stub for type checking on Linux
 
 
 def locked_append_tsv(tsv_file: str, row_data: str, timeout: float = 10.0) -> None:
@@ -76,7 +77,7 @@ def _posix_locked_append(tsv_file: str, row_data: str, lock_file: str, timeout: 
 
         while time.time() - start_time < timeout:
             try:
-                fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)  # type: ignore[attr-defined]
                 lock_acquired = True
                 break
             except (IOError, OSError):
@@ -98,7 +99,7 @@ def _posix_locked_append(tsv_file: str, row_data: str, lock_file: str, timeout: 
                 tsv_fh.write(f"{row_data}\n")
         finally:
             # Release lock
-            fcntl.flock(lock_fh.fileno(), fcntl.LOCK_UN)
+            fcntl.flock(lock_fh.fileno(), fcntl.LOCK_UN)  # type: ignore[attr-defined]
 
 
 def _nt_locked_append(tsv_file: str, row_data: str, lock_file: str, timeout: float) -> None:

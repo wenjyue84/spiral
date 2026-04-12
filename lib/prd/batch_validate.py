@@ -44,7 +44,7 @@ from typing import Any
 try:
     from anthropic import Anthropic
 except ImportError:
-    Anthropic = None  # type: ignore[misc,assignment]
+    Anthropic = None
 
 try:
     from llm_client import stream_completion

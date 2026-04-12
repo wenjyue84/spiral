@@ -4192,3 +4192,23 @@
 {"ts": "2026-04-12T04:28:31.190720+00:00", "type": "route_story_assigned", "story_id": "US-1270", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-04-12T04:28:31.191048+00:00", "type": "route_story_assigned", "story_id": "US-1271", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-04-12T04:28:31.191376+00:00", "type": "route_story_assigned", "story_id": "US-1272", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"timestamp": "2026-04-12T04:50:34.565267+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Phase G: Generate API Documentation from New Code Using Pdoc", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-04-12T04:50:34.565688+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Dashboard: Worker Efficiency Scorecard - Cost Per Passing Story", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-04-12T04:50:34.566041+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Federated Phase I: File Ownership Validator - Cross-Project Overwrite Prevention", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"ts": "2026-04-12T04:52:47.954651+00:00", "type": "route_story_assigned", "story_id": "US-1244", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.955112+00:00", "type": "route_story_assigned", "story_id": "US-1245", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.955472+00:00", "type": "route_story_assigned", "story_id": "US-1246", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.955838+00:00", "type": "route_story_assigned", "story_id": "US-1247", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.956190+00:00", "type": "route_story_assigned", "story_id": "US-1248", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.956555+00:00", "type": "route_story_assigned", "story_id": "US-1249", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.956900+00:00", "type": "route_story_assigned", "story_id": "US-1253", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.957236+00:00", "type": "route_story_assigned", "story_id": "US-1254", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.957570+00:00", "type": "route_story_assigned", "story_id": "US-1255", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.957910+00:00", "type": "route_story_assigned", "story_id": "US-1265", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.958251+00:00", "type": "route_story_assigned", "story_id": "US-1266", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.958584+00:00", "type": "route_story_assigned", "story_id": "US-1267", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.958930+00:00", "type": "route_story_assigned", "story_id": "US-1268", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.959264+00:00", "type": "route_story_assigned", "story_id": "US-1269", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.959595+00:00", "type": "route_story_assigned", "story_id": "US-1270", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.959930+00:00", "type": "route_story_assigned", "story_id": "US-1271", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-12T04:52:47.960262+00:00", "type": "route_story_assigned", "story_id": "US-1272", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}

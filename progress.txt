@@ -1993,3 +1993,45 @@ This user story focuses on improving Mypy type-checking compliance and resolving
 *   Verify `types-PyYAML` is added to the correct dependency group in `pyproject.toml` (e.g., `dev-dependencies`) to avoid adding it to production.
 *   When removing `unused-ignore` comments, be careful not to remove necessary ignores that might become active under different conditions. Only remove what the `mypy` report explicitly flags as unused.
 
+
+## Pre-analysis for US-1265 (Gemini 2.5 Pro)
+This user story focuses on improving Mypy type-checking compliance and resolving dependency issues. It does not appear to involve Frappe DocTypes or hooks, but rather targets the Python codebase directly.
+
+**1. Files to Modify:**
+*   `pyproject.toml`: To add `types-PyYAML` to the development dependencies.
+*   `lib/shared/locking.py`: This is the primary candidate file that uses the `msvcrt` module for file locking on Windows and needs platform-specific type checking adjustments.
+*   `lib/federated_schema_validator.py` and other files using `yaml`: These files will benefit from the `types-PyYAML` addition, resolving `import-untyped` errors. The developer should run `mypy` to find all affected files.
+
+**2. Frappe DocTypes/Hooks:**
+*   Based on the story's content, no Frappe DocTypes or `hooks.py` modifications are needed. The work is confined to Python scripts and project configuration.
+
+**3. Recommended Implementation Approach:**
+*   **msvcrt errors:** In `lib/shared/locking.py`, use platform-conditional ignores for the lines accessing `msvcrt.locking`, `msvcrt.LK_NBLCK`, and `msvcrt.LK_UNLCK`. The most precise fix is:
+    ```python
+    # lib/shared/locking.py
+    import sys
+
+    # ... existing code ...
+    if sys.platform == 'win32':
+        import msvcrt
+    # ... existing code ...
+        # Add platform-specific ignores where mypy reports attr-defined errors
+        msvcrt.locking(self.lock_file.fileno(), msvcrt.LK_NBLCK, 1)  # type: ignore[attr-defined]
+    ```
+    A more modern approach is to use `TYPE_CHECKING`:
+    ```python
+    # lib/shared/locking.py
+    from typing import TYPE_CHECKING
+
+    if TYPE_CHECKING and sys.platform == "win32":
+        import msvcrt
+    elif sys.platform == "win32":
+        import msvcrt
+    ```
+*   **YAML types:** In `pyproject.toml`, add `types-pyyaml` to the `[tool.uv.dev-dependencies]` section.
+*   **Unused ignores:** Run `uv run mypy lib/ --strict` and manually remove any warnings about "unused-ignore".
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the `msvcrt` fix does not alter runtime behavior on Windows. The type ignores are compile-time only and should be safe.
+*   Verify `types-PyYAML` is added to the correct dependency group in `pyproject.toml` (e.g., `dev-dependencies`) to avoid adding it to production.
+*   When removing `unused-ignore` comments, be careful not to remove necessary ignores that might become active under different conditions. Only remove what the `mypy` report explicitly flags as unused.
