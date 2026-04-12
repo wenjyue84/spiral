@@ -1,3 +1,41 @@
+## Iteration 14 - Sun, Apr 12, 2026
+Completed: [Regression Test] Failure pattern categorizer classifies Phase I errors for smarter retries (ID: US-1241) in ~8m
+
+### What was implemented
+- Enhanced existing test suite in `tests/test_failure_categorizer.py` to serve as regression test for US-1090
+- Added `@pytest.mark.us_1090` decorator to all test classes for pytest discovery via `-k us_1090` filter
+- TestCategorizeFailure: 15 existing tests covering all 8 error classification categories
+- TestCategorizeMessage: 4 new tests for `categorize_message()` single-message classification function
+- TestFailureCategorizerIntegration: 6 new integration tests simulating Phase I error scenarios
+
+### Quality checks passed
+- MyPy --strict: ✓ No issues found
+- Ruff lint: ✓ All checks passed
+- Ruff format: ✓ Applied formatting (multiline string concatenation)
+- Pytest: ✓ All 25 tests pass with 100% success rate
+- Pytest discovery: ✓ All tests discoverable via `pytest tests/ -k us_1090 -v`
+
+### Key findings
+- US-1090 failure categorizer fully implemented in `lib/failure_categorizer.py`:
+  - `categorize_failure(stderr, stdout)` classifies Phase I failures into 8 categories
+  - `categorize_message(message)` provides single-message classification for Phase L
+  - Internal functions: `_classify()`, `_extract_message()`, `_get_patterns_for_type()`
+- Categorizer patterns ordered by specificity (most specific checked first)
+- Message extraction: finds first line matching failure_type patterns, truncates to 200 chars
+- Priority handling: when multiple error patterns match, earlier pattern wins (by design)
+
+### Patterns discovered
+- Regression test markers (@pytest.mark.us_XXXX) enable targeted test discovery without new test files
+- Integration tests with realistic Phase I output (stderr/stdout) simulations are essential
+- Message extraction edge cases: empty input → "unknown error", long errors → truncated to 200 chars
+- Case-insensitive pattern matching ensures robustness across different error formats
+
+### Gotchas
+- Ruff formatter joins multiline string literals into single long lines; verify manually
+- pytest.mark.us_1090 generates PytestUnknownMarkWarning if not registered in pytest.ini (expected behavior, doesn't block tests)
+- Error classification priority matters: import errors checked before timeout/assertion to prevent misclassification
+- Failure message extraction tries pattern-specific lines first, falls back to first non-empty line
+
 ## Iteration 13 - Sun, Apr 12, 2026
 Completed: Create E2E Integration Test Harness and Fixtures for SPIRAL (ID: US-1250) in ~5m
 
