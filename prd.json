@@ -2717,8 +2717,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "test-fix",
-      "model": "haiku",
-      "last_attempted": "2026-04-12T05:48:54Z"
+      "model": "haiku"
     },
     {
       "id": "US-1267",

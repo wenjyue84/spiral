@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\prd\batch_validate.py
+# hypothesis_version: 6.151.9
+
+[1.5, 2.0, 5.0, 60.0, 3600.0, 256, '2023-06-01', '; ', 'GET', 'POST', 'S', 'SPIRAL_EVENTS_FILE', '_custom_id', '```', 'accepted', 'anthropic-version', 'application/json', 'build_batch_requests', 'content', 'content-type', 'custom_id', 'description', 'ended', 'max_tokens', 'message', 'messages', 'model', 'params', 'parse_batch_results', 'poll_batch', 'processing_status', 'reason', 'requests', 'result', 'role', 'submit_batch', 'succeeded', 'text', 'title', 'type', 'unknown', 'user', 'utf-8', 'validate_story_sync', 'x-api-key']

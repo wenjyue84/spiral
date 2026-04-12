@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\story_rewriter.py
+# hypothesis_version: 6.151.9
+
+[200, 500, '2023-06-01', '_rewritten', '```', 'acceptanceCriteria', 'anthropic-version', 'application/json', 'content', 'content-type', 'description', 'json', 'max_tokens', 'messages', 'model', 'role', 'text', 'title', 'user', 'x-api-key']

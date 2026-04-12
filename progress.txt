@@ -2069,3 +2069,37 @@ This user story does **not** involve the Frappe framework. The task is a pure Py
 *   **Complex Scopes:** The F821 errors in `research_cache.py` may be due to complex conditional imports or dynamic attribute assignments that Ruff cannot statically analyze. Careful inspection is needed.
 *   **Blind Except:** Address the single `BLE001` violation by changing `except:` to `except Exception:`.
 
+
+
+## Pre-analysis for US-1266 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent based on the user story provided.
+
+**Subject: Technical Brief for US-1266: Fix Ruff Linting Violations**
+
+This brief outlines the plan to resolve all F821, F841, and F401 Ruff linting errors across the `lib/` directory to ensure CI checks pass.
+
+**1. Key Python Files to Modify:**
+*   `lib/research/research_cache.py` (Highest priority, ~30 F821 errors)
+*   `lib/commands/validate_federated.py`
+*   `lib/forecast_ceiling.py`
+*   `lib/observability/auto_release.py`
+*   `lib/prd/merge_stories.py`
+*   `lib/prd/partition_prd.py`
+*   `lib/prd/validate_stories.py`
+*   Other files in `lib/` as identified by the `ruff check` command.
+
+**2. Frappe DocTypes/Hooks:**
+This user story does **not** involve the Frappe framework. The task is a pure Python linting fix within the specified project structure. No DocTypes or hooks are relevant.
+
+**3. Recommended Implementation Approach:**
+1.  Run `uv run ruff check lib/ tests/` to replicate the full error list.
+2.  For `F821 (undefined name)` errors, primarily in `research_cache.py`, add the missing imports or correct the variable scopes.
+3.  For `F841 (unused variable)` errors, completely remove the variable assignment line.
+4.  For `F401 (unused import)` errors, delete the entire import statement.
+5.  After changes, run `uv run pytest tests/ -v` to ensure no regressions were introduced.
+
+**4. Edge Cases & Gotchas:**
+*   **Regressions:** Removing a variable incorrectly identified as "unused" could introduce runtime errors. The `pytest` run is critical to prevent this.
+*   **Complex Scopes:** The F821 errors in `research_cache.py` may be due to complex conditional imports or dynamic attribute assignments that Ruff cannot statically analyze. Careful inspection is needed.
+*   **Blind Except:** Address the single `BLE001` violation by changing `except:` to `except Exception:`.
+
