@@ -854,7 +854,7 @@ jobs:
         run: |
           uvx --from cyclonedx-bom cyclonedx-py environment \
             --of JSON \
-            --outfile sbom.json
+            -o sbom.json
 
       - name: Install grype
         run: |

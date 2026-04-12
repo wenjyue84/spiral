@@ -2804,7 +2804,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-fix",
       "model": "haiku",
       "last_attempted": "2026-04-12T11:20:28Z"
@@ -2869,9 +2869,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-fix",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-12T11:31:22Z"
     },
     {
       "id": "US-1272",
