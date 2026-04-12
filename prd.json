@@ -2624,7 +2624,8 @@
       "last_attempted": "2026-04-12T11:04:38Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe namespace validation implementation is complete:\n- `lib/federated/namespace_validator.py` has the core validation logic with `validate_namespace_prefix()` function\n- `lib/commands/validate_federated.py` has the --namespace flag defined and routing logic\n- All 13 tests in `tests/test_federated_namespace_validation.py` pass, including the required `test_story_id_mismatch_detection`\n\nHowever, the **--namespace flag is not wired into main.py**, so the CLI command `spiral validate-federated --namespace` doesn't work.\n\n## Problem Identified\nThe `validate-federated` subparser in `main.py` (lines 3301-3322) is defined inline without the `--namespace` flag. It needs to be added to match the flag definition in `lib/commands/validate_federated.py`.\n\n## Planned Changes\n1. Add the `--namespace` argument to the `validate_fed_parser` in `main.py` \n2. Wire the namespace validation logic into the existing CLI handler\n3. Verify the CLI command works end-to-end\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"main.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 15\n}\n</plan>\n\nNow let me read the section in main.py that handles the validate-federated command:\nI need to clean up the test directory. Let me approve this with the security flag:\nPerfect! All acceptance criteria are verified:\n\n1. ✅ `spiral validate-federated --namespace` flag is implemented and visible in CLI help\n2. ✅ Error output shows correct format with file path, story ID, expected prefix, and line number\n3. ✅ Exit codes: 1 for failures, 0 for success\n4. ✅ The specific test `test_story_id_mismatch_detection` passes\n\nLet me now commit these changes:\nPerfect! Story **US-1255** is now complete and verified. Here's the summary:\n\n## Summary"
-      }
+      },
+      "_passedCommit": "0419d5e5c25caade83e9c103bdc45836116c11a1"
     },
     {
       "id": "US-1261",
@@ -2775,9 +2776,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-fix",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-12T11:13:18Z"
     },
     {
       "id": "US-1268",
