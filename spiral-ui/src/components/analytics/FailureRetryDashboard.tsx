@@ -146,19 +146,77 @@ export default function FailureRetryDashboard({ failureReasons, bottlenecks, mod
 
   // Retry history — all stories with attempts or retry counts, sorted by most recent first
   const [retrySort, setRetrySort] = useState<'recent' | 'count'>('recent');
-  const retriedStories = (storiesList ?? [])
-    .filter(s => s.attempts.length >= 1 || (retryCountLookup.get(s.id) ?? 0) >= 1)
-    .sort((a, b) => {
-      if (retrySort === 'recent') {
-        const aTs = a.attempts.length > 0 ? a.attempts[a.attempts.length - 1].timestamp : '';
-        const bTs = b.attempts.length > 0 ? b.attempts[b.attempts.length - 1].timestamp : '';
-        return bTs.localeCompare(aTs); // newest first
+  const [failureTypeFilter, setFailureTypeFilter] = useState<string>('all');
+  const [modelTierFilter, setModelTierFilter] = useState<string>('all');
+  const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
+
+  const baseRetriedStories = (storiesList ?? [])
+    .filter(s => s.attempts.length >= 1 || (retryCountLookup.get(s.id) ?? 0) >= 1);
+
+  // Extract unique filter values from retriedStories
+  const extractUniqueFailureTypes = (): string[] => {
+    const types = new Set<string>();
+    for (const story of baseRetriedStories) {
+      if (story._failureReason) types.add(story._failureReason);
+    }
+    return Array.from(types).sort();
+  };
+
+  const extractUniqueModelTiers = (): string[] => {
+    const tiers = new Set<string>();
+    for (const story of baseRetriedStories) {
+      for (const attempt of story.attempts) {
+        tiers.add(modelShort(attempt.model));
       }
-      // sort by count
-      const aMax = Math.max(a.attempts.length, retryCountLookup.get(a.id) ?? 0);
-      const bMax = Math.max(b.attempts.length, retryCountLookup.get(b.id) ?? 0);
-      return bMax - aMax;
-    });
+    }
+    return Array.from(tiers).sort();
+  };
+
+  const extractUniqueOutcomes = (): string[] => {
+    const outcomes = new Set<string>();
+    for (const story of baseRetriedStories) {
+      const finalOutcome = story.passes ? 'passed' : story._decomposed ? 'decomposed' : story._skipped ? 'skipped' : 'pending';
+      outcomes.add(finalOutcome);
+    }
+    return Array.from(outcomes).sort();
+  };
+
+  // Apply filters
+  const filteredRetryStories = baseRetriedStories.filter(story => {
+    const attempts = [...story.attempts].sort((a, b) => a.retryNum - b.retryNum);
+    const finalOutcome = story.passes ? 'passed' : story._decomposed ? 'decomposed' : story._skipped ? 'skipped' : attempts.length > 0 ? attempts[attempts.length - 1]?.status ?? 'pending' : 'pending';
+    const models = [...new Set(attempts.map(a => modelShort(a.model)))];
+    const failureReason = story._failureReason || '';
+
+    // Apply failure type filter
+    if (failureTypeFilter !== 'all' && failureReason !== failureTypeFilter) {
+      return false;
+    }
+
+    // Apply model tier filter
+    if (modelTierFilter !== 'all' && !models.includes(modelTierFilter)) {
+      return false;
+    }
+
+    // Apply outcome filter
+    if (outcomeFilter !== 'all' && finalOutcome !== outcomeFilter) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const retriedStories = filteredRetryStories.sort((a, b) => {
+    if (retrySort === 'recent') {
+      const aTs = a.attempts.length > 0 ? a.attempts[a.attempts.length - 1].timestamp : '';
+      const bTs = b.attempts.length > 0 ? b.attempts[b.attempts.length - 1].timestamp : '';
+      return bTs.localeCompare(aTs); // newest first
+    }
+    // sort by count
+    const aMax = Math.max(a.attempts.length, retryCountLookup.get(a.id) ?? 0);
+    const bMax = Math.max(b.attempts.length, retryCountLookup.get(b.id) ?? 0);
+    return bMax - aMax;
+  });
 
   return (
     <div className="space-y-3">
@@ -344,7 +402,7 @@ export default function FailureRetryDashboard({ failureReasons, bottlenecks, mod
       </div>
 
       {/* ── D. Detailed Retry History (expandable per-story timeline) ──────── */}
-      {retriedStories.length > 0 && (
+      {baseRetriedStories.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
@@ -355,144 +413,195 @@ export default function FailureRetryDashboard({ failureReasons, bottlenecks, mod
               <button
                 onClick={() => setRetrySort('recent')}
                 className={`text-[10px] px-2 py-0.5 rounded ${retrySort === 'recent' ? 'bg-violet-100 text-violet-700 font-medium' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                data-testid="sort-recent-btn"
               >Most Recent</button>
               <button
                 onClick={() => setRetrySort('count')}
                 className={`text-[10px] px-2 py-0.5 rounded ${retrySort === 'count' ? 'bg-violet-100 text-violet-700 font-medium' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                data-testid="sort-count-btn"
               >Most Retried</button>
             </div>
           </div>
-          <div className="rounded-lg border border-slate-200 overflow-hidden">
-            <table className="w-full text-[11px]">
-              <thead className="bg-slate-50 text-slate-500">
-                <tr>
-                  <th className="text-left px-2 py-1 w-6"></th>
-                  <th className="text-left px-2 py-1">Story</th>
-                  <th className="text-left px-2 py-1 hidden lg:table-cell">Title</th>
-                  <th className="text-center px-2 py-1">Attempts</th>
-                  <th className="text-left px-2 py-1">Model Path</th>
-                  <th className="text-left px-2 py-1">Outcome</th>
-                  <th className="text-right px-2 py-1">Total Time</th>
-                </tr>
-              </thead>
-              {retriedStories.slice(0, retryHistoryLimit).map(story => {
-                const isExpanded = expandedRetryStory === story.id;
-                const attempts = [...story.attempts].sort((a, b) => a.retryNum - b.retryNum);
-                const models = [...new Set(attempts.map(a => a.model))];
-                const totalDuration = attempts.reduce((s, a) => s + a.durationSec, 0);
-                const lastAttempt = attempts[attempts.length - 1];
-                const finalOutcome = story.passes ? 'passed' : story._decomposed ? 'decomposed' : story._skipped ? 'skipped' : lastAttempt?.status ?? 'pending';
-                const retryJsonCount = retryCountLookup.get(story.id) ?? 0;
-                const displayCount = Math.max(attempts.length, retryJsonCount);
 
-                return (
-                  <tbody key={story.id}>
-                      <tr
-                        className="hover:bg-slate-50 cursor-pointer border-b border-slate-100"
-                        onClick={() => setExpandedRetryStory(isExpanded ? null : story.id)}
-                      >
-                        <td className="px-2 py-1.5 text-slate-400 text-[10px]">{isExpanded ? '\u25BC' : '\u25B6'}</td>
-                        <td className="px-2 py-1.5">
-                          <div className="flex items-center gap-1">
-                            <span
-                              className="font-mono font-bold text-slate-700 cursor-pointer hover:text-violet-600"
-                              onClick={(e) => { e.stopPropagation(); onStoryClick(story.id); }}
-                            >{story.id}</span>
-                            <span className={`text-[9px] px-1 py-0.5 rounded ${story.priority === 'high' ? 'bg-red-100 text-red-600' : story.priority === 'medium' ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
-                              {story.priority || '?'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-2 py-1.5 text-slate-600 max-w-[180px] truncate hidden lg:table-cell" title={story.title}>{story.title}</td>
-                        <td className="px-2 py-1.5 text-center">
-                          <span className={displayCount >= 4 ? 'text-red-600 font-bold' : displayCount >= 3 ? 'text-amber-600 font-bold' : 'text-slate-600'}>
-                            {displayCount}
-                            {retryJsonCount > attempts.length && <span className="text-[9px] text-slate-400 font-normal ml-0.5">({attempts.length} logged)</span>}
-                          </span>
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <div className="flex items-center gap-0.5">
-                            {models.map((m, i) => (
-                              <span key={i} className={`text-[9px] px-1 py-0.5 rounded font-mono ${modelPathBadge(m)}`}>
-                                {modelPathLetter(m)}
+          {/* Filter Bar */}
+          <div className="mb-3 flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+            <span className="text-[10px] font-medium text-slate-500 uppercase">Filters:</span>
+            <select
+              value={failureTypeFilter}
+              onChange={(e) => setFailureTypeFilter(e.target.value)}
+              className="text-[10px] px-2 py-1 rounded border border-slate-300 bg-white hover:border-slate-400 cursor-pointer"
+              data-testid="failure-type-filter"
+            >
+              <option value="all">All Failures</option>
+              {extractUniqueFailureTypes().map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+
+            <select
+              value={modelTierFilter}
+              onChange={(e) => setModelTierFilter(e.target.value)}
+              className="text-[10px] px-2 py-1 rounded border border-slate-300 bg-white hover:border-slate-400 cursor-pointer"
+              data-testid="model-tier-filter"
+            >
+              <option value="all">All Models</option>
+              {extractUniqueModelTiers().map(tier => (
+                <option key={tier} value={tier}>{tier}</option>
+              ))}
+            </select>
+
+            <select
+              value={outcomeFilter}
+              onChange={(e) => setOutcomeFilter(e.target.value)}
+              className="text-[10px] px-2 py-1 rounded border border-slate-300 bg-white hover:border-slate-400 cursor-pointer"
+              data-testid="outcome-filter"
+            >
+              <option value="all">All Outcomes</option>
+              {extractUniqueOutcomes().map(outcome => (
+                <option key={outcome} value={outcome}>{outcome}</option>
+              ))}
+            </select>
+          </div>
+
+          {retriedStories.length === 0 ? (
+            <div className="p-4 text-center text-sm text-slate-500 bg-slate-50 rounded-lg border border-slate-200" data-testid="empty-state-message">
+              No stories match the selected filters
+            </div>
+          ) : (
+            <>
+              <div className="rounded-lg border border-slate-200 overflow-hidden">
+                <table className="w-full text-[11px]">
+                  <thead className="bg-slate-50 text-slate-500">
+                    <tr>
+                      <th className="text-left px-2 py-1 w-6"></th>
+                      <th className="text-left px-2 py-1">Story</th>
+                      <th className="text-left px-2 py-1 hidden lg:table-cell">Title</th>
+                      <th className="text-center px-2 py-1">Attempts</th>
+                      <th className="text-left px-2 py-1">Model Path</th>
+                      <th className="text-left px-2 py-1">Outcome</th>
+                      <th className="text-right px-2 py-1">Total Time</th>
+                    </tr>
+                  </thead>
+                  {retriedStories.slice(0, retryHistoryLimit).map(story => {
+                    const isExpanded = expandedRetryStory === story.id;
+                    const attempts = [...story.attempts].sort((a, b) => a.retryNum - b.retryNum);
+                    const models = [...new Set(attempts.map(a => a.model))];
+                    const totalDuration = attempts.reduce((s, a) => s + a.durationSec, 0);
+                    const lastAttempt = attempts[attempts.length - 1];
+                    const finalOutcome = story.passes ? 'passed' : story._decomposed ? 'decomposed' : story._skipped ? 'skipped' : lastAttempt?.status ?? 'pending';
+                    const retryJsonCount = retryCountLookup.get(story.id) ?? 0;
+                    const displayCount = Math.max(attempts.length, retryJsonCount);
+
+                    return (
+                      <tbody key={story.id}>
+                          <tr
+                            className="hover:bg-slate-50 cursor-pointer border-b border-slate-100"
+                            onClick={() => setExpandedRetryStory(isExpanded ? null : story.id)}
+                          >
+                            <td className="px-2 py-1.5 text-slate-400 text-[10px]">{isExpanded ? '\u25BC' : '\u25B6'}</td>
+                            <td className="px-2 py-1.5">
+                              <div className="flex items-center gap-1">
+                                <span
+                                  className="font-mono font-bold text-slate-700 cursor-pointer hover:text-violet-600"
+                                  onClick={(e) => { e.stopPropagation(); onStoryClick(story.id); }}
+                                >{story.id}</span>
+                                <span className={`text-[9px] px-1 py-0.5 rounded ${story.priority === 'high' ? 'bg-red-100 text-red-600' : story.priority === 'medium' ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
+                                  {story.priority || '?'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-2 py-1.5 text-slate-600 max-w-[180px] truncate hidden lg:table-cell" title={story.title}>{story.title}</td>
+                            <td className="px-2 py-1.5 text-center">
+                              <span className={displayCount >= 4 ? 'text-red-600 font-bold' : displayCount >= 3 ? 'text-amber-600 font-bold' : 'text-slate-600'}>
+                                {displayCount}
+                                {retryJsonCount > attempts.length && <span className="text-[9px] text-slate-400 font-normal ml-0.5">({attempts.length} logged)</span>}
                               </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                            finalOutcome === 'passed' || finalOutcome === 'keep' ? 'bg-emerald-100 text-emerald-700' :
-                            finalOutcome === 'decomposed' ? 'bg-amber-100 text-amber-700' :
-                            finalOutcome === 'reject' ? 'bg-red-100 text-red-600' :
-                            'bg-slate-100 text-slate-500'
-                          }`}>
-                            {finalOutcome}
-                          </span>
-                        </td>
-                        <td className="px-2 py-1.5 text-right text-slate-500 font-mono">{fmtDuration(totalDuration)}</td>
-                      </tr>
-                      {isExpanded && (
-                        <tr>
-                          <td colSpan={7} className="px-0 py-0">
-                            <div className="bg-slate-50 border-t border-slate-200 px-4 py-2">
-                              <div className="text-[10px] text-slate-400 uppercase tracking-wide mb-1.5 font-medium">Attempt Timeline</div>
-                              <div className="space-y-0">
-                                {attempts.map((att, idx) => (
-                                  <div key={idx} className="flex items-center gap-3 py-1.5 border-b border-slate-100 last:border-0">
-                                    {/* Timeline dot */}
-                                    <div className="flex flex-col items-center w-4 shrink-0">
-                                      <div className={`w-2.5 h-2.5 rounded-full border-2 ${
-                                        att.status === 'keep' ? 'border-emerald-500 bg-emerald-100' : 'border-red-400 bg-red-100'
-                                      }`} />
-                                    </div>
-                                    {/* Attempt # */}
-                                    <span className="text-[10px] text-slate-400 w-8 shrink-0 font-mono">#{att.retryNum + 1}</span>
-                                    {/* Model badge */}
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono w-16 text-center shrink-0 ${modelBadgeClass(att.model)}`}>
-                                      {modelShort(att.model)}
-                                    </span>
-                                    {/* Status */}
-                                    <span className={`text-[10px] font-medium w-12 shrink-0 ${att.status === 'keep' ? 'text-emerald-600' : 'text-red-500'}`}>
-                                      {att.status}
-                                    </span>
-                                    {/* Duration */}
-                                    <span className="text-[10px] text-slate-500 font-mono w-14 shrink-0">{fmtDuration(att.durationSec)}</span>
-                                    {/* Tokens */}
-                                    {(att.inputTokens > 0 || att.outputTokens > 0) && (
-                                      <span className="text-[9px] text-slate-400 shrink-0">
-                                        {fmtTokens(att.inputTokens)}in / {fmtTokens(att.outputTokens)}out
-                                      </span>
-                                    )}
-                                    {/* Commit SHA */}
-                                    {att.commitSha && (
-                                      <span className="text-[9px] font-mono text-slate-400 shrink-0" title={att.commitSha}>{att.commitSha.slice(0, 7)}</span>
-                                    )}
-                                    {/* Timestamp */}
-                                    <span className="text-[9px] text-slate-400 ml-auto shrink-0">{fmtTimestamp(att.timestamp)}</span>
-                                  </div>
+                            </td>
+                            <td className="px-2 py-1.5">
+                              <div className="flex items-center gap-0.5">
+                                {models.map((m, i) => (
+                                  <span key={i} className={`text-[9px] px-1 py-0.5 rounded font-mono ${modelPathBadge(m)}`}>
+                                    {modelPathLetter(m)}
+                                  </span>
                                 ))}
                               </div>
-                              {story._failureReason && (
-                                <div className="mt-2 text-[10px] text-red-600 bg-red-50 rounded px-2 py-1.5 border border-red-100">
-                                  Last failure: {story._failureReason}
+                            </td>
+                            <td className="px-2 py-1.5">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                finalOutcome === 'passed' || finalOutcome === 'keep' ? 'bg-emerald-100 text-emerald-700' :
+                                finalOutcome === 'decomposed' ? 'bg-amber-100 text-amber-700' :
+                                finalOutcome === 'reject' ? 'bg-red-100 text-red-600' :
+                                'bg-slate-100 text-slate-500'
+                              }`}>
+                                {finalOutcome}
+                              </span>
+                            </td>
+                            <td className="px-2 py-1.5 text-right text-slate-500 font-mono">{fmtDuration(totalDuration)}</td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={7} className="px-0 py-0">
+                                <div className="bg-slate-50 border-t border-slate-200 px-4 py-2">
+                                  <div className="text-[10px] text-slate-400 uppercase tracking-wide mb-1.5 font-medium">Attempt Timeline</div>
+                                  <div className="space-y-0">
+                                    {attempts.map((att, idx) => (
+                                      <div key={idx} className="flex items-center gap-3 py-1.5 border-b border-slate-100 last:border-0">
+                                        {/* Timeline dot */}
+                                        <div className="flex flex-col items-center w-4 shrink-0">
+                                          <div className={`w-2.5 h-2.5 rounded-full border-2 ${
+                                            att.status === 'keep' ? 'border-emerald-500 bg-emerald-100' : 'border-red-400 bg-red-100'
+                                          }`} />
+                                        </div>
+                                        {/* Attempt # */}
+                                        <span className="text-[10px] text-slate-400 w-8 shrink-0 font-mono">#{att.retryNum + 1}</span>
+                                        {/* Model badge */}
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono w-16 text-center shrink-0 ${modelBadgeClass(att.model)}`}>
+                                          {modelShort(att.model)}
+                                        </span>
+                                        {/* Status */}
+                                        <span className={`text-[10px] font-medium w-12 shrink-0 ${att.status === 'keep' ? 'text-emerald-600' : 'text-red-500'}`}>
+                                          {att.status}
+                                        </span>
+                                        {/* Duration */}
+                                        <span className="text-[10px] text-slate-500 font-mono w-14 shrink-0">{fmtDuration(att.durationSec)}</span>
+                                        {/* Tokens */}
+                                        {(att.inputTokens > 0 || att.outputTokens > 0) && (
+                                          <span className="text-[9px] text-slate-400 shrink-0">
+                                            {fmtTokens(att.inputTokens)}in / {fmtTokens(att.outputTokens)}out
+                                          </span>
+                                        )}
+                                        {/* Commit SHA */}
+                                        {att.commitSha && (
+                                          <span className="text-[9px] font-mono text-slate-400 shrink-0" title={att.commitSha}>{att.commitSha.slice(0, 7)}</span>
+                                        )}
+                                        {/* Timestamp */}
+                                        <span className="text-[9px] text-slate-400 ml-auto shrink-0">{fmtTimestamp(att.timestamp)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {story._failureReason && (
+                                    <div className="mt-2 text-[10px] text-red-600 bg-red-50 rounded px-2 py-1.5 border border-red-100">
+                                      Last failure: {story._failureReason}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                  </tbody>
-                );
-              })}
-            </table>
-          </div>
-          {retriedStories.length > retryHistoryLimit && (
-            <button
-              onClick={() => setRetryHistoryLimit(l => l + 10)}
-              className="mt-1 text-[10px] text-violet-600 hover:text-violet-800"
-            >
-              Show more ({retriedStories.length - retryHistoryLimit} remaining)
-            </button>
+                              </td>
+                            </tr>
+                          )}
+                      </tbody>
+                    );
+                  })}
+                </table>
+              </div>
+              {retriedStories.length > retryHistoryLimit && (
+                <button
+                  onClick={() => setRetryHistoryLimit(l => l + 10)}
+                  className="mt-1 text-[10px] text-violet-600 hover:text-violet-800"
+                >
+                  Show more ({retriedStories.length - retryHistoryLimit} remaining)
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
