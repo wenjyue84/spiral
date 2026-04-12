@@ -1923,3 +1923,27 @@ Completed: Phase M: Wire federated_merge() and Add Multi-Project Fixture (ID: US
 ## Iteration 2 - Sun, Apr 12, 2026 12:20:16 PM
 Completed: Fix Mypy Errors: Missing Imports and Undefined Names in research_cache.py (ID: US-1263) in 9m
 
+## Iteration 3 - Sun, Apr 12, 2026 - Story US-1264
+Completed: Fix Mypy Errors: Undefined Names in validate_stories.py and merge_stories.py
+
+### What was implemented
+- Added `from datetime import datetime, timezone` to module-level imports in validate_stories.py
+- Added `locked_append_jsonl` to spiral_io import statement (line 30)
+- Removed duplicate `import datetime` from _write_batch_summary() function
+- Updated datetime references from `datetime.datetime.now(datetime.timezone.utc)` to `datetime.now(timezone.utc)` for consistency
+- Added `# type: ignore[import-untyped]` comments to yaml imports in both files (yaml module lacks type stubs)
+- Removed unused type: ignore comment from story_quality_scorer import
+
+### Quality checks passed
+- Mypy --strict: ✓ No issues found in lib/prd/validate_stories.py and lib/prd/merge_stories.py
+- Pytest: ✓ 96 tests passed (test_validate_stories.py and test_merge_stories.py)
+- Pre-commit hooks: ✓ No issues
+
+### Key findings
+- `locked_append_jsonl` was already defined in lib/core/spiral_io.py but not imported in validate_stories.py
+- The _log_ac_rejections() function needed module-level datetime imports for use at line 861
+- yaml imports are dynamically loaded in try-except blocks (for ImportError handling) so type: ignore[import-untyped] is appropriate
+- The unused type: ignore comment was likely left over from earlier refactoring
+
+### Gotchas
+- None; all acceptance criteria met on first implementation
