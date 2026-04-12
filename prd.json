@@ -2331,11 +2331,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe context overflow guard feature (US-1092) is already fully implemented in:\n- `lib/context/overflow_guard.py` — Core functions for token estimation, progressive trimming\n- `lib/context/apply_overflow_guard.py` — CLI wrapper to apply guard to prd.json stories\n- `tests/test_overflow_guard.py` — 11 comprehensive unit tests covering all core functionality\n\n## Problem Identified\n\nUS-1242 requires regression tests marked with `@pytest.mark.us_1092` that would reliably fail if the US-1092 feature (context overflow guard) were removed or broken. The existing tests cover the functionality but lack the pytest marker for regression test discovery and don't explicitly test that trimming **actually happens** when expected.\n\n## Planned Changes\n\n1. **Add `@pytest.mark.us_1092` decorator** to all existing tests in `tests/test_overflow_guard.py`\n2. **Enhance tests** to verify that trimming actually prevents overflow and that token budgets are enforced\n3. **Ensure tests would fail** if `guard_story_context()` was disabled, removed, or if trimming logic was broken\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_overflow_guard.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 30\n}\n</plan>\n\nNow let me execute the plan by adding the regression test markers:\nNow let's run the regression tests to verify they pass and work with the pytest marker:\nExcellent! All 11 tests pass. Now let's verify they can be discovered by the us_1092 marker:\nPerfect! Now let's verify the test discovery with the exact command from the story:\nGood! The tests pass. Let's run the full test suite to ensure no regressions:\nLet me verify the test file was correctly updated:\nPerfect! Now let me run the pre-commit checks before committing:\nPerfect! My changes pass the linter. Now let's commit:\nNow let's update prd.json to mark the story as complete:\nLet's verify the final state and confirm all tests pass:\nPerfect! Story US-1242 is complete. Here's the summary:\n\n## Summary"
-      },
-      "_passedCommit": "e7570b2e92e22d7ad639cadc9c76317d9509928e"
+      "model": "haiku"
     },
     {
       "id": "US-1243",
@@ -2352,11 +2348,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-12T01:26:12Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- US-1093 is fully implemented in `lib/routing/llm_router.py` with:\n  - `compute_calibration()` — computes cost-per-pass metrics from results.tsv grouped by (model, complexity)\n  - `save_calibration()` / `load_calibration()` — persist metrics to .spiral/routing_calibration.json\n  - `LlmRouter._find_best_tier_for_complexity()` — dynamically adjusts escalation thresholds based on calibration\n- Comprehensive test file already exists: `tests/test_routing_calibration.py` with 14 test methods covering all core observable behavior\n\n## Problem Identified\nThe test file lacks `@pytest.mark.us_1093` decorators, making it undiscoverable via the `-k us_1093` filter. Need to mark all test classes with the regression test marker.\n\n## Planned Changes\n- Add `@pytest.mark.us_1093` to 5 test classes in `tests/test_routing_calibration.py`:\n  - TestComputeCalibration (3 tests)\n  - TestLoadAndSaveCalibration (3 tests)\n  - TestCalibratedRouting (4 tests)\n  - TestCalibrationIntegration (3 tests)\n  - TestCalibrationEdgeCases (4 tests)\n- Verify tests are discoverable and all pass\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_routing_calibration.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 0\n}\n</plan>\n\nNow let me add the regression test markers:\nNow let me run the quality checks:\nPerfect! All quality checks pass. Now let me update prd.json and commit:\nPerfect! **US-1243 is complete.** Here's the summary:\n\n## Implementation Complete ✓"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1244",
@@ -2636,6 +2628,47 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1258",
+      "title": "[Integration Test] Phase A Suggest Excludes Completed Story Titles from Dedup Set",
+      "priority": "medium",
+      "description": "Verify Phase A suggest prompt injection skips completed stories during semantic dedup, preventing near-duplicate suggestions. Mock 3 completed stories, run Phase A, assert suggested stories have <85% similarity to completed titles.",
+      "acceptanceCriteria": [
+        "Phase A prompt includes completed story titles as exclusion hints (injected from prd.json with status >= 'V')",
+        "Semantic dedup comparison ignores rows where story phase >= 'V' (completed)",
+        "Test: run Phase A with 3 completed stories + 2 AI suggestions, verify suggestions don't match >85% to any completed title"
+      ],
+      "technicalNotes": [
+        "File to modify: lib/spiral/phase_a.py (inject completed_stories_summary into system prompt, ~8 lines)",
+        "File to create: tests/test_phase_a_completed_dedup.py (mock Phase A with completed prd.json state, ~70 lines)",
+        "Test command: uv run pytest tests/test_phase_a_completed_dedup.py::test_completed_stories_excluded_from_dedup -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1259",
+      "title": "spiral-ui: Add Phase Duration Timeline Chart for Bottleneck Identification",
+      "priority": "medium",
+      "description": "Visualize how long each SPIRAL phase takes across iterations. Bar chart shows duration (ms) per phase (A, R, T, S, E, M, X, G, I, V, C, L). Highlights slowest phase in red for bottleneck detection.",
+      "acceptanceCriteria": [
+        "Chart renders 12 bars (one per phase), labeled with phase letter, duration in milliseconds",
+        "Slowest phase bar highlighted in red; others in gray",
+        "Chart updates after Phase L completes (once per iteration), pulling from .spiral/_checkpoint.json timing data"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/PhaseTimelineChart.tsx (Recharts bar chart, ~100 lines)",
+        "File to create: spiral-ui/src/hooks/usePhaseTimings.ts (parse checkpoint.json, calculate deltas, ~30 lines)",
+        "File to modify: spiral.sh (emit phase-timings event after Phase L checkpoint write, ~3 lines)",
+        "Manual test: run SPIRAL iteration, navigate to dashboard, verify 12 bars render with correct labels and bottleneck highlight"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }

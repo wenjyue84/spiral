@@ -1814,3 +1814,31 @@ Completed: [Regression Test] Context window overflow guard trims prompts before 
 *   Consider testing for malformed `results.tsv` data (e.g., missing columns, non-numeric values) to ensure robust error handling.
 *   Guard against division-by-zero errors in the cost-per-pass calculation if a model has zero passes in the mock data.
 
+## Iteration 2 - Sun, Apr 12, 2026  9:34:19 AM
+Completed: [Regression Test] Model routing cost-per-win calibration from results.tsv history (ID: US-1243) in 5m
+
+
+## Pre-analysis for US-1244 (Gemini 2.5 Pro)
+**Subject:** Technical Brief for US-1244: Performance Benchmark for Worker Pool Pre-warming
+
+**Project Context Correction:** The user story pertains to the SPIRAL project, a Python/Shell application. It does not involve Frappe, DocTypes, or the `lhdn_payroll_integration` app.
+
+**1. Python Files for Implementation:**
+*   **Create New File:** `tests/performance/test_us1100_perf.py`. This is where the new benchmark test will live.
+*   **Reference Files:** `run_parallel_ralph.sh` (to understand worker invocation) and whichever Python script it calls that manages the worker pool logic implemented in US-1100.
+
+**2. Frappe DocTypes/Hooks Involved:**
+*   None. This is not a Frappe project.
+
+**3. Recommended Implementation Approach:**
+*   Utilize the `pytest-benchmark` library to create the performance test.
+*   Create a dedicated pytest fixture to handle the setup (starting the pre-warmed worker pool) and teardown (terminating the worker processes) for the test.
+*   The test function, e.g., `test_parallel_ralph_performance(benchmark)`, should execute a representative workload ("Phase I wave").
+*   Use `benchmark(run_workload_function)` to measure and record the execution time.
+*   Establish an initial baseline and configure `pytest-benchmark` with a threshold to fail the test if performance degrades by more than 20%, satisfying the acceptance criteria.
+
+**4. Edge Cases & Gotchas:**
+*   **Stateful Workers:** Ensure fixtures properly manage the lifecycle of worker processes to prevent leaks or interference between test runs.
+*   **Measurement Noise:** Run benchmarks in a stable environment. The test should measure the end-to-end time of a workload to accurately capture the impact of pre-warming.
+*   **Baseline Management:** The `pytest-benchmark` baseline file should be committed to the repository for consistent comparisons across different runs and machines.
+
