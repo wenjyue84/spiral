@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\complexity_trend.py
+# hypothesis_version: 6.151.9
+
+[0.0, 2.0, 40.0, '--format', '--history', '--output', '--phase', 'FILE', 'I', 'PHASE', 'TSV', '__main__', 'avg_retries', 'claude-haiku', 'claude-haiku-4-5', 'claude-opus', 'claude-opus-4-6', 'claude-sonnet', 'claude-sonnet-4-6', 'complexity-trend', 'csv', 'duration_s', 'duration_sec', 'duration_seconds', 'escalations', 'fmt', 'haiku', 'id', 'json', 'model', 'model_escalations', 'opus', 'p50_duration_seconds', 'phase', 'phase_avg_retries', 'replace', 'results.tsv', 'retries', 'retry_num', 'sonnet', 'stories', 'story_id', 'tokens_in', 'tokens_out', 'tokens_per_retry', 'total_escalations', 'utf-8', 'w']

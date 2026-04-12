@@ -50,6 +50,7 @@ markers = [
     "us_524: performance tests for Phase S story validation batch vs sequential throughput (US-1236)",
     "us_1088: regression tests for Phase I transaction journal for crash-safe prd.json writes (US-1088)",
     "us_1100: performance tests for worker pool pre-warming startup optimization (US-1100)",
+    "us_1102: regression tests for incremental Phase V test execution using --lf and changed-file detection (US-1102)",
 ]
 
 [tool.coverage.run]

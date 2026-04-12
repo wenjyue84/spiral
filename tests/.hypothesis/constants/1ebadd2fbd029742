@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\dead_feature_detector.py
+# hypothesis_version: 6.151.9
+
+['*', '+', '+++', '---', '--changed-files', '--exclude-dir=.git', '--include=*.py', '--repo-root', '--story-id', '-E', '-r', '.', '.py', 'HEAD', '__init__.py', '__main__', 'dead_features', 'definition', 'diff', 'file', 'git', 'grep', 'line', 'name', 'r', 'story_id', 'summary', 'test_', 'total_features', 'utf-8']

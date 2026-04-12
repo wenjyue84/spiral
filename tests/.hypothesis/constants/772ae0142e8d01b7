@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\quality\parse_test_output.py
+# hypothesis_version: 6.151.9
+
+['%Y%m%d-%H%M%S', '(\\d+)\\s+error', '(\\d+)\\s+failed', '(\\d+)\\s+passed', '(\\d+)\\s+skipped', '--exit-code', '--format', '--input', '--output-dir', '=+\\s*(.+?)\\s*=+', '======', 'FAIL', 'PASS', 'Z', '^\\s*not\\s+ok\\s+\\d+', '^\\s*ok\\s+\\d+', '__main__', 'auto', 'bats', 'error', 'errored', 'exit_code', 'failed', 'not ok', 'ok', 'passed', 'pytest', 'r', 'report.json', 'skipped', 'summary', 'test session starts', 'test-reports', 'timestamp', 'total', 'utf-8', 'vitest', 'w']

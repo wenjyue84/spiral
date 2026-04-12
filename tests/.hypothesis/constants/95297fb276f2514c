@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\commands\show_slowest_stories.py
+# hypothesis_version: 6.151.9
+
+[0.0, '-', 'duration_sec', 'durations', 'results.tsv', 'story_id', 'story_title', 'total_duration_sec', 'utf-8']

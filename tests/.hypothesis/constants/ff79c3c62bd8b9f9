@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\prd\archive_prd.py
+# hypothesis_version: 6.151.9
+
+['--archive', '--dry-run', '--prd', '?', '[DRY RUN] ', '__main__', '_decomposed', 'archivedStories', 'id', 'passes', 'prd-archive.json', 'prd.json', 'productName', 'r', 'store_true', 'title', 'userStories', 'utf-8']

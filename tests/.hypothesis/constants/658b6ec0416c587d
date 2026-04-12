@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\commands\archive_checkpoint.py
+# hypothesis_version: 6.151.9
+
+[1024, 65536, '%Y-%m-%dT%H:%M:%SZ', '*', '.spiral', '.spiral-workers', '.tmp.tar.gz', '_checkpoint.json', 'archive_size_mb', 'checksums', 'data', 'iteration', 'manifest.json', 'passes', 'passing_stories', 'prd.json', 'r:gz', 'rb', 'results.tsv', 'timestamp', 'total_stories', 'userStories', 'utf-8', 'w:gz']

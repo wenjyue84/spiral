@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\observability\timing_analyzer.py
+# hypothesis_version: 6.151.9
+
+[0.0, '       -', '+00:00', '-', '--events', '--format', 'Iteration', 'Z', '__main__', 'count', 'duration_s', 'end_ts', 'event', 'grid', 'is_outlier', 'iteration', 'json', 'mean', 'mean_s', 'outlier_count', 'outliers', 'phase', 'phase_end', 'phase_start', 'r', 'sigma', 'sigma_s', 'start_ts', 'stats', 'threshold', 'threshold_s', 'ts', 'utf-8']

@@ -2229,3 +2229,48 @@ Based on the user story JSON, here is a technical brief for the implementation t
     *   The performance baseline is hardware-dependent and should be generated on a consistent CI runner or reference machine.
     *   Ensure the test accurately captures the full process startup time, as this is the key metric for this story.
 
+## Iteration 1 - Sun, Apr 12, 2026  4:55:25 PM
+FAILED diff-guard: [Regression Test] Incremental test execution in Phase V using pytest --lf and changed-file detection (ID: US-1246) — 2422 lines > 800 limit — attempt 1/3
+
+
+## Pre-analysis for US-1246 (Gemini 2.5 Pro)
+Here is a technical brief for the Claude Code agent based on the provided user story.
+
+**Subject: Technical Brief for US-1246: Regression Test for Incremental Test Execution**
+
+### 1. Python Files to Modify
+*   **Create New Test File:** `tests/test_us1102_incremental_testing.py`. This file will contain the new regression test.
+*   **Likely Target for Logic:** The logic implemented in US-1102, which this story tests, is not related to Frappe. It's part of the Spiral project's own test execution pipeline. Based on the description, this logic is likely within a Python script in the `lib/` directory that orchestrates `pytest` runs, possibly named `lib/test_runner.py`, `lib/execute_tests.py`, or similar. This script is what the new regression test will be targeting.
+
+### 2. Frappe DocTypes and Hooks
+*   None. The user story pertains to the project's internal `pytest` execution strategy and does not involve any Frappe DocTypes, hooks, or server-side scripts. The mention of "lhdn_payroll_integration" appears to be incorrect context.
+
+### 3. Recommended Implementation Approach
+The goal is to test the test-runner's logic without actually running `git` or `pytest`.
+1.  **Use `unittest.mock`:** The test should heavily use `unittest.mock.patch` to mock external calls.
+2.  **Mock `subprocess.run`:** Patch the function responsible for shell commands (e.g., `subprocess.run`) to intercept and verify the exact `pytest` command being generated.
+3.  **Mock `git diff`:** The test runner likely calls `git diff` to get changed files. Mock this call to return predefined lists of changed file paths to simulate various scenarios.
+4.  **Simulate `pytest --lf`:** Mock the file system (`os.path.exists`) to make the runner believe a `.pytest_cache/v/cache/lastfailed` file exists, then assert that the generated command includes `--lf`.
+5.  **Test the "Nth Run" Safety Net:** Use `monkeypatch.setenv` to set `SPIRAL_FULL_TEST_EVERY_N`. The test should simulate multiple iterations (by calling the main runner function in a loop) and assert that a full test suite run is triggered on the correct iteration.
+
+### 4. Edge Cases and Gotchas
+*   **Stateful Logic:** The feature is stateful (depends on `git` state, `.pytest_cache`, and an iteration counter). Tests must carefully set up and tear down this mock state for each scenario to avoid test pollution.
+*   **Environment Variables:** The logic is configurable via environment variables. Ensure tests cover cases where the variable is set, not set, or set to an invalid value.
+*   **Command Parsing:** The logic for mapping changed source files to test files can be complex. The mock `git diff` output must be realistic enough to exercise this mapping correctly.
+
+
+## Iteration 2 - [Regression Test] Incremental test execution in Phase V (US-1246)
+
+### What was implemented
+- Created tests/test_us1102_incremental_testing.py (~70 lines, 5 tests)
+- Added @pytest.mark.us_1102 decorators so -k us_1102 matches via marker (not just name)
+- Registered us_1102 marker in tests/pyproject.toml
+- Tests cover: detect_changed_files (git diff call, error handling, timeout), convention mapping, map_changed_to_tests output contract
+
+### Patterns discovered
+- CRITICAL: pytest -k <marker> matches marker names, NOT substrings of filenames/function names. The file test_perf_us1100_prewarm.py works with -k us_1100 because functions have @pytest.mark.us_1100 decorators, not because "us1100" is in the filename
+- Always register markers in tests/pyproject.toml AND add @pytest.mark.X decorators to each test function
+
+### Gotchas
+- Attempt 1 produced 2422 lines — do NOT create large test files; 5 focused tests are enough for a regression
+- The 7 pre-existing collection errors (duckdb missing) are unrelated to this story

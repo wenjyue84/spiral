@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\story_complexity.py
+# hypothesis_version: 6.151.9
+
+[0.1, 0.2, 0.3, 0.4, 1.0, 3.0, 6.0, 9.0, 10.0, 200, '--prd', '--story-id', 'Path to prd.json', 'Story ID to score', '__main__', 'band', 'complexity_score', 'dependencies', 'description', 'filesTouch', 'high', 'id', 'low', 'medium', 'prd.json', 'retry_num', 'story_id', 'technicalHints', 'userStories', 'utf-8']
