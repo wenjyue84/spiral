@@ -334,19 +334,21 @@ jobs:
         run: |
           # List benchmark results to find the latest comparison
           if [ -d ".benchmarks" ]; then
-            echo "## Benchmark Results" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "## Benchmark Results"
+              echo ""
 
-            # Find all benchmark JSON files
-            for benchmark_file in .benchmarks/*.json; do
-              if [ -f "$benchmark_file" ]; then
-                echo "### $(basename "$benchmark_file")" >> "$GITHUB_STEP_SUMMARY"
-                echo '```' >> "$GITHUB_STEP_SUMMARY"
-                cat "$benchmark_file" >> "$GITHUB_STEP_SUMMARY"
-                echo '```' >> "$GITHUB_STEP_SUMMARY"
-                echo "" >> "$GITHUB_STEP_SUMMARY"
-              fi
-            done
+              # Find all benchmark JSON files
+              for benchmark_file in .benchmarks/*.json; do
+                if [ -f "$benchmark_file" ]; then
+                  echo "### $(basename "$benchmark_file")"
+                  echo '```'
+                  cat "$benchmark_file"
+                  echo '```'
+                  echo ""
+                fi
+              done
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No benchmark results found (.benchmarks/ directory not created)"
           fi
@@ -572,7 +574,7 @@ jobs:
       - name: Run semgrep and output SARIF
         run: |
           uvx semgrep --config=auto --sarif --output=semgrep.sarif . || \
-            printf '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{"tool":{"driver":{"name":"semgrep","rules":[]}},"results":[]}]}\n' \
+            printf "{\"version\":\"2.1.0\",\"\$schema\":\"https://json.schemastore.org/sarif-2.1.0.json\",\"runs\":[{\"tool\":{\"driver\":{\"name\":\"semgrep\",\"rules\":[]}},\"results\":[]}]}\n" \
               > semgrep.sarif
 
       - name: Validate shellcheck SARIF schema
@@ -817,7 +819,8 @@ jobs:
 
       - name: Run actionlint
         run: |
-          export PATH="$PATH:$(go env GOPATH)/bin"
+          PATH="$PATH:$(go env GOPATH)/bin"
+          export PATH
           actionlint -color .github/workflows/*.yml
 
   sbom:
