@@ -97,3 +97,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-12T04:10:39Z	45	1	US-1262	Phase M: Wire federated_merge() and Add Multi-Project Fixture	keep	322	haiku	0	022f5672bec061fd1eee3a1784ad33968cf34ad1	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-12T04:20:15Z	45	2	US-1263	Fix Mypy Errors: Missing Imports and Undefined Names in research_cache.py	keep	552	haiku	0	301b30bc7b2e3b966433be981a0b613b355e3316	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-12T04:41:04Z	46	1	US-1264	Fix Mypy Errors: Undefined Names in validate_stories.py and merge_stories.py	keep	716	haiku	0	d26b194e91c5933578026261760db50e8afebe9d	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-12T06:06:10Z	49	1	US-1269	Fix CI Python 3.12 Matrix: Remove 3.12 from Test Matrix	reject	182	haiku	1		69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
