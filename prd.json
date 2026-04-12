@@ -2717,7 +2717,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "test-fix",
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1267",
@@ -2781,21 +2782,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-fix",
-      "model": "haiku",
-      "_failureReason": "oversized_diff: produced 4353 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 4353 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ],
-      "last_attempted": "2026-04-12T06:06:11Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nLine 181 of `.github/workflows/ci.yml` has `python-version: ['3.11', '3.12', '3.13']` but `pyproject.toml` requires `>=3.13`, so 3.11 and 3.12 fail.\n\n## Problem Identified\nThe CI matrix includes Python versions below the minimum required (3.13+).\n\n## Planned Changes\n- Edit **one line** in `.github/workflows/ci.yml`: change the matrix array from `['3.11', '3.12', '3.13']` to `['3.13']` and add a comment explaining why.\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\".github/workflows/ci.yml\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 3\n}\n</plan>\nNow verify the change:\n2 insertions, 1 deletion — well within the 800-line limit. Now update prd.json and commit:\nDone. The fix was a single targeted line change:\n\n- **Changed**: `.github/workflows/ci.yml` line 181 — matrix `['3.11', '3.12', '3.13']` → `['3.13']`\n- **Added comment**: `# Only 3.13+ supported: pyproject.toml requires-python >= 3.13`\n- **Diff size**: 2 insertions + 1 deletion = 3 lines (well under 800 limit)\n\nThe previous attempt failed because it somehow produced 4353 lines — likely by overwriting the entire file with the Write tool instead of using a targeted Edit. This attempt used Edit with a precise old_string/new_string match."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 81,
-        "tokensAfterMasking": 80,
-        "reductionPct": 1,
-        "contextWindow": 10
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1270",
