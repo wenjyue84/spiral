@@ -66,6 +66,7 @@ def _compute_embedding(query: str) -> Any:
     except Exception:
         # Fallback: return a zero vector if model load fails
         import numpy as np
+
         return np.zeros(384, dtype=np.float32)
 
 
