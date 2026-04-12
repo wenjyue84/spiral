@@ -2297,12 +2297,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-12T00:37:16Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- US-1088 is already implemented in `lib/resilience/txn_journal.py`\n- The module provides crash-safe prd.json writes with backup/recovery mechanisms\n- No regression tests yet exist for this module\n\n## Problem Identified\nUS-1240 requires a regression test that would catch if the US-1088 transaction journal feature breaks. The test must verify all core observable behaviors: transaction lifecycle, backup/recovery, orphaned entry detection, and the CLI interface.\n\n## Planned Changes\n- Create `tests/test_us_1088_regression.py` with comprehensive tests covering:\n  - Transaction creation and commitment\n  - Pending/committed status tracking  \n  - Recovery of incomplete transactions\n  - Orphaned entry detection via git log\n  - Rollback of orphaned entries\n  - Backup file lifecycle\n  - CLI write-entry, verify, and recover commands\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_us_1088_regression.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_txn_journal_basic_lifecycle\", \"test_txn_journal_recovery\", \"test_txn_journal_orphaned_entries\", \"test_txn_journal_cli_interface\"],\n  \"estimated_loc\": 250\n}\n</plan>\n\nNow implementing:\nPerfect! All tests pass. Let me do one final check to verify that the story's acceptance criteria are fully met:\n## Summary"
-      },
-      "_passedCommit": "c73b8e951f0ad47fbe82cd6e45b737388799c58f"
+      "model": "haiku"
     },
     {
       "id": "US-1241",
@@ -2319,11 +2314,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-12T00:50:42Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe `lib/failure_categorizer.py` module (US-1090) classifies Phase I failures into 8 categories (missing_dependency, syntax_error, type_error, test_assertion, timeout, oom, context_overflow, other). A comprehensive test file exists at `tests/test_failure_categorizer.py` with 15 passing tests covering all major functionality.\n\n## Problem Identified\n\nThe existing tests in `test_failure_categorizer.py` are not marked with the `@pytest.mark.us_1090` decorator, so they cannot be discovered with `pytest tests/ -k us_1090 -v`. US-1241 requires creating a regression test that:\n1. Covers core observable behavior of US-1090\n2. Can be discovered with `pytest tests/ -k us_1090 -v`\n3. Would fail if the US-1090 feature were removed\n\n## Planned Changes\n\n1. **Add pytest marker to existing test class** in `tests/test_failure_categorizer.py`: Add `@pytest.mark.us_1090` to `TestCategorizeFailure` class\n2. **Add two additional regression tests** to verify:\n   - The `categorize_message()` function works (currently only tests `categorize_failure()`)\n   - Integration scenario: categorizer would be used by Phase I to classify ralph failures\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_failure_categorizer.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 30\n}\n</plan>\n\nNow I'll add the pytest marker and additional regression tests:\nI have one test failure. Let me fix the assertion in the timeout test:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1242",
@@ -2531,6 +2522,111 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1253",
+      "title": "Phase G: Generate CHANGELOG.md from Story Commits Using git-cliff",
+      "priority": "medium",
+      "description": "Implement Phase G to auto-generate CHANGELOG.md from git commits associated with completed stories, using git-cliff for structured parsing. Groups commits by story ID (US-NNN format) and iteration, creating a human-readable changelog of features and fixes per iteration.",
+      "acceptanceCriteria": [
+        "Create lib/phases/phase_g.sh orchestrating git-cliff invocation with .cliff.toml config",
+        "CHANGELOG.md generated in repository root with sections per iteration, commits grouped by story ID",
+        "Each changelog entry includes story title (extracted from prd.json) and associated commit messages"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phases/phase_g.sh (phase orchestration stub to invoke git-cliff binary and handle CHANGELOG.md output)",
+        "File to create: .cliff.toml (git-cliff config grouping commits by [Conventional Commits] footer 'Story: US-NNN')",
+        "File to create: tests/test_phase_g_changelog.bats (test git-cliff config parsing, verify CHANGELOG.md structure and story grouping)",
+        "Test command: tests/bats-core/bin/bats tests/test_phase_g_changelog.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1254",
+      "title": "Dashboard API: GET /api/dashboard/throughput (Stories Completed Per Hour)",
+      "priority": "medium",
+      "description": "Add REST endpoint to dashboard API that aggregates completed story counts from results.tsv by hour, enabling real-time throughput visualization. Returns hourly time series for the current iteration to track how many stories complete per hour.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/throughput returns JSON: [{hour: '2026-04-05T14:00', count: 3, stories: ['US-100', 'US-101']}, ...] for all hours in current iteration",
+        "Endpoint filters results.tsv to only stories with status='passed' in current iteration (extracted from .spiral/_checkpoint.json)",
+        "Endpoint caches results for 5 seconds to avoid repeated file I/O"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dashboard_api/throughput.py (parse results.tsv, group by completion hour, aggregate counts)",
+        "File to edit: dashboard/app.py (add Flask/FastAPI GET /api/dashboard/throughput route calling throughput.aggregate())",
+        "File to create: tests/test_dashboard_throughput_api.py (test hour parsing, filtering by iteration, caching behavior)",
+        "Test command: uv run pytest tests/test_dashboard_throughput_api.py::test_hourly_aggregation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1255",
+      "title": "[Multi-Repo] Validate Federated Story IDs Match Sub-Project Namespace Prefixes",
+      "priority": "medium",
+      "description": "Extend federated PRD validator to enforce story ID naming convention: each story in repos/PROJECT-X/ must have ID starting with 'PROJECT-X-' (derived from folder name). Reports mismatches with expected prefix and remediation guidance.",
+      "acceptanceCriteria": [
+        "CLI spiral validate-federated --namespace checks all story IDs match their sub-project folder prefix (e.g., repos/makan/ requires MAKAN-* IDs)",
+        "Error output lists each mismatch: 'repos/makan/US-100: expected MAKAN-*, got US-100' with line number in prd.json",
+        "Exit code 1 if any mismatches found; 0 if all stories pass namespace validation"
+      ],
+      "technicalNotes": [
+        "File to create: lib/federated/namespace_validator.py (scan repos/ directories, extract prefixes, validate each story ID)",
+        "File to edit: lib/federated/__init__.py (add --namespace flag to validate-federated subcommand, route to namespace_validator.validate())",
+        "File to create: tests/test_federated_namespace_validation.py (test valid prefixes, invalid/mixed prefixes, missing repos/ folder)",
+        "Test command: uv run pytest tests/test_federated_namespace_validation.py::test_story_id_mismatch_detection -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1256",
+      "title": "Dashboard API: GET /api/dashboard/model-escalation (Stories by Model Tier and Attempt Count)",
+      "priority": "medium",
+      "description": "Add REST endpoint that aggregates story attempts from results.tsv by model and retry count, enabling visualization of which stories escalate from haiku→sonnet→opus and at what cost. Returns a matrix structure suitable for heatmap rendering.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/model-escalation returns JSON: {US-100: {haiku: {attempt: 1, tokens: 5000, duration_s: 45}, sonnet: {attempt: 2, tokens: 12000, duration_s: 120}}, US-101: {haiku: {attempt: 1, tokens: 4500}}...}",
+        "Endpoint filters by current iteration ID and includes only stories with status='passed' or 'failed'",
+        "Endpoint joins results.tsv with prd.json to include story titles in response for legend/tooltip data"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dashboard_api/model_escalation.py (group results.tsv by story_id and model, track attempt sequence, calculate token/duration stats)",
+        "File to edit: dashboard/app.py (add Flask/FastAPI GET /api/dashboard/model-escalation route)",
+        "File to create: tests/test_dashboard_model_escalation_api.py (test model grouping logic, attempt sequencing, iteration filtering, story title resolution)",
+        "Test command: uv run pytest tests/test_dashboard_model_escalation_api.py::test_escalation_matrix_structure -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1257",
+      "title": "spiral-ui: Add Real-Time Story Success Rate Card to Dashboard",
+      "priority": "medium",
+      "description": "Add a dashboard card showing current iteration's story pass/fail counts and success percentage. Update via WebSocket when stories complete Phase V validation.",
+      "acceptanceCriteria": [
+        "Card displays: 'X Stories Passed' and 'Y% Pass Rate' for current iteration",
+        "Card updates via WebSocket endpoint /ws/story-metrics within 1.5s of Phase V story completion",
+        "Integration test: inject 5 story completion events, verify card shows 5/5 = 100%"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/StorySuccessCard.tsx (React card component, ~80 lines)",
+        "File to create: spiral-ui/src/hooks/useStoryMetrics.ts (WebSocket listener hook, ~40 lines)",
+        "File to modify: lib/phases/phase_v.py (emit story-metrics event after validation, ~5 lines)",
+        "Test command: uv run pytest tests/test_spiral_ui_story_metrics.py::test_card_updates_on_story_completion -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "sonnet"
     }
   ]
