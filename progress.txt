@@ -1,3 +1,14 @@
+## Iteration 17 - Sun, Apr 12, 2026
+Completed: Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup (ID: US-1261) — Attempt 2
+
+### What was implemented
+- Implementation already existed from a previous run; test_namespace_isolation passes
+- Story was blocked by missing diagnosis block gate in attempt 1 (not a code failure)
+- Marked passes: true after confirming test passes
+
+### Gotchas
+- Always output diagnosis block BEFORE any file edits; even if no code changes are needed
+
 ## Iteration 16 - Sun, Apr 12, 2026
 Completed: Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup (ID: US-1261) in ~2m
 
@@ -1879,4 +1890,7 @@ Completed: [Regression Test] Model routing cost-per-win calibration from results
 *   **Stateful Workers:** Ensure fixtures properly manage the lifecycle of worker processes to prevent leaks or interference between test runs.
 *   **Measurement Noise:** Run benchmarks in a stable environment. The test should measure the end-to-end time of a workload to accurately capture the impact of pre-warming.
 *   **Baseline Management:** The `pytest-benchmark` baseline file should be committed to the repository for consistent comparisons across different runs and machines.
+
+## Iteration 1 - Sun, Apr 12, 2026  9:58:38 AM
+FAILED diagnosis-block gate: Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup (ID: US-1261) — no diagnosis block found — attempt 1/3
 
