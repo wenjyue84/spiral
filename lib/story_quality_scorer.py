@@ -51,9 +51,9 @@ def score_production_value(story: dict[str, Any], endgame: bool = False) -> tupl
     reasons: list[str] = []
     base_score = 40.0  # Default: medium
 
-    title = (story.get("title") or "").lower()
+    (story.get("title") or "").lower()
     description = (story.get("description") or "").lower()
-    tags = [t.lower() for t in (story.get("tags") or [])]
+    [t.lower() for t in (story.get("tags") or [])]
 
     # Negative indicators: internal-only, no user-facing value
     tier4_keywords = [

@@ -196,7 +196,7 @@ def assign_stories(
 
                 # Pick a story to move: prefer one with no co-location constraint
                 movable = None
-                remaining_ids = {s["id"] for s in buckets[src]} - {buckets[src][-1]["id"]}
+                {s["id"] for s in buckets[src]} - {buckets[src][-1]["id"]}
                 remaining_files = set()
                 for s in buckets[src][:-1]:
                     remaining_files.update(get_files_to_touch(s))
@@ -357,7 +357,10 @@ def main() -> int:
                 continue
 
             print(
-                f"[partition] Sub-project '{sub_proj}': {len(proj_completed)} completed, {len(proj_pending)} pending → {args.workers} workers"
+                f"[partition] Sub-project '{sub_proj}':"
+                f" {len(proj_completed)} completed,"
+                f" {len(proj_pending)} pending"
+                f" → {args.workers} workers"
             )
 
             # Partition this sub_project's stories
@@ -385,7 +388,9 @@ def main() -> int:
                     f"{p}:{c}" for p, c in sorted(priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2))
                 )
                 print(
-                    f"[partition] Worker-{sub_proj}-{worker_num}: {len(bucket)} stories [{id_list}] ({pcount_str}) → {out_path}"
+                    f"[partition] Worker-{sub_proj}-{worker_num}:"
+                    f" {len(bucket)} stories [{id_list}]"
+                    f" ({pcount_str}) → {out_path}"
                 )
     else:
         # Standard partitioning (non-federated)

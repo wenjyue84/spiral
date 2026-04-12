@@ -186,7 +186,7 @@ def test_restore_detects_checksum_mismatch(tmp_path: Path) -> None:
     shutil.copy(output, tampered)
 
     # Read current manifest
-    manifest = read_manifest(tampered)
+    read_manifest(tampered)
 
     # Re-pack with tampered prd.json but original manifest checksums
     with tarfile.open(tampered, "w:gz") as out_tar:

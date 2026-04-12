@@ -282,7 +282,7 @@ class TestRunPhaseG:
         spiral_home = str(tmp_path)
         cliff_toml = tmp_path / "cliff.toml"
         changelog = tmp_path / "CHANGELOG.md"
-        warnings_file = tmp_path / ".spiral" / "phase_g_warnings.log"
+        tmp_path / ".spiral" / "phase_g_warnings.log"
 
         cliff_toml.write_text("[changelog]")
         changelog.write_text("# Changelog\n")
@@ -311,7 +311,7 @@ class TestRunPhaseG:
         """Phase G run detects orphan commits and logs them."""
         spiral_home = str(tmp_path)
         cliff_toml = tmp_path / "cliff.toml"
-        changelog = tmp_path / "CHANGELOG.md"
+        tmp_path / "CHANGELOG.md"
 
         cliff_toml.write_text("[changelog]")
 

@@ -21,6 +21,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 # Add lib/ to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
@@ -34,7 +36,7 @@ def _get_worker_timeout(monkeypatch: Any) -> int:
     Uses monkeypatch to avoid permanently changing env.
     """
     timeout_env = os.environ.get("SPIRAL_WORKER_TIMEOUT", "300")
-    default_timeout = int(timeout_env) if timeout_env else 300
+    int(timeout_env) if timeout_env else 300
 
     # In tests, use a much shorter timeout (5 seconds instead of 300)
     # to keep test runs fast while maintaining the same detection logic
@@ -188,7 +190,7 @@ def test_heartbeat_fresh_worker_not_detected_as_timeout(tmp_path: Path, monkeypa
     AC: Detection correctly distinguishes between fresh and stale heartbeats.
     A worker with a recent heartbeat should have state='alive', not 'timeout'.
     """
-    timeout_sec = _get_worker_timeout(monkeypatch)
+    _get_worker_timeout(monkeypatch)
 
     # Create a fresh heartbeat (just now)
     workers_dir = tmp_path / ".spiral-workers"

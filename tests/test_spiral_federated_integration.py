@@ -198,7 +198,7 @@ class TestCrossProjectDependencies:
         merged = _make_merged_prd(webapp, api)
 
         # All dependencies should either exist in merged PRD or be tolerated
-        story_ids = {s["id"] for s in merged["userStories"]}
+        {s["id"] for s in merged["userStories"]}
         for story in merged["userStories"]:
             for dep in story.get("dependencies", []):
                 # Either the dependency exists or it's a valid cross-ref

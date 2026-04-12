@@ -2715,9 +2715,10 @@
         "US-1263"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-fix",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-12T05:48:54Z"
     },
     {
       "id": "US-1267",

@@ -130,13 +130,13 @@ class TestUS526WorktreeRecovery:
             "\n"
             "recover_detached_worktree() {\n"
             '  local worktree_path="$1"\n'
-            '  echo "DEBUG: worktree_path=\\'$worktree_path\\'" >&2\n'
+            "  echo \"DEBUG: worktree_path='$worktree_path'\" >&2\n"
             '  echo "DEBUG: all args: $*" >&2\n'
             '  if [[ ! -d "$worktree_path" ]]; then\n'
             '    echo "[ERROR] Worktree does not exist: $worktree_path" >&2\n'
             "    return 2\n"
             "  fi\n"
-            '  local current_branch\n'
+            "  local current_branch\n"
             '  current_branch=$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null) || true\n'
             '  if [[ "$current_branch" == "HEAD" ]]; then\n'
             '    echo "[recovery] Worktree $worktree_path is in detached HEAD state, recovering to main"\n'
@@ -218,11 +218,7 @@ class TestUS526WorktreeRecovery:
         worker_dir_unix = str(worker_dir).replace("\\", "/")
         if worker_dir_unix[1] == ":":  # C:/path -> /c/path
             worker_dir_unix = "/" + worker_dir_unix[0].lower() + worker_dir_unix[2:]
-        recovery_script = (
-            "set -euo pipefail\n"
-            f"{RECOVERY_FUNCTION}\n"
-            f'recover_detached_worktree "{worker_dir_unix}"\n'
-        )
+        recovery_script = f'set -euo pipefail\n{RECOVERY_FUNCTION}\nrecover_detached_worktree "{worker_dir_unix}"\n'
         result = subprocess.run(
             ["bash", "-c", recovery_script],
             capture_output=True,
@@ -265,11 +261,7 @@ class TestUS526WorktreeRecovery:
         worker_dir_unix = str(worker_dir).replace("\\", "/")
         if worker_dir_unix[1] == ":":  # C:/path -> /c/path
             worker_dir_unix = "/" + worker_dir_unix[0].lower() + worker_dir_unix[2:]
-        recovery_script = (
-            "set -euo pipefail\n"
-            f"{RECOVERY_FUNCTION}\n"
-            f'recover_detached_worktree "{worker_dir_unix}"\n'
-        )
+        recovery_script = f'set -euo pipefail\n{RECOVERY_FUNCTION}\nrecover_detached_worktree "{worker_dir_unix}"\n'
         result = subprocess.run(
             ["bash", "-c", recovery_script],
             capture_output=True,

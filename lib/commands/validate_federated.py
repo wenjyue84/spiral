@@ -48,9 +48,10 @@ def _validate_ids(prd_dict: dict[str, Any]) -> list[str]:
             # Non-namespaced ID - validate base format (US/UT/FE/BE-NNN)
             base_pattern = re.compile(r"^(US|UT|FE|BE)-\d{3,}$")
             if not base_pattern.match(story_id):
+                pat = "(US|UT|FE|BE)-NNN"
+                ns_pat = f"namespace:{pat}"
                 errors.append(
-                    f"Invalid ID format: {story_id!r} (expected format: '(US|UT|FE|BE)-NNN' or 'namespace:(US|UT|FE|BE)-NNN')."
-                    f" Fix: Rename to match '(US|UT|FE|BE)-NNN' or 'namespace:(US|UT|FE|BE)-NNN' pattern."
+                    f"Invalid ID format: {story_id!r} (expected: '{pat}' or '{ns_pat}'). Fix: Rename to match pattern."
                 )
 
     return errors

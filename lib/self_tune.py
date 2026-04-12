@@ -340,7 +340,11 @@ class SelfTuner:
                                 old_value=str(current),
                                 new_value=str(new_val),
                                 rule_name="timeout_scaling",
-                                reason=f"Timeout rate {rate:.0%} < 5%, avg duration {avg_dur:.0f}s < 50% of limit — decreasing by 15%",
+                                reason=(
+                                    f"Timeout rate {rate:.0%} < 5%,"
+                                    f" avg duration {avg_dur:.0f}s < 50% of limit"
+                                    " — decreasing by 15%"
+                                ),
                             )
                         )
 
@@ -367,7 +371,9 @@ class SelfTuner:
                     old_value=str(current),
                     new_value=str(new_val),
                     rule_name="diff_limit_scaling",
-                    reason=f"{oversized}/{total} failures ({oversized / total:.0%}) are oversized_diff — increasing by 200",
+                    reason=(
+                        f"{oversized}/{total} failures ({oversized / total:.0%}) are oversized_diff — increasing by 200"
+                    ),
                 )
 
         # Decrease if 0 oversized for 3+ iterations
@@ -408,7 +414,11 @@ class SelfTuner:
                             old_value=str(current),
                             new_value="0",
                             rule_name="model_floor_escalation",
-                            reason=f"Haiku success rate {haiku_rate:.0%} < 30% over 3 iters ({haiku_passes}/{haiku_attempts}) — skipping haiku",
+                            reason=(
+                                f"Haiku success rate {haiku_rate:.0%} < 30%"
+                                f" over 3 iters ({haiku_passes}/{haiku_attempts})"
+                                " — skipping haiku"
+                            ),
                         )
                     )
 
@@ -426,7 +436,11 @@ class SelfTuner:
                             old_value=str(current),
                             new_value="0",
                             rule_name="model_floor_escalation",
-                            reason=f"Sonnet success rate {sonnet_rate:.0%} < 40% over 3 iters ({sonnet_passes}/{sonnet_attempts}) — starting at opus",
+                            reason=(
+                                f"Sonnet success rate {sonnet_rate:.0%} < 40%"
+                                f" over 3 iters ({sonnet_passes}/{sonnet_attempts})"
+                                " — starting at opus"
+                            ),
                         )
                     )
 
@@ -530,7 +544,9 @@ class SelfTuner:
                     old_value=str(current),
                     new_value=str(new_val),
                     rule_name="decompose_threshold",
-                    reason=f"{max_retries}/{total} attempts ({max_retries / total:.0%}) hit max retry — lowering threshold",
+                    reason=(
+                        f"{max_retries}/{total} attempts ({max_retries / total:.0%}) hit max retry — lowering threshold"
+                    ),
                 )
 
         # Raise if very few reach retry 2
@@ -543,7 +559,9 @@ class SelfTuner:
                     old_value=str(current),
                     new_value=str(new_val),
                     rule_name="decompose_threshold",
-                    reason=f"Only {retry2 / total:.0%} reach retry 2+ — raising threshold (stories don't need early split)",
+                    reason=(
+                        f"Only {retry2 / total:.0%} reach retry 2+ — raising threshold (stories don't need early split)"
+                    ),
                 )
 
         return None
@@ -584,7 +602,11 @@ class SelfTuner:
                     old_value=current,
                     new_value=new_effort,
                     rule_name="thinking_effort",
-                    reason=f"Cost-per-pass doubled ({cost_ratio:.1f}x) without proportional gain ({improvement:+.0%}) — downgrading effort",
+                    reason=(
+                        f"Cost-per-pass doubled ({cost_ratio:.1f}x)"
+                        f" without proportional gain ({improvement:+.0%})"
+                        " — downgrading effort"
+                    ),
                 )
 
         return None

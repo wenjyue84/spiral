@@ -176,7 +176,7 @@ class TestResultsTSVCreation:
     def test_results_tsv_created_with_correct_rows(self, tmp_path: Path) -> None:
         """Phase I must create results.tsv with one row per story processed."""
         results_path = tmp_path / "results.tsv"
-        prd = _make_seed_prd(2)
+        _make_seed_prd(2)
 
         fieldnames = [
             "timestamp",

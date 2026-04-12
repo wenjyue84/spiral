@@ -566,7 +566,6 @@ def main() -> int:
     # ── US-1186: Calculate effective dedup threshold for fallback mechanism ──────
     total_input_candidates = len(test_candidates) + len(research_candidates) + len(overflow_candidates)
     effective_threshold = 0.6  # Default Jaccard threshold used in is_duplicate()
-    threshold_lowered = False
 
     # Apply fallback threshold lowering if consecutive all-rejected iterations reached limit
     if fallback_iters > 0 and fallback_counter >= fallback_iters:

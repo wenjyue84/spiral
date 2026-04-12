@@ -65,7 +65,7 @@ class TestNoQuotas:
         prd_path.write_text(json.dumps(_make_prd([_make_story("US-001", "frontend")])))
 
         # Clear any existing SPIRAL_QUOTA_* vars
-        with pytest.MonkeyPatch.context() as mp:
+        with pytest.MonkeyPatch.context():
             for key in list(os.environ.keys()):
                 if key.startswith("SPIRAL_QUOTA_"):
                     del os.environ[key]
@@ -80,7 +80,7 @@ class TestNoQuotas:
         prd_path = tmp_path / "prd.json"
         prd_path.write_text(json.dumps(_make_prd([_make_story("US-001", "frontend")])))
 
-        with pytest.MonkeyPatch.context() as mp:
+        with pytest.MonkeyPatch.context():
             for key in list(os.environ.keys()):
                 if key.startswith("SPIRAL_QUOTA_"):
                     del os.environ[key]

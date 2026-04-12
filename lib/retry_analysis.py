@@ -36,8 +36,8 @@ def compute_retry_stats(results: list[dict[str, str]]) -> dict[str, dict[str, fl
         phase_retries[phase].append(retry_count)
 
     stats: dict[str, dict[str, float | int]] = {}
-    total_retries = sum(count for counts in phase_retries.values() for count in counts)
-    total_stories = len(results)
+    sum(count for counts in phase_retries.values() for count in counts)
+    len(results)
 
     for phase, retries in sorted(phase_retries.items()):
         if not retries:

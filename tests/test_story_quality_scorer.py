@@ -480,7 +480,7 @@ class TestIntegration:
         input_file.write_text(json.dumps(stories))
 
         # Score and filter
-        output_file = tmp_path / "filtered.json"
+        tmp_path / "filtered.json"
         passing, filtered = filter_stories(stories, min_score=50)
 
         # Verify at least one passes (the UI one)

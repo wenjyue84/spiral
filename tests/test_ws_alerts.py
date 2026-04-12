@@ -136,7 +136,7 @@ def test_websocket_alerts_endpoint_requires_auth_when_key_set(monkeypatch):
 
     # Try to connect without API key - should fail
     with pytest.raises(WebSocketDisconnect):
-        with client.websocket_connect("/ws/alerts") as websocket:
+        with client.websocket_connect("/ws/alerts"):
             # Should fail on connect attempt
             pass
 
@@ -145,10 +145,9 @@ def test_alerts_endpoint_accepts_valid_auth(monkeypatch):
     """Test that /ws/alerts accepts connection with valid API key."""
     monkeypatch.setenv("SPIRAL_DASHBOARD_API_KEY", "test-secret-key")
 
-    client = TestClient(app)
+    TestClient(app)
 
     # Connect with valid header
-    headers = {"x-api-key": "test-secret-key"}
     # WebSocket client testing would need proper async setup
     # This is a placeholder for the pattern
 

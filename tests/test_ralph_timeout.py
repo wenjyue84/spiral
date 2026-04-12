@@ -38,7 +38,7 @@ class TestTimeoutOutputCapture:
             exc.stderr = "partial error"
 
             with patch("subprocess.run", side_effect=exc):
-                result = execute_ralph(
+                execute_ralph(
                     story_id="US-628",
                     model="haiku",
                     command=["ralph", "--story", "US-628"],
