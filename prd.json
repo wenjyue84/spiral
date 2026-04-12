@@ -2380,7 +2380,8 @@
         "tokensAfterMasking": 480,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "_passedCommit": "2e098f150d88ab34f474d8d0ee35fadf6837360b"
     },
     {
       "id": "US-1245",
@@ -2397,8 +2398,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-12T08:02:25Z"
     },
     {
       "id": "US-1246",
