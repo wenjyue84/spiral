@@ -11,11 +11,8 @@ Acceptance Criteria:
 - AC3: Test fails if response time degrades >20% from baseline
 """
 
-import json
-import os
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -115,12 +112,8 @@ class TestWorkerPoolPerformance:
         # Pool initialization should complete in <500ms for 3 workers
         # Per-worker overhead should be <200ms (well below the ~1200ms saved)
         assert result["pool_size"] == 3
-        assert result["elapsed_ms"] < 500, (
-            f"Pool init took {result['elapsed_ms']}ms, expected <500ms"
-        )
-        assert result["per_worker_ms"] < 200, (
-            f"Per-worker init took {result['per_worker_ms']}ms, expected <200ms"
-        )
+        assert result["elapsed_ms"] < 500, f"Pool init took {result['elapsed_ms']}ms, expected <500ms"
+        assert result["per_worker_ms"] < 200, f"Per-worker init took {result['per_worker_ms']}ms, expected <200ms"
 
     @pytest.mark.benchmark
     @pytest.mark.us_1100
@@ -181,8 +174,7 @@ class TestWorkerPoolPerformance:
         max_acceptable_ms = int(baseline_ms * 1.2)  # 20% threshold
 
         assert elapsed_ms <= max_acceptable_ms, (
-            f"Pool init regressed: {elapsed_ms}ms > {max_acceptable_ms}ms "
-            f"(baseline {baseline_ms}ms, threshold +20%)"
+            f"Pool init regressed: {elapsed_ms}ms > {max_acceptable_ms}ms (baseline {baseline_ms}ms, threshold +20%)"
         )
 
     @pytest.mark.benchmark

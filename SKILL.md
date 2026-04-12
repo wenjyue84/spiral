@@ -1,6 +1,6 @@
 ---
 name: spiral
-version: 4.2.261
+version: 4.3.290
 description: >
   Run the SPIRAL autonomous development loop on any project. Handles setup,
   generates prd.json and spiral.config.sh if missing, then launches the
@@ -607,7 +607,22 @@ uv run python main.py <subcommand> [args...]
 | `validate-scc-cycles` | Detect circular dependencies using Tarjan's SCC algorithm |
 | `categorize-failures` | Categorize failure root causes with recommendations |
 | `show-slowest-stories` | Identify bottleneck stories by total duration from results.tsv |
+| `show-ac-results STORY_ID` | Display per-AC verification results for a story |
+| `show-dead-features` | List all detected dead features across stories |
+| `show-perf-baseline` | Display per-phase performance baseline statistics |
 | `explain-retry` | Analyze retry sequence and suggest decomposition for a story |
+| `list-orphan-commits` | List commits lacking US-/UT- story ID tags |
+| `predict-model-escalation` | Predict next-attempt model escalation for a story |
+| `preflight-check` | Validate SPIRAL runtime dependencies and configuration |
+| `debug-worker-state` | Dump live worker state and diagnostics as JSON |
+| `timing-report` | Cross-phase timing analyzer with bottleneck detection |
+| `score-stories-for-validation` | Score each story 0-100 for validation confidence |
+| `federation-health-check` | Validate federated PRD: sub-project refs, circular deps, ID namespaces |
+| `federation-conflict-check` | Detect file conflicts across sub-projects with resolution hints |
+| `federation-check-cycles` | Detect circular dependencies with cycle paths |
+| `federation-impact-analyze` | Transitive dependency blast radius report for a sub-project |
+| `federation-audit` | Query federation audit trail (filter by sub-project, action) |
+| `validate-federated-schema` | Cross-project duplicate ID and namespace validation |
 | `federated-cost-report` | Per-sub-project cost breakdown by phase |
 | `deploy-docs` | Deploy CHANGELOG and pdoc outputs to gh-pages branch |
 
@@ -635,7 +650,9 @@ uv run python main.py <subcommand> [args...]
 |------------|---------|-------------|
 | `SPIRAL_MAX_AI_SUGGEST` | 5 | Max AI-generated story suggestions per iteration (0 = disable Phase A) |
 | `SPIRAL_AI_SUGGEST_MODEL` | haiku | Claude model for constitution-aware gap analysis |
+| `SPIRAL_AI_SUGGEST_MIN_SCORE` | 0 | Quality filter score (0-100) for AI suggestions; reject below threshold |
 | `SPIRAL_TEST_STORY_MIN_COMPLEXITY` | medium | Min complexity to generate paired test stories |
+| `SPIRAL_TEST_SUITE_TYPES` | — | Comma-separated test suite types to populate (smoke,regression,security,performance) |
 
 ### Research (Phase R)
 | Config Var | Default | Description |
@@ -646,7 +663,8 @@ uv run python main.py <subcommand> [args...]
 | `SPIRAL_RESEARCH_CACHE_TTL_HOURS` | 24 | Cache URL responses (0 = disabled) |
 | `SPIRAL_MAX_RESEARCH_STORIES` | 0 | Cap new research stories per iteration (0 = unlimited) |
 | `SPIRAL_FIRECRAWL_ENABLED` | 0 | Use Firecrawl MCP for scraping (requires `FIRECRAWL_API_KEY`) |
-| `SPIRAL_GEMINI_PROMPT` | — | Gemini 2.5 Pro pre-research prompt (empty = skip) |
+| `SPIRAL_GEMINI_PROMPT` | — | Gemini 2.5 Pro pre-research prompt (empty = skip Gemini) |
+| `SPIRAL_GEMINI_ANNOTATE_PROMPT` | — | Gemini prompt for filesTouch annotation in parallel mode (empty = skip) |
 | `SPIRAL_FOCUS` | — | Theme to scope research (also injectable via `--focus`) |
 | `SPIRAL_CACHE_SIM_THRESHOLD` | 0.92 | Cosine similarity threshold for semantic cache hits (1.0 = exact only) |
 | `SPIRAL_RESEARCH_SUMMARY_THRESHOLD` | 0 | Token threshold for hierarchical summarization of Phase R output (0 = disabled) |

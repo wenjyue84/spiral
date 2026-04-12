@@ -1,4 +1,5 @@
-import { usePhaseTimings, PhaseTimingData } from '../hooks/usePhaseTimings';
+import { usePhaseTimings } from '../../hooks/usePhaseTimings';
+import type { PhaseTimingData } from '../../hooks/usePhaseTimings';
 
 interface PhaseTimelineChartProps {
   timings: PhaseTimingData[];

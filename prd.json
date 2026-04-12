@@ -2404,62 +2404,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1247",
-      "title": "[Performance Test] File-locked spiral_events.jsonl writes to prevent corruption on Windows",
-      "priority": "medium",
-      "description": "Write performance benchmark for the operation in US-1104. Story description: Multiple workers and the main process concurrently append to spiral_events.jsonl (run_parallel_ralph.sh lines 942, 985, 1114, 1223 plus worker_heartbeat.sh and commit_revert.sh). On Windows, concurrent file opens can corrupt lines or drop writes. Replace all raw printf >> appends with a locked_append_jsonl() function that acquires a file lock (flock on Linux, LockFileEx on Windows via Python) before writing.",
-      "acceptanceCriteria": [
-        "Performance test measures key metrics for US-1104",
-        "Baseline captured and acceptable threshold defined",
-        "Test fails if response time degrades more than 20% from baseline"
-      ],
-      "technicalNotes": [
-        "Run: uv run pytest tests/ -k us_1104 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1248",
-      "title": "[E2E Test] Add cumulative cost and stories-passed trend chart to analytics",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-1112. Story description: The analytics summary only shows a single total cost number with no over-time view. Add a dual-axis line chart below the summary bar: x-axis = iteration number, left y-axis = cumulative API cost ($), right y-axis = cumulative stories passed. Both lines on the same chart show the economic efficiency curve. Data: group results.tsv by spiral_iter, accumulate cost and passed count per iteration.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-1112",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Source files from US-1112: spiral-ui/src/components/AnalyticsTab.tsx, spiral-ui/src/server/analyticsApi.ts",
-        "Run: uv run pytest tests/ -k us_1112 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1249",
-      "title": "[E2E Test] Add filter controls to analytics retry history table",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-1115. Story description: The retry history table has no way to slice the data. Add a filter bar above the table with three dropdowns: (1) Failure Type - filters by failure_root_cause value; (2) Model Tier - haiku/sonnet/opus/all; (3) Outcome - passed/skipped/decomposed/all. The existing Most Recent / Most Retried sort toggle should remain. Show empty state message when no rows match filters.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-1115",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Source files from US-1115: spiral-ui/src/components/analytics/FailureRetryDashboard.tsx, spiral-ui/src/components/AnalyticsTab.tsx",
-        "Run: uv run pytest tests/ -k us_1115 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1250",
       "title": "Create E2E Integration Test Harness and Fixtures for SPIRAL",
       "priority": "high",
@@ -2525,173 +2469,6 @@
       "model": "sonnet"
     },
     {
-      "id": "US-1253",
-      "title": "Phase G: Generate CHANGELOG.md from Story Commits Using git-cliff",
-      "priority": "medium",
-      "description": "Implement Phase G to auto-generate CHANGELOG.md from git commits associated with completed stories, using git-cliff for structured parsing. Groups commits by story ID (US-NNN format) and iteration, creating a human-readable changelog of features and fixes per iteration.",
-      "acceptanceCriteria": [
-        "Create lib/phases/phase_g.sh orchestrating git-cliff invocation with .cliff.toml config",
-        "CHANGELOG.md generated in repository root with sections per iteration, commits grouped by story ID",
-        "Each changelog entry includes story title (extracted from prd.json) and associated commit messages"
-      ],
-      "technicalNotes": [
-        "File to create: lib/phases/phase_g.sh (phase orchestration stub to invoke git-cliff binary and handle CHANGELOG.md output)",
-        "File to create: .cliff.toml (git-cliff config grouping commits by [Conventional Commits] footer 'Story: US-NNN')",
-        "File to create: tests/test_phase_g_changelog.bats (test git-cliff config parsing, verify CHANGELOG.md structure and story grouping)",
-        "Test command: tests/bats-core/bin/bats tests/test_phase_g_changelog.bats"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1254",
-      "title": "Dashboard API: GET /api/dashboard/throughput (Stories Completed Per Hour)",
-      "priority": "medium",
-      "description": "Add REST endpoint to dashboard API that aggregates completed story counts from results.tsv by hour, enabling real-time throughput visualization. Returns hourly time series for the current iteration to track how many stories complete per hour.",
-      "acceptanceCriteria": [
-        "GET /api/dashboard/throughput returns JSON: [{hour: '2026-04-05T14:00', count: 3, stories: ['US-100', 'US-101']}, ...] for all hours in current iteration",
-        "Endpoint filters results.tsv to only stories with status='passed' in current iteration (extracted from .spiral/_checkpoint.json)",
-        "Endpoint caches results for 5 seconds to avoid repeated file I/O"
-      ],
-      "technicalNotes": [
-        "File to create: lib/dashboard_api/throughput.py (parse results.tsv, group by completion hour, aggregate counts)",
-        "File to edit: dashboard/app.py (add Flask/FastAPI GET /api/dashboard/throughput route calling throughput.aggregate())",
-        "File to create: tests/test_dashboard_throughput_api.py (test hour parsing, filtering by iteration, caching behavior)",
-        "Test command: uv run pytest tests/test_dashboard_throughput_api.py::test_hourly_aggregation -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1255",
-      "title": "[Multi-Repo] Validate Federated Story IDs Match Sub-Project Namespace Prefixes",
-      "priority": "medium",
-      "description": "Extend federated PRD validator to enforce story ID naming convention: each story in repos/PROJECT-X/ must have ID starting with 'PROJECT-X-' (derived from folder name). Reports mismatches with expected prefix and remediation guidance.",
-      "acceptanceCriteria": [
-        "CLI spiral validate-federated --namespace checks all story IDs match their sub-project folder prefix (e.g., repos/makan/ requires MAKAN-* IDs)",
-        "Error output lists each mismatch: 'repos/makan/US-100: expected MAKAN-*, got US-100' with line number in prd.json",
-        "Exit code 1 if any mismatches found; 0 if all stories pass namespace validation"
-      ],
-      "technicalNotes": [
-        "File to create: lib/federated/namespace_validator.py (scan repos/ directories, extract prefixes, validate each story ID)",
-        "File to edit: lib/federated/__init__.py (add --namespace flag to validate-federated subcommand, route to namespace_validator.validate())",
-        "File to create: tests/test_federated_namespace_validation.py (test valid prefixes, invalid/mixed prefixes, missing repos/ folder)",
-        "Test command: uv run pytest tests/test_federated_namespace_validation.py::test_story_id_mismatch_detection -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1256",
-      "title": "Dashboard API: GET /api/dashboard/model-escalation (Stories by Model Tier and Attempt Count)",
-      "priority": "medium",
-      "description": "Add REST endpoint that aggregates story attempts from results.tsv by model and retry count, enabling visualization of which stories escalate from haiku→sonnet→opus and at what cost. Returns a matrix structure suitable for heatmap rendering.",
-      "acceptanceCriteria": [
-        "GET /api/dashboard/model-escalation returns JSON: {US-100: {haiku: {attempt: 1, tokens: 5000, duration_s: 45}, sonnet: {attempt: 2, tokens: 12000, duration_s: 120}}, US-101: {haiku: {attempt: 1, tokens: 4500}}...}",
-        "Endpoint filters by current iteration ID and includes only stories with status='passed' or 'failed'",
-        "Endpoint joins results.tsv with prd.json to include story titles in response for legend/tooltip data"
-      ],
-      "technicalNotes": [
-        "File to create: lib/dashboard_api/model_escalation.py (group results.tsv by story_id and model, track attempt sequence, calculate token/duration stats)",
-        "File to edit: dashboard/app.py (add Flask/FastAPI GET /api/dashboard/model-escalation route)",
-        "File to create: tests/test_dashboard_model_escalation_api.py (test model grouping logic, attempt sequencing, iteration filtering, story title resolution)",
-        "Test command: uv run pytest tests/test_dashboard_model_escalation_api.py::test_escalation_matrix_structure -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1257",
-      "title": "spiral-ui: Add Real-Time Story Success Rate Card to Dashboard",
-      "priority": "medium",
-      "description": "Add a dashboard card showing current iteration's story pass/fail counts and success percentage. Update via WebSocket when stories complete Phase V validation.",
-      "acceptanceCriteria": [
-        "Card displays: 'X Stories Passed' and 'Y% Pass Rate' for current iteration",
-        "Card updates via WebSocket endpoint /ws/story-metrics within 1.5s of Phase V story completion",
-        "Integration test: inject 5 story completion events, verify card shows 5/5 = 100%"
-      ],
-      "technicalNotes": [
-        "File to create: spiral-ui/src/components/StorySuccessCard.tsx (React card component, ~80 lines)",
-        "File to create: spiral-ui/src/hooks/useStoryMetrics.ts (WebSocket listener hook, ~40 lines)",
-        "File to modify: lib/phases/phase_v.py (emit story-metrics event after validation, ~5 lines)",
-        "Test command: uv run pytest tests/test_spiral_ui_story_metrics.py::test_card_updates_on_story_completion -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1258",
-      "title": "[Integration Test] Phase A Suggest Excludes Completed Story Titles from Dedup Set",
-      "priority": "medium",
-      "description": "Verify Phase A suggest prompt injection skips completed stories during semantic dedup, preventing near-duplicate suggestions. Mock 3 completed stories, run Phase A, assert suggested stories have <85% similarity to completed titles.",
-      "acceptanceCriteria": [
-        "Phase A prompt includes completed story titles as exclusion hints (injected from prd.json with status >= 'V')",
-        "Semantic dedup comparison ignores rows where story phase >= 'V' (completed)",
-        "Test: run Phase A with 3 completed stories + 2 AI suggestions, verify suggestions don't match >85% to any completed title"
-      ],
-      "technicalNotes": [
-        "File to modify: lib/spiral/phase_a.py (inject completed_stories_summary into system prompt, ~8 lines)",
-        "File to create: tests/test_phase_a_completed_dedup.py (mock Phase A with completed prd.json state, ~70 lines)",
-        "Test command: uv run pytest tests/test_phase_a_completed_dedup.py::test_completed_stories_excluded_from_dedup -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1259",
-      "title": "spiral-ui: Add Phase Duration Timeline Chart for Bottleneck Identification",
-      "priority": "medium",
-      "description": "Visualize how long each SPIRAL phase takes across iterations. Bar chart shows duration (ms) per phase (A, R, T, S, E, M, X, G, I, V, C, L). Highlights slowest phase in red for bottleneck detection.",
-      "acceptanceCriteria": [
-        "Chart renders 12 bars (one per phase), labeled with phase letter, duration in milliseconds",
-        "Slowest phase bar highlighted in red; others in gray",
-        "Chart updates after Phase L completes (once per iteration), pulling from .spiral/_checkpoint.json timing data"
-      ],
-      "technicalNotes": [
-        "File to create: spiral-ui/src/components/PhaseTimelineChart.tsx (Recharts bar chart, ~100 lines)",
-        "File to create: spiral-ui/src/hooks/usePhaseTimings.ts (parse checkpoint.json, calculate deltas, ~30 lines)",
-        "File to modify: spiral.sh (emit phase-timings event after Phase L checkpoint write, ~3 lines)",
-        "Manual test: run SPIRAL iteration, navigate to dashboard, verify 12 bars render with correct labels and bottleneck highlight"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1260",
-      "title": "CLI: spiral validate-federated -- Enforce Story ID Namespacing Across Sub-Projects",
-      "priority": "medium",
-      "description": "Extend spiral validate-federated to enforce story ID namespace rules for multi-repo projects. Each sub-project's stories must use prefix {REPO}_{STORYID}, and inter-repo story references are rejected.",
-      "acceptanceCriteria": [
-        "CLI command: spiral validate-federated --prd prd.json --repos backend,frontend validates all story IDs match pattern {REPO}_{TYPE}-{NUMBER}",
-        "Rejects stories missing repo prefix or referencing other repos' stories (e.g., backend story cannot depend on frontend_US-001)",
-        "Test: validate 3 repos (correct namespaces pass; one repo with incorrect namespace fails with clear error message)"
-      ],
-      "technicalNotes": [
-        "File to create: lib/spiral/federated_namespace_validator.py (validation logic, ~60 lines)",
-        "File to modify: spiral.sh (add validate-federated subcommand handler dispatch, ~8 lines)",
-        "File to create: tests/test_federated_namespace_validation.py (test correct/incorrect namespace patterns, ~80 lines)",
-        "Test command: uv run pytest tests/test_federated_namespace_validation.py::test_namespace_enforcement_multi_repo -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1261",
       "title": "Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup",
       "priority": "high",
@@ -2708,6 +2485,161 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1262",
+      "title": "Phase M: Wire federated_merge() and Add Multi-Project Fixture",
+      "priority": "high",
+      "description": "Replace inline dedup logic in phase_m_federated_order.py with a call to federated_merge(). Add a JSON test fixture containing PROJ1/US-100 and PROJ2/US-100 to drive an integration assertion.",
+      "acceptanceCriteria": [
+        "phase_m_federated_order.py imports and calls federated_merge(); rejection errors from error_log are written to the SPIRAL log",
+        "tests/fixtures/federated_prd_multi_project.json contains two projects each with story US-100",
+        "uv run pytest tests/test_federated_merge.py::test_phase_m_integration -v passes"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/phase_m_federated_order.py (replace inline dedup block with: from lib.impl.federated_merge import federated_merge; accepted, rejected, errors = federated_merge(stories))",
+        "File to create: tests/fixtures/federated_prd_multi_project.json (minimal two-project fixture with US-100 in each)",
+        "Test command: uv run pytest tests/test_federated_merge.py::test_phase_m_integration -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-12T04:04:59Z"
+    },
+    {
+      "id": "US-1263",
+      "title": "Fix Mypy Errors: Missing Imports and Undefined Names in research_cache.py",
+      "priority": "high",
+      "description": "lib/research/research_cache.py has ~40 mypy name-defined errors: os, _compute_embedding, _cosine_similarity, _cache_path, _now_ts, _is_valid, _cache_key, _embedding_path are all undefined. These are likely missing imports or methods that were removed/refactored without updating callers. Fix all missing imports and undefined name references.",
+      "acceptanceCriteria": [
+        "uv run mypy lib/research/research_cache.py --strict exits 0 with no name-defined errors",
+        "All functions referenced in research_cache.py are properly imported or defined",
+        "uv run pytest tests/ -k research_cache -v passes (no regressions)"
+      ],
+      "technicalNotes": [
+        "File: lib/research/research_cache.py",
+        "Error pattern: Name 'os' is not defined, Name '_compute_embedding' is not defined, etc.",
+        "These are mypy [name-defined] errors - likely missing import statements or helper functions that were split out"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-fix",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1264",
+      "title": "Fix Mypy Errors: Undefined Names in validate_stories.py and merge_stories.py",
+      "priority": "high",
+      "description": "Multiple mypy name-defined errors across lib/prd/validate_stories.py (cluster_failures, datetime, timezone, locked_append_jsonl undefined) and lib/prd/merge_stories.py. Fix all missing imports and undefined references in these story management modules.",
+      "acceptanceCriteria": [
+        "uv run mypy lib/prd/validate_stories.py lib/prd/merge_stories.py --strict exits 0 with no name-defined errors",
+        "All imports are resolved and functions are properly referenced",
+        "uv run pytest tests/test_validate_stories.py tests/test_merge_stories.py -v passes"
+      ],
+      "technicalNotes": [
+        "Files: lib/prd/validate_stories.py, lib/prd/merge_stories.py",
+        "Errors: cluster_failures, datetime, timezone, locked_append_jsonl are undefined",
+        "Check if these were refactored to a different module and need re-import"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-fix",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1265",
+      "title": "Fix Mypy Errors: msvcrt Attribute Errors and Unused type:ignore Comments",
+      "priority": "high",
+      "description": "CI runs on Linux where msvcrt module attributes (locking, LK_NBLCK, LK_UNLCK) do not exist, causing mypy attr-defined errors. Also fix unused type:ignore comments and add types-PyYAML to dev dependencies for import-untyped errors on yaml.",
+      "acceptanceCriteria": [
+        "uv run mypy lib/ --strict shows no attr-defined errors for msvcrt on Linux (use platform-conditional type: ignore or TYPE_CHECKING guards)",
+        "No unused type:ignore comments remain (zero unused-ignore errors)",
+        "types-PyYAML is in pyproject.toml dev dependencies and yaml import-untyped errors are resolved",
+        "uv run mypy lib/ --strict exits with 0 errors total"
+      ],
+      "technicalNotes": [
+        "msvcrt is Windows-only - guard with sys.platform check or use TYPE_CHECKING conditional",
+        "Add types-PyYAML to [dependency-groups] dev in pyproject.toml",
+        "Remove or update stale type:ignore comments that no longer suppress real errors"
+      ],
+      "dependencies": [
+        "US-1263",
+        "US-1264"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-fix",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1266",
+      "title": "Fix Ruff F821/F841/F401 Lint Errors Across lib/",
+      "priority": "high",
+      "description": "Ruff reports 103 errors: 46 F821 (undefined name), 22 F841 (local variable assigned but never used), 3 F401 (unused import), 1 BLE001 (blind except). Most F821 errors overlap with mypy name-defined issues in research_cache.py. Fix all ruff violations so CI passes.",
+      "acceptanceCriteria": [
+        "uv run ruff check lib/ tests/ exits 0 with no errors",
+        "No F821 (undefined name), F841 (unused var), or F401 (unused import) violations remain",
+        "uv run pytest tests/ -v passes (no regressions from removing unused vars)"
+      ],
+      "technicalNotes": [
+        "Key files: lib/research/research_cache.py (~30 F821), lib/commands/validate_federated.py, lib/forecast_ceiling.py, lib/observability/auto_release.py, lib/prd/merge_stories.py, lib/prd/partition_prd.py, lib/prd/validate_stories.py",
+        "F841 unused vars: remove or use _ prefix",
+        "F401 unused imports: remove the import line",
+        "E501 line-too-long: wrap lines at 120 chars (check ruff config for project line-length)"
+      ],
+      "dependencies": [
+        "US-1263"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-fix",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1269",
+      "title": "Fix CI Python 3.12 Matrix: Remove 3.12 from Test Matrix",
+      "priority": "high",
+      "description": "The test(3.12) CI job fails because pyproject.toml requires-python >= 3.13 but the CI matrix includes Python 3.12. Remove 3.12 from the CI test matrix since the project requires 3.13+.",
+      "acceptanceCriteria": [
+        "CI test matrix no longer fails due to Python version incompatibility",
+        ".github/workflows/ci.yml matrix only includes 3.13 (or 3.13+)",
+        "The chosen approach is documented in a code comment"
+      ],
+      "technicalNotes": [
+        "File: .github/workflows/ci.yml (test job matrix.python-version)",
+        "Error: The requested interpreter resolved to Python 3.12.13, which is incompatible with requires-python: >=3.13",
+        "Remove '3.12' from the matrix array, keep '3.13' and any newer versions"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-fix",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1270",
+      "title": "Fix Dependency Vulnerabilities: Upgrade cryptography and nltk",
+      "priority": "high",
+      "description": "uv-secure scan found 2 HIGH vulnerabilities: cryptography==44.0.3 (GHSA-r6ph-v2qm-q3c2) and nltk==3.9.3 (GHSA-jm6w-m3j8-898g). Upgrade both packages to patched versions.",
+      "acceptanceCriteria": [
+        "cryptography is upgraded to a version that resolves GHSA-r6ph-v2qm-q3c2",
+        "nltk is upgraded to a version that resolves GHSA-jm6w-m3j8-898g",
+        "uv lock is updated and committed",
+        "uv run uv-secure verify uv.lock exits 0 with no HIGH/CRITICAL findings"
+      ],
+      "technicalNotes": [
+        "Run: uv lock --upgrade-package cryptography --upgrade-package nltk",
+        "If no patched version exists, add to uv-secure ignore list with justification comment",
+        "File: pyproject.toml (version constraints), uv.lock"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-fix",
       "model": "haiku"
     }
   ]

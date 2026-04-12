@@ -1894,3 +1894,27 @@ Completed: [Regression Test] Model routing cost-per-win calibration from results
 ## Iteration 1 - Sun, Apr 12, 2026  9:58:38 AM
 FAILED diagnosis-block gate: Create lib/impl/federated_merge.py: Namespace-Aware Story Dedup (ID: US-1261) — no diagnosis block found — attempt 1/3
 
+
+## Iteration 18 - Sun, Apr 12, 2026
+Completed: Phase M: Wire federated_merge() and Add Multi-Project Fixture (ID: US-1262)
+
+### What was implemented
+- Verified that lib/impl/phase_m_federated_order.py already imports federated_merge() on line 23
+- Verified that federated_merge() is called on line 96 with proper error handling
+- Verified that rejection errors are logged to SPIRAL log on lines 99-100
+- Verified that tests/fixtures/federated_prd_multi_project.json exists with correct structure (PROJ1/US-100, PROJ2/US-100, and duplicate)
+- Verified that test_phase_m_integration passes
+
+### Quality checks passed
+- Pytest: ✓ Both test_namespace_isolation and test_phase_m_integration pass
+- MyPy --strict: ✓ No issues in federated_merge.py or phase_m_federated_order.py
+- All acceptance criteria verified
+
+### Key findings
+- Story was already fully implemented from previous iteration
+- federated_merge() integration is working correctly
+- Test fixture properly tests the deduplication logic
+
+### Gotchas
+- None; implementation already complete and working
+
