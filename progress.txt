@@ -1584,3 +1584,67 @@ Here is the technical brief for implementing the regression test for story US-12
 *   State management is critical. Ensure file and git operations are fully sandboxed within the test's temporary directory to prevent side effects.
 *   The test setup must correctly stage a `prd.json` backup for the rollback mechanism to use.
 
+
+## Iteration 14 - Sat, Apr 12, 2026
+Completed: [Regression Test] Phase I transaction journal for crash-safe prd.json writes (ID: US-1240) in ~15m
+
+### What was implemented
+- Created comprehensive regression test suite: `tests/test_us_1088_regression.py`
+- 18 tests across 7 test classes covering all core behaviours of US-1088:
+  1. **TestTxnJournalBasicLifecycle** (4 tests): Transaction state tracking
+     - Records pending status before writes
+     - Marks committed on successful exit
+     - Writes files atomically with correct data
+     - Creates backups before writing
+  2. **TestTxnJournalRecovery** (2 tests): Incomplete transaction recovery
+     - Recovers incomplete transactions from backup
+     - Does not recover already-committed transactions
+  3. **TestWriteEntryAndVerifyAll** (3 tests): Journal entry recording & orphan detection
+     - Records all transaction metadata (story_id, worker_pid, timestamp, operation, pre_hash)
+     - Detects entries without matching git commits
+     - Handles missing journal gracefully
+  4. **TestRollbackOrphaned** (2 tests): Rollback functionality
+     - Restores prd.json from backup for orphaned entries
+     - Handles missing journal gracefully
+  5. **TestCliInterface** (3 tests): CLI command behavior
+     - write-entry command records journal entries
+     - verify command detects orphaned entries
+     - recover command restores from backups
+  6. **TestBackupCleanup** (1 test): Backup file lifecycle management
+  7. **TestHashFile** (3 tests): SHA-256 hashing utilities
+     - Returns correct SHA-256 hash
+     - Returns empty string for missing files
+     - Hash is consistent for same content
+
+### Quality checks passed
+- PyTest: ✓ All 18 tests pass (100% success rate)
+- MyPy --strict: ✓ No issues found
+- Ruff format: ✓ All code properly formatted
+- Ruff check: ✓ All checks passed (no lint issues)
+- Pytest markers: ✓ Registered us_1088 marker in tests/pyproject.toml
+
+### Key findings
+- Transaction journal fully implements crash-safe writes:
+  - TxnJournal context manager for grouped file mutations
+  - Pending/committed status tracking in JSONL journal
+  - Recovery via .bak backup files for incomplete transactions
+  - write_entry() logs individual prd.json mutations with pre-hash
+  - verify_all() detects orphaned entries (no git commits)
+  - rollback_orphaned() restores prd.json when writer killed mid-transaction
+- CLI interface provides recovery operations: write-entry, verify, recover
+- Tests use tmp_path fixture for isolation; no side effects on real prd.json
+- Tests verify both success paths and error handling (missing journals, etc.)
+
+### Patterns discovered
+- Pytest class-based test organization for grouping related tests
+- @pytest.mark custom markers for selective test execution (-k flag)
+- JSONL format for append-only transaction journal
+- Context managers (with statement) for guaranteed cleanup/commit
+- Backup creation pattern (file + .bak) for crash recovery
+
+### Gotchas
+- Ruff formatter expands multi-line list comprehensions
+- Must include blank line after sys.path.insert (ruff I001 import sorting)
+- Type annotations required for mypy --strict on dict literals (use dict[str, Any])
+- subprocess.run() needs full script path from __file__ in tests
+
