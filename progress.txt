@@ -127,3 +127,5 @@ Completed: Dashboard API: GET /api/dashboard/throughput (Stories Completed Per H
 ## Iteration 1 - Sun, Apr 12, 2026  7:13:16 PM
 Completed: [Multi-Repo] Validate Federated Story IDs Match Sub-Project Namespace Prefixes (ID: US-1255) in 6m
 
+## Iteration 2 - Sun, Apr 12, 2026  7:20:26 PM
+Completed: Fix Vulture Dead Code: Remove Unused Variables in overflow_guard and conflict_resolver (ID: US-1267) in 6m
