@@ -1062,15 +1062,58 @@ def cmd_namespace_check(args) -> None:
 
 
 def cmd_validate_federated(args) -> None:
-    """Validate federated prd.json structure (US-514)."""
-    sys.path.insert(0, str(SPIRAL_HOME / "lib" / "commands"))
-    from validate_federated import validate_federated  # type: ignore[import]
-
+    """Validate federated prd.json structure (US-514, US-1255)."""
     prd_path = Path(getattr(args, "prd", "prd.json"))
     if not prd_path.is_absolute():
         prd_path = Path.cwd() / prd_path
 
     output_path = getattr(args, "output", "")
+    use_namespace = getattr(args, "namespace", False)
+
+    # Route to namespace validation if --namespace flag is set
+    if use_namespace:
+        sys.path.insert(0, str(SPIRAL_HOME / "lib" / "federated"))
+        from namespace_validator import validate_namespace_prefix  # type: ignore[import]
+
+        report = validate_namespace_prefix("repos")
+        if output_path:
+            output_file = Path(output_path)
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(report, f, indent=2)
+            print(f"Report written to {output_path}")
+        else:
+            print(json.dumps(report, indent=2))
+
+        # Print summary to stderr
+        if report["errors"]:
+            print("\n[spiral] Namespace validation FAILED:", file=sys.stderr)
+            print(f"  {len(report['errors'])} mismatch(es):", file=sys.stderr)
+            for error in report["errors"]:
+                file_path = error.get("file", "?")
+                story_id = error.get("story_id", "?")
+                expected = error.get("expected", "?")
+                line = error.get("line", -1)
+                line_str = f" (line {line})" if line > 0 else ""
+                print(
+                    f"    {file_path}: expected {expected}, got {story_id}{line_str}",
+                    file=sys.stderr,
+                )
+                remediation = error.get("remediation", "")
+                if remediation:
+                    print(f"      → {remediation}", file=sys.stderr)
+            sys.exit(1)
+        else:
+            print(
+                f"\n[spiral] Namespace validation PASSED: "
+                f"All {report['total_stories']} stories match their folder prefixes",
+                file=sys.stderr,
+            )
+            sys.exit(0)
+
+    # Standard validation (non-namespace)
+    sys.path.insert(0, str(SPIRAL_HOME / "lib" / "commands"))
+    from validate_federated import validate_federated  # type: ignore[import]
 
     report = validate_federated(prd_path)
 
@@ -3319,6 +3362,12 @@ def main():
         type=str,
         default="",
         help="Path to write JSON report (optional; prints to stdout if omitted)",
+    )
+    validate_fed_parser.add_argument(
+        "--namespace",
+        action="store_true",
+        default=False,
+        help="Validate story IDs match sub-project folder namespace prefixes (repos/PROJECT-X/)",
     )
 
     federation_health_parser = subparsers.add_parser(
