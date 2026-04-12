@@ -51,12 +51,12 @@ def _strip_comments(text: str) -> str:
     return "\n".join(result)
 
 
-def _chunk_to_modified_sections(diff_block: str, context_lines: int = 50) -> str:
+def _chunk_to_modified_sections(diff_block: str, _context_lines: int = 50) -> str:
     """Extract modified sections from diff with boundary context.
 
     Args:
         diff_block: Unified diff text
-        context_lines: Lines of context around each modification
+        _context_lines: Lines of context around each modification
 
     Returns:
         Trimmed diff with only modified sections + boundary context

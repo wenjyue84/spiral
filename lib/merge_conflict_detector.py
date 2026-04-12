@@ -63,14 +63,14 @@ def write_conflict_report(
     matrix: dict[str, list[str]],
     path: str,
     *,
-    only_conflicts: bool = True,
+    _only_conflicts: bool = True,
 ) -> None:
     """Write a structured JSON conflict report to *path*.
 
     Report format (list of objects, one per story that has conflicts):
         [{"story_id": "US-456", "conflicting_story_ids": ["US-457"], "conflicting_files": ["lib/shared.py"]}, ...]
 
-    If *only_conflicts* is True (default) only stories with overlapping files
+    If *_only_conflicts* is True (default) only stories with overlapping files
     are included.  An empty list is written when there are no conflicts.
     """
     # Invert matrix: story_id -> {conflicting_story_ids} per conflicting file

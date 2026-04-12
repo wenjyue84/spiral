@@ -199,8 +199,8 @@ def resolve_or_mark(
     version_a: str,
     version_b: str,
     *,
-    worker_a_label: str = "worker-A",
-    worker_b_label: str = "worker-B",
+    _worker_a_label: str = "worker-A",
+    _worker_b_label: str = "worker-B",
 ) -> tuple[str, bool]:
     """Convenience wrapper for Phase M orchestration.
 
