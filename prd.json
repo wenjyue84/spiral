@@ -2441,25 +2441,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1249",
-      "title": "[E2E Test] Add filter controls to analytics retry history table",
-      "priority": "medium",
-      "description": "Write end-to-end user flow test for the feature in US-1115. Story description: The retry history table has no way to slice the data. Add a filter bar above the table with three dropdowns: (1) Failure Type - filters by failure_root_cause value; (2) Model Tier - haiku/sonnet/opus/all; (3) Outcome - passed/skipped/decomposed/all. The existing Most Recent / Most Retried sort toggle should remain. Show empty state message when no rows match filters.",
-      "acceptanceCriteria": [
-        "E2E test covers the user flow introduced by US-1115",
-        "Test navigates to relevant page(s) and asserts on visible state",
-        "Test passes in headless browser (Playwright/Cypress/similar)"
-      ],
-      "technicalNotes": [
-        "Source files from US-1115: spiral-ui/src/components/analytics/FailureRetryDashboard.tsx, spiral-ui/src/components/AnalyticsTab.tsx",
-        "Run: uv run pytest tests/ -k us_1115 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1250",
       "title": "Create E2E Integration Test Harness and Fixtures for SPIRAL",
       "priority": "high",
@@ -2523,69 +2504,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet"
-    },
-    {
-      "id": "US-1253",
-      "title": "Phase G: Generate CHANGELOG.md from Story Commits Using git-cliff",
-      "priority": "medium",
-      "description": "Implement Phase G to auto-generate CHANGELOG.md from git commits associated with completed stories, using git-cliff for structured parsing. Groups commits by story ID (US-NNN format) and iteration, creating a human-readable changelog of features and fixes per iteration.",
-      "acceptanceCriteria": [
-        "Create lib/phases/phase_g.sh orchestrating git-cliff invocation with .cliff.toml config",
-        "CHANGELOG.md generated in repository root with sections per iteration, commits grouped by story ID",
-        "Each changelog entry includes story title (extracted from prd.json) and associated commit messages"
-      ],
-      "technicalNotes": [
-        "File to create: lib/phases/phase_g.sh (phase orchestration stub to invoke git-cliff binary and handle CHANGELOG.md output)",
-        "File to create: .cliff.toml (git-cliff config grouping commits by [Conventional Commits] footer 'Story: US-NNN')",
-        "File to create: tests/test_phase_g_changelog.bats (test git-cliff config parsing, verify CHANGELOG.md structure and story grouping)",
-        "Test command: tests/bats-core/bin/bats tests/test_phase_g_changelog.bats"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1254",
-      "title": "Dashboard API: GET /api/dashboard/throughput (Stories Completed Per Hour)",
-      "priority": "medium",
-      "description": "Add REST endpoint to dashboard API that aggregates completed story counts from results.tsv by hour, enabling real-time throughput visualization. Returns hourly time series for the current iteration to track how many stories complete per hour.",
-      "acceptanceCriteria": [
-        "GET /api/dashboard/throughput returns JSON: [{hour: '2026-04-05T14:00', count: 3, stories: ['US-100', 'US-101']}, ...] for all hours in current iteration",
-        "Endpoint filters results.tsv to only stories with status='passed' in current iteration (extracted from .spiral/_checkpoint.json)",
-        "Endpoint caches results for 5 seconds to avoid repeated file I/O"
-      ],
-      "technicalNotes": [
-        "File to create: lib/dashboard_api/throughput.py (parse results.tsv, group by completion hour, aggregate counts)",
-        "File to edit: dashboard/app.py (add Flask/FastAPI GET /api/dashboard/throughput route calling throughput.aggregate())",
-        "File to create: tests/test_dashboard_throughput_api.py (test hour parsing, filtering by iteration, caching behavior)",
-        "Test command: uv run pytest tests/test_dashboard_throughput_api.py::test_hourly_aggregation -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1255",
-      "title": "[Multi-Repo] Validate Federated Story IDs Match Sub-Project Namespace Prefixes",
-      "priority": "medium",
-      "description": "Extend federated PRD validator to enforce story ID naming convention: each story in repos/PROJECT-X/ must have ID starting with 'PROJECT-X-' (derived from folder name). Reports mismatches with expected prefix and remediation guidance.",
-      "acceptanceCriteria": [
-        "CLI spiral validate-federated --namespace checks all story IDs match their sub-project folder prefix (e.g., repos/makan/ requires MAKAN-* IDs)",
-        "Error output lists each mismatch: 'repos/makan/US-100: expected MAKAN-*, got US-100' with line number in prd.json",
-        "Exit code 1 if any mismatches found; 0 if all stories pass namespace validation"
-      ],
-      "technicalNotes": [
-        "File to create: lib/federated/namespace_validator.py (scan repos/ directories, extract prefixes, validate each story ID)",
-        "File to edit: lib/federated/__init__.py (add --namespace flag to validate-federated subcommand, route to namespace_validator.validate())",
-        "File to create: tests/test_federated_namespace_validation.py (test valid prefixes, invalid/mixed prefixes, missing repos/ folder)",
-        "Test command: uv run pytest tests/test_federated_namespace_validation.py::test_story_id_mismatch_detection -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
     },
     {
       "id": "US-1261",
@@ -2665,9 +2583,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-fix",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-12T04:28:36Z"
     },
     {
       "id": "US-1265",
@@ -2719,49 +2638,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1267",
-      "title": "Fix Vulture Dead Code: Remove Unused Variables in overflow_guard and conflict_resolver",
-      "priority": "medium",
-      "description": "Vulture reports 4 unused variables at 100% confidence: context_lines in overflow_guard.py:54, only_conflicts in merge_conflict_detector.py:66, worker_a_label and worker_b_label in conflict_resolver.py:202-203. Remove or properly use these variables.",
-      "acceptanceCriteria": [
-        "uv run vulture lib/ --min-confidence 100 exits 0 with no findings",
-        "The 4 identified unused variables are removed or properly utilized",
-        "uv run pytest tests/ -v passes"
-      ],
-      "technicalNotes": [
-        "Files: lib/context/overflow_guard.py:54, lib/merge_conflict_detector.py:66, lib/phase_m/conflict_resolver.py:202-203",
-        "If vars are needed for future use, prefix with _ to suppress vulture"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix",
-      "model": "haiku"
-    },
-    {
-      "id": "US-1268",
-      "title": "Fix actionlint Shellcheck Warnings in ci.yml",
-      "priority": "medium",
-      "description": "actionlint reports 3 shellcheck issues in .github/workflows/ci.yml: SC2129 (use grouped redirection instead of individual redirects, line 333), SC2016 (expressions in single quotes, line 572), SC2155 (declare and assign separately, line 818). Fix all three.",
-      "acceptanceCriteria": [
-        "actionlint -color .github/workflows/*.yml exits 0",
-        "SC2129 at line 333: refactored to use { cmd1; cmd2; } >> file",
-        "SC2016 at line 572: use double quotes for expression expansion",
-        "SC2155 at line 818: separate declare and assign statements"
-      ],
-      "technicalNotes": [
-        "File: .github/workflows/ci.yml",
-        "SC2129 line 333: replace individual >> redirects with grouped { } >> file",
-        "SC2016 line 572: change single quotes to double quotes for variable expansion",
-        "SC2155 line 818: split local VAR=$(cmd) into local VAR; VAR=$(cmd)"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix",
-      "model": "haiku"
-    },
-    {
       "id": "US-1269",
       "title": "Fix CI Python 3.12 Matrix: Remove 3.12 from Test Matrix",
       "priority": "high",
@@ -2797,48 +2673,6 @@
         "Run: uv lock --upgrade-package cryptography --upgrade-package nltk",
         "If no patched version exists, add to uv-secure ignore list with justification comment",
         "File: pyproject.toml (version constraints), uv.lock"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix",
-      "model": "haiku"
-    },
-    {
-      "id": "US-1271",
-      "title": "Fix SBOM Generation: Update cyclonedx-py CLI Flag from --outfile",
-      "priority": "medium",
-      "description": "The sbom CI job fails because cyclonedx-py no longer accepts --outfile flag. Update the CI workflow to use the current CLI syntax (likely -o or --output).",
-      "acceptanceCriteria": [
-        "The sbom job in .github/workflows/ci.yml uses the correct cyclonedx-py flag",
-        "cyclonedx-py generates the SBOM file successfully in CI",
-        "The generated SBOM is uploaded as an artifact"
-      ],
-      "technicalNotes": [
-        "File: .github/workflows/ci.yml (sbom job)",
-        "Error: cyclonedx-py: error: unrecognized arguments: --outfile",
-        "Check cyclonedx-py --help for correct flag (likely --output or -o or stdout redirect)"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix",
-      "model": "haiku"
-    },
-    {
-      "id": "US-1272",
-      "title": "Fix Bats/SARIF CI: Remove Broken Submodule and Update CodeQL Action SHA",
-      "priority": "medium",
-      "description": "Two CI issues: (1) bats job fails with 'No url found for submodule path .claude/worktrees/agent-ada52e4b in .gitmodules' - a stale worktree directory is being treated as a submodule. (2) sarif job fails because github/codeql-action/upload-sarif SHA 4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb cannot be resolved. Fix both.",
-      "acceptanceCriteria": [
-        ".claude/worktrees/agent-ada52e4b is added to .gitignore and removed from git tracking",
-        "github/codeql-action/upload-sarif in ci.yml is updated to a valid, pinned SHA",
-        "bats and sarif CI jobs pass"
-      ],
-      "technicalNotes": [
-        "For submodule: run git rm --cached .claude/worktrees/agent-ada52e4b, add .claude/worktrees/ to .gitignore",
-        "For CodeQL: check latest release of github/codeql-action and pin to its full SHA",
-        "File: .github/workflows/ci.yml (sarif job), .gitignore, .gitmodules (if exists)"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",

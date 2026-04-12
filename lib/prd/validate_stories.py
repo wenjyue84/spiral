@@ -22,12 +22,13 @@ import json
 import os
 import re
 import sys
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
-from spiral_io import atomic_write_json, configure_utf8_stdout
+from spiral_io import atomic_write_json, configure_utf8_stdout, locked_append_jsonl
 
 configure_utf8_stdout()
 
@@ -196,7 +197,7 @@ def _load_candidates(path: str) -> list[dict]:
         with open(path, encoding="utf-8") as fh:
             if path.endswith(".yaml") or path.endswith(".yml"):
                 try:
-                    import yaml
+                    import yaml  # type: ignore[import-untyped]
 
                     data = yaml.safe_load(fh) or {}
                 except ImportError:
@@ -355,8 +356,6 @@ def _write_batch_summary(
     rejected: list[dict],
 ) -> None:
     """Write a Phase S batch results summary to *batch_out*."""
-    import datetime
-
     rows: list[dict[str, object]] = []
     for story in accepted:
         rows.append(
@@ -378,7 +377,7 @@ def _write_batch_summary(
             }
         )
     summary: dict[str, object] = {
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "batch_id": batch_id,
         "total": len(rows),
         "accepted": len(accepted),
@@ -809,7 +808,7 @@ def validate_stories(
             _min_score = float(os.environ.get("SPIRAL_STORY_MIN_QUALITY_SCORE", "35"))
             if _min_score > 0:
                 try:
-                    from story_quality_scorer import score_story as _score_story  # type: ignore[import]
+                    from story_quality_scorer import score_story as _score_story
 
                     _breakdown = _score_story(story)
                     if _breakdown["total_score"] < _min_score:
