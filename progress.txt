@@ -70,3 +70,55 @@ Completed: [E2E Test] Add filter controls to analytics retry history table (ID: 
 - ✓ git add and git commit successful
 - ✓ BATS individual test runs successful (spot-checked multiple tests)
 
+
+## Iteration [N] - Story: Dashboard API: GET /api/dashboard/throughput (US-1254)
+
+### What was implemented
+- Created `lib/dashboard/throughput.py` with `aggregate()` function that:
+  - Parses results.tsv using existing parse_results_tsv() from lib.results_tsv
+  - Filters records to status='passed' only
+  - Extracts current iteration from .spiral/_checkpoint.json
+  - Groups records by completion hour (ISO format: YYYY-MM-DDTHH:00)
+  - Implements 5-second cache with global _THROUGHPUT_CACHE and _CACHE_TIMESTAMP
+  - Returns sorted list of hourly aggregations with count and story_id list
+
+- Updated `lib/dashboard/api.py` to add GET /api/dashboard/throughput endpoint:
+  - Added import for aggregate_throughput
+  - Added endpoint route that calls aggregate()
+  - Returns JSON with hourly_throughput list and total_hours count
+  - Includes error handling with logging
+
+- Created `tests/test_dashboard_throughput_api.py` with 8 comprehensive tests:
+  - test_hourly_aggregation: validates basic grouping by hour
+  - test_filters_by_iteration: ensures filtering to current iteration only
+  - test_filters_by_status: verifies only 'passed' status included
+  - test_caching_behavior: validates 5-second cache TTL expiry
+  - test_malformed_timestamps_ignored: confirms graceful handling of invalid timestamps
+  - test_missing_files_returns_empty: handles missing results.tsv
+  - test_no_checkpoint_filters_all_iterations: includes all iterations when no checkpoint
+  - test_sorted_by_hour: verifies results sorted ascending by hour
+
+### Patterns discovered
+- The project uses global module-level caching with time.time() for TTL management
+- FastAPI endpoints in lib/dashboard/api.py follow a consistent pattern: load data, filter, aggregate, return JSON with error handling
+- Tests use temporary directories via pytest fixtures and the write_results_tsv() utility for creating test data
+- Cache must be cleared per-test using autouse fixture to prevent test pollution
+
+### Gotchas
+- Initial hour formatting bug: used `.strftime("%Y-%m-%dT%H:%M").replace(":%M", ":00")` which was broken; fixed to `.strftime("%Y-%m-%dT%H:00")`
+- Global cache persisted across tests; solved with autouse fixture that clears _THROUGHPUT_CACHE and _CACHE_TIMESTAMP before each test
+- Ruff import sorting required all stdlib imports (json, time, datetime, pathlib, typing) before relative imports
+- Mypy strict mode required explicit type guard on cached value: `if isinstance(cached, list): return cached`
+
+### Files touched
+- lib/dashboard/throughput.py (new, 100 lines)
+- lib/dashboard/api.py (modified, +30 lines)
+- tests/test_dashboard_throughput_api.py (new, 422 lines)
+- prd.json (modified, marked US-1254 passes: true)
+
+### Quality gates passed
+- ✓ All 8 pytest tests pass
+- ✓ mypy --strict on both new files (lib/dashboard/throughput.py, lib/dashboard/api.py)
+- ✓ ruff check passed (import sorting, F401 unused imports)
+- ✓ Git commit successful with full acceptance criteria tracking
+
