@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\commands\validate_federated.py
+# hypothesis_version: 6.151.9
+
+['\nValidation FAILED:', '(US|UT|FE|BE)-NNN', '--namespace', '--output', '--prd', '--sub-projects', ':', '<unknown>', '?', '_decomposedFrom', 'cycles', 'dependencies', 'description', 'errors', 'expected', 'file', 'id', 'line', 'namespace', 'output', 'prd', 'prd.json', 'r', 'remediation', 'repos', 'store_true', 'story_id', 'userStories', 'utf-8', 'valid', 'validate-federated', 'w']
