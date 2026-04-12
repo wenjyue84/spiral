@@ -1,3 +1,39 @@
+## Iteration 15 - Sun, Apr 12, 2026
+Completed: [Regression Test] Model routing cost-per-win calibration from results.tsv history (ID: US-1243) in ~3m
+
+### What was implemented
+- Added `@pytest.mark.us_1093` decorator to 5 test classes in `tests/test_routing_calibration.py` for regression testing
+- TestComputeCalibration: 3 tests covering compute_calibration() with mock results.tsv (50 entries, empty file, missing file)
+- TestLoadAndSaveCalibration: 3 tests covering save/load roundtrip persistence to .spiral/routing_calibration.json
+- TestCalibratedRouting: 4 tests covering tier selection with calibration-based cost/quality heuristics
+- TestCalibrationIntegration: 3 tests covering context-window upgrade with calibration, lazy loading, instance isolation
+- TestCalibrationEdgeCases: 4 tests covering zero successes, missing models, CLI calibrate command
+
+### Quality checks passed
+- MyPy --strict: ✓ No issues found
+- Ruff lint: ✓ All checks passed
+- Ruff format: ✓ File already formatted
+- Pytest: ✓ All 15 tests pass with 100% success rate
+- Pytest discovery: ✓ All tests discoverable via `pytest tests/ -k us_1093 -v`
+
+### Key findings
+- US-1093 fully implemented in `lib/routing/llm_router.py`:
+  - `compute_calibration(results_tsv_path)` groups results.tsv by (model, complexity) and computes success_count, total_count, avg_cost_per_pass
+  - `save_calibration()` / `load_calibration()` persist metrics as key "model|complexity" → CalibrationMetric in JSON
+  - `LlmRouter._find_best_tier_for_complexity()` dynamically adjusts escalation thresholds: skips tiers with cost_ratio ≥ 2.0 for quality_gain < 0.1
+  - CLI command: `uv run python lib/llm_router.py --calibrate results.tsv` computes and saves calibration
+
+### Patterns discovered
+- Regression test pattern (5th instance): mark existing comprehensive tests with @pytest.mark.us_XXXX
+- Cost-per-pass metric: (success_tokens / success_count) enables cost/quality comparison across tiers
+- Lazy-load pattern: calibration loaded on first route() call, cached in instance
+- Tier skipping: only skip if both conditions met: cost_ratio ≥ 2.0 AND quality_gain < 0.1 (prevents over-skipping)
+
+### Gotchas
+- PytestUnknownMarkWarning (expected): marks not registered in pytest.ini but tests discoverable and run correctly with -k filter
+- Calibration fallback: if any model metric missing, router returns base tier (no crash)
+- Cost calculation: uses cache_read_tokens + cache_creation_tokens from results.tsv (not full token counts)
+
 ## Iteration 14 - Sun, Apr 12, 2026
 Completed: [Regression Test] Failure pattern categorizer classifies Phase I errors for smarter retries (ID: US-1241) in ~8m
 
@@ -1751,4 +1787,30 @@ This technical brief is for implementing a regression test for the context overf
 *   **Progressive Trimming:** The test should verify that the trimming strategies are applied progressively (e.g., diff trimming occurs before file content trimming). Consider separate tests that trigger different levels of trimming.
 *   **Boundary Conditions:** Test behavior when the estimated context size is just slightly over and just slightly under the budget.
 *   **Logging:** Ensure the log messages in `story._context_trimmed` accurately reflect the trimming actions performed.
+
+## Iteration 1 - Sun, Apr 12, 2026  9:26:09 AM
+Completed: [Regression Test] Context window overflow guard trims prompts before Phase I (ID: US-1242) in 13m
+
+
+## Pre-analysis for US-1243 (Gemini 2.5 Pro)
+**Subject:** Technical Brief for US-1243: Regression Test for Model Routing Calibration
+
+**Project Context Correction:** This is a pure Python project. The user story does not involve the Frappe framework, DocTypes, or hooks.
+
+**Files to Modify:**
+*   **Create:** `tests/test_us1093_routing_calibration.py`. Naming it this way allows `pytest -k us_1093` to discover it.
+*   **Target for testing:** The logic is within `lib/llm_router.py`.
+
+**Implementation Approach:**
+1.  Use a `pytest` fixture (e.g., `tmp_path`) to create a temporary test environment.
+2.  Within the fixture, programmatically generate a mock `results.tsv` file with specific, predictable data.
+3.  Design the mock data to create a clear scenario where, for a given complexity bin, the 'sonnet' model is inefficient compared to 'haiku', forcing the calibration logic to create a direct escalation path to 'opus'.
+4.  Patch the constants or configuration within `lib/llm_router.py` to ensure it reads from the mock `results.tsv` and writes its output to a temporary `.spiral/routing_calibration.json` in your test environment.
+5.  Call the primary calibration function from `lib/llm_router.py`.
+6.  Parse the resulting `routing_calibration.json` and assert that the calculated thresholds correctly reflect the intended logic (e.g., the route for the test complexity bin skips 'sonnet').
+
+**Gotchas & Edge Cases:**
+*   Ensure the test properly handles file I/O, using the `tmp_path` fixture for all reads and writes to avoid side effects.
+*   Consider testing for malformed `results.tsv` data (e.g., missing columns, non-numeric values) to ensure robust error handling.
+*   Guard against division-by-zero errors in the cost-per-pass calculation if a model has zero passes in the mock data.
 

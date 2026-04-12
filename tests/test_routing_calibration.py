@@ -24,6 +24,7 @@ from llm_router import (
 )
 
 
+@pytest.mark.us_1093
 class TestComputeCalibration:
     """Test compute_calibration() with mock results.tsv data."""
 
@@ -80,6 +81,7 @@ class TestComputeCalibration:
         assert metrics == {}
 
 
+@pytest.mark.us_1093
 class TestLoadAndSaveCalibration:
     """Test load_calibration() and save_calibration() persistence."""
 
@@ -136,6 +138,7 @@ class TestLoadAndSaveCalibration:
         assert result is None
 
 
+@pytest.mark.us_1093
 class TestCalibratedRouting:
     """Test that calibrated routing affects tier selection."""
 
@@ -262,6 +265,7 @@ class TestCalibratedRouting:
         assert result["model"] == TIER_TO_MODEL[ModelTier.PRODUCTION]
 
 
+@pytest.mark.us_1093
 class TestCalibrationIntegration:
     """Integration tests for calibration with llm_router full flow."""
 
@@ -322,6 +326,7 @@ class TestCalibrationIntegration:
         assert result1["model"] == result2["model"]
 
 
+@pytest.mark.us_1093
 class TestCalibrationEdgeCases:
     """Test edge cases and error handling."""
 
