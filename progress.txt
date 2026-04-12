@@ -1720,3 +1720,35 @@ This user story requires creating a regression test for a Python script, not a F
 ## Iteration 2 - Sun, Apr 12, 2026  9:05:41 AM
 Completed: [Regression Test] Failure pattern categorizer classifies Phase I errors for smarter retries (ID: US-1241) in 14m
 
+
+## Pre-analysis for US-1242 (Gemini 2.5 Pro)
+This technical brief is for implementing a regression test for the context overflow guard. The user story details are unrelated to Frappe; the implementation should be a standard Python/pytest task within the Spiral project.
+
+**1. Files to Modify:**
+*   Create a new test file: `tests/context/test_overflow_guard.py`.
+*   The feature code to be tested is in `lib/context/overflow_guard.py`. No modifications to the feature itself are expected.
+
+**2. Key Frappe/Project Components:**
+*   This is not a Frappe project. The key components are:
+*   **Main Logic:** The token estimation and trimming functions within `lib/context/overflow_guard.py`.
+*   **Data Structures:** The Python dictionary or object representing a "story" that holds the description, files, and diffs.
+*   **Configuration:** The `SPIRAL_CONTEXT_BUDGET` environment variable.
+
+**3. Recommended Implementation Approach:**
+*   Use `pytest` and its `mocker` fixture to create an isolated test environment.
+*   **Setup:** Create a very large mock story object with a long description, multiple large file contents, and extensive git diffs to guarantee exceeding the token budget.
+*   **Mocking:**
+    *   Mock `os.environ` to set a predictable `SPIRAL_CONTEXT_BUDGET` for the test.
+    *   Mock all file system reads (`open`) and `subprocess` calls (`git diff`) to avoid I/O and external process dependencies. Return large, pre-defined strings.
+*   **Execution:** Call the primary function of the `overflow_guard` with the oversized mock story.
+*   **Assertions:**
+    1.  Verify that the trimming logic was activated and logged its actions to the `story._context_trimmed` field.
+    2.  Confirm that the final, trimmed prompt is smaller than the original.
+    3.  Assert that the final token count is below the mocked `SPIRAL_CONTEXT_BUDGET`.
+
+**4. Edge Cases & Gotchas:**
+*   **Token Estimation:** Token counting is an approximation. Assert the final count is *less than* the budget, not equal to a specific value.
+*   **Progressive Trimming:** The test should verify that the trimming strategies are applied progressively (e.g., diff trimming occurs before file content trimming). Consider separate tests that trigger different levels of trimming.
+*   **Boundary Conditions:** Test behavior when the estimated context size is just slightly over and just slightly under the budget.
+*   **Logging:** Ensure the log messages in `story._context_trimmed` accurately reflect the trimming actions performed.
+

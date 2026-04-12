@@ -2331,7 +2331,10 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nThe context overflow guard feature (US-1092) is already fully implemented in:\n- `lib/context/overflow_guard.py` — Core functions for token estimation, progressive trimming\n- `lib/context/apply_overflow_guard.py` — CLI wrapper to apply guard to prd.json stories\n- `tests/test_overflow_guard.py` — 11 comprehensive unit tests covering all core functionality\n\n## Problem Identified\n\nUS-1242 requires regression tests marked with `@pytest.mark.us_1092` that would reliably fail if the US-1092 feature (context overflow guard) were removed or broken. The existing tests cover the functionality but lack the pytest marker for regression test discovery and don't explicitly test that trimming **actually happens** when expected.\n\n## Planned Changes\n\n1. **Add `@pytest.mark.us_1092` decorator** to all existing tests in `tests/test_overflow_guard.py`\n2. **Enhance tests** to verify that trimming actually prevents overflow and that token budgets are enforced\n3. **Ensure tests would fail** if `guard_story_context()` was disabled, removed, or if trimming logic was broken\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_overflow_guard.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 30\n}\n</plan>\n\nNow let me execute the plan by adding the regression test markers:\nNow let's run the regression tests to verify they pass and work with the pytest marker:\nExcellent! All 11 tests pass. Now let's verify they can be discovered by the us_1092 marker:\nPerfect! Now let's verify the test discovery with the exact command from the story:\nGood! The tests pass. Let's run the full test suite to ensure no regressions:\nLet me verify the test file was correctly updated:\nPerfect! Now let me run the pre-commit checks before committing:\nPerfect! My changes pass the linter. Now let's commit:\nNow let's update prd.json to mark the story as complete:\nLet's verify the final state and confirm all tests pass:\nPerfect! Story US-1242 is complete. Here's the summary:\n\n## Summary"
+      }
     },
     {
       "id": "US-1243",
