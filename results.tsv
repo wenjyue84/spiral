@@ -112,3 +112,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-12T11:20:26Z	59	2	US-1267	Fix Vulture Dead Code: Remove Unused Variables in overflow_guard and conflict_resolver	keep	402	haiku	0	8897a36292d14ce7014f87d895102ec0bf677264	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-12T11:34:06Z	60	1	US-1271	Fix SBOM Generation: Update cyclonedx-py CLI Flag from --outfile	keep	149	haiku	0	0b3302b800f6d37b4822a898acd3c2da37c7cb94	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-12T11:40:05Z	60	2	US-1272	Fix Bats/SARIF CI: Remove Broken Submodule and Update CodeQL Action SHA	keep	337	haiku	0	7bff6295c63f9d38f449d5a0d2a86156860bd7d7	69d9c4a24d0b	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-13T18:25:22Z	2	1	US-1274	Add model cost-split donut chart to AnalyticsTab	keep	349	haiku	0	8c9be036d675d8317b75b5397977e8c891f3f318	69dd2f446391	false	0	0	0	0	0	0	0		0	0	0	0				

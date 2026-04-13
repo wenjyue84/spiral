@@ -194,3 +194,6 @@ This user story is for a React/TypeScript frontend task, not a Frappe/Python one
 - Implement a default color for any models not explicitly named (haiku, sonnet, opus).
 - The "donut" hole can be created using a radial gradient mask or an overlaid pseudo-element.
 
+## Iteration 1 - Tue, Apr 14, 2026  2:25:22 AM
+Completed: Add model cost-split donut chart to AnalyticsTab (ID: US-1274) in 5m
+
