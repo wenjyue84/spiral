@@ -1,3 +1,35 @@
+## Iteration [N] - Story: Add analytics CSV export button to AnalyticsTab (US-1277)
+
+### What was implemented
+- Added `downloadAnalyticsCSV()` helper function that converts agentTelemetry array to CSV format
+- CSV includes 8 columns: ts, workerId, storyId, fromPhase, toPhase, durationMs, qualityScore, retryCount
+- Added Export CSV button (📥 Export CSV) in the status strip, positioned on the right with ml-auto
+- Button uses client-side Blob and URL.createObjectURL for download (no server endpoint)
+- Filename format: analytics-YYYY-MM-DD.csv (using current date via new Date().toISOString())
+- Button disabled state when agentTelemetry is empty, showing tooltip "No telemetry data to export"
+- Button styling: emerald-100/emerald-700 when enabled, slate-100/slate-400 when disabled
+
+### Patterns discovered
+- Export buttons in AnalyticsTab follow emerald/success color scheme
+- CSV generation uses simple string concatenation with .join(',') and .join('\n')
+- Button state management uses conditional className based on data availability (length === 0)
+- Button positioning uses ml-auto in flex container to align right without affecting other controls
+
+### Gotchas
+- None - the implementation was straightforward with proper condition checking for empty data
+
+### Files touched
+- spiral-ui/src/components/AnalyticsTab.tsx (modified, +55/-1 lines)
+
+### Quality gates passed
+- ✓ ESLint validation: no unused variables or type errors
+- ✓ All acceptance criteria met:
+  - [x] Export CSV button appears in status strip of AnalyticsTab
+  - [x] Downloads CSV with correct columns from agentTelemetry
+  - [x] Filename uses format analytics-YYYY-MM-DD.csv
+  - [x] Button is disabled/hidden when agentTelemetry is empty
+  - [x] No server endpoint needed - purely client-side
+
 ## Iteration [N] - Story: Add rolling 3-iteration average overlay to velocity chart (US-1276)
 
 ### What was implemented
@@ -260,4 +292,7 @@ Completed: Add attempt timeline swimlane to StoryDetailPanel (ID: US-1282) in 3m
 
 ## Iteration 1 - Tue, Apr 14, 2026  2:54:27 AM
 Completed: Add story complexity breakdown chart to AnalyticsTab (ID: US-1275) in 5m
+
+## Iteration 2 - Tue, Apr 14, 2026  3:01:19 AM
+Completed: Add rolling 3-iteration average overlay to velocity chart (ID: US-1276) in 6m
 
