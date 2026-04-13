@@ -628,6 +628,7 @@ export function handleAnalytics(root: string, res: ServerResponse): void {
       epicId: s.epicId ?? '',
       priority: s.priority ?? '',
       source: s._source ?? '',
+      estimatedComplexity: s.estimatedComplexity ?? '',
       attempts: (attemptsByStory.get(s.id) ?? []).map(r => ({
         timestamp: r.timestamp,
         model: r.model,
