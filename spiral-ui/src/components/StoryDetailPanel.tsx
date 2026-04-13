@@ -201,6 +201,36 @@ export default function StoryDetailPanel({ story, allStories, attempts, onClose 
           {attempts && attempts.length > 0 && (
             <div>
               <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Attempt History</div>
+
+              {/* Attempt timeline swimlane */}
+              {attempts.length > 0 && (() => {
+                const maxDuration = Math.max(...attempts.map(a => a.duration));
+                return (
+                  <div className="flex gap-1 mb-2.5 h-6 bg-slate-50 rounded px-1.5 py-1 border border-slate-100">
+                    {attempts.map((a, idx) => {
+                      const widthPercent = (a.duration / maxDuration) * 100;
+                      let bgColor = 'bg-red-400';
+                      if (a.status === 'pass') {
+                        bgColor = 'bg-emerald-500';
+                      } else if (idx > 0) {
+                        bgColor = 'bg-amber-400';
+                      }
+                      const durationStr = a.duration >= 60
+                        ? `${Math.floor(a.duration / 60)}m ${a.duration % 60}s`
+                        : `${a.duration}s`;
+                      return (
+                        <div
+                          key={idx}
+                          className={`rounded transition-all ${bgColor} opacity-75 hover:opacity-100 cursor-pointer`}
+                          style={{ width: `${widthPercent}%`, minWidth: '4px' }}
+                          title={`${a.model || 'unknown'} - ${a.status} - ${durationStr}`}
+                        />
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
               <div className="rounded-lg border border-slate-200 overflow-hidden">
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 text-slate-500">
