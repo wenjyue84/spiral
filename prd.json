@@ -2973,7 +2973,7 @@
         "No new API fields needed - derives from storiesList",
         "Inline in AnalyticsTab.tsx using same div bar pattern as iterationVelocity"
       ],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "spiral-ui/src/components/AnalyticsTab.tsx"
       ],
@@ -2984,7 +2984,7 @@
       ],
       "dependencies": [],
       "model": "haiku",
-      "last_attempted": "2026-04-13T18:36:40Z"
+      "last_attempted": "2026-04-13T18:47:58Z"
     },
     {
       "id": "US-1276",
