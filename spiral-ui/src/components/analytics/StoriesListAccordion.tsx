@@ -159,7 +159,16 @@ export default function StoriesListAccordion({ data, defaultFilter = 'all' }: { 
     <div>
       <div className="text-xs font-medium text-slate-500 mb-3 uppercase tracking-wide">Stories</div>
 
-      {/* Controls */}
+      {/* Search Input */}
+      <input
+        type="text"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Search stories…"
+        className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-300 mb-3"
+      />
+
+      {/* Filter Buttons */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
         {FILTERS.map(f => (
           <button
@@ -170,13 +179,6 @@ export default function StoriesListAccordion({ data, defaultFilter = 'all' }: { 
             {f.label}
           </button>
         ))}
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search story ID or title…"
-          className="ml-auto px-3 py-1 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-300 w-56"
-        />
       </div>
 
       {/* List */}
