@@ -8,6 +8,9 @@ SPIRAL_FOCUS="Enhance the spiral-ui analytics tab at localhost:5299/Spiral/analy
 # ── Gate mode: auto-proceed (no human checkpoint needed) ────────────────────
 SPIRAL_GATE_MODE="proceed"
 
+# ── Enable Phase R (web research) for fresh story discovery ──────────────────
+SKIP_RESEARCH=0
+
 # ── Python interpreter ───────────────────────────────────────────────────────
 # Use venv Python directly — "uv run python" fails when quoted in spiral.sh ($SPIRAL_PYTHON is quoted)
 SPIRAL_PYTHON="/c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/.venv/Scripts/python.exe"
