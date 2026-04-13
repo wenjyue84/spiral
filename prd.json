@@ -2959,7 +2959,8 @@
       "last_attempted": "2026-04-13T18:18:34Z",
       "_phaseI": {
         "diagnosisBlock": "### Current State\nThe AnalyticsTab already imports and uses several analytics components (CumulativeCostChart, PhaseTimingBars, etc.) from the analytics/ folder. The modelPerformance array is available in the data structure with model names and performance metrics.\n\n### Problem Identified\nStory US-1274 requires adding a visual donut chart component to display the cost split across different models (haiku, sonnet, opus) in the analytics tab. Currently, this visualization doesn't exist.\n\n### Planned Changes\n1. Create `ModelCostDonut.tsx` - new component that renders a donut chart using conic-gradient showing cost per model\n2. Update `analytics/index.ts` - export the new ModelCostDonut component\n3. Update `AnalyticsTab.tsx` - add CollapsibleSection with ModelCostDonut when modelPerformance has data\n\n<plan>\n{\n  \"files_to_create\": [\"spiral-ui/src/components/analytics/ModelCostDonut.tsx\"],\n  \"files_to_modify\": [\"spiral-ui/src/components/analytics/index.ts\", \"spiral-ui/src/components/AnalyticsTab.tsx\"],\n  \"functions_to_add\": [\"ModelCostDonut default export\"],\n  \"estimated_loc\": 80\n}\n</plan>\n\nNow let me create the ModelCostDonut component:\nNow update the analytics/index.ts to export ModelCostDonut:\nNow update AnalyticsTab.tsx to import and render ModelCostDonut:\nNow let me run quality checks:\nNow let me commit the changes:\nNow update prd.json to mark the story as complete:\nLet me verify the implementation is complete by checking the prd.json:\nPerfect! Story **US-1274** has been successfully implemented. Here's what was completed:\n\n## Implementation Summary"
-      }
+      },
+      "_passedCommit": "8c9be036d675d8317b75b5397977e8c891f3f318"
     },
     {
       "id": "US-1275",
@@ -3117,7 +3118,7 @@
         "Default selection is All",
         "No API changes - purely client-side state"
       ],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "spiral-ui/src/components/AnalyticsTab.tsx"
       ],
@@ -3127,7 +3128,8 @@
         "ui"
       ],
       "dependencies": [],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-13T18:25:26Z"
     },
     {
       "id": "US-1282",
