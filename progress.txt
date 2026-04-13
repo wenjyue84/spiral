@@ -167,3 +167,30 @@ Completed: Fix SBOM Generation: Update cyclonedx-py CLI Flag from --outfile (ID:
 ## Iteration 2 - Sun, Apr 12, 2026  7:40:05 PM
 Completed: Fix Bats/SARIF CI: Remove Broken Submodule and Update CodeQL Action SHA (ID: US-1272) in 5m
 
+
+## Pre-analysis for US-1274 (Gemini 2.5 Pro)
+**Technical Brief for Claude Code Agent**
+
+This user story is for a React/TypeScript frontend task, not a Frappe/Python one. The goal is to create a new donut chart component to visualize model cost breakdown.
+
+**1. Files to Modify:**
+- **Create:** `spiral-ui/src/components/analytics/ModelCostDonut.tsx`
+- **Modify:** `spiral-ui/src/components/AnalyticsTab.tsx` (to import and use the new component)
+- **Modify:** `spiral-ui/src/components/analytics/index.ts` (to export the new component)
+
+**2. Frappe DocTypes/Hooks:**
+- None. This is a pure frontend component implementation in the `spiral-ui` React application.
+
+**3. Recommended Implementation Approach:**
+- In `ModelCostDonut.tsx`, create a component that accepts a `modelPerformance` array prop.
+- Calculate total cost from the array, then derive the percentage for each model.
+- Use CSS `conic-gradient` to build the chart, mapping model names to specified colors: haiku (blue), sonnet (violet), opus (amber).
+- Position percentage labels over the corresponding chart segments.
+- In `AnalyticsTab.tsx`, import `ModelCostDonut` and render it inside a `CollapsibleSection`, conditioned on `modelPerformance.length > 0`.
+
+**4. Edge Cases & Gotchas:**
+- Handle the case where total cost is zero to prevent division-by-zero errors.
+- Ensure the `modelPerformance` data structure is correctly unpacked to get model names and cost values.
+- Implement a default color for any models not explicitly named (haiku, sonnet, opus).
+- The "donut" hole can be created using a radial gradient mask or an overlaid pseudo-element.
+
