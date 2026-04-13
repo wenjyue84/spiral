@@ -3132,7 +3132,8 @@
       "last_attempted": "2026-04-13T18:25:26Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nAnalyticsTab.tsx displays analytics with a status strip showing metrics and charts for iteration velocity and cumulative costs. The charts currently render all data points without any filtering capability.\n\n## Problem Identified\nStory US-1281 requires adding iteration range filter pills (All / Last 10 / Last 20 / Last 50) to the status strip. When selected, these pills should slice the iterationVelocity and cumulativeTrendData arrays to show only the last N entries, updating both the velocity chart and CumulativeCostChart accordingly.\n\n## Planned Changes\n1. Add `iterationRangeFilter` state to track selected filter (\"all\" | \"10\" | \"20\" | \"50\")\n2. Add a helper function `sliceDataByRange()` to slice arrays to last N entries\n3. Add pill button UI in the status strip (after the status bar)\n4. Pass sliced data to the Iteration Velocity chart and CumulativeCostChart\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"spiral-ui/src/components/AnalyticsTab.tsx\"],\n  \"functions_to_add\": [\"sliceDataByRange\"],\n  \"estimated_loc\": 60\n}\n</plan>\n\nNow implementing:\nLet me verify the implementation by checking that all acceptance criteria are met and there are no TypeScript errors in the file:\nPerfect! No TypeScript errors related to AnalyticsTab.tsx. Let me start the dev server and visually verify the implementation:\nLet me verify the implementation by reading the key sections of the modified file one more time to ensure everything is correct:\nExcellent! All changes are correct. Now let me commit the changes:\n## ✅ Story US-1281 Completed"
-      }
+      },
+      "_passedCommit": "a0a2d29d0fa33509b2de79ce08eedc296e2d0809"
     },
     {
       "id": "US-1282",
@@ -3147,7 +3148,7 @@
         "Swimlane only renders when attempts array has at least one entry",
         "No new props or API changes needed"
       ],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "spiral-ui/src/components/StoryDetailPanel.tsx"
       ],
@@ -3157,7 +3158,8 @@
         "ui"
       ],
       "dependencies": [],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-13T18:32:34Z"
     }
   ]
 }
