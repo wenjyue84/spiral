@@ -1,4 +1,31 @@
 
+## Iteration [N] - Story: Add story complexity breakdown chart to AnalyticsTab (US-1275)
+
+### What was implemented
+- Fixed missing `estimatedComplexity` field in the storiesList API response in `analyticsApi.ts`
+- The AnalyticsTab component already had the full complexity breakdown chart implementation:
+  - CollapsibleSection titled "Complexity Breakdown" that displays when storiesList.length > 0
+  - Bar chart showing small/medium/large complexity groups with pass rates
+  - Proper colors: emerald for small, violet for medium, amber for large
+  - Uses the same inline div bar pattern as iterationVelocity chart
+
+### Patterns discovered
+- The component implementation (AnalyticsTab.tsx) was already complete; the issue was in the data layer (API response)
+- The prd.json stories already contain estimatedComplexity field, so no new data source was needed
+- The pattern for inline bar charts in analytics is consistent: calculate max value, map items to flex containers with height styling
+
+### Gotchas
+- The story's implementation was split across two files: API response builder (analyticsApi.ts) and component (AnalyticsTab.tsx)
+- The component defaulted to 'small' complexity when the field was missing, so the chart still rendered but with incorrect grouping
+
+### Files touched
+- spiral-ui/src/server/analyticsApi.ts (modified, +1 line)
+
+### Quality gates passed
+- ✓ TypeScript compilation (--noEmit)
+- ✓ Code review: field correctly defaults to empty string when missing
+- ✓ Follows existing patterns in storiesList API response
+
 ## Pre-analysis for US-1249 (Gemini 2.5 Pro)
 **Correction:** This story is for a frontend E2E test, not a Frappe/Python backend task. The implementation will be in TypeScript/Python using Playwright or a similar E2E testing framework, targeting the existing React UI.
 
