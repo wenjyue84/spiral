@@ -3111,7 +3111,8 @@
       "last_attempted": "2026-04-13T19:24:57Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nI found story US-1279 in prd.json. The AnalyticsTab.tsx file has:\n- `bottlenecks.longest` array available (with `id`, `title`, `durationMin` fields)\n- `setSelectedStoryId` state handler already wired up\n- Existing table pattern from resolvedFailures section to reuse (rounded-lg border, thead/tbody styling)\n- CollapsibleSection component already imported and used\n\n## Problem Identified\n\nNeed to add a \"Costliest Stories\" section that displays the top 5 longest-running stories in a table format, with clickable story IDs that open the StoryDetailPanel.\n\n## Planned Changes\n\n- Add a new CollapsibleSection after the resolvedFailures section (around line 421)\n- Conditionally render when `bottlenecks.longest.length > 0`\n- Create a table with columns: Rank, Story ID (clickable button), Title, Duration (min)\n- Limit to top 5 entries with `.slice(0,5)`\n- Reuse table styling classes from resolvedFailures (rounded-lg, border, thead, tbody)\n- Use onClick handler to set selectedStoryId\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"spiral-ui/src/components/AnalyticsTab.tsx\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 30\n}\n</plan>\n\nNow I'll implement the Costliest Stories section:\nNow let me verify the changes look correct and run quality checks:\nThe existing codebase has pre-existing linting errors unrelated to my changes. Let me verify my specific changes are syntactically correct by reading the edited section:\nPerfect! The code looks correct. Now let me mark the story as passing and commit:\nExcellent! Story **US-1279** is now complete. Here's a summary of what was implemented:\n\n## Implementation Summary"
-      }
+      },
+      "_passedCommit": "6ec89c7c59459c01e8bc3b3dd528a8a27bf7dd6b"
     },
     {
       "id": "US-1280",
@@ -3125,7 +3126,7 @@
         "Clearing the input restores the unfiltered story list",
         "No props changes to StoriesListAccordion interface"
       ],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "spiral-ui/src/components/analytics/StoriesListAccordion.tsx"
       ],
@@ -3135,7 +3136,8 @@
         "ui"
       ],
       "dependencies": [],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-13T19:29:20Z"
     },
     {
       "id": "US-1281",
