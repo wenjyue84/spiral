@@ -360,3 +360,36 @@ Completed: Add SLA breach badges to PhaseTimingBars (ID: US-1278) in 1m
   - [x] Clicking story ID sets selectedStoryId to open StoryDetailPanel
   - [x] Limited to top 5 entries using .slice(0,5)
   - [x] Uses existing bottlenecks.longest data with no API changes
+## Iteration 3 - Tue, Apr 14, 2026  3:29:17 AM
+Completed: Add top-5 costliest stories table to AnalyticsTab (ID: US-1279) in 3m
+
+
+## Iteration [N] - Story: Add keyword search filter to StoriesListAccordion (US-1280)
+
+### What was implemented
+- Restructured StoriesListAccordion layout to separate search input from filter buttons
+- Moved search input to its own row appearing above the filter tabs
+- Updated placeholder text from "Search story ID or title…" to "Search stories…"
+- Changed input width from fixed w-56 to full-width (w-full)
+- Removed ml-auto positioning class since input is no longer inline with buttons
+
+### Patterns discovered
+- Analytics components follow a vertical layout pattern: search → filter pills → results
+- Input placeholder text follows abbreviated format with ellipsis (e.g., "Search stories…")
+- Full-width search inputs use w-full with mb-3 for spacing above filter buttons
+
+### Gotchas
+- None - layout restructuring was straightforward with no logic changes needed
+
+### Files touched
+- spiral-ui/src/components/analytics/StoriesListAccordion.tsx (modified, +10/-8 lines)
+
+### Quality gates passed
+- ✓ Component structure intact: no props changes, filtering logic preserved
+- ✓ All acceptance criteria met:
+  - [x] Search input appears above filter tabs
+  - [x] Case-insensitive filtering on id and title
+  - [x] Search combines with status filter via AND logic
+  - [x] Clearing input restores unfiltered list
+  - [x] No changes to component interface
+- ✓ Git commit successful with full acceptance criteria tracking
