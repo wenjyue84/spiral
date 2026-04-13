@@ -78,6 +78,48 @@ const sliceDataByRange = <T,>(data: T[], range: 'all' | '10' | '20' | '50'): T[]
   return data.slice(Math.max(0, data.length - n));
 };
 
+const downloadAnalyticsCSV = (agentTelemetry: Array<{
+  ts: string; workerId: string; storyId: string;
+  fromPhase: string; toPhase: string;
+  durationMs: number; qualityScore: number; retryCount: number;
+}>) => {
+  if (agentTelemetry.length === 0) return;
+
+  // CSV header
+  const headers = ['ts', 'workerId', 'storyId', 'fromPhase', 'toPhase', 'durationMs', 'qualityScore', 'retryCount'];
+
+  // CSV rows
+  const rows = agentTelemetry.map(item => [
+    item.ts,
+    item.workerId,
+    item.storyId,
+    item.fromPhase,
+    item.toPhase,
+    String(item.durationMs),
+    String(item.qualityScore),
+    String(item.retryCount),
+  ]);
+
+  // Build CSV content
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.join(',')),
+  ].join('\n');
+
+  // Create blob and download
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  link.setAttribute('href', url);
+  link.setAttribute('download', `analytics-${today}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function AnalyticsTab({ projectName }: { projectName: string }) {
@@ -157,7 +199,7 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
           </div>
           <span className="text-[10px] text-slate-400">{sb.passed}/{sbTotal}</span>
         </div>
-        <div className="w-full flex items-center gap-1">
+        <div className="w-full flex items-center gap-2">
           <span className="text-[10px] text-slate-400 mr-1">Range:</span>
           {(['all', '10', '20', '50'] as const).map(range => (
             <button
@@ -172,6 +214,18 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
               {range === 'all' ? 'All' : `Last ${range}`}
             </button>
           ))}
+          <button
+            onClick={() => downloadAnalyticsCSV(agentTelemetry)}
+            disabled={agentTelemetry.length === 0}
+            className={`text-[10px] px-3 py-1 rounded transition-colors ml-auto ${
+              agentTelemetry.length === 0
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+            }`}
+            title={agentTelemetry.length === 0 ? 'No telemetry data to export' : 'Export analytics as CSV'}
+          >
+            📥 Export CSV
+          </button>
         </div>
       </div>
 
