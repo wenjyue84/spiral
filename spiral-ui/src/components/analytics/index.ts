@@ -8,3 +8,4 @@ export { default as CollapsibleSection } from './CollapsibleSection';
 export { default as FailureRetryDashboard } from './FailureRetryDashboard';
 export { default as StuckStoriesPanel } from './StuckStoriesPanel';
 export { default as CumulativeCostChart } from './CumulativeCostChart';
+export { default as ModelCostDonut } from './ModelCostDonut';

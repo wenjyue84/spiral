@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AgentTelemetryTable, PhaseTimingBars, PhaseTimelineChart, StoriesListAccordion, RecentActivityFeed, CollapsibleSection, FailureRetryDashboard, StuckStoriesPanel, CumulativeCostChart } from './analytics';
+import { AgentTelemetryTable, PhaseTimingBars, PhaseTimelineChart, StoriesListAccordion, RecentActivityFeed, CollapsibleSection, FailureRetryDashboard, StuckStoriesPanel, CumulativeCostChart, ModelCostDonut } from './analytics';
 import StoryDetailPanel, { type StoryForPanel, type StoryAttempt } from './StoryDetailPanel';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -326,6 +326,12 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
               </div>
             )}
           </div>
+        </CollapsibleSection>
+      )}
+
+      {modelPerformance.length > 0 && (
+        <CollapsibleSection title="Model Cost Split">
+          <ModelCostDonut data={modelPerformance} />
         </CollapsibleSection>
       )}
 
