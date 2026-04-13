@@ -2927,7 +2927,8 @@
       ],
       "dependencies": [],
       "model": "haiku",
-      "_passedCommit": "3dc8e4dea02076f1e8a2f73079251e532ad932eb"
+      "_passedCommit": "3dc8e4dea02076f1e8a2f73079251e532ad932eb",
+      "_scopeCreep": true
     },
     {
       "id": "US-1274",
@@ -2941,7 +2942,7 @@
         "Uses only existing modelPerformance data with no API changes",
         "New file: spiral-ui/src/components/analytics/ModelCostDonut.tsx"
       ],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "spiral-ui/src/components/AnalyticsTab.tsx",
         "spiral-ui/src/components/analytics/ModelCostDonut.tsx",
@@ -2954,7 +2955,8 @@
         "charts"
       ],
       "dependencies": [],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-13T18:18:34Z"
     },
     {
       "id": "US-1275",
