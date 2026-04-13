@@ -115,3 +115,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-13T18:25:22Z	2	1	US-1274	Add model cost-split donut chart to AnalyticsTab	keep	349	haiku	0	8c9be036d675d8317b75b5397977e8c891f3f318	69dd2f446391	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-13T18:32:31Z	2	2	US-1281	Add iteration range filter pills to AnalyticsTab	keep	389	haiku	0	a0a2d29d0fa33509b2de79ce08eedc296e2d0809	69dd2f446391	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-13T18:36:37Z	2	3	US-1282	Add attempt timeline swimlane to StoryDetailPanel	keep	202	haiku	0	d396044f2c6685dd8fb268e1c56cd26fff8b0b98	69dd2f446391	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-13T18:54:27Z	3	1	US-1275	Add story complexity breakdown chart to AnalyticsTab	keep	307	haiku	0	a09c345a5841754c7d0fb90e36c9e09f472e9155	69dd2f446391	false	0	0	0	0	0	0	0		0	0	0	0				
