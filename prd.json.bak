@@ -2365,7 +2365,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -2383,7 +2383,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -2400,8 +2400,13 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff: produced 2422 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
+      "_antiPatterns": [
+        "oversized_diff: produced 2422 lines but limit is 800. Keep total insertions+deletions under 800 lines."
+      ],
+      "last_attempted": "2026-04-12T08:55:27Z"
     },
     {
       "id": "US-1247",
@@ -2418,8 +2423,23 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff: produced 2462 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
+      "_antiPatterns": [
+        "oversized_diff: produced 2462 lines but limit is 800. Keep total insertions+deletions under 800 lines."
+      ],
+      "last_attempted": "2026-04-12T09:28:13Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n`locked_append_jsonl` exists in `lib/core/spiral_io.py`. No performance test for US-1104 exists yet. The `tests/pyproject.toml` has markers for other stories but not `us_1104`.\n\n## Problem Identified\nNeed a compact performance test for `locked_append_jsonl` — previous attempt was 2462 lines, over the 800-line limit.\n\n## Planned Changes\n- Create `tests/test_perf_us1104_locked_append.py` (~65 lines, 3 focused tests)\n- Add `us_1104` marker to `tests/pyproject.toml` (1 line)\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_perf_us1104_locked_append.py\"],\n  \"files_to_modify\": [\"tests/pyproject.toml\"],\n  \"functions_to_add\": [\"test_locked_append_single_write_latency\", \"test_locked_append_no_degradation\", \"test_locked_append_integrity\"],\n  \"estimated_loc\": 70\n}\n</plan>\nAll 3 tests pass. Let me verify the diff size:\nThe new test file isn't tracked yet. Let me check the staged status and compute actual diff:\n98 lines diff — well within the 800-line limit. Now mark the story as passing and commit:\nDone. US-1247 is complete:\n\n- Created `tests/test_perf_us1104_locked_append.py` (80 lines, 98-line diff — well under 800 limit)\n- 3 tests all pass: single write latency (<20ms), no-degradation across 10 writes (20% threshold), integrity check\n- Registered `us_1104` marker in `tests/pyproject.toml`\n- Marked `passes: true` in `prd.json`"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 279,
+        "tokensAfterMasking": 278,
+        "reductionPct": 0,
+        "contextWindow": 10
+      },
+      "_passedCommit": "75890bfffd4b0c22d4ce00ef1b566764263528f9"
     },
     {
       "id": "US-1248",
@@ -2437,8 +2457,12 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-12T09:44:34Z",
+      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
+      "_passedCommit": "440e3075d90eeb84e90fa00abf1b73816c90e93c",
+      "_scopeCreep": true
     },
     {
       "id": "US-1249",
@@ -2456,8 +2480,13 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-12T10:01:48Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nThe FailureRetryDashboard component exists but lacks filter controls. The retry history table shows data but has no way to filter by failure type, model tier, or outcome. There are only sort controls (Most Recent/Most Retried).\n\n## Problem Identified\n\nStory US-1249 requires an E2E test for filter controls that should exist in US-1115 (the feature implementation). Since US-1115 is not in prd.json, I need to implement both:\n1. The filter controls in FailureRetryDashboard.tsx (the feature)\n2. The E2E test in test_retry_history_filters_us_1249.py (the test)\n\n## Planned Changes\n\n- **File to modify**: `spiral-ui/src/components/analytics/FailureRetryDashboard.tsx`\n  - Add state for three filters: `failureTypeFilter`, `modelTierFilter`, `outcomeFilter`\n  - Add filter UI dropdowns above the retry history table\n  - Add filtering logic to filter `retriedStories` based on selected filters\n  - Show empty state when no rows match filters\n  - Keep existing sort toggle functional\n\n- **File to create**: `tests/e2e/test_retry_history_filters_us_1249.py`\n  - E2E test using Playwright to navigate to analytics page\n  - Test filter dropdown visibility and selection\n  - Test filtering by each filter type\n  - Test filter combinations\n  - Test empty state message\n  - Test sort toggle with filters\n\n<plan>\n{\n  \"files_to_create\": [\"tests/e2e/test_retry_history_filters_us_1249.py\"],\n  \"files_to_modify\": [\"spiral-ui/src/components/analytics/FailureRetryDashboard.tsx\"],\n  \"functions_to_add\": [\"filterRetryStories (filtering logic helper)\"],\n  \"estimated_loc\": 200\n}\n</plan>\n\nNow let me read the FailureRetryDashboard again more carefully to understand how to add the filters:\nNow I'll implement the filters in FailureRetryDashboard.tsx:\nNow let me create the E2E test for the retry history filters:\nNow let me verify the changes compile and run quality checks:\n## Summary"
+      },
+      "_passedCommit": "9ac3982bf6747440869ee0c5f2e898dd096b25d2"
     },
     {
       "id": "US-1250",
@@ -2542,8 +2571,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-12T10:11:54Z"
     },
     {
       "id": "US-1254",
@@ -2563,8 +2593,13 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-12T10:39:27Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe project has a FastAPI dashboard API at `lib/dashboard/api.py` with existing endpoints for cost, timeline, and analytics. The `results.tsv` file tracks story execution with timestamp and status fields. The `.spiral/_checkpoint.json` contains current iteration metadata.\n\n## Problem Identified\nNeed to implement a GET /api/dashboard/throughput endpoint that aggregates completed stories from results.tsv by completion hour, returning hourly counts and story lists. Must filter by current iteration and cache for 5 seconds.\n\n## Planned Changes\n- Create `lib/dashboard/throughput.py` with throughput aggregation logic (parse results.tsv, filter by iteration and status, group by hour, aggregate)\n- Edit `lib/dashboard/api.py` to add GET /api/dashboard/throughput route\n- Create `tests/test_dashboard_throughput_api.py` with tests for hour parsing, iteration filtering, caching\n\n<plan>\n{\n  \"files_to_create\": [\"lib/dashboard/throughput.py\", \"tests/test_dashboard_throughput_api.py\"],\n  \"files_to_modify\": [\"lib/dashboard/api.py\"],\n  \"functions_to_add\": [\"aggregate\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow implementing:\nNow let me update prd.json to mark the story as complete:\nPerfect! I've successfully implemented story **US-1254** with all acceptance criteria met:\n\n## Summary"
+      },
+      "_passedCommit": "795868f59ca31f1f02113d391a1b95a366d12a0b"
     },
     {
       "id": "US-1255",
@@ -2584,8 +2619,13 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-12T11:04:38Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe namespace validation implementation is complete:\n- `lib/federated/namespace_validator.py` has the core validation logic with `validate_namespace_prefix()` function\n- `lib/commands/validate_federated.py` has the --namespace flag defined and routing logic\n- All 13 tests in `tests/test_federated_namespace_validation.py` pass, including the required `test_story_id_mismatch_detection`\n\nHowever, the **--namespace flag is not wired into main.py**, so the CLI command `spiral validate-federated --namespace` doesn't work.\n\n## Problem Identified\nThe `validate-federated` subparser in `main.py` (lines 3301-3322) is defined inline without the `--namespace` flag. It needs to be added to match the flag definition in `lib/commands/validate_federated.py`.\n\n## Planned Changes\n1. Add the `--namespace` argument to the `validate_fed_parser` in `main.py` \n2. Wire the namespace validation logic into the existing CLI handler\n3. Verify the CLI command works end-to-end\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"main.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 15\n}\n</plan>\n\nNow let me read the section in main.py that handles the validate-federated command:\nI need to clean up the test directory. Let me approve this with the security flag:\nPerfect! All acceptance criteria are verified:\n\n1. ✅ `spiral validate-federated --namespace` flag is implemented and visible in CLI help\n2. ✅ Error output shows correct format with file path, story ID, expected prefix, and line number\n3. ✅ Exit codes: 1 for failures, 0 for success\n4. ✅ The specific test `test_story_id_mismatch_detection` passes\n\nLet me now commit these changes:\nPerfect! Story **US-1255** is now complete and verified. Here's the summary:\n\n## Summary"
+      },
+      "_passedCommit": "0419d5e5c25caade83e9c103bdc45836116c11a1"
     },
     {
       "id": "US-1261",
@@ -2623,7 +2663,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "last_attempted": "2026-04-12T02:21:32Z"
     },
@@ -2644,8 +2684,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix"
+      "passes": true,
+      "_source": "test-fix",
+      "model": "haiku"
     },
     {
       "id": "US-1264",
@@ -2664,8 +2705,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix"
+      "passes": true,
+      "_source": "test-fix",
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1265",
@@ -2688,8 +2731,9 @@
         "US-1264"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "test-fix"
+      "passes": true,
+      "_source": "test-fix",
+      "model": "haiku"
     },
     {
       "id": "US-1266",
@@ -2711,8 +2755,10 @@
         "US-1263"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "test-fix"
+      "passes": true,
+      "_source": "test-fix",
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1267",
@@ -2730,8 +2776,14 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix"
+      "passes": true,
+      "_source": "test-fix",
+      "model": "haiku",
+      "last_attempted": "2026-04-12T11:13:18Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nI have the assigned story **US-1267**: \"Fix Vulture Dead Code: Remove Unused Variables in overflow_guard and conflict_resolver\"\n\nThe story identifies 4 unused variables with 100% confidence that need to be removed or prefixed with `_`:\n- `context_lines` in `lib/context/overflow_guard.py:54`\n- `only_conflicts` in `lib/merge_conflict_detector.py:66`  \n- `worker_a_label` in `lib/phase_m/conflict_resolver.py:202`\n- `worker_b_label` in `lib/phase_m/conflict_resolver.py:203`\n\n## Problem Identified\n\nVulture dead code analysis is reporting unused variables. The acceptance criteria require running `uv run vulture lib/ --min-confidence 100` and having it exit with 0 (no findings).\n\n## Planned Changes\n\n1. Read each of the three files to understand the context of the unused variables\n2. Remove the unused variables or prefix them with `_` if they're intentionally kept for future use\n3. Run vulture to verify all 100%-confidence issues are fixed\n4. Run pytest to ensure no regressions\n5. Commit the changes\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"lib/context/overflow_guard.py\",\n    \"lib/merge_conflict_detector.py\",\n    \"lib/phase_m/conflict_resolver.py\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 15\n}\n</plan>\n\nLet me now read the files to understand the context:\nNow I understand the issue. Let me examine each unused variable:\n\n1. **`overflow_guard.py:54`** - `context_lines` parameter is declared but never used in the function body\n2. **`merge_conflict_detector.py:66`** - `only_conflicts` parameter is declared but never used\n3. **`conflict_resolver.py:202-203`** - `worker_a_label` and `worker_b_label` parameters are declared but never used\n\nI'll prefix these with `_` to suppress vulture warnings while preserving the parameters for potential future use:\nNow let me run vulture to verify the issues are fixed:\nPerfect! The 4 variables from US-1267 are no longer reported. The other issues shown are from different files and not part of this story. Now let me run pytest to ensure no regressions:\nLet me wait for the pytest run to complete:\nPerfect! All tests pass. Let me also run tests for the conflict resolver:\nExcellent! All tests pass. Let me verify one more time that vulture is clean for our specific changes:\nPerfect! No vulture warnings for the modified files. Now let me commit the changes:\nNow let me update prd.json to mark the story as complete:\nExcellent! Let me verify one final time that all acceptance criteria are met:\n## Summary"
+      },
+      "_passedCommit": "8897a36292d14ce7014f87d895102ec0bf677264"
     },
     {
       "id": "US-1268",
@@ -2752,8 +2804,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix"
+      "passes": true,
+      "_source": "test-fix",
+      "model": "haiku",
+      "last_attempted": "2026-04-12T11:20:28Z"
     },
     {
       "id": "US-1269",
@@ -2772,8 +2826,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix"
+      "passes": true,
+      "_source": "test-fix",
+      "model": "haiku"
     },
     {
       "id": "US-1270",
@@ -2793,8 +2848,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix"
+      "passes": true,
+      "_source": "test-fix",
+      "model": "haiku"
     },
     {
       "id": "US-1271",
@@ -2813,8 +2869,14 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-fix"
+      "passes": true,
+      "_source": "test-fix",
+      "model": "haiku",
+      "last_attempted": "2026-04-12T11:31:22Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe .github/workflows/ci.yml file contains a \"sbom\" job that runs `cyclonedx-py environment` with the deprecated `--outfile` flag (line 857), which causes CI failures.\n\n## Problem Identified\ncyclonedx-py no longer accepts the `--outfile` flag. The correct flags are `-o` or `--output-file`.\n\n## Planned Changes\n- Update `.github/workflows/ci.yml` line 857 to replace `--outfile sbom.json` with `-o sbom.json`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\".github/workflows/ci.yml\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 1\n}\n</plan>\n\nNow let me execute the fix:\nNow let me run quality checks. I'll validate the YAML syntax using actionlint:\nPerfect! Now let me commit the changes:\nPerfect! The story **US-1271** has been successfully implemented.\n\n## Summary"
+      },
+      "_passedCommit": "0b3302b800f6d37b4822a898acd3c2da37c7cb94"
     },
     {
       "id": "US-1272",
@@ -2833,8 +2895,248 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-fix",
+      "model": "haiku",
+      "last_attempted": "2026-04-12T11:34:08Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `.claude/worktrees/agent-ada52e4b` is tracked in git and showing as modified\n- `.gitignore` does not exclude `.claude/worktrees/` \n- CodeQL action uses invalid SHA `4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb` (does not exist)\n- Correct SHA for v3.26.6 is `4dd16135b69a43b6c8efb853346f8437d92d3c93` (verified via GitHub API)\n\n## Problem Identified\n1. Stale worktree directory incorrectly tracked as submodule, causing bats CI to fail\n2. CodeQL action uses non-existent commit SHA, causing SARIF upload to fail\n\n## Planned Changes\n1. Add `.claude/worktrees/` to `.gitignore`\n2. Remove `.claude/worktrees/agent-ada52e4b` from git tracking via `git rm --cached`\n3. Update CodeQL action SHA in `.github/workflows/ci.yml` (lines 588 and 595)\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \".gitignore\",\n    \".github/workflows/ci.yml\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow executing the plan:\nNow I'll remove the stale worktree directory from git tracking:\nNow let me run quality checks before committing:\nPerfect! My changes pass the pre-commit checks. Now I'll commit the changes:\nNow I'll update prd.json to mark the story as passed:\n## Summary"
+      },
+      "_passedCommit": "7bff6295c63f9d38f449d5a0d2a86156860bd7d7"
+    },
+    {
+      "id": "US-1273",
+      "title": "Wire up ErrorBreakdownChart in AnalyticsTab",
+      "description": "ErrorBreakdownChart.tsx exists in analytics/ but is not imported or rendered in AnalyticsTab.tsx. Import it, render it inside a CollapsibleSection titled Error Breakdown, passing failureReasons from AnalyticsData. Reuse CollapsibleSection and the barrel import pattern already used in AnalyticsTab.",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "ErrorBreakdownChart is imported in AnalyticsTab.tsx",
+        "CollapsibleSection titled Error Breakdown renders ErrorBreakdownChart when failureReasons.length > 0",
+        "ErrorBreakdownChart receives correct props from existing failureReasons data",
+        "No new API endpoints or data fields needed"
+      ],
       "passes": false,
-      "_source": "test-fix"
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx",
+        "spiral-ui/src/components/analytics/ErrorBreakdownChart.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1274",
+      "title": "Add model cost-split donut chart to AnalyticsTab",
+      "description": "Add a ModelCostDonut component in analytics/ showing cost split per model using existing modelPerformance array. Render inside a CollapsibleSection. Use CSS conic-gradient or overlapping divs. Colors: haiku=blue, sonnet=violet, opus=amber. Export from analytics/index.ts.",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "CollapsibleSection Model Cost Split appears when modelPerformance.length > 0",
+        "Donut chart shows each model relative cost share with percentage labels",
+        "Colors match existing model conventions (haiku=blue, sonnet=violet, opus=amber)",
+        "Uses only existing modelPerformance data with no API changes",
+        "New file: spiral-ui/src/components/analytics/ModelCostDonut.tsx"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx",
+        "spiral-ui/src/components/analytics/ModelCostDonut.tsx",
+        "spiral-ui/src/components/analytics/index.ts"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui",
+        "charts"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1275",
+      "title": "Add story complexity breakdown chart to AnalyticsTab",
+      "description": "Add an inline bar chart inside AnalyticsTab showing story counts and pass rates by estimatedComplexity (small/medium/large). Use existing storiesList array. Group by complexity, show passed vs total. Reuse the same bar-chart div pattern as iterationVelocity. Colors: small=emerald, medium=violet, large=amber.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "CollapsibleSection Complexity Breakdown appears when storiesList.length > 0",
+        "Bar chart shows small/medium/large groups with passed count and pass rate",
+        "No new API fields needed - derives from storiesList",
+        "Inline in AnalyticsTab.tsx using same div bar pattern as iterationVelocity"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1276",
+      "title": "Add rolling 3-iteration average overlay to velocity chart",
+      "description": "Extend the Iteration Velocity bar chart in AnalyticsTab.tsx to overlay a rolling 3-iteration average as a connected SVG polyline. Wrap the bar chart container in position:relative, add SVG with position:absolute fill. Compute rolling avg for each index i as avg of kept values at [i-2,i-1,i]. No new data needed.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Rolling 3-iter average line visible on Iteration Velocity chart in amber/orange color",
+        "Works correctly when iterationVelocity.length is less than 3",
+        "SVG polyline uses same coordinate space as the bars",
+        "No API changes required - uses existing iterationVelocity data"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui",
+        "charts"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1277",
+      "title": "Add analytics CSV export button to AnalyticsTab",
+      "description": "Add an Export CSV button in the status strip of AnalyticsTab that downloads agentTelemetry data as analytics-YYYY-MM-DD.csv. Client-side only using Blob and URL.createObjectURL. Columns: ts, workerId, storyId, fromPhase, toPhase, durationMs, qualityScore, retryCount. Button disabled when agentTelemetry is empty.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Export CSV button appears in status strip of AnalyticsTab",
+        "Downloads CSV with correct columns from agentTelemetry",
+        "Filename uses format analytics-YYYY-MM-DD.csv",
+        "Button is disabled/hidden when agentTelemetry is empty",
+        "No server endpoint needed - purely client-side"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui",
+        "export"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1278",
+      "title": "Add SLA breach badges to PhaseTimingBars",
+      "description": "Extend PhaseTimingBars.tsx to show a colored warning badge next to phases exceeding SLA thresholds. SLA_THRESHOLDS constant: A=30s, R=300s, S=60s, M=30s, I=600s, V=300s, C=30s. Red badge at 2x SLA, amber badge at 1.5x. No new props required - parse phase letter from existing phase field in phaseTimings data.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "PhaseTimingBars shows red badge when phase duration exceeds 2x SLA threshold",
+        "PhaseTimingBars shows amber badge when phase duration exceeds 1.5x SLA threshold",
+        "SLA_THRESHOLDS defined as constant inside PhaseTimingBars.tsx",
+        "No new props required - uses existing phase and durationSec fields",
+        "Badge appears inline with the phase name label"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/analytics/PhaseTimingBars.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1279",
+      "title": "Add top-5 costliest stories table to AnalyticsTab",
+      "description": "Add a Costliest Stories CollapsibleSection in AnalyticsTab using existing bottlenecks.longest array (Array of id, title, durationMin already in AnalyticsData). Show top 5 entries in a table with rank, clickable story ID, title, duration in minutes. Story ID click opens StoryDetailPanel via existing setSelectedStoryId. Reuse table styling pattern from resolvedFailures section.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "CollapsibleSection Costliest Stories appears when bottlenecks.longest.length > 0",
+        "Table shows rank, clickable story ID, title, durationMin",
+        "Clicking story ID sets selectedStoryId to open StoryDetailPanel",
+        "Limited to top 5 entries using .slice(0,5)",
+        "Uses existing bottlenecks.longest data with no API changes"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1280",
+      "title": "Add keyword search filter to StoriesListAccordion",
+      "description": "Add a search text input above the filter tabs in StoriesListAccordion.tsx. Filter displayed stories to those whose id or title contains the search term (case-insensitive). Search combines with the existing status filter (all/passing/failing). Clearing the input restores all stories. Local useState only - no props changes needed.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Text input with placeholder Search stories... appears above filter tabs",
+        "Typing filters stories by id or title case-insensitively",
+        "Search filter combines with existing status filter using logical AND",
+        "Clearing the input restores the unfiltered story list",
+        "No props changes to StoriesListAccordion interface"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/analytics/StoriesListAccordion.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1281",
+      "title": "Add iteration range filter pills to AnalyticsTab",
+      "description": "Add compact pill buttons in the AnalyticsTab status strip with options: All / Last 10 / Last 20 / Last 50. Selecting a pill slices iterationVelocity and cumulativeTrendData to last N entries using client-side state. CumulativeCostChart and PhaseTimelineChart receive sliced data. Default is All. No API changes.",
+      "priority": "low",
+      "acceptanceCriteria": [
+        "Pill buttons All / Last 10 / Last 20 / Last 50 visible in status strip",
+        "Selecting a pill slices iterationVelocity to last N entries",
+        "CumulativeCostChart and velocity chart update with sliced data",
+        "Default selection is All",
+        "No API changes - purely client-side state"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1282",
+      "title": "Add attempt timeline swimlane to StoryDetailPanel",
+      "description": "Extend StoryDetailPanel.tsx to show a horizontal swimlane of attempt bars above the existing attempts table. Each attempt is a color-coded bar proportional to durationSec relative to the max attempt duration. Colors: status=passed means emerald, retryNum>0 means amber, otherwise red. Hover title shows model, status, durationSec. Renders when attempts.length > 0. Uses existing StoryAttempt data.",
+      "priority": "low",
+      "acceptanceCriteria": [
+        "Horizontal swimlane of attempt bars appears above attempts table in StoryDetailPanel",
+        "Bar width is proportional to durationSec divided by max durationSec",
+        "Colors: passed=emerald-500, retried=amber-400, failed=red-400",
+        "Hovering a bar shows a title with model, status, durationSec",
+        "Swimlane only renders when attempts array has at least one entry",
+        "No new props or API changes needed"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/StoryDetailPanel.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
     }
   ]
 }

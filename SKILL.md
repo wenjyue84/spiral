@@ -1,6 +1,6 @@
 ---
 name: spiral
-version: 4.3.297
+version: 4.3.316
 description: >
   Run the SPIRAL autonomous development loop on any project. Handles setup,
   generates prd.json and spiral.config.sh if missing, then launches the
@@ -343,6 +343,47 @@ Report format:
 - New since last check: +[new_passed] stories
 - Pending: [pending] remaining
 
+## Step 2.5 — Milestone Digest (every 10 stories)
+
+After reporting, check if a new multiple-of-10 milestone was crossed since the last check:
+
+- Read `prev_passes` from `project_spiral_passes.md`
+- `milestone = (curr_passes // 10) * 10`
+- Trigger only if `milestone > (prev_passes // 10) * 10` AND `milestone > 0`
+
+If triggered:
+
+1. **Extract the 10 most-recently-passed stories** from `prd.json` — all entries where `passes: true`, sorted by `_passedCommit` descending, take up to 10.
+2. **Generate a Chinese digest** for each story — 2–3 plain sentences explaining *what it does* and *why it matters*, written for a non-technical reader (no code, no jargon).
+3. **Write a closing summary** (`**本轮总结：**`) grouping the 10 improvements into 2–3 themes.
+4. **Append to `10us.md`** in the project root (create if absent). Use this format exactly:
+
+```
+# SPIRAL 最近10个改进 — YYYY-MM-DD (第[milestone]个故事里程碑)
+
+> 自动生成：SPIRAL 每完成10个故事后更新此文件。
+
+---
+
+**1. US-XXXX — [故事标题]**
+[2–3句中文，说明功能作用和用户价值]
+
+**2. US-XXXX — [故事标题]**
+[...]
+
+...（共10条）
+
+---
+
+**本轮总结：** [2–3句归纳主题]
+
+**累计进度：** [passed]/[total] ([pass_pct]%) — 本次运行已完成 [new_passed] 个故事
+
+---
+```
+
+After writing, tell the user: `📋 已生成第[milestone]个故事里程碑摘要，追加至 10us.md。`
+
 ## Step 3 — Investigate if Stalled (passes NOT increased)
 
 If new_passed == 0 (no new stories since last check), investigate in this order:
@@ -512,6 +553,7 @@ bash spiral.sh [max_iters] [flags...]
 | `--focus-tags TAG,TAG` | none | Only implement stories with matching tags |
 | `--time-limit N` | 0 | Stop after N minutes (wall clock) |
 | `--until HH:MM` | none | Stop at specific time (e.g. `--until 23:00`) |
+| `--continuous` | off | Never stop — loop back to Phase A after all stories pass |
 | `--monitor` / `--no-monitor` | on | Open terminal per worker (parallel mode only) |
 | `--prd PATH` | prd.json | Override PRD file path |
 | `--config PATH` | spiral.config.sh | Override config file |
@@ -644,6 +686,8 @@ uv run python main.py <subcommand> [args...]
 | `SPIRAL_ZERO_PROGRESS_LIMIT` | 0 (disabled) | Abort after N consecutive zero-progress iterations. Disabled by default — Phase A always suggests improvements so SPIRAL loops indefinitely until time limit / max iters |
 | `SPIRAL_CASCADE_FAN_OUT_LIMIT` | 5 | Max consecutive story failures before Phase I aborts (0 = disabled) |
 | `SPIRAL_CONSECUTIVE_FAIL_ABORT` | 0 | Stop loop after N consecutive zero-progress iterations (0 = disabled) |
+| `SPIRAL_CONTINUOUS` | false | Never stop on all-pass — loop back to Phase A for new story discovery (`--continuous`) |
+| `SPIRAL_CONTINUOUS_COOLDOWN_SECS` | 60 | Cooldown seconds between discovery cycles when all stories pass |
 
 ### AI Suggestions (Phase A)
 | Config Var | Default | Description |
@@ -772,6 +816,9 @@ uv run python main.py <subcommand> [args...]
 | `SPIRAL_SECURITY_SCAN_ARGS` | — | Extra flags for the scanner |
 
 ### Hooks & Notifications
+
+> **Note:** The `peon-ping` sound hook (plays audio on Claude Code events) is **disabled by default**. Users who want sound notifications can enable it via `/peon-ping-toggle`. SPIRAL does not enable or manage peon-ping automatically.
+
 | Config Var | Default | Description |
 |------------|---------|-------------|
 | `SPIRAL_PRE_PHASE_HOOK` | — | Script run before each phase (non-zero = abort) |

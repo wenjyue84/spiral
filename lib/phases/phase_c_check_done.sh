@@ -189,7 +189,15 @@ run_phase_check_done() {
         "\"total_stories\":$TOTAL,\"passed_stories\":$DONE,\"failed_stories\":$_FAILED,\"skipped_stories\":${_SKIPPED:-0},\"duration_seconds\":$_RUN_DURATION" 2>/dev/null || true
     fi
 
-    exit 0
+    # ── Continuous mode: cycle back instead of exiting ─────────────────────────
+    if [[ "${SPIRAL_CONTINUOUS:-false}" == "true" ]]; then
+      echo ""
+      echo "  [continuous] All stories pass — cooling down ${SPIRAL_CONTINUOUS_COOLDOWN_SECS:-60}s before next discovery cycle..."
+      sleep "${SPIRAL_CONTINUOUS_COOLDOWN_SECS:-60}"
+      echo "  [continuous] Cycling back to Phase A for new story discovery"
+    else
+      exit 0
+    fi
   fi
 
   # Clear checkpoint before next iteration (crash in next iter starts that iter fresh)
@@ -215,17 +223,21 @@ PYEOF
     _DR_RC=$?
     if [[ $_DR_RC -eq 42 ]]; then
       echo "$_DR_OUTPUT"
-      echo "  [C] Exiting due to diminishing returns — budget saved!"
-      prd_stats
-      SESSION_END=$(date +%s)
-      SESSION_MINUTES=$(((SESSION_END - SESSION_START) / 60))
-      echo ""
-      echo "  ╔══════════════════════════════════════════════════════╗"
-      echo "  ║  SPIRAL stopped: diminishing returns detected        ║"
-      echo "  ║  Stories: $DONE/$TOTAL complete ($PENDING pending)   ║"
-      echo "  ║  Session: ${SESSION_MINUTES}m, $SPIRAL_ITER iterations              ║"
-      echo "  ╚══════════════════════════════════════════════════════╝"
-      exit 0
+      if [[ "${SPIRAL_CONTINUOUS:-false}" == "true" ]]; then
+        echo "  [C] Diminishing returns detected — continuous mode ignores, cycling back"
+      else
+        echo "  [C] Exiting due to diminishing returns — budget saved!"
+        prd_stats
+        SESSION_END=$(date +%s)
+        SESSION_MINUTES=$(((SESSION_END - SESSION_START) / 60))
+        echo ""
+        echo "  ╔══════════════════════════════════════════════════════╗"
+        echo "  ║  SPIRAL stopped: diminishing returns detected        ║"
+        echo "  ║  Stories: $DONE/$TOTAL complete ($PENDING pending)   ║"
+        echo "  ║  Session: ${SESSION_MINUTES}m, $SPIRAL_ITER iterations              ║"
+        echo "  ╚══════════════════════════════════════════════════════╝"
+        exit 0
+      fi
     elif [[ $_DR_RC -eq 0 && -n "$_DR_OUTPUT" ]]; then
       echo "$_DR_OUTPUT"
     fi

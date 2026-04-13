@@ -326,6 +326,10 @@ while [[ $# -gt 0 ]]; do
       fi
       exit 0
       ;;
+    --continuous)
+      SPIRAL_CONTINUOUS=true
+      shift
+      ;;
     --status)
       STATUS_ONLY=1
       shift
@@ -381,6 +385,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --show-patterns            Display learned retry patterns (0-retry vs 3+ retry stories) and exit"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
+      echo "  --continuous               Never stop — loop back to Phase A after all stories pass"
       echo "  --status                   Print session state and story counts, then exit"
       echo "  --version                  Print SPIRAL version (git describe) and exit"
       echo ""
@@ -1035,6 +1040,12 @@ if [[ "${TIME_LIMIT_MINS:-0}" -gt 0 && "$SESSION_DEADLINE" -eq 0 ]]; then
   SESSION_DEADLINE=$((SESSION_START + TIME_LIMIT_MINS * 60))
 fi
 
+# ── Continuous mode: override iteration cap ──────────────────────────────────
+if [[ "${SPIRAL_CONTINUOUS:-false}" == "true" ]]; then
+  MAX_SPIRAL_ITERS=999999
+  echo "  [continuous] Continuous mode enabled — SPIRAL will not stop on all-pass"
+fi
+
 # ── Main SPIRAL loop ────────────────────────────────────────────────────────
 while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   SPIRAL_ITER=$((SPIRAL_ITER + 1))
@@ -1282,7 +1293,10 @@ print(len(completed))
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"model\":\"$SPIRAL_MERGE_MODEL\""
 
   # ── US-1103: Fast-path skip Phase R/T if no new stories and all pending have retries ──
-  if [[ "$ADDED" -eq 0 ]]; then
+  # Continuous mode: always run R/T to discover new stories even when all pass
+  if [[ "${SPIRAL_CONTINUOUS:-false}" == "true" ]]; then
+    SKIP_RT=false
+  elif [[ "$ADDED" -eq 0 ]]; then
     # Check if all pending stories have retries > 0 (all have been attempted before)
     if [[ -f "$PRD_FILE" && -f "$REPO_ROOT/retry-counts.json" ]]; then
       # Get list of pending story IDs

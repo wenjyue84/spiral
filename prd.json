@@ -2915,7 +2915,7 @@
         "ErrorBreakdownChart receives correct props from existing failureReasons data",
         "No new API endpoints or data fields needed"
       ],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "spiral-ui/src/components/AnalyticsTab.tsx",
         "spiral-ui/src/components/analytics/ErrorBreakdownChart.tsx"
@@ -2925,7 +2925,9 @@
         "analytics",
         "ui"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "model": "haiku",
+      "_passedCommit": "3dc8e4dea02076f1e8a2f73079251e532ad932eb"
     },
     {
       "id": "US-1274",
@@ -2951,7 +2953,8 @@
         "ui",
         "charts"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "model": "haiku"
     },
     {
       "id": "US-1275",
@@ -2973,7 +2976,8 @@
         "analytics",
         "ui"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "model": "haiku"
     },
     {
       "id": "US-1276",
@@ -2996,7 +3000,8 @@
         "ui",
         "charts"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "model": "haiku"
     },
     {
       "id": "US-1277",
@@ -3020,7 +3025,8 @@
         "ui",
         "export"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "model": "haiku"
     },
     {
       "id": "US-1278",
@@ -3043,7 +3049,8 @@
         "analytics",
         "ui"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "model": "haiku"
     },
     {
       "id": "US-1279",
@@ -3066,7 +3073,8 @@
         "analytics",
         "ui"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "model": "haiku"
     },
     {
       "id": "US-1280",
@@ -3089,7 +3097,8 @@
         "analytics",
         "ui"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "model": "haiku"
     },
     {
       "id": "US-1281",
@@ -3112,7 +3121,8 @@
         "analytics",
         "ui"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "model": "haiku"
     },
     {
       "id": "US-1282",
@@ -3136,7 +3146,8 @@
         "analytics",
         "ui"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "model": "haiku"
     }
   ]
 }
