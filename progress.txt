@@ -299,3 +299,21 @@ Completed: Add rolling 3-iteration average overlay to velocity chart (ID: US-127
 ## Iteration 3 - Tue, Apr 14, 2026  3:05:47 AM
 Completed: Add analytics CSV export button to AnalyticsTab (ID: US-1277) in 3m
 
+## Iteration 1 - Tue, Apr 14, 2026  3:19:48 AM
+FAILED diagnosis-block gate: Add SLA breach badges to PhaseTimingBars (ID: US-1278) — no diagnosis block found — attempt 1/3
+
+
+## Iteration N - Story: Add SLA breach badges to PhaseTimingBars (US-1278)
+
+### What was implemented
+- SLA_THRESHOLDS constant added to PhaseTimingBars.tsx (A=30s, R=300s, S=60s, M=30s, I=600s, V=300s, C=30s)
+- getSLABadgeType() helper returns 'red' at >=2x SLA, 'amber' at >=1.5x SLA, null otherwise
+- Badge rendered inline inside phase label span using emoji + "SLA" text with color classes
+
+### Patterns discovered
+- Previous attempt had all code correct but failed the diagnosis block gate — always output diagnosis block BEFORE any file edits
+- PhaseTimingBars uses t.phase.charAt(0) to extract single-letter phase key for SLA lookup
+
+### Gotchas
+- Diagnosis block must be plain text output BEFORE any Edit/Write/Bash file-modifying calls
+- Story was already implemented from attempt 1; attempt 2 only needed verification + prd.json update

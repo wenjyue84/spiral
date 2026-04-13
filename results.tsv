@@ -118,3 +118,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-13T18:54:27Z	3	1	US-1275	Add story complexity breakdown chart to AnalyticsTab	keep	307	haiku	0	a09c345a5841754c7d0fb90e36c9e09f472e9155	69dd2f446391	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-13T19:01:19Z	3	2	US-1276	Add rolling 3-iteration average overlay to velocity chart	keep	369	haiku	0	21bed77ad91c493f3f086c272af3ac1d4a560858	69dd2f446391	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-13T19:05:47Z	3	3	US-1277	Add analytics CSV export button to AnalyticsTab	keep	228	haiku	0	daa3578494c11b21ad000b10d16b8f430c65b633	69dd2f446391	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-13T19:19:48Z	4	1	US-1278	Add SLA breach badges to PhaseTimingBars	reject	163	haiku	1		69dd2f446391	false	0	0	0	0	0	0	0		0	0	0	0				
