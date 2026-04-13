@@ -296,3 +296,6 @@ Completed: Add story complexity breakdown chart to AnalyticsTab (ID: US-1275) in
 ## Iteration 2 - Tue, Apr 14, 2026  3:01:19 AM
 Completed: Add rolling 3-iteration average overlay to velocity chart (ID: US-1276) in 6m
 
+## Iteration 3 - Tue, Apr 14, 2026  3:05:47 AM
+Completed: Add analytics CSV export button to AnalyticsTab (ID: US-1277) in 3m
+

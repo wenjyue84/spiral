@@ -12,11 +12,29 @@ const PHASE_COLORS: Record<string, string> = {
   C: 'bg-violet-500',
 };
 
+const SLA_THRESHOLDS: Record<string, number> = {
+  A: 30,
+  R: 300,
+  S: 60,
+  M: 30,
+  I: 600,
+  V: 300,
+  C: 30,
+};
+
 function fmtDuration(sec: number): string {
   if (sec < 60) return `${sec}s`;
   const min = Math.floor(sec / 60);
   const remSec = sec % 60;
   return remSec > 0 ? `${min}m ${remSec}s` : `${min}m`;
+}
+
+function getSLABadgeType(phaseLetter: string, durationSec: number): 'red' | 'amber' | null {
+  const sla = SLA_THRESHOLDS[phaseLetter];
+  if (!sla) return null;
+  if (durationSec >= sla * 2) return 'red';
+  if (durationSec >= sla * 1.5) return 'amber';
+  return null;
 }
 
 export default function PhaseTimingBars({ data }: { data: PhaseTiming[] }) {
@@ -33,10 +51,17 @@ export default function PhaseTimingBars({ data }: { data: PhaseTiming[] }) {
         {data.map(t => {
           const pct = Math.max(3, (t.durationSec / maxDur) * 100);
           const color = PHASE_COLORS[t.phase] ?? 'bg-slate-500';
+          const phaseLetter = t.phase.charAt(0);
+          const badgeType = getSLABadgeType(phaseLetter, t.durationSec);
           return (
             <div key={t.phase} className="flex items-center gap-3">
               <span className="text-xs text-slate-500 w-24 shrink-0 truncate" title={t.label}>
                 <span className="font-mono font-bold">{t.phase}</span> {t.label}
+                {badgeType && (
+                  <span className={`inline-block ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${badgeType === 'red' ? 'bg-red-200 text-red-700' : 'bg-amber-200 text-amber-700'}`}>
+                    {badgeType === 'red' ? '🔴' : '🟠'} SLA
+                  </span>
+                )}
               </span>
               <div className="flex-1 h-5 bg-slate-100 rounded-full overflow-hidden">
                 <div
