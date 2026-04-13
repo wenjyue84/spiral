@@ -55,7 +55,7 @@ interface AnalyticsData {
   storiesList: Array<{
     id: string; title: string; passes: boolean;
     _decomposed: boolean; _skipped: boolean; _failureReason: string;
-    epicId: string; priority: string; source: string;
+    epicId: string; priority: string; source: string; estimatedComplexity?: string;
     attempts: Array<{
       timestamp: string; model: string; status: string;
       durationSec: number; retryNum: number; commitSha: string;
@@ -214,6 +214,42 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
         })()}
         <PhaseTimingBars data={phaseTimings} />
       </div>
+
+      {/* ── TIER 2a: Complexity Breakdown ─────────────────────────────── */}
+      {storiesList.length > 0 && (() => {
+        const complexityGroups = { small: { total: 0, passed: 0 }, medium: { total: 0, passed: 0 }, large: { total: 0, passed: 0 } };
+        storiesList.forEach(s => {
+          const c = s.estimatedComplexity || 'small';
+          if (c in complexityGroups) {
+            complexityGroups[c as keyof typeof complexityGroups].total += 1;
+            if (s.passes) complexityGroups[c as keyof typeof complexityGroups].passed += 1;
+          }
+        });
+        const complexities = ['small', 'medium', 'large'] as const;
+        const maxPassed = Math.max(1, ...complexities.map(c => complexityGroups[c].passed));
+        return (
+          <CollapsibleSection title="Complexity Breakdown">
+            <div className="flex items-end gap-2 h-28 border-b border-l border-slate-200 px-2 pb-1">
+              {complexities.map(c => {
+                const data = complexityGroups[c];
+                const passRate = data.total > 0 ? Math.round((data.passed / data.total) * 100) : 0;
+                const colorClass = c === 'small' ? 'bg-emerald-500' : c === 'medium' ? 'bg-violet-500' : 'bg-amber-500';
+                return (
+                  <div key={c} className="flex flex-col items-center flex-1 min-w-0">
+                    <div className="text-[9px] text-slate-400 mb-0.5">{passRate}%</div>
+                    <div
+                      className={`w-full max-w-[32px] rounded-t transition-all ${colorClass}`}
+                      style={{ height: `${Math.max(2, (data.passed / maxPassed) * 100)}%` }}
+                      title={`${c}: ${data.passed}/${data.total} passed`}
+                    />
+                    <div className="text-[8px] text-slate-400 mt-0.5 capitalize">{c}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </CollapsibleSection>
+        );
+      })()}
 
       {/* ── TIER 2b: Phase Duration Timeline (bottleneck identification) ──── */}
       {phaseTimings.length > 0 && (

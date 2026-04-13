@@ -200,3 +200,6 @@ Completed: Add model cost-split donut chart to AnalyticsTab (ID: US-1274) in 5m
 ## Iteration 2 - Tue, Apr 14, 2026  2:32:31 AM
 Completed: Add iteration range filter pills to AnalyticsTab (ID: US-1281) in 6m
 
+## Iteration 3 - Tue, Apr 14, 2026  2:36:37 AM
+Completed: Add attempt timeline swimlane to StoryDetailPanel (ID: US-1282) in 3m
+
