@@ -3061,7 +3061,7 @@
         "No new props required - uses existing phase and durationSec fields",
         "Badge appears inline with the phase name label"
       ],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "spiral-ui/src/components/analytics/PhaseTimingBars.tsx"
       ],
@@ -3072,7 +3072,7 @@
       ],
       "dependencies": [],
       "model": "haiku",
-      "last_attempted": "2026-04-13T19:05:50Z"
+      "last_attempted": "2026-04-13T19:17:02Z"
     },
     {
       "id": "US-1279",
