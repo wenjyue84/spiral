@@ -72,6 +72,12 @@ interface AnalyticsData {
 
 const fmtK = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n);
 
+const sliceDataByRange = <T,>(data: T[], range: 'all' | '10' | '20' | '50'): T[] => {
+  if (range === 'all') return data;
+  const n = parseInt(range, 10);
+  return data.slice(Math.max(0, data.length - n));
+};
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function AnalyticsTab({ projectName }: { projectName: string }) {
@@ -79,6 +85,7 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
+  const [iterationRangeFilter, setIterationRangeFilter] = useState<'all' | '10' | '20' | '50'>('all');
 
   const load = useCallback(async () => {
     try {
@@ -128,7 +135,6 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
 
   const sbTotal = sb.passed + sb.pending + sb.decomposed + sb.skipped || 1;
   const sbPct = (n: number) => `${Math.round((n / sbTotal) * 100)}%`;
-  const maxKept = Math.max(1, ...iterationVelocity.map(v => v.kept));
   const velocityValue = prdVelocity.latestSessionVelocity > 0
     ? prdVelocity.latestSessionVelocity
     : velocity.length > 0 ? velocity[velocity.length - 1].velocityPerHr : 0;
@@ -137,7 +143,7 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
     <div className="p-4 space-y-3">
 
       {/* ── TIER 1: Status Strip ──────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs">
         <span><strong className="text-blue-700">{ov.totalAttempts}</strong> attempts</span>
         <span><strong className="text-emerald-700">${ov.estimatedCost.toFixed(2)}</strong> cost</span>
         <span><strong className="text-violet-700">{ov.elapsed}</strong> <span className="text-slate-400">({ov.iterations} iter)</span></span>
@@ -150,6 +156,22 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
             {sb.skipped > 0 && <div className="bg-slate-300" style={{ width: sbPct(sb.skipped) }} title={`Skipped: ${sb.skipped}`} />}
           </div>
           <span className="text-[10px] text-slate-400">{sb.passed}/{sbTotal}</span>
+        </div>
+        <div className="w-full flex items-center gap-1">
+          <span className="text-[10px] text-slate-400 mr-1">Range:</span>
+          {(['all', '10', '20', '50'] as const).map(range => (
+            <button
+              key={range}
+              onClick={() => setIterationRangeFilter(range)}
+              className={`text-[10px] px-2 py-1 rounded-full transition-colors ${
+                iterationRangeFilter === range
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+              }`}
+            >
+              {range === 'all' ? 'All' : `Last ${range}`}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -168,24 +190,28 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
 
       {/* ── TIER 2: Velocity + Phase Timings (side-by-side) ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {iterationVelocity.length > 0 && (
-          <div>
-            <div className="text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Iteration Velocity</div>
-            <div className="flex items-end gap-1 h-28 border-b border-l border-slate-200 px-2 pb-1">
-              {iterationVelocity.map(v => (
-                <div key={v.iter} className="flex flex-col items-center flex-1 min-w-0">
-                  <div className="text-[9px] text-slate-400 mb-0.5">{v.kept > 0 ? v.kept : ''}</div>
-                  <div
-                    className="w-full max-w-[28px] rounded-t bg-violet-500 transition-all"
-                    style={{ height: `${Math.max(2, (v.kept / maxKept) * 100)}%` }}
-                    title={`Iter ${v.iter}: ${v.kept} kept`}
-                  />
-                  <div className="text-[8px] text-slate-400 mt-0.5">i{v.iter}</div>
-                </div>
-              ))}
+        {iterationVelocity.length > 0 && (() => {
+          const slicedVelocity = sliceDataByRange(iterationVelocity, iterationRangeFilter);
+          const slicedMaxKept = Math.max(1, ...slicedVelocity.map(v => v.kept));
+          return (
+            <div>
+              <div className="text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Iteration Velocity</div>
+              <div className="flex items-end gap-1 h-28 border-b border-l border-slate-200 px-2 pb-1">
+                {slicedVelocity.map(v => (
+                  <div key={v.iter} className="flex flex-col items-center flex-1 min-w-0">
+                    <div className="text-[9px] text-slate-400 mb-0.5">{v.kept > 0 ? v.kept : ''}</div>
+                    <div
+                      className="w-full max-w-[28px] rounded-t bg-violet-500 transition-all"
+                      style={{ height: `${Math.max(2, (v.kept / slicedMaxKept) * 100)}%` }}
+                      title={`Iter ${v.iter}: ${v.kept} kept`}
+                    />
+                    <div className="text-[8px] text-slate-400 mt-0.5">i{v.iter}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         <PhaseTimingBars data={phaseTimings} />
       </div>
 
@@ -196,7 +222,7 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
 
       {/* ── TIER 2c: Cumulative Cost & Stories Passed Trend Chart ────────── */}
       {cumulativeTrendData.length > 0 && (
-        <CumulativeCostChart data={cumulativeTrendData} />
+        <CumulativeCostChart data={sliceDataByRange(cumulativeTrendData, iterationRangeFilter)} />
       )}
 
       {/* ── TIER 3: Collapsible sections ──────────────────────────────────── */}
