@@ -413,7 +413,7 @@ unset SPIRAL_STORY_COST_WARN_USD
 # applies between cycles to avoid empty hot loops.
 # Options: true | false (default)
 # CLI: --continuous
-SPIRAL_CONTINUOUS="${SPIRAL_CONTINUOUS:-false}"
+SPIRAL_CONTINUOUS="${SPIRAL_CONTINUOUS:-true}"
 # Cooldown seconds between discovery cycles when all stories pass (default: 60)
 SPIRAL_CONTINUOUS_COOLDOWN_SECS="${SPIRAL_CONTINUOUS_COOLDOWN_SECS:-60}"
 
