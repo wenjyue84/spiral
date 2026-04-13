@@ -317,3 +317,46 @@ FAILED diagnosis-block gate: Add SLA breach badges to PhaseTimingBars (ID: US-12
 ### Gotchas
 - Diagnosis block must be plain text output BEFORE any Edit/Write/Bash file-modifying calls
 - Story was already implemented from attempt 1; attempt 2 only needed verification + prd.json update
+## Iteration 2 - Tue, Apr 14, 2026  3:24:54 AM
+Completed: Add SLA breach badges to PhaseTimingBars (ID: US-1278) in 1m
+
+
+## Iteration [N] - Story: Add top-5 costliest stories table to AnalyticsTab (US-1279)
+
+### What was implemented
+- Added new "Costliest Stories" CollapsibleSection to AnalyticsTab
+- Table displays the top 5 longest-running stories from bottlenecks.longest array
+- Four columns in the table:
+  * Rank (1-5, centered)
+  * Story ID (clickable button that opens StoryDetailPanel)
+  * Title (truncated with tooltip)
+  * Duration in minutes (right-aligned, bold)
+- CollapsibleSection conditionally renders when bottlenecks.longest.length > 0
+- Uses amber badge color (bg-amber-100 text-amber-700) consistent with alert/warning styling
+- Story ID button styled as blue clickable link with hover underline effect
+
+### Patterns discovered
+- Reused existing table styling pattern from resolvedFailures section
+- CollapsibleSection components accept title, badge (count), and badgeColor props
+- Button elements inside table cells use onClick handlers to update parent state
+- Table rows use hover:bg-slate-50 for visual feedback
+- Rank calculation uses array map index (i + 1) for 1-based numbering
+
+### Gotchas
+- None - the implementation was straightforward using existing data structures and patterns
+
+### Files touched
+- spiral-ui/src/components/AnalyticsTab.tsx (modified, +33 lines)
+- prd.json (marked US-1279 passes: true)
+
+### Quality gates passed
+- ✓ Code follows existing table styling patterns
+- ✓ No new API endpoints required
+- ✓ Uses existing bottlenecks.longest data structure
+- ✓ Story ID click properly integrates with existing setSelectedStoryId state
+- ✓ All acceptance criteria met:
+  - [x] CollapsibleSection Costliest Stories appears when bottlenecks.longest.length > 0
+  - [x] Table shows rank, clickable story ID, title, durationMin
+  - [x] Clicking story ID sets selectedStoryId to open StoryDetailPanel
+  - [x] Limited to top 5 entries using .slice(0,5)
+  - [x] Uses existing bottlenecks.longest data with no API changes
