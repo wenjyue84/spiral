@@ -193,21 +193,64 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
         {iterationVelocity.length > 0 && (() => {
           const slicedVelocity = sliceDataByRange(iterationVelocity, iterationRangeFilter);
           const slicedMaxKept = Math.max(1, ...slicedVelocity.map(v => v.kept));
+
+          // Calculate rolling 3-iteration average
+          const rollingAvg = slicedVelocity.map((_, i) => {
+            const window = slicedVelocity.slice(Math.max(0, i - 2), i + 1);
+            return window.reduce((sum, v) => sum + v.kept, 0) / window.length;
+          });
+
+          // SVG dimensions match the chart container
+          const chartHeight = 112; // h-28 = 112px
+
+          // Build polyline points for rolling average
+          const points = rollingAvg.map((avg, i) => {
+            // x: center of each flex item (distribute equally across width)
+            // Each item takes 1/n of width, so center is at (i + 0.5) / n * 100%
+            const itemWidth = 100 / slicedVelocity.length;
+            const x = (i + 0.5) * itemWidth;
+
+            // y: inverted percentage (0 = top, 100 = bottom, then convert to pixels)
+            const yPercent = Math.max(0, (1 - avg / slicedMaxKept) * 100);
+            const y = (yPercent / 100) * chartHeight;
+
+            return `${x}%,${y}`;
+          }).join(' ');
+
           return (
             <div>
               <div className="text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Iteration Velocity</div>
-              <div className="flex items-end gap-1 h-28 border-b border-l border-slate-200 px-2 pb-1">
-                {slicedVelocity.map(v => (
-                  <div key={v.iter} className="flex flex-col items-center flex-1 min-w-0">
-                    <div className="text-[9px] text-slate-400 mb-0.5">{v.kept > 0 ? v.kept : ''}</div>
-                    <div
-                      className="w-full max-w-[28px] rounded-t bg-violet-500 transition-all"
-                      style={{ height: `${Math.max(2, (v.kept / slicedMaxKept) * 100)}%` }}
-                      title={`Iter ${v.iter}: ${v.kept} kept`}
+              <div className="relative">
+                <div className="flex items-end gap-1 h-28 border-b border-l border-slate-200 px-2 pb-1">
+                  {slicedVelocity.map(v => (
+                    <div key={v.iter} className="flex flex-col items-center flex-1 min-w-0">
+                      <div className="text-[9px] text-slate-400 mb-0.5">{v.kept > 0 ? v.kept : ''}</div>
+                      <div
+                        className="w-full max-w-[28px] rounded-t bg-violet-500 transition-all"
+                        style={{ height: `${Math.max(2, (v.kept / slicedMaxKept) * 100)}%` }}
+                        title={`Iter ${v.iter}: ${v.kept} kept`}
+                      />
+                      <div className="text-[8px] text-slate-400 mt-0.5">i{v.iter}</div>
+                    </div>
+                  ))}
+                </div>
+                {rollingAvg.length > 0 && (
+                  <svg
+                    className="absolute inset-0 w-full h-28 pointer-events-none"
+                    viewBox={`0 0 100 ${chartHeight}`}
+                    preserveAspectRatio="none"
+                  >
+                    <polyline
+                      points={points}
+                      fill="none"
+                      stroke="#f97316"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
                     />
-                    <div className="text-[8px] text-slate-400 mt-0.5">i{v.iter}</div>
-                  </div>
-                ))}
+                  </svg>
+                )}
               </div>
             </div>
           );
