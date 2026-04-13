@@ -420,6 +420,40 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
         </CollapsibleSection>
       )}
 
+      {bottlenecks.longest.length > 0 && (
+        <CollapsibleSection title="Costliest Stories" badge={bottlenecks.longest.length} badgeColor="bg-amber-100 text-amber-700">
+          <div className="rounded-lg border border-slate-200 overflow-hidden">
+            <table className="w-full text-[11px]">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="text-center px-2 py-1">Rank</th>
+                  <th className="text-left px-2 py-1">Story</th>
+                  <th className="text-left px-2 py-1">Title</th>
+                  <th className="text-right px-2 py-1">Duration (min)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {bottlenecks.longest.slice(0, 5).map((s, i) => (
+                  <tr key={s.id} className="hover:bg-slate-50">
+                    <td className="px-2 py-1 text-center text-slate-500">{i + 1}</td>
+                    <td className="px-2 py-1">
+                      <button
+                        onClick={() => setSelectedStoryId(s.id)}
+                        className="font-mono text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                      >
+                        {s.id}
+                      </button>
+                    </td>
+                    <td className="px-2 py-1 text-slate-600 max-w-[200px] truncate" title={s.title}>{s.title}</td>
+                    <td className="px-2 py-1 text-right text-slate-700 font-medium">{s.durationMin}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CollapsibleSection>
+      )}
+
       {(prdVelocity.sessions.length > 0 || resourceUsage.length > 0) && (
         <CollapsibleSection title="Session Velocity & Resources" badge={prdVelocity.sessions.length > 0 ? `${prdVelocity.storiesPerHour}/hr` : undefined}>
           <div className="space-y-3">

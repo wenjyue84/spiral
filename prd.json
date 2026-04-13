@@ -3082,7 +3082,8 @@
         "tokensAfterMasking": 179,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "_passedCommit": "2be55d59c03f637e640b9fc297eb64f8bfa0edcf"
     },
     {
       "id": "US-1279",
@@ -3096,7 +3097,7 @@
         "Limited to top 5 entries using .slice(0,5)",
         "Uses existing bottlenecks.longest data with no API changes"
       ],
-      "passes": false,
+      "passes": true,
       "filesTouch": [
         "spiral-ui/src/components/AnalyticsTab.tsx"
       ],
@@ -3106,7 +3107,8 @@
         "ui"
       ],
       "dependencies": [],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-13T19:24:57Z"
     },
     {
       "id": "US-1280",
