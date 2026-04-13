@@ -2984,7 +2984,10 @@
       ],
       "dependencies": [],
       "model": "haiku",
-      "last_attempted": "2026-04-13T18:47:58Z"
+      "last_attempted": "2026-04-13T18:47:58Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- ✅ `AnalyticsTab.tsx` has the complexity breakdown component implemented (lines 218-252)\n- ❌ `analyticsApi.ts` storiesList mapping (lines 621-642) is missing `estimatedComplexity` field\n\n## Problem Identified\nThe storiesList items are built without the `estimatedComplexity` field, so the chart displays but all stories default to 'small' complexity (fallback on line 222 of AnalyticsTab.tsx).\n\n## Planned Changes\n- Add `estimatedComplexity: s.estimatedComplexity ?? '',` to the storiesList map in `analyticsApi.ts` (after line 630)\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"spiral-ui/src/server/analyticsApi.ts\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 1\n}\n</plan>\nNow let me verify the UI is working by starting the dev server and checking the analytics tab.\nLet me run TypeScript checks to verify the code is correct:\nExcellent! TypeScript check passed. Now let me commit this change:\nPerfect! Let me verify the complete implementation by checking both files one more time:\n## ✅ Implementation Complete"
+      }
     },
     {
       "id": "US-1276",
