@@ -1,3 +1,31 @@
+## Iteration [N] - Story: Add rolling 3-iteration average overlay to velocity chart (US-1276)
+
+### What was implemented
+- Added rolling 3-iteration average calculation and visualization to the Iteration Velocity chart
+- Calculated rolling average using window slicing: for each index i, average of kept values at [max(0, i-2), i]
+- Overlaid SVG polyline on top of existing bar chart with amber/orange color (#f97316)
+- Used SVG viewBox coordinate mapping to align polyline with bar chart positions
+- Edge cases handled: when data length < 3, window automatically adjusts to available items
+
+### Patterns discovered
+- Chart overlays use SVG with position:absolute and matching viewBox dimensions
+- Coordinate scaling: x as percentages (flex distribution), y as inverted percentages converted to pixels
+- SVG polyline with proper stroke styling gives clean trend line visualization
+- Using `vectorEffect="non-scaling-stroke"` prevents line thickness issues with viewBox scaling
+
+### Gotchas
+- None - the implementation was straightforward with proper edge case handling
+
+### Files touched
+- spiral-ui/src/components/AnalyticsTab.tsx (modified, +54/-11 lines)
+
+### Quality gates passed
+- ✓ ESLint validation: no unused variables or type errors
+- ✓ All acceptance criteria met:
+  - [x] Rolling 3-iter average line visible in amber/orange color
+  - [x] Works correctly when iterationVelocity.length < 3
+  - [x] SVG polyline uses same coordinate space as bars
+  - [x] No API changes required
 
 ## Iteration [N] - Story: Add story complexity breakdown chart to AnalyticsTab (US-1275)
 
@@ -229,4 +257,7 @@ Completed: Add iteration range filter pills to AnalyticsTab (ID: US-1281) in 6m
 
 ## Iteration 3 - Tue, Apr 14, 2026  2:36:37 AM
 Completed: Add attempt timeline swimlane to StoryDetailPanel (ID: US-1282) in 3m
+
+## Iteration 1 - Tue, Apr 14, 2026  2:54:27 AM
+Completed: Add story complexity breakdown chart to AnalyticsTab (ID: US-1275) in 5m
 
