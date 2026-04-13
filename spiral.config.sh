@@ -1,6 +1,12 @@
 #!/bin/bash
 # spiral.config.sh — Spiral running on itself
-# Focus: token/quality balance, wizard education, Chrome DevTools integration
+# Focus: analytics dashboard enhancement (localhost:5299/Spiral/analytics)
+
+# ── Focus: scope Phase R to analytics dashboard stories only ─────────────────
+SPIRAL_FOCUS="Enhance the spiral-ui analytics tab at localhost:5299/Spiral/analytics. Stories must improve AnalyticsTab.tsx, its sub-components in analytics/, analyticsApi.ts, or StoryDetailPanel.tsx. Reuse existing CollapsibleSection, PhaseTimingBars, CumulativeCostChart, StoriesListAccordion and other components already in spiral-ui/src/components/analytics/."
+
+# ── Gate mode: auto-proceed (no human checkpoint needed) ────────────────────
+SPIRAL_GATE_MODE="proceed"
 
 # ── Python interpreter ───────────────────────────────────────────────────────
 # Use venv Python directly — "uv run python" fails when quoted in spiral.sh ($SPIRAL_PYTHON is quoted)
@@ -400,6 +406,16 @@ export SPIRAL_STORY_TIMEOUT_LARGE=3600
 # Force-clear stale env vars from previous sessions that may override the above
 unset SPIRAL_STORY_COST_HARD_USD
 unset SPIRAL_STORY_COST_WARN_USD
+
+# ── Continuous mode (never stop) ─────────────────────────────────────────────
+# When true, SPIRAL loops back to Phase A after all stories pass instead of
+# exiting. Phase A gap analysis generates new stories each cycle. A cooldown
+# applies between cycles to avoid empty hot loops.
+# Options: true | false (default)
+# CLI: --continuous
+SPIRAL_CONTINUOUS="${SPIRAL_CONTINUOUS:-false}"
+# Cooldown seconds between discovery cycles when all stories pass (default: 60)
+SPIRAL_CONTINUOUS_COOLDOWN_SECS="${SPIRAL_CONTINUOUS_COOLDOWN_SECS:-60}"
 
 # ── Diminishing returns detection (US-783) ───────────────────────────────────
 # Phase C checks cost-per-new-pass. If it exceeds this multiplier 3 consecutive

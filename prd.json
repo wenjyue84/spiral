@@ -2903,6 +2903,240 @@
         "diagnosisBlock": "## Current State\n- `.claude/worktrees/agent-ada52e4b` is tracked in git and showing as modified\n- `.gitignore` does not exclude `.claude/worktrees/` \n- CodeQL action uses invalid SHA `4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb` (does not exist)\n- Correct SHA for v3.26.6 is `4dd16135b69a43b6c8efb853346f8437d92d3c93` (verified via GitHub API)\n\n## Problem Identified\n1. Stale worktree directory incorrectly tracked as submodule, causing bats CI to fail\n2. CodeQL action uses non-existent commit SHA, causing SARIF upload to fail\n\n## Planned Changes\n1. Add `.claude/worktrees/` to `.gitignore`\n2. Remove `.claude/worktrees/agent-ada52e4b` from git tracking via `git rm --cached`\n3. Update CodeQL action SHA in `.github/workflows/ci.yml` (lines 588 and 595)\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \".gitignore\",\n    \".github/workflows/ci.yml\"\n  ],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow executing the plan:\nNow I'll remove the stale worktree directory from git tracking:\nNow let me run quality checks before committing:\nPerfect! My changes pass the pre-commit checks. Now I'll commit the changes:\nNow I'll update prd.json to mark the story as passed:\n## Summary"
       },
       "_passedCommit": "7bff6295c63f9d38f449d5a0d2a86156860bd7d7"
+    },
+    {
+      "id": "US-1273",
+      "title": "Wire up ErrorBreakdownChart in AnalyticsTab",
+      "description": "ErrorBreakdownChart.tsx exists in analytics/ but is not imported or rendered in AnalyticsTab.tsx. Import it, render it inside a CollapsibleSection titled Error Breakdown, passing failureReasons from AnalyticsData. Reuse CollapsibleSection and the barrel import pattern already used in AnalyticsTab.",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "ErrorBreakdownChart is imported in AnalyticsTab.tsx",
+        "CollapsibleSection titled Error Breakdown renders ErrorBreakdownChart when failureReasons.length > 0",
+        "ErrorBreakdownChart receives correct props from existing failureReasons data",
+        "No new API endpoints or data fields needed"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx",
+        "spiral-ui/src/components/analytics/ErrorBreakdownChart.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1274",
+      "title": "Add model cost-split donut chart to AnalyticsTab",
+      "description": "Add a ModelCostDonut component in analytics/ showing cost split per model using existing modelPerformance array. Render inside a CollapsibleSection. Use CSS conic-gradient or overlapping divs. Colors: haiku=blue, sonnet=violet, opus=amber. Export from analytics/index.ts.",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "CollapsibleSection Model Cost Split appears when modelPerformance.length > 0",
+        "Donut chart shows each model relative cost share with percentage labels",
+        "Colors match existing model conventions (haiku=blue, sonnet=violet, opus=amber)",
+        "Uses only existing modelPerformance data with no API changes",
+        "New file: spiral-ui/src/components/analytics/ModelCostDonut.tsx"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx",
+        "spiral-ui/src/components/analytics/ModelCostDonut.tsx",
+        "spiral-ui/src/components/analytics/index.ts"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui",
+        "charts"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1275",
+      "title": "Add story complexity breakdown chart to AnalyticsTab",
+      "description": "Add an inline bar chart inside AnalyticsTab showing story counts and pass rates by estimatedComplexity (small/medium/large). Use existing storiesList array. Group by complexity, show passed vs total. Reuse the same bar-chart div pattern as iterationVelocity. Colors: small=emerald, medium=violet, large=amber.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "CollapsibleSection Complexity Breakdown appears when storiesList.length > 0",
+        "Bar chart shows small/medium/large groups with passed count and pass rate",
+        "No new API fields needed - derives from storiesList",
+        "Inline in AnalyticsTab.tsx using same div bar pattern as iterationVelocity"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1276",
+      "title": "Add rolling 3-iteration average overlay to velocity chart",
+      "description": "Extend the Iteration Velocity bar chart in AnalyticsTab.tsx to overlay a rolling 3-iteration average as a connected SVG polyline. Wrap the bar chart container in position:relative, add SVG with position:absolute fill. Compute rolling avg for each index i as avg of kept values at [i-2,i-1,i]. No new data needed.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Rolling 3-iter average line visible on Iteration Velocity chart in amber/orange color",
+        "Works correctly when iterationVelocity.length is less than 3",
+        "SVG polyline uses same coordinate space as the bars",
+        "No API changes required - uses existing iterationVelocity data"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui",
+        "charts"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1277",
+      "title": "Add analytics CSV export button to AnalyticsTab",
+      "description": "Add an Export CSV button in the status strip of AnalyticsTab that downloads agentTelemetry data as analytics-YYYY-MM-DD.csv. Client-side only using Blob and URL.createObjectURL. Columns: ts, workerId, storyId, fromPhase, toPhase, durationMs, qualityScore, retryCount. Button disabled when agentTelemetry is empty.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Export CSV button appears in status strip of AnalyticsTab",
+        "Downloads CSV with correct columns from agentTelemetry",
+        "Filename uses format analytics-YYYY-MM-DD.csv",
+        "Button is disabled/hidden when agentTelemetry is empty",
+        "No server endpoint needed - purely client-side"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui",
+        "export"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1278",
+      "title": "Add SLA breach badges to PhaseTimingBars",
+      "description": "Extend PhaseTimingBars.tsx to show a colored warning badge next to phases exceeding SLA thresholds. SLA_THRESHOLDS constant: A=30s, R=300s, S=60s, M=30s, I=600s, V=300s, C=30s. Red badge at 2x SLA, amber badge at 1.5x. No new props required - parse phase letter from existing phase field in phaseTimings data.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "PhaseTimingBars shows red badge when phase duration exceeds 2x SLA threshold",
+        "PhaseTimingBars shows amber badge when phase duration exceeds 1.5x SLA threshold",
+        "SLA_THRESHOLDS defined as constant inside PhaseTimingBars.tsx",
+        "No new props required - uses existing phase and durationSec fields",
+        "Badge appears inline with the phase name label"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/analytics/PhaseTimingBars.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1279",
+      "title": "Add top-5 costliest stories table to AnalyticsTab",
+      "description": "Add a Costliest Stories CollapsibleSection in AnalyticsTab using existing bottlenecks.longest array (Array of id, title, durationMin already in AnalyticsData). Show top 5 entries in a table with rank, clickable story ID, title, duration in minutes. Story ID click opens StoryDetailPanel via existing setSelectedStoryId. Reuse table styling pattern from resolvedFailures section.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "CollapsibleSection Costliest Stories appears when bottlenecks.longest.length > 0",
+        "Table shows rank, clickable story ID, title, durationMin",
+        "Clicking story ID sets selectedStoryId to open StoryDetailPanel",
+        "Limited to top 5 entries using .slice(0,5)",
+        "Uses existing bottlenecks.longest data with no API changes"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1280",
+      "title": "Add keyword search filter to StoriesListAccordion",
+      "description": "Add a search text input above the filter tabs in StoriesListAccordion.tsx. Filter displayed stories to those whose id or title contains the search term (case-insensitive). Search combines with the existing status filter (all/passing/failing). Clearing the input restores all stories. Local useState only - no props changes needed.",
+      "priority": "medium",
+      "acceptanceCriteria": [
+        "Text input with placeholder Search stories... appears above filter tabs",
+        "Typing filters stories by id or title case-insensitively",
+        "Search filter combines with existing status filter using logical AND",
+        "Clearing the input restores the unfiltered story list",
+        "No props changes to StoriesListAccordion interface"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/analytics/StoriesListAccordion.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1281",
+      "title": "Add iteration range filter pills to AnalyticsTab",
+      "description": "Add compact pill buttons in the AnalyticsTab status strip with options: All / Last 10 / Last 20 / Last 50. Selecting a pill slices iterationVelocity and cumulativeTrendData to last N entries using client-side state. CumulativeCostChart and PhaseTimelineChart receive sliced data. Default is All. No API changes.",
+      "priority": "low",
+      "acceptanceCriteria": [
+        "Pill buttons All / Last 10 / Last 20 / Last 50 visible in status strip",
+        "Selecting a pill slices iterationVelocity to last N entries",
+        "CumulativeCostChart and velocity chart update with sliced data",
+        "Default selection is All",
+        "No API changes - purely client-side state"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/AnalyticsTab.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "US-1282",
+      "title": "Add attempt timeline swimlane to StoryDetailPanel",
+      "description": "Extend StoryDetailPanel.tsx to show a horizontal swimlane of attempt bars above the existing attempts table. Each attempt is a color-coded bar proportional to durationSec relative to the max attempt duration. Colors: status=passed means emerald, retryNum>0 means amber, otherwise red. Hover title shows model, status, durationSec. Renders when attempts.length > 0. Uses existing StoryAttempt data.",
+      "priority": "low",
+      "acceptanceCriteria": [
+        "Horizontal swimlane of attempt bars appears above attempts table in StoryDetailPanel",
+        "Bar width is proportional to durationSec divided by max durationSec",
+        "Colors: passed=emerald-500, retried=amber-400, failed=red-400",
+        "Hovering a bar shows a title with model, status, durationSec",
+        "Swimlane only renders when attempts array has at least one entry",
+        "No new props or API changes needed"
+      ],
+      "passes": false,
+      "filesTouch": [
+        "spiral-ui/src/components/StoryDetailPanel.tsx"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "analytics",
+        "ui"
+      ],
+      "dependencies": []
     }
   ]
 }
