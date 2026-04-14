@@ -115,7 +115,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -590,7 +590,8 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1235",
@@ -630,6 +631,29 @@
         "Test: uv run pytest tests/test_story_formatter.py -v && spiral explain US-1234 --markdown (manual validation)"
       ],
       "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1237",
+      "title": "[Regression Test] Federated PRD prd.include composition - guard US-1212",
+      "priority": "medium",
+      "description": "Write a regression test in tests/test_federated_prd.py that verifies the prd.include field correctly composes stories from a fixture sub-project with namespace prefixes and detects circular includes, guarding against regressions in US-1212.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_federated_prd.py -k us_1212 -v exits 0",
+        "Test asserts merged stories contain namespace-prefixed IDs (e.g., 'web:US-100')",
+        "Test asserts a circular include raises a validation error or non-zero exit"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_federated_prd.py (add test_us_1212_include_merges_with_prefix and test_us_1212_circular_include_raises)",
+        "File to edit: tests/fixtures/subproject_web_prd.json (create minimal fixture with 2 stories)",
+        "Import and call merge function from lib/merge_stories.py directly in the test",
+        "Test command: uv run pytest tests/test_federated_prd.py -k us_1212 -v"
+      ],
+      "dependencies": [
+        "US-1212"
+      ],
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
