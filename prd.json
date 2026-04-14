@@ -875,6 +875,27 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku"
+    },
+    {
+      "id": "US-1251",
+      "title": "Phase V: Support @spiral:verify test markers for granular story verification",
+      "priority": "high",
+      "description": "Enhance Phase V to recognize and execute test functions marked with @spiral:verify(story-id) annotations, enabling precise per-story test mapping without file-touch heuristics.",
+      "acceptanceCriteria": [
+        "Phase V parser recognizes @spiral:verify(US-123) markers in pytest test files and extracts matching test function names",
+        "Stories with verification.testMarker field trigger isolated pytest runs with marked tests only, mapping results back to story pass/fail status",
+        "Test markers override filesTouch detection; verification.testMarker=\"test_login_flow\" triggers pytest -k test_login_flow instead of file-based inference"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/phases/phase_v.sh (update verification loop)",
+        "File to create: lib/verification_markers.py with extract_test_markers(test_file_path) function",
+        "Update: lib/impl/verify_story.sh to check verification.testMarker before filesTouch fallback",
+        "Test command: uv run pytest tests/test_phase_v.py::test_marker_extraction -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
     }
   ]
 }
