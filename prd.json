@@ -293,7 +293,7 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-04-14T05:23:10.275681+00:00"
+      "last_attempted": "2026-04-14T05:04:01Z"
     },
     {
       "id": "US-1222",
@@ -781,6 +781,29 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1247",
+      "title": "[Regression Test] Loop Quality Score: composite metric written to _loop_quality.jsonl",
+      "priority": "medium",
+      "description": "Write a pytest regression test that guards the US-1226 loop-quality score feature. The test must confirm that after Phase C the composite score (0-100) is computed from the three sub-metrics and appended to .spiral/_loop_quality.jsonl, and that the one-line summary is printed.",
+      "acceptanceCriteria": [
+        "After invoking the Phase C quality scorer with mock iteration data, `.spiral/_loop_quality.jsonl` contains an entry with keys: generation_quality, redundancy_ratio, calibration_accuracy, composite_score",
+        "composite_score is a float in [0, 100]; removing the feature causes KeyError or missing file, making the test fail",
+        "`uv run pytest tests/ -k us_1226 -v` exits 0 with no failures"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_loop_quality.py (new file — unit tests for score computation and jsonl append)",
+        "File to edit: lib/loop_quality.py or equivalent Phase C scorer module",
+        "Test command: uv run pytest tests/test_loop_quality.py -v",
+        "Use tmp_path fixture to isolate .spiral/_loop_quality.jsonl; assert json.loads(line) structure"
+      ],
+      "dependencies": [
+        "US-1226"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
