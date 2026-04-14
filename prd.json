@@ -721,6 +721,27 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1241",
+      "title": "spiral-ui: Add real-time token burn rate line chart to Dashboard",
+      "priority": "high",
+      "description": "Live Recharts line chart on Dashboard tab showing cumulative token spend and projected cost over time. Data streams via WebSocket from results.tsv with 1-hour rolling window and 5-second refresh rate.",
+      "acceptanceCriteria": [
+        "WebSocket endpoint /ws/token-metrics streams {timestamp: ISO8601, totalTokens: number, costUSD: number, projectedFinal: number} every 5 seconds",
+        "TokenBurnChart React component renders line chart with Recharts; X-axis=time, Y-axis=tokens/cost; includes legend and grid",
+        "Integration test verifies chart data updates correctly and rolling window displays only last 60 minutes of data"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral-ui/src/pages/Dashboard.tsx (add <TokenBurnChart /> import and JSX)",
+        "File to create: spiral-ui/src/components/TokenBurnChart.tsx (Recharts LineChart wrapper with useWebSocket hook)",
+        "File to create: spiral-ui/backend/metrics.py (WebSocket handler reading results.tsv and computing rolling cost)",
+        "Test command: npm test -- TokenBurnChart.spec.tsx"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
     }
   ]
 }
