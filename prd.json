@@ -589,6 +589,48 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1235",
+      "title": "CLI: Add `spiral query stories` with filtering, sorting, and table/JSON/CSV export formats",
+      "priority": "medium",
+      "description": "Add `spiral query stories` subcommand enabling interactive querying of prd.json + results.tsv. Filter by status (pending/pass/fail), project (federated repos), complexity (small/medium/large), and model used. Output as ASCII table, JSON, or CSV for reporting and analysis.",
+      "acceptanceCriteria": [
+        "`spiral query stories --status pass` lists passing stories with columns (ID, Title, Project, Tokens, Cost, Model); `spiral query stories --complexity medium --status fail` shows failing medium-complexity stories with last failure reason from results.tsv",
+        "`spiral query stories --by-project` groups results by prd.include sub-project showing story count and pass rate per project; useful for federated PRD health monitoring",
+        "`spiral query stories --format json` outputs JSON array of story objects with all metadata; `--format csv` outputs CSV with columns (ID, Title, Status, Project, Complexity, Tokens, Cost, Model, Last_Failure_Reason)"
+      ],
+      "technicalNotes": [
+        "File: lib/story_query.py - function query_stories(prd_path: str, results_tsv_path: str, filters: dict) -> list; loads prd.json and results.tsv, merges metadata, applies filters, returns matching stories with computed fields",
+        "File: lib/cli_subcommands.sh - add case 'query' handler parsing flags --status / --project / --complexity / --by-project / --format and calling story_query.py",
+        "File: tests/test_story_query.py - test_filter_by_status, test_filter_by_project, test_format_csv, test_format_json",
+        "Test: uv run pytest tests/test_story_query.py -v && spiral query stories --status pass --format csv (manual validation)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1236",
+      "title": "CLI: Add `spiral explain <story-id>` to display story context, research origin, and acceptance criteria",
+      "priority": "medium",
+      "description": "Add `spiral explain <story-id>` subcommand displaying formatted story details: origin source (test-fix/research/ai-example/seed), research URLs and credibility scores, acceptance criteria as bullet list, technical notes, and filesTouch. Helps developers understand scope before Phase I implementation.",
+      "acceptanceCriteria": [
+        "`spiral explain US-1234` displays story with formatted text sections: Title | ID | Source (badge) | Description | Acceptance Criteria (numbered list) | Technical Notes | Files to Touch | Model Used (if completed) | Token Cost",
+        "For research-sourced stories, includes Research Context section listing source URLs with domain, date, and credibility score (high/medium/low based on domain authority); synthesizes key findings from story.research_summary",
+        "`spiral explain US-1234 --markdown` outputs story as Markdown suitable for docs/Notion; `--json` outputs raw story object merged with results.tsv metadata (model, tokens, cost, duration, retry_count)"
+      ],
+      "technicalNotes": [
+        "File: lib/story_formatter.py - function format_story_explain(story: dict, results_row: dict=None, format: str='text') -> str; reads prd.json + results.tsv, merges and formats output based on format flag",
+        "File: lib/cli_subcommands.sh - add case 'explain' handler parsing flags --markdown / --json and calling story_formatter.py with story_id",
+        "File: tests/test_story_formatter.py - test_format_text_basic, test_format_markdown_output, test_format_json_with_results, test_research_context_formatting",
+        "Test: uv run pytest tests/test_story_formatter.py -v && spiral explain US-1234 --markdown (manual validation)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     }
