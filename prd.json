@@ -181,6 +181,138 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-1217",
+      "title": "spiral-ui: Add useStoryTimeline hook and register Activity Log tab",
+      "priority": "high",
+      "description": "Create the data layer for the Activity Log feature. Parse results.tsv into a typed story timeline array and register the new Activity Log tab route in App.tsx. The page component renders a loading/empty state placeholder until the table component is added.",
+      "acceptanceCriteria": [
+        "useStoryTimeline returns an array of objects with fields {id, status, duration, model, source} parsed from results.tsv tab-separated columns",
+        "Activity Log tab appears in the nav and renders without runtime errors when results.tsv is absent (empty state shown)",
+        "npm test -- useStoryTimeline --watchAll=false exits 0 with at least one passing test"
+      ],
+      "technicalNotes": [
+        "File to create: web/src/hooks/useStoryTimeline.ts (useStoryTimeline hook — fetch /api/results, split lines, parse fields: story_id, status, model, duration, tokens, cost)",
+        "File to create: web/src/pages/ActivityLog.tsx (scaffold: import hook, render <div>loading / empty state</div>)",
+        "File to edit: web/src/App.tsx (add <Route path='/activity-log' component={ActivityLog} /> and nav link)",
+        "Test command: npm test -- useStoryTimeline --watchAll=false"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "_passedCommit": "4d4602e00300d47af722906dc79b69240934dc0d"
+    },
+    {
+      "id": "US-1218",
+      "title": "spiral-ui: Add ActivityLogTable with status badges, filtering, and story detail modal",
+      "priority": "high",
+      "description": "Build the ActivityLogTable component that consumes the useStoryTimeline hook and renders a sortable table with colour-coded status badges, per-status click filtering, and a modal showing full story details on row click.",
+      "acceptanceCriteria": [
+        "Table renders rows in reverse chronological order with columns ID, Status, Duration ('2m 34s' format), Model, Source; verified by npm test -- ActivityLog --watchAll=false",
+        "Clicking a status badge filters table to that status; clicking again clears the filter — asserted in component test",
+        "Clicking any row opens a modal displaying the story description and git commit excerpt; modal closes on Escape key"
+      ],
+      "technicalNotes": [
+        "File to create: web/src/components/ActivityLogTable.tsx (props: stories from useStoryTimeline; local state for activeFilter and selectedStory)",
+        "File to edit: web/src/pages/ActivityLog.tsx (replace placeholder with <ActivityLogTable stories={data} />)",
+        "File to create: tests/web/ActivityLog.test.tsx (render with mock data, assert badge colours via data-testid, assert modal open/close)",
+        "Test command: npm test -- ActivityLog --watchAll=false"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1219",
+      "title": "CLI: Add `spiral config list` and `spiral config set KEY VALUE` for runtime configuration management",
+      "priority": "high",
+      "description": "Implement CLI subcommands for configuration management without file editing. `spiral config list` displays all config variables with current values and descriptions. `spiral config set KEY VALUE` updates spiral.config.sh in-place, with changes effective on next SPIRAL run.",
+      "acceptanceCriteria": [
+        "spiral config list outputs table with columns: VARIABLE | CURRENT_VALUE | DESCRIPTION; includes SPIRAL_MODEL_ROUTING, SPIRAL_MAX_PENDING, SPIRAL_COST_CEILING (at least 10 vars)",
+        "spiral config set SPIRAL_MAX_PENDING 30 updates spiral.config.sh and grep verifies: grep 'SPIRAL_MAX_PENDING=30' spiral.config.sh returns match",
+        "spiral config set INVALID_KEY 10 returns error message 'Unknown config variable: INVALID_KEY' and does not modify spiral.config.sh"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_subcommands.sh (add 'config' case handler calling config_manager functions)",
+        "File to create: lib/spiral/config_manager.py with functions: list_config(), set_config(key, value), validate_key(key)",
+        "Test command: uv run pytest tests/test_config_cli.py::test_set_config_updates_file -v",
+        "Security: validate values to prevent shell injection; whitelist allowed keys to prevent arbitrary variable creation"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1220",
+      "title": "Add constitution_parser.py module with parse_constitution_rules function",
+      "priority": "medium",
+      "description": "Create lib/spiral/constitution_parser.py that reads constitution.md and returns a structured dict of {goal: [focus_values]} rules. This module is the foundation Phase S uses for story validation checks.",
+      "acceptanceCriteria": [
+        "parse_constitution_rules(filepath) returns a dict with at least one key matching the goal defined in constitution.md",
+        "Calling parse_constitution_rules with a non-existent path raises FileNotFoundError",
+        "uv run pytest tests/test_constitution_parser.py -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to create: lib/spiral/constitution_parser.py (function parse_constitution_rules(filepath: str) -> dict[str, list[str]])",
+        "File to create: tests/test_constitution_parser.py (test happy path with actual constitution.md, test missing file raises FileNotFoundError)",
+        "Test command: uv run pytest tests/test_constitution_parser.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1221",
+      "title": "Add Phase S constitution integration test: goal mismatch and antiPatterns validation",
+      "priority": "medium",
+      "description": "Write integration tests in tests/test_phase_s_constitution.py using JSON fixtures to verify Phase S accepts stories that match constitution.md goals, rejects mismatched stories with a 'constitution violation' message, and rejects malformed _decomposed.antiPatterns fields.",
+      "acceptanceCriteria": [
+        "test_valid_story_passes: loading tests/fixtures/valid_constitution_story.json through Phase S validation returns success — verified by uv run pytest tests/test_phase_s_constitution.py::test_valid_story_passes -v",
+        "test_goal_mismatch_fails: invalid story fixture produces error string containing 'constitution violation' — verified by uv run pytest tests/test_phase_s_constitution.py::test_goal_mismatch_fails -v",
+        "test_antipattern_validation: story with duplicate antiPatterns raises ValueError — verified by uv run pytest tests/test_phase_s_constitution.py::test_antipattern_validation -v"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_phase_s_constitution.py (three pytest test functions; import parse_constitution_rules from lib/spiral/constitution_parser)",
+        "File to create: tests/fixtures/valid_constitution_story.json (story whose goal matches constitution.md goal field)",
+        "File to create: tests/fixtures/invalid_goal_story.json (story with goal value 'INVALID_GOAL_XYZ')",
+        "Test command: uv run pytest tests/test_phase_s_constitution.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1222",
+      "title": "CLI: Add `spiral validate-federation` for sub-project dependency graph validation",
+      "priority": "medium",
+      "description": "Implement `spiral validate-federation` command to validate federated PRD configuration. Verifies all prd.include paths exist and are valid JSON, detects circular dependencies, validates referenced stories, and outputs dependency graph as DOT format compatible with graphviz.",
+      "acceptanceCriteria": [
+        "spiral validate-federation prd.json parses prd.include array, verifies each file exists and is valid JSON; reports 'File not found: missing.json' if missing",
+        "Command detects circular dependencies (e.g., prd-a includes prd-b, prd-b includes prd-a) and outputs 'Circular dependency detected: prd-a → prd-b → prd-a'",
+        "spiral validate-federation --output graph.dot generates DOT file with PRD filenames as nodes and includes as edges; verify via: dot -Tsvg graph.dot -o graph.svg"
+      ],
+      "technicalNotes": [
+        "File to create: lib/spiral/federation_validator.py with functions: validate_includes(prd_path), detect_cycles(includes_dict), build_dependency_graph(), export_dot(graph, output_path)",
+        "File to edit: lib/cli_subcommands.sh (add 'validate-federation' subcommand handler)",
+        "Test fixtures: tests/fixtures/prd-a.json (includes prd-b), tests/fixtures/prd-b.json (includes prd-c), tests/fixtures/circular-prd-a.json (circular)",
+        "Test command: uv run pytest tests/test_federation_validator.py::test_detect_circular_dependency -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }
