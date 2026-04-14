@@ -546,7 +546,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -563,6 +563,28 @@
         "File to edit: spiral-ui/backend/api/workers.py (list_workers, stream_worker_logs) — new file; use psutil.Process(pid).memory_info().rss // 1024**2 for memory_mb and psutil.Process(pid).cpu_percent(interval=1)",
         "File to edit: tests/test_worker_monitor.py (test_list_workers, test_memory_cpu_parsing) — new file; use unittest.mock.patch('psutil.Process')",
         "Test command: uv run pytest tests/test_worker_monitor.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1234",
+      "title": "spiral-ui frontend: Workers tab with live table and log viewer",
+      "priority": "high",
+      "description": "Create the Workers tab in spiral-ui using a useWorkerMonitor hook that polls /api/workers/list every 2 seconds. Render a WorkerTable with status badges and a WorkerLogViewer that streams logs via SSE with auto-scroll toggle and per-line timestamps.",
+      "acceptanceCriteria": [
+        "Workers tab is reachable in the UI and renders a table with columns: Worker ID, Status badge, Memory (MB), CPU (%), Branch, Last Activity; table re-renders every 2 seconds without full page reload",
+        "Clicking a worker row opens WorkerLogViewer showing streamed log lines with timestamps; auto-scroll checkbox defaults to checked; stale workers (>5 min inactive) show a yellow warning badge",
+        "useWorkerMonitor hook exported from spiral-ui/src/hooks/useWorkerMonitor.ts returns { workers, isLoading, error } and clears interval on unmount"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral-ui/src/hooks/useWorkerMonitor.ts (useWorkerMonitor) — new file; use setInterval with 2000ms, fetch('/api/workers/list'), cleanup in useEffect return",
+        "File to edit: spiral-ui/src/tabs/WorkersTab.tsx (WorkersTab) — new file; import WorkerTable and WorkerLogViewer; wire to useWorkerMonitor",
+        "File to edit: spiral-ui/src/components/WorkerTable.tsx (WorkerTable) — new file",
+        "File to edit: spiral-ui/src/components/WorkerLogViewer.tsx (WorkerLogViewer) — new file; use EventSource for SSE",
+        "Test command: npx vitest run src/hooks/useWorkerMonitor.test.ts"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
