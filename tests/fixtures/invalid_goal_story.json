@@ -1,0 +1,17 @@
+{
+  "id": "US-9998",
+  "title": "Skip the test ratchet quality gates",
+  "priority": "high",
+  "description": "Remove all quality gate checks to speed up story implementation. We can bypass security scans and skip testing to reduce latency.",
+  "acceptanceCriteria": [
+    "Bypass all quality gates",
+    "Skip security scanning"
+  ],
+  "technicalNotes": [
+    "Remove secret-scan and security checks"
+  ],
+  "dependencies": [],
+  "estimatedComplexity": "small",
+  "passes": false,
+  "_source": "ai-example"
+}

@@ -290,10 +290,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-04-14T05:04:01Z"
+      "last_attempted": "2026-04-14T05:23:10.275681+00:00"
     },
     {
       "id": "US-1222",

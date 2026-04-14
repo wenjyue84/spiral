@@ -1,0 +1,17 @@
+{
+  "id": "US-9999",
+  "title": "Improve SPIRAL Phase G: auto-generate CHANGELOG.md",
+  "priority": "high",
+  "description": "Implement enhanced CHANGELOG generation using git-cliff to document story commits and improvements.",
+  "acceptanceCriteria": [
+    "CHANGELOG.md is generated automatically from git history",
+    "All story commits are properly documented"
+  ],
+  "technicalNotes": [
+    "Use git-cliff for changelog generation"
+  ],
+  "dependencies": [],
+  "estimatedComplexity": "small",
+  "passes": false,
+  "_source": "ai-example"
+}
