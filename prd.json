@@ -357,7 +357,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet"
     },
@@ -895,6 +895,30 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1252",
+      "title": "[Regression Test] Federated PRD: schema validation and basic include merge",
+      "priority": "medium",
+      "description": "Write a regression test guarding the prd.include schema addition and basic story composition of US-1212. Validates that prd.schema.json accepts the include array, that a fixture sub-project PRD loads correctly, and that Phase M merges included stories with correct namespace prefixes (e.g., web:US-100).",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_federated_prd.py::test_prd_include_schema_validates -v exits 0",
+        "uv run pytest tests/test_federated_prd.py::test_included_stories_receive_namespace_prefix -v exits 0",
+        "uv run pytest tests/test_federated_prd.py -v --tb=short exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_federated_prd.py (create — regression tests for US-1212 schema and merge)",
+        "File to edit: tests/fixtures/subproject_web_prd.json (create — minimal sub-project PRD with 2 stories)",
+        "File to edit: prd.schema.json (reference only — validate against this; do not modify schema here)",
+        "Test command: uv run pytest tests/test_federated_prd.py::test_prd_include_schema_validates -v",
+        "Use jsonschema.validate() to check a prd.json with prd.include passes schema; assert merged story IDs contain 'web:' prefix"
+      ],
+      "dependencies": [
+        "US-1212"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "haiku"
     }
   ]
