@@ -334,6 +334,27 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-1224",
+      "title": "spiral-ui: Add export-progress feature to download SPIRAL state snapshot as shareable JSON",
+      "priority": "medium",
+      "description": "Add Export button to spiral-ui dashboard that downloads JSON snapshot: prd.json state, results.tsv summary (pass/fail/retry counts), config snapshot, and latest 10 story logs. Snapshot includes metadata: export timestamp, iteration count, total tokens spent, cost per outcome.",
+      "acceptanceCriteria": [
+        "Export button on dashboard header triggers download of spiral-progress-<ISO-timestamp>.json containing prd.json, results summary, config snapshot",
+        "Snapshot includes metadata section: export time, iteration number, total tokens, story counts (passed/failed/in-progress), cost breakdown by model",
+        "JSON schema is documented at lib/export_schema.json for future re-import feature"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/export_progress.py (new handler bundling prd.json, results.tsv parse, config read, metadata generation)",
+        "Create spiral-ui/src/components/ExportButton.tsx calling `/api/export-progress` and triggering browser download",
+        "Test command: npm run test -- src/components/ExportButton.test.tsx in spiral-ui/ directory"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     }
   ]
 }
