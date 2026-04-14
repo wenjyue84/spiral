@@ -313,7 +313,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -800,6 +800,30 @@
       ],
       "dependencies": [
         "US-1226"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1248",
+      "title": "[Regression Test] changelog_generator.py: git-cliff invocation and output grouping",
+      "priority": "medium",
+      "description": "Write a pytest regression test that mocks the git-cliff subprocess call and verifies that generate_changelog() produces output grouped into feat/fix/docs sections using US-NNNN story IDs from conventional commits. Also assert .cliff.toml exists and contains the expected US-NNNN pattern rule.",
+      "acceptanceCriteria": [
+        ".cliff.toml exists at the repo root and contains a pattern that matches 'US-\\d+' commit subject tokens",
+        "generate_changelog(start_sha, end_sha, prd_path, iteration_num) returns a string containing at least one of the section headers: '## feat', '## fix', or '## docs'",
+        "Test passes: `uv run pytest tests/test_changelog_generator.py -v` exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_changelog_generator.py (create new test file, mirrors tests/test_changelog_generator.py from similar_solutions)",
+        "File to edit: lib/changelog_generator.py (function generate_changelog)",
+        "File to edit: .cliff.toml (verify US-NNNN pattern section exists)",
+        "Test command: uv run pytest tests/test_changelog_generator.py -v",
+        "Mock subprocess.run in tests using monkeypatch; return a fake stdout with '## feat\\n- US-1231 add changelog'"
+      ],
+      "dependencies": [
+        "US-1231"
       ],
       "estimatedComplexity": "small",
       "passes": false,
