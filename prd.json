@@ -316,48 +316,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1223",
-      "title": "CLI: Add spiral status-watch command with live token burn rate and estimated completion time",
-      "priority": "medium",
-      "description": "Add `spiral status-watch` subcommand displaying live dashboard: current phase, stories passed/failed, cumulative token spend, token burn rate, worker status, and ETA. Refreshes every 2 seconds by polling results.tsv and .spiral/_checkpoint.json.",
-      "acceptanceCriteria": [
-        "Command `spiral status-watch` prints live dashboard with: phase, pass/fail/retry counts, tokens spent, burn rate (tokens/sec), active worker count and current story per worker",
-        "Dashboard refreshes every 2 seconds; Ctrl+C exits cleanly",
-        "Estimated completion time calculated from average story token cost and remaining story backlog"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/cli_subcommands.sh (add 'status-watch' case calling lib/watch_status.py)",
-        "Create lib/watch_status.py with live terminal UI using ANSI escape codes or curses module",
-        "Test command: uv run pytest tests/test_status_watch.py::test_live_dashboard_refresh -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-1224",
-      "title": "spiral-ui: Add export-progress feature to download SPIRAL state snapshot as shareable JSON",
-      "priority": "medium",
-      "description": "Add Export button to spiral-ui dashboard that downloads JSON snapshot: prd.json state, results.tsv summary (pass/fail/retry counts), config snapshot, and latest 10 story logs. Snapshot includes metadata: export timestamp, iteration count, total tokens spent, cost per outcome.",
-      "acceptanceCriteria": [
-        "Export button on dashboard header triggers download of spiral-progress-<ISO-timestamp>.json containing prd.json, results summary, config snapshot",
-        "Snapshot includes metadata section: export time, iteration number, total tokens, story counts (passed/failed/in-progress), cost breakdown by model",
-        "JSON schema is documented at lib/export_schema.json for future re-import feature"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/export_progress.py (new handler bundling prd.json, results.tsv parse, config read, metadata generation)",
-        "Create spiral-ui/src/components/ExportButton.tsx calling `/api/export-progress` and triggering browser download",
-        "Test command: npm run test -- src/components/ExportButton.test.tsx in spiral-ui/ directory"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
       "id": "US-1225",
       "title": "Meta-Harness: Success-Pattern Library with Phase L to Phase A Feedback Loop",
       "priority": "high",
@@ -400,7 +358,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "model": "haiku"
     },
@@ -429,83 +387,25 @@
       "model": "haiku"
     },
     {
-      "id": "US-1228",
-      "title": "Meta-Harness: Per-Iteration Loop Diagnosis Report with Plain-English Recommendations",
-      "priority": "medium",
-      "description": "At the end of each iteration (Phase C), generate .spiral/_iteration_diagnosis.jsonl with a structured record summarizing stories completed, loop quality score, velocity, top failure category, and 1-2 actionable plain-English recommendations. The monitor command includes the latest diagnosis.",
+      "id": "US-1231",
+      "title": "Add lib/changelog_generator.py and .cliff.toml for CHANGELOG generation",
+      "priority": "high",
+      "description": "Create lib/changelog_generator.py with generate_changelog(start_sha, end_sha, prd_path, iteration_num) that invokes git-cliff via subprocess with a .cliff.toml config. The .cliff.toml parses US-NNNN story IDs from conventional commits and groups output into feat/fix/docs sections.",
       "acceptanceCriteria": [
-        "lib/meta_harness/iteration_diagnosis.py exists with generate(iteration: int, scratch_dir: str, prd_path: str) -> dict producing keys: iteration, stories_completed (int), stories_generated (int), loop_quality (int 0-100), velocity_stories_per_hour (float), top_failure_category (str or null), recommendations (list[str])",
-        "recommendations list is non-empty when: loop_quality < 60 (add 'Consider narrowing SPIRAL_FOCUS to reduce story scope'), velocity < 1.0 (add 'Story scope may be too large -- consider SPIRAL_STORY_BATCH_SIZE reduction'), top_failure_category == timeout (add 'Stories timing out -- try decomposing large stories into smaller ones')",
-        ".spiral/_iteration_diagnosis.jsonl grows by 1 record per iteration",
-        "uv run python main.py monitor --port 5299 output JSON includes latest_diagnosis key with the most recent record from _iteration_diagnosis.jsonl",
-        "uv run pytest tests/test_iteration_diagnosis.py -v passes"
+        "uv run pytest tests/test_changelog_generator.py::test_generate_changelog_us_pattern -v passes; test verifies returned string contains US-NNNN entry grouped under [feat] or [fix]",
+        "git-cliff --config .cliff.toml --version exits 0 and .cliff.toml parses conventional commit type prefixes (feat/fix/docs) with story ID capture group",
+        "generate_changelog() raises ValueError if start_sha or end_sha is empty string; returns non-empty string on valid git range"
       ],
       "technicalNotes": [
-        "Depends on US-1222 (loop_quality.py) being present -- graceful fallback if _loop_quality.jsonl absent: use loop_quality=50",
-        "velocity_stories_per_hour: read from .spiral/_velocity_log.json if exists, else compute from results.tsv timestamps",
-        "top_failure_category: read results.tsv, count failure_category column, return mode (most common), null if no failures",
-        "Add latest_diagnosis read to lib/monitor.py: read last line of _iteration_diagnosis.jsonl, parse as JSON, include in monitor output dict",
-        "Call generate() at end of phase_c_check_done.sh, after loop quality call, before final exit"
-      ],
-      "dependencies": [
-        "US-1222"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "seed",
-      "model": "haiku"
-    },
-    {
-      "id": "US-1229",
-      "title": "Meta-Harness: Goal Coverage Tracker with Stall Detection",
-      "priority": "medium",
-      "description": "After each Phase V cycle, measure what fraction of the prd.json goals[] array is covered by passed stories. Coverage = % of goal keywords appearing in at least one passed story title/description. Warn in Phase C when any goal has had zero coverage growth for 5+ consecutive iterations.",
-      "acceptanceCriteria": [
-        "lib/meta_harness/goal_coverage.py exists with measure(prd_path: str, scratch_dir: str) -> dict returning: {\"goals\": [{\"text\": str, \"coverage\": float 0.0-1.0, \"stalled_iters\": int}], \"overall_coverage\": float 0.0-1.0}",
-        "Phase C calls goal_coverage.measure() and prints: [meta] Goal coverage: X% (N goals tracked)",
-        "A goal with stalled_iters >= 5 triggers printed warning: [meta] WARN: Goal \"<text>\" has had no coverage growth for 5 iterations",
-        ".spiral/_goal_coverage.jsonl grows by 1 record per iteration containing the full measure() output plus iteration number",
-        "When prd.json has no goals[] field, measure() returns {\"goals\": [], \"overall_coverage\": 0.0} with no error",
-        "uv run pytest tests/test_goal_coverage.py -v passes -- covers: coverage increases when matching story passes, stall detection triggers at threshold=5, empty goals handled, keyword matching is case-insensitive"
-      ],
-      "technicalNotes": [
-        "Keyword extraction: re.split on whitespace+punctuation, filter words len<3, filter English stopwords",
-        "Coverage per goal: fraction of goal keywords found in union of (title + description) of all passed stories",
-        "stalled_iters: read previous record from _goal_coverage.jsonl, compare coverage; if unchanged, increment; if changed, reset to 0",
-        "Reuse matches_focus() token logic from lib/prd/merge_stories.py as reference for tokenization approach",
-        "Insert call in phase_c_check_done.sh after loop quality call"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "seed",
-      "model": "haiku"
-    },
-    {
-      "id": "US-1230",
-      "title": "Meta-Harness: Phase R SLO Enforcement with Auto-Replay on Quality Breach",
-      "priority": "low",
-      "description": "After Phase R+S completes, check if research output quality meets minimum SLO: at least 50% of research candidates must pass Phase S validation. If breached 2 consecutive iterations, re-run Phase R with a stricter prompt suffix. Controlled by SPIRAL_SLO_ENFORCEMENT=true config flag (opt-in).",
-      "acceptanceCriteria": [
-        "lib/meta_harness/phase_slo.py exists with check_research_slo(validated_path: str, raw_path: str, threshold: float = 0.5) -> tuple[bool, float] returning (slo_met, actual_pass_rate)",
-        "When SPIRAL_SLO_ENFORCEMENT=true in spiral.config.sh, spiral.sh calls phase_slo.check_research_slo() after Phase S and logs to spiral_events.jsonl: {\"event\": \"phase_r_slo_breach\", \"actual_rate\": float, \"threshold\": 0.5, \"iteration\": int} on breach",
-        "Consecutive breach count tracked in .spiral/_slo_state.json as {\"phase_r_breach_count\": int}",
-        "After 2 consecutive breaches, Phase R is re-invoked with SPIRAL_RESEARCH_SUFFIX appended to the research query",
-        "Breach count resets to 0 when SLO is met",
-        "uv run pytest tests/test_phase_slo.py -v passes -- covers: SLO met returns (True, rate), breach returns (False, rate), consecutive count increments, resets on met, state file written"
-      ],
-      "technicalNotes": [
-        "validated_path = .spiral/_validated_stories.json (Phase S output)",
-        "raw_path = .spiral/_research_output.json (Phase R output)",
-        "pass_rate = count of research story titles found in validated / total research stories",
-        "Only active when SPIRAL_SLO_ENFORCEMENT env var = true -- guard with: [ \"${SPIRAL_SLO_ENFORCEMENT:-false}\" = \"true\" ]",
-        "spiral_events.jsonl format matches existing events: {\"timestamp\": ISO, \"event\": str, ...}",
-        "SPIRAL_RESEARCH_SUFFIX: pass as env var to the Phase R research invocation"
+        "File to edit: lib/changelog_generator.py (generate_changelog function) — new file; use subprocess.run(['git-cliff', '--config', '.cliff.toml', f'{start_sha}..{end_sha}'], capture_output=True)",
+        "File to edit: .cliff.toml (root config) — new file; set [git] section with conventional_commits=true, commit_parsers matching '^(feat|fix|docs)\\(US-\\d+\\)' pattern",
+        "File to edit: tests/test_changelog_generator.py (test_generate_changelog_us_pattern) — new file; mock subprocess.run to return sample git-cliff output containing US-0001",
+        "Test command: uv run pytest tests/test_changelog_generator.py -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
-      "_source": "seed",
+      "_source": "ai-example",
       "model": "haiku"
     }
   ]
