@@ -526,7 +526,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -546,6 +546,26 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1233",
+      "title": "spiral-ui backend: GET /api/workers/list and SSE log-streaming endpoint",
+      "priority": "high",
+      "description": "Create spiral-ui/backend/api/workers.py with two endpoints: GET /api/workers/list scans .spiral-workers/ worktrees and uses psutil to return worker id, pid, memory_mb, cpu_percent, status, branch, and last_activity_ts; GET /api/workers/:id/logs streams .spiral/worker-N.log via Server-Sent Events.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_worker_monitor.py::test_list_workers -v passes; response JSON contains at least the keys id, status, memory_mb, cpu_percent, branch",
+        "uv run pytest tests/test_worker_monitor.py::test_memory_cpu_parsing -v passes; test mocks psutil.Process and validates returned values match mocked data",
+        "Workers inactive >5 minutes have status='stale' in the response; verified by test that sets last_activity_ts to >300 seconds ago"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral-ui/backend/api/workers.py (list_workers, stream_worker_logs) — new file; use psutil.Process(pid).memory_info().rss // 1024**2 for memory_mb and psutil.Process(pid).cpu_percent(interval=1)",
+        "File to edit: tests/test_worker_monitor.py (test_list_workers, test_memory_cpu_parsing) — new file; use unittest.mock.patch('psutil.Process')",
+        "Test command: uv run pytest tests/test_worker_monitor.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
     }
