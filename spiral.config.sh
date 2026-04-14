@@ -1,9 +1,9 @@
 #!/bin/bash
 # spiral.config.sh — Spiral running on itself
-# Focus: analytics dashboard enhancement (localhost:5299/Spiral/analytics)
+# Focus: full spiral-ui dashboard and SPIRAL core improvements
 
-# ── Focus: scope Phase R to analytics dashboard stories only ─────────────────
-SPIRAL_FOCUS="Enhance the spiral-ui analytics tab at localhost:5299/Spiral/analytics. Stories must improve AnalyticsTab.tsx, its sub-components in analytics/, analyticsApi.ts, or StoryDetailPanel.tsx. Reuse existing CollapsibleSection, PhaseTimingBars, CumulativeCostChart, StoriesListAccordion and other components already in spiral-ui/src/components/analytics/."
+# ── Focus: broad improvements across spiral-ui and core loop ─────────────────
+SPIRAL_FOCUS="Improve SPIRAL as a product. Focus areas (rotate each iteration): (1) spiral-ui dashboard UX — Settings tab, Workers tab, Tests tab, Graph tab, Activity Log tab; (2) spiral-ui new features — keyboard shortcuts, dark mode polish, export/share features; (3) SPIRAL core reliability — better error messages, faster phase execution, smarter dedup, improved story validation; (4) developer experience — CLI ergonomics, better progress reporting, cost transparency. Prefer features visible to the user over internal refactors."
 
 # ── Gate mode: auto-proceed (no human checkpoint needed) ────────────────────
 SPIRAL_GATE_MODE="proceed"
