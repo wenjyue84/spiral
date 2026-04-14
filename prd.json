@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "productName": "Spiral",
   "branchName": "main",
-  "overview": "SPIRAL is a self-iterating autonomous development loop (Research  Ã¢â€ â€™  Implement  Ã¢â€ â€™  Validate). This PRD drives Spiral to improve itself: integrating newly-written lib modules into the main loop, enhancing the setup wizard to educate users about every configurable option, and adding Chrome DevTools-powered visual validation.",
+  "overview": "SPIRAL is a self-iterating autonomous development loop (Research  \u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a0\u00c3\u00a2\u00e2\u201a\u00ac\u00e2\u201e\u00a2  Implement  \u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a0\u00c3\u00a2\u00e2\u201a\u00ac\u00e2\u201e\u00a2  Validate). This PRD drives Spiral to improve itself: integrating newly-written lib modules into the main loop, enhancing the setup wizard to educate users about every configurable option, and adding Chrome DevTools-powered visual validation.",
   "goals": [
     "Implement SPIRAL Phase G: auto-generate CHANGELOG.md and API docs from story commits using git-cliff and pdoc",
     "Add comprehensive integration test suite that runs SPIRAL end-to-end with mock Claude API responses",
@@ -31,14 +31,14 @@
       "id": "US-1210",
       "title": "Add e2e integration test: full SPIRAL loop with mocked Claude CLI",
       "priority": "high",
-      "description": "Create tests/test_spiral_e2e_integration.py with a single test that runs the full SPIRAL phase loop (A→R→T→S→E→M→X→G→I→V→C) using monkeypatched subprocess.run to mock Claude CLI responses. Validates phase execution order and final prd.json state without real API calls.",
+      "description": "Create tests/test_spiral_e2e_integration.py with a single test that runs the full SPIRAL phase loop (A\u00e2\u2020\u2019R\u00e2\u2020\u2019T\u00e2\u2020\u2019S\u00e2\u2020\u2019E\u00e2\u2020\u2019M\u00e2\u2020\u2019X\u00e2\u2020\u2019G\u00e2\u2020\u2019I\u00e2\u2020\u2019V\u00e2\u2020\u2019C) using monkeypatched subprocess.run to mock Claude CLI responses. Validates phase execution order and final prd.json state without real API calls.",
       "acceptanceCriteria": [
         "uv run pytest tests/test_spiral_e2e_integration.py::test_full_spiral_loop -v completes in <30s with no real API calls",
         "Test asserts all 11 phases executed in correct order by checking a captured phase_log list",
         "Test asserts prd.json story status is 'done' after loop completes"
       ],
       "technicalNotes": [
-        "File to create: tests/test_spiral_e2e_integration.py (test_full_spiral_loop — monkeypatch subprocess.run to return deterministic Claude CLI output)",
+        "File to create: tests/test_spiral_e2e_integration.py (test_full_spiral_loop \u00e2\u20ac\u201d monkeypatch subprocess.run to return deterministic Claude CLI output)",
         "File to create: tests/fixtures/mock_claude_api.py (make_mock_response() returning minimal valid story implementation response)",
         "File to edit: tests/conftest.py (add shared tmp_prd_json fixture using tests/fixtures/sample_prd.json)",
         "Test command: uv run pytest tests/test_spiral_e2e_integration.py::test_full_spiral_loop -v --tb=short"
@@ -55,7 +55,7 @@
       "id": "US-1211",
       "title": "Add e2e integration tests: story retry escalation and worker crash recovery",
       "priority": "high",
-      "description": "Extend tests/test_spiral_e2e_integration.py with two tests: one that mocks a story failure and validates model escalation (haiku→sonnet) written to results.tsv, and one that simulates a worker crash and validates the main loop respawns the worker and completes pending stories.",
+      "description": "Extend tests/test_spiral_e2e_integration.py with two tests: one that mocks a story failure and validates model escalation (haiku\u00e2\u2020\u2019sonnet) written to results.tsv, and one that simulates a worker crash and validates the main loop respawns the worker and completes pending stories.",
       "acceptanceCriteria": [
         "uv run pytest tests/test_spiral_e2e_integration.py::test_story_retry_on_failure -v passes and asserts results.tsv contains a sonnet row after haiku failure",
         "uv run pytest tests/test_spiral_e2e_integration.py::test_worker_crash_recovery -v passes and asserts all pending stories reach 'done' status after simulated worker crash"
@@ -193,7 +193,7 @@
         "npm test -- useStoryTimeline --watchAll=false exits 0 with at least one passing test"
       ],
       "technicalNotes": [
-        "File to create: web/src/hooks/useStoryTimeline.ts (useStoryTimeline hook — fetch /api/results, split lines, parse fields: story_id, status, model, duration, tokens, cost)",
+        "File to create: web/src/hooks/useStoryTimeline.ts (useStoryTimeline hook \u00e2\u20ac\u201d fetch /api/results, split lines, parse fields: story_id, status, model, duration, tokens, cost)",
         "File to create: web/src/pages/ActivityLog.tsx (scaffold: import hook, render <div>loading / empty state</div>)",
         "File to edit: web/src/App.tsx (add <Route path='/activity-log' component={ActivityLog} /> and nav link)",
         "Test command: npm test -- useStoryTimeline --watchAll=false"
@@ -212,7 +212,7 @@
       "description": "Build the ActivityLogTable component that consumes the useStoryTimeline hook and renders a sortable table with colour-coded status badges, per-status click filtering, and a modal showing full story details on row click.",
       "acceptanceCriteria": [
         "Table renders rows in reverse chronological order with columns ID, Status, Duration ('2m 34s' format), Model, Source; verified by npm test -- ActivityLog --watchAll=false",
-        "Clicking a status badge filters table to that status; clicking again clears the filter — asserted in component test",
+        "Clicking a status badge filters table to that status; clicking again clears the filter \u00e2\u20ac\u201d asserted in component test",
         "Clicking any row opens a modal displaying the story description and git commit excerpt; modal closes on Escape key"
       ],
       "technicalNotes": [
@@ -277,9 +277,9 @@
       "priority": "medium",
       "description": "Write integration tests in tests/test_phase_s_constitution.py using JSON fixtures to verify Phase S accepts stories that match constitution.md goals, rejects mismatched stories with a 'constitution violation' message, and rejects malformed _decomposed.antiPatterns fields.",
       "acceptanceCriteria": [
-        "test_valid_story_passes: loading tests/fixtures/valid_constitution_story.json through Phase S validation returns success — verified by uv run pytest tests/test_phase_s_constitution.py::test_valid_story_passes -v",
-        "test_goal_mismatch_fails: invalid story fixture produces error string containing 'constitution violation' — verified by uv run pytest tests/test_phase_s_constitution.py::test_goal_mismatch_fails -v",
-        "test_antipattern_validation: story with duplicate antiPatterns raises ValueError — verified by uv run pytest tests/test_phase_s_constitution.py::test_antipattern_validation -v"
+        "test_valid_story_passes: loading tests/fixtures/valid_constitution_story.json through Phase S validation returns success \u00e2\u20ac\u201d verified by uv run pytest tests/test_phase_s_constitution.py::test_valid_story_passes -v",
+        "test_goal_mismatch_fails: invalid story fixture produces error string containing 'constitution violation' \u00e2\u20ac\u201d verified by uv run pytest tests/test_phase_s_constitution.py::test_goal_mismatch_fails -v",
+        "test_antipattern_validation: story with duplicate antiPatterns raises ValueError \u00e2\u20ac\u201d verified by uv run pytest tests/test_phase_s_constitution.py::test_antipattern_validation -v"
       ],
       "technicalNotes": [
         "File to create: tests/test_phase_s_constitution.py (three pytest test functions; import parse_constitution_rules from lib/spiral/constitution_parser)",
@@ -300,7 +300,7 @@
       "description": "Implement `spiral validate-federation` command to validate federated PRD configuration. Verifies all prd.include paths exist and are valid JSON, detects circular dependencies, validates referenced stories, and outputs dependency graph as DOT format compatible with graphviz.",
       "acceptanceCriteria": [
         "spiral validate-federation prd.json parses prd.include array, verifies each file exists and is valid JSON; reports 'File not found: missing.json' if missing",
-        "Command detects circular dependencies (e.g., prd-a includes prd-b, prd-b includes prd-a) and outputs 'Circular dependency detected: prd-a → prd-b → prd-a'",
+        "Command detects circular dependencies (e.g., prd-a includes prd-b, prd-b includes prd-a) and outputs 'Circular dependency detected: prd-a \u00e2\u2020\u2019 prd-b \u00e2\u2020\u2019 prd-a'",
         "spiral validate-federation --output graph.dot generates DOT file with PRD filenames as nodes and includes as edges; verify via: dot -Tsvg graph.dot -o graph.svg"
       ],
       "technicalNotes": [
@@ -356,6 +356,151 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-1225",
+      "title": "Meta-Harness: Success-Pattern Library with Phase L to Phase A Feedback Loop",
+      "priority": "high",
+      "description": "After each story passes with 0 retries, extract its characteristics (file count, acceptance criteria count, description word count, keywords, architectural area) and append to .spiral/_success_patterns.jsonl. Phase A candidate scoring reads this file to boost candidates that resemble high-pass-rate stories.",
+      "acceptanceCriteria": [
+        "lib/meta_harness/success_pattern_extractor.py exists with extract(prd_path, scratch_dir) function that appends one JSONL record per passed 0-retry story with fields: story_id, retry_count, ac_count, desc_words, keywords list, area string",
+        "lib/ai_suggest.py reads .spiral/_success_patterns.jsonl if present and appends a # HIGH-PASS-RATE PATTERNS section to the LLM prompt listing top 5 keyword clusters from 0-retry stories",
+        "lib/meta_harness/__init__.py exists (empty or with module docstring)",
+        "uv run pytest tests/test_success_pattern_extractor.py -v passes -- covers: record written for 0-retry passed story, record NOT written for failed story, prompt section present when patterns file exists, graceful skip when file absent"
+      ],
+      "technicalNotes": [
+        "Create lib/meta_harness/ directory with __init__.py",
+        "Reuse lib/pattern_analyzer.py grouping logic for clustering by retry_count",
+        "Store as JSONL (append-only) not JSON -- avoids read-write conflicts with running SPIRAL",
+        "Keywords: tokenize title+description, filter stopwords (a, the, is, in, of, to, for, with, and, or), return top 10 by frequency"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed"
+    },
+    {
+      "id": "US-1226",
+      "title": "Meta-Harness: Loop Quality Score -- Composite Per-Iteration Health Metric",
+      "priority": "high",
+      "description": "After Phase C, compute a loop-quality score (0-100) from three sub-metrics: (1) generation quality = % of merged stories that passed on first attempt, (2) redundancy ratio = duplicates rejected / total candidates, (3) calibration accuracy = % stories where estimated complexity matched actual retry count. Write to .spiral/_loop_quality.jsonl and print a one-line summary.",
+      "acceptanceCriteria": [
+        "lib/meta_harness/loop_quality.py exists with compute(scratch_dir, prd_path, iteration=0) -> dict returning keys: generation_quality (float 0.0-1.0), redundancy_ratio (float 0.0-1.0), calibration_score (float 0.0-1.0), composite_score (int 0-100), iteration (int)",
+        "lib/phases/phase_c_check_done.sh calls python loop_quality.py and prints: [meta] Loop quality: N/100 (gen=X% redund=Y% calib=Z%)",
+        ".spiral/_loop_quality.jsonl grows by exactly 1 record per iteration",
+        "uv run pytest tests/test_loop_quality.py -v passes -- covers: composite in [0,100], JSONL appended not overwritten, graceful fallback returning 0.5 defaults when results.tsv absent"
+      ],
+      "technicalNotes": [
+        "Read results.tsv for per-story retry counts",
+        "Read .spiral/_merge_stats.json for redundancy counts if it exists, else default redundancy_ratio=0.5",
+        "Calibration: compare prd.json estimatedComplexity (small=1, medium=2, large=3) vs actual retry count from retry-counts.json",
+        "composite_score = int((generation_quality * 0.5 + (1-redundancy_ratio) * 0.25 + calibration_score * 0.25) * 100)",
+        "Call from phase_c_check_done.sh after velocity check, before final exit/continue decision"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed"
+    },
+    {
+      "id": "US-1227",
+      "title": "Meta-Harness: Acceptance Criteria Quality Gate in Phase S Validation",
+      "priority": "high",
+      "description": "In Phase S story validation, score each story's acceptance criteria for testability. Flag stories with vague criteria ('works correctly', 'behaves as expected') by setting _ac_quality_score (0-100) and _ac_warning. Ralph's implementation prompt should show the warning so it knows to strengthen the assertions during implementation.",
+      "acceptanceCriteria": [
+        "lib/meta_harness/ac_quality_scorer.py exists with score_story(story: dict) -> int returning 0-100: +30 for each AC containing a number, file path, or shell command; -20 for each AC containing vague phrase ('works correctly', 'behaves as expected', 'as needed', 'properly', 'correctly'); -30 if fewer than 2 ACs total; minimum 0",
+        "lib/prd/validate_stories.py calls ac_quality_scorer.score_story() on each candidate and sets _ac_quality_score field before writing _validated_stories.json",
+        "Stories with _ac_quality_score < 40 get _ac_warning: 'Acceptance criteria may be untestable -- add measurable assertions (commands, file paths, counts)' in the merged prd.json story",
+        "uv run pytest tests/test_ac_quality_scorer.py -v passes -- covers: high score for command-based ACs, low score for vague ACs, warning present below 40, no warning above 40, missing acceptanceCriteria field handled gracefully"
+      ],
+      "technicalNotes": [
+        "Add import at top of lib/prd/validate_stories.py: from lib.meta_harness.ac_quality_scorer import score_story",
+        "Insert scorer call in the candidate loop in validate_stories.py, before writing output",
+        "Ralph prompt (ralph/CLAUDE.md) shows _antiPatterns field -- add _ac_warning to the same ## Story Context block",
+        "Keep scorer pure Python with no LLM calls -- must run < 10ms per story (regex-based only)",
+        "Vague phrases to check (case-insensitive): works correctly, behaves as expected, as needed, functions properly, works as intended, is correct, is valid"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "seed"
+    },
+    {
+      "id": "US-1228",
+      "title": "Meta-Harness: Per-Iteration Loop Diagnosis Report with Plain-English Recommendations",
+      "priority": "medium",
+      "description": "At the end of each iteration (Phase C), generate .spiral/_iteration_diagnosis.jsonl with a structured record summarizing stories completed, loop quality score, velocity, top failure category, and 1-2 actionable plain-English recommendations. The monitor command includes the latest diagnosis.",
+      "acceptanceCriteria": [
+        "lib/meta_harness/iteration_diagnosis.py exists with generate(iteration: int, scratch_dir: str, prd_path: str) -> dict producing keys: iteration, stories_completed (int), stories_generated (int), loop_quality (int 0-100), velocity_stories_per_hour (float), top_failure_category (str or null), recommendations (list[str])",
+        "recommendations list is non-empty when: loop_quality < 60 (add 'Consider narrowing SPIRAL_FOCUS to reduce story scope'), velocity < 1.0 (add 'Story scope may be too large -- consider SPIRAL_STORY_BATCH_SIZE reduction'), top_failure_category == timeout (add 'Stories timing out -- try decomposing large stories into smaller ones')",
+        ".spiral/_iteration_diagnosis.jsonl grows by 1 record per iteration",
+        "uv run python main.py monitor --port 5299 output JSON includes latest_diagnosis key with the most recent record from _iteration_diagnosis.jsonl",
+        "uv run pytest tests/test_iteration_diagnosis.py -v passes"
+      ],
+      "technicalNotes": [
+        "Depends on US-1222 (loop_quality.py) being present -- graceful fallback if _loop_quality.jsonl absent: use loop_quality=50",
+        "velocity_stories_per_hour: read from .spiral/_velocity_log.json if exists, else compute from results.tsv timestamps",
+        "top_failure_category: read results.tsv, count failure_category column, return mode (most common), null if no failures",
+        "Add latest_diagnosis read to lib/monitor.py: read last line of _iteration_diagnosis.jsonl, parse as JSON, include in monitor output dict",
+        "Call generate() at end of phase_c_check_done.sh, after loop quality call, before final exit"
+      ],
+      "dependencies": [
+        "US-1222"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed"
+    },
+    {
+      "id": "US-1229",
+      "title": "Meta-Harness: Goal Coverage Tracker with Stall Detection",
+      "priority": "medium",
+      "description": "After each Phase V cycle, measure what fraction of the prd.json goals[] array is covered by passed stories. Coverage = % of goal keywords appearing in at least one passed story title/description. Warn in Phase C when any goal has had zero coverage growth for 5+ consecutive iterations.",
+      "acceptanceCriteria": [
+        "lib/meta_harness/goal_coverage.py exists with measure(prd_path: str, scratch_dir: str) -> dict returning: {\"goals\": [{\"text\": str, \"coverage\": float 0.0-1.0, \"stalled_iters\": int}], \"overall_coverage\": float 0.0-1.0}",
+        "Phase C calls goal_coverage.measure() and prints: [meta] Goal coverage: X% (N goals tracked)",
+        "A goal with stalled_iters >= 5 triggers printed warning: [meta] WARN: Goal \"<text>\" has had no coverage growth for 5 iterations",
+        ".spiral/_goal_coverage.jsonl grows by 1 record per iteration containing the full measure() output plus iteration number",
+        "When prd.json has no goals[] field, measure() returns {\"goals\": [], \"overall_coverage\": 0.0} with no error",
+        "uv run pytest tests/test_goal_coverage.py -v passes -- covers: coverage increases when matching story passes, stall detection triggers at threshold=5, empty goals handled, keyword matching is case-insensitive"
+      ],
+      "technicalNotes": [
+        "Keyword extraction: re.split on whitespace+punctuation, filter words len<3, filter English stopwords",
+        "Coverage per goal: fraction of goal keywords found in union of (title + description) of all passed stories",
+        "stalled_iters: read previous record from _goal_coverage.jsonl, compare coverage; if unchanged, increment; if changed, reset to 0",
+        "Reuse matches_focus() token logic from lib/prd/merge_stories.py as reference for tokenization approach",
+        "Insert call in phase_c_check_done.sh after loop quality call"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "seed"
+    },
+    {
+      "id": "US-1230",
+      "title": "Meta-Harness: Phase R SLO Enforcement with Auto-Replay on Quality Breach",
+      "priority": "low",
+      "description": "After Phase R+S completes, check if research output quality meets minimum SLO: at least 50% of research candidates must pass Phase S validation. If breached 2 consecutive iterations, re-run Phase R with a stricter prompt suffix. Controlled by SPIRAL_SLO_ENFORCEMENT=true config flag (opt-in).",
+      "acceptanceCriteria": [
+        "lib/meta_harness/phase_slo.py exists with check_research_slo(validated_path: str, raw_path: str, threshold: float = 0.5) -> tuple[bool, float] returning (slo_met, actual_pass_rate)",
+        "When SPIRAL_SLO_ENFORCEMENT=true in spiral.config.sh, spiral.sh calls phase_slo.check_research_slo() after Phase S and logs to spiral_events.jsonl: {\"event\": \"phase_r_slo_breach\", \"actual_rate\": float, \"threshold\": 0.5, \"iteration\": int} on breach",
+        "Consecutive breach count tracked in .spiral/_slo_state.json as {\"phase_r_breach_count\": int}",
+        "After 2 consecutive breaches, Phase R is re-invoked with SPIRAL_RESEARCH_SUFFIX appended to the research query",
+        "Breach count resets to 0 when SLO is met",
+        "uv run pytest tests/test_phase_slo.py -v passes -- covers: SLO met returns (True, rate), breach returns (False, rate), consecutive count increments, resets on met, state file written"
+      ],
+      "technicalNotes": [
+        "validated_path = .spiral/_validated_stories.json (Phase S output)",
+        "raw_path = .spiral/_research_output.json (Phase R output)",
+        "pass_rate = count of research story titles found in validated / total research stories",
+        "Only active when SPIRAL_SLO_ENFORCEMENT env var = true -- guard with: [ \"${SPIRAL_SLO_ENFORCEMENT:-false}\" = \"true\" ]",
+        "spiral_events.jsonl format matches existing events: {\"timestamp\": ISO, \"event\": str, ...}",
+        "SPIRAL_RESEARCH_SUFFIX: pass as env var to the Phase R research invocation"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed"
     }
   ]
 }
