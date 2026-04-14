@@ -455,7 +455,7 @@
         "US-1222"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "model": "haiku"
     },
@@ -916,6 +916,30 @@
       ],
       "dependencies": [
         "US-1212"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1253",
+      "title": "[Performance Test] spiral-ui: Config API response time benchmark",
+      "priority": "medium",
+      "description": "Write a performance benchmark for the POST /api/config endpoint introduced in US-1214. The test captures a baseline response time and fails if any subsequent run degrades by more than 20%. This guards against regressions in the config load/validate/persist cycle.",
+      "acceptanceCriteria": [
+        "POST /api/config with valid payload responds in under 200ms on first call (baseline)",
+        "Running the benchmark twice produces a second result within 20% of the first",
+        "uv run pytest tests/test_spiral_ui_config_perf.py -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_ui_config_perf.py (new file — create benchmark fixture)",
+        "File to edit: lib/spiral_ui_config.py (load_config / save_config — read to understand call path)",
+        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -v",
+        "Use time.perf_counter() around load_config() + save_config() calls; store baseline in a tmp file or module-level variable",
+        "Mock filesystem writes with tmp_path fixture so the benchmark does not depend on .spiral/ existing"
+      ],
+      "dependencies": [
+        "US-1214"
       ],
       "estimatedComplexity": "small",
       "passes": false,
