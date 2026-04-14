@@ -292,7 +292,8 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-14T05:04:01Z"
     },
     {
       "id": "US-1222",
@@ -483,33 +484,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1230",
-      "title": "Meta-Harness: Phase R SLO Enforcement with Auto-Replay on Quality Breach",
-      "priority": "low",
-      "description": "After Phase R+S completes, check if research output quality meets minimum SLO: at least 50% of research candidates must pass Phase S validation. If breached 2 consecutive iterations, re-run Phase R with a stricter prompt suffix. Controlled by SPIRAL_SLO_ENFORCEMENT=true config flag (opt-in).",
-      "acceptanceCriteria": [
-        "lib/meta_harness/phase_slo.py exists with check_research_slo(validated_path: str, raw_path: str, threshold: float = 0.5) -> tuple[bool, float] returning (slo_met, actual_pass_rate)",
-        "When SPIRAL_SLO_ENFORCEMENT=true in spiral.config.sh, spiral.sh calls phase_slo.check_research_slo() after Phase S and logs to spiral_events.jsonl: {\"event\": \"phase_r_slo_breach\", \"actual_rate\": float, \"threshold\": 0.5, \"iteration\": int} on breach",
-        "Consecutive breach count tracked in .spiral/_slo_state.json as {\"phase_r_breach_count\": int}",
-        "After 2 consecutive breaches, Phase R is re-invoked with SPIRAL_RESEARCH_SUFFIX appended to the research query",
-        "Breach count resets to 0 when SLO is met",
-        "uv run pytest tests/test_phase_slo.py -v passes -- covers: SLO met returns (True, rate), breach returns (False, rate), consecutive count increments, resets on met, state file written"
-      ],
-      "technicalNotes": [
-        "validated_path = .spiral/_validated_stories.json (Phase S output)",
-        "raw_path = .spiral/_research_output.json (Phase R output)",
-        "pass_rate = count of research story titles found in validated / total research stories",
-        "Only active when SPIRAL_SLO_ENFORCEMENT env var = true -- guard with: [ \"${SPIRAL_SLO_ENFORCEMENT:-false}\" = \"true\" ]",
-        "spiral_events.jsonl format matches existing events: {\"timestamp\": ISO, \"event\": str, ...}",
-        "SPIRAL_RESEARCH_SUFFIX: pass as env var to the Phase R research invocation"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "seed",
-      "model": "haiku"
-    },
-    {
       "id": "US-1231",
       "title": "Add lib/changelog_generator.py and .cliff.toml for CHANGELOG generation",
       "priority": "high",
@@ -683,46 +657,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1239",
-      "title": "spiral-ui: Add Tests tab with pytest result visualization and failure heatmap",
-      "priority": "medium",
-      "description": "Display pytest results from recent SPIRAL runs with pass/fail status per test module, test execution duration, and highlighting of slowest and failing tests for quick diagnosis.",
-      "acceptanceCriteria": [
-        "Parse .spiral/pytest-results.json and render table with test module name, pass count, fail count, duration, and execution timestamp",
-        "Highlight slowest 5 tests in red sorted by execution time; show error snippet (first 150 chars) for each failed test",
-        "Include filter buttons: 'All Tests', 'Failures Only', 'Slowest 5' to narrow view"
-      ],
-      "technicalNotes": [
-        "File to create: spiral_ui/components/TestsTab.tsx (~80 lines with table and filter UI)",
-        "File to create: lib/test_reporter.py with parse_pytest_json function (~40 lines)",
-        "Test command: pytest tests/test_test_reporter.py::test_parse_pytest_json -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1240",
-      "title": "CLI: Add spiral doctor command for SPIRAL environment health check",
-      "priority": "medium",
-      "description": "Diagnostic command that validates the SPIRAL runtime environment (Python, uv, node, docker, git) and generates single-line remediation steps for any missing or misconfigured dependencies.",
-      "acceptanceCriteria": [
-        "Check Python >=3.13, uv >=0.8, node >=20, docker daemon running, git >=2.30 with actual versions reported",
-        "Return exit code 0 if all checks pass; exit code 1 and list first failed check if any fail",
-        "Output remediation command for first failure (e.g., 'Run: uv sync' or 'Install node via nvm')"
-      ],
-      "technicalNotes": [
-        "File to create: lib/doctor.py with check_environment function (~90 lines, 6 checks with version detection)",
-        "File to edit: spiral.sh (add 'doctor' subcommand case, ~10 lines)",
-        "Test command: pytest tests/test_doctor.py::test_doctor_missing_uv -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1241",
       "title": "spiral-ui: Add real-time token burn rate line chart to Dashboard",
       "priority": "high",
@@ -745,19 +679,103 @@
     },
     {
       "id": "US-1242",
-      "title": "spiral-ui: Add Model Escalation Heatmap showing retry success rates by complexity",
+      "title": "Phase L: Extract episodic learning patterns from successful stories and append to learning.md",
       "priority": "medium",
-      "description": "Heatmap grid visualization showing which Claude model (haiku/sonnet/opus) succeeds at each story complexity level (xs/sm/md/lg). Data sourced from results.tsv with color gradient (red=0% to green=100%) and hover tooltips.",
+      "description": "Phase L loop closure: extract learning patterns from successful story implementations (category, model used, complexity, first-attempt success %) and append structured entries to learning.md. Builds knowledge base for future SPIRAL runs.",
       "acceptanceCriteria": [
-        "Component renders 3x4 grid (rows: haiku/sonnet/opus; cols: xs/sm/md/lg); each cell displays success % and N=attempt count",
-        "Color gradient applied: 0% red → 50% yellow → 100% green; tooltip shows 'model: opus, complexity: lg, 14/15 passed (93%)'",
-        "Data parsed from results.tsv every 10 seconds; integration test with 10 sample stories (mixed models/complexity) renders correctly"
+        "Phase L parses results.tsv for passing stories; groups by _category and model; computes first-attempt success % per group; e.g. 'schema/sonnet: 85% first-attempt (N=5)'",
+        "Appends to learning.md timestamped entries with format: category, model, complexity_band, success_rate, example_story_id, pattern description",
+        "Integration test: SPIRAL run with 5 passing stories (3 api/sonnet, 2 ui/haiku) → learning.md contains 2 correct entries with accurate stats"
       ],
       "technicalNotes": [
-        "File to create: spiral-ui/src/components/ModelEscalationHeatmap.tsx (Recharts HeatMap or custom grid with styled cells)",
-        "File to create: spiral-ui/src/hooks/useResults.ts (parse results.tsv, compute success rates, cache with useEffect)",
-        "File to create: tests/ModelEscalationHeatmap.test.tsx (render test, data parsing test, color gradient test)",
-        "Test command: npm test -- ModelEscalationHeatmap.test.tsx --coverage"
+        "File to create: lib/learning_extractor.py (extract_patterns() function parsing results.tsv and generating LearningEntry objects)",
+        "File to create: tests/test_learning_extractor.py (test_pattern_extraction(), test_learning_markdown_format(), test_duplicate_entry_prevention())",
+        "File to edit: lib/phases/phase_l.sh or spiral.sh (invoke learning_extractor.py and append to learning.md at iteration end)",
+        "Test command: uv run pytest tests/test_learning_extractor.py::test_pattern_extraction -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1243",
+      "title": "Phase V: Add file-presence verification contracts for test-driven stories",
+      "priority": "high",
+      "description": "Extend Phase V verification to support file-touch assertions (file must exist, file must contain regex pattern) declared per-story in prd.json",
+      "acceptanceCriteria": [
+        "Story declares `verification: {fileAssertions: [{path: 'src/foo.ts', existsOnly: true}]}`; Phase V validates path exists",
+        "File content assertions supported: `{path: 'test/foo.test.ts', contains: 'test.*foo.*done'}` checks regex match; fails story if pattern not found",
+        "Error message shows assertion that failed, actual file content (first 200 chars), matched/unmatched line numbers"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/file_assertion_checker.py (check_file_assertion function with regex + existence checks)",
+        "Test command: uv run pytest tests/test_phase_v_file_assertions.py::test_file_regex_match -v",
+        "Integrates into Phase V in lib/phases/phase_v.py verify_story() function"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1244",
+      "title": "[Regression] Loop Quality Score: sub-metrics computation + jsonl output",
+      "priority": "medium",
+      "description": "Regression test guarding US-1226. Verifies that after Phase C a loop-quality score (0-100) is computed from generation quality, redundancy ratio, and calibration accuracy sub-metrics, and written to .spiral/_loop_quality.jsonl with a one-line console summary.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/ -k us_1226 -v` exits 0 with at least 1 passing test",
+        "Calling the scorer with known inputs produces a score in [0, 100] with correct sub-metric values for generation_quality, redundancy_ratio, calibration_accuracy",
+        "An entry is appended to .spiral/_loop_quality.jsonl containing iteration, score, and the three sub-metric fields"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_loop_quality.py (new file — create regression tests here)",
+        "File to edit: lib/loop_quality.py or equivalent module that implements compute_loop_quality()",
+        "Test command: uv run pytest tests/test_loop_quality.py -v",
+        "Use tmp_path to redirect _loop_quality.jsonl writes; patch results.tsv parsing with synthetic rows",
+        "Verify one-line summary is printed via capsys.readouterr()"
+      ],
+      "dependencies": [
+        "US-1226"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1245",
+      "title": "Phase V: Create lib/phase_v_evidence.py with test evidence aggregator",
+      "priority": "medium",
+      "description": "Create lib/phase_v_evidence.py with an aggregate_test_evidence function that parses pytest -v output for a list of stories and returns a dict mapping story_id to per-target PASS/FAIL results. This is the core evidence collection logic, tested in isolation before integration.",
+      "acceptanceCriteria": [
+        "lib/phase_v_evidence.py exists and exports aggregate_test_evidence(story_list: List[dict]) -> dict",
+        "Function parses pytest -v stdout and returns {story_id: {target_file: 'PASS'|'FAIL'}} for each story",
+        "uv run pytest tests/test_phase_v_evidence.py::test_evidence_aggregation -v passes"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_v_evidence.py (aggregate_test_evidence function — use subprocess.run(['uv','run','pytest','-v', target], capture_output=True) per target)",
+        "File to create: tests/test_phase_v_evidence.py (test_evidence_aggregation — mock subprocess output with sample pytest -v text)",
+        "Test command: uv run pytest tests/test_phase_v_evidence.py::test_evidence_aggregation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1246",
+      "title": "Phase V: Integrate evidence aggregator into spiral.sh and update prd.schema.json",
+      "priority": "medium",
+      "description": "Update prd.schema.json to allow the verification.testFiles field to accept an array, then wire lib/phase_v_evidence.py into the Phase V section of spiral.sh so evidence.json is written after each story verification run.",
+      "acceptanceCriteria": [
+        "prd.schema.json validation accepts verification.testFiles as either a string or array of strings",
+        "Phase V section in spiral.sh calls phase_v_evidence.py and writes .spiral/evidence.json with structure {story_id: {target: PASS|FAIL}}",
+        "uv run python lib/prd_schema.py prd.json exits 0 after schema change"
+      ],
+      "technicalNotes": [
+        "File to edit: prd.schema.json (verification object — change testFiles from type:string to oneOf:[string, array of string])",
+        "File to edit: spiral.sh (Phase V section ~line search for 'phase_v' or 'PHASE V' — add: python lib/phase_v_evidence.py after pytest calls, redirect output to .spiral/evidence.json)",
+        "Test command: uv run python lib/prd_schema.py prd.json"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
