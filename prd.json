@@ -457,7 +457,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1229",
@@ -481,7 +482,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "model": "haiku"
     },
