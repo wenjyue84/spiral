@@ -157,7 +157,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -678,6 +678,26 @@
         "US-1218"
       ],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1239",
+      "title": "spiral-ui: Add Tests tab with pytest result visualization and failure heatmap",
+      "priority": "medium",
+      "description": "Display pytest results from recent SPIRAL runs with pass/fail status per test module, test execution duration, and highlighting of slowest and failing tests for quick diagnosis.",
+      "acceptanceCriteria": [
+        "Parse .spiral/pytest-results.json and render table with test module name, pass count, fail count, duration, and execution timestamp",
+        "Highlight slowest 5 tests in red sorted by execution time; show error snippet (first 150 chars) for each failed test",
+        "Include filter buttons: 'All Tests', 'Failures Only', 'Slowest 5' to narrow view"
+      ],
+      "technicalNotes": [
+        "File to create: spiral_ui/components/TestsTab.tsx (~80 lines with table and filter UI)",
+        "File to create: lib/test_reporter.py with parse_pytest_json function (~40 lines)",
+        "Test command: pytest tests/test_test_reporter.py::test_parse_pytest_json -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     }
