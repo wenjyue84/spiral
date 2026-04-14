@@ -268,7 +268,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -741,6 +741,27 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1242",
+      "title": "spiral-ui: Add Model Escalation Heatmap showing retry success rates by complexity",
+      "priority": "medium",
+      "description": "Heatmap grid visualization showing which Claude model (haiku/sonnet/opus) succeeds at each story complexity level (xs/sm/md/lg). Data sourced from results.tsv with color gradient (red=0% to green=100%) and hover tooltips.",
+      "acceptanceCriteria": [
+        "Component renders 3x4 grid (rows: haiku/sonnet/opus; cols: xs/sm/md/lg); each cell displays success % and N=attempt count",
+        "Color gradient applied: 0% red → 50% yellow → 100% green; tooltip shows 'model: opus, complexity: lg, 14/15 passed (93%)'",
+        "Data parsed from results.tsv every 10 seconds; integration test with 10 sample stories (mixed models/complexity) renders correctly"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/ModelEscalationHeatmap.tsx (Recharts HeatMap or custom grid with styled cells)",
+        "File to create: spiral-ui/src/hooks/useResults.ts (parse results.tsv, compute success rates, cache with useEffect)",
+        "File to create: tests/ModelEscalationHeatmap.test.tsx (render test, data parsing test, color gradient test)",
+        "Test command: npm test -- ModelEscalationHeatmap.test.tsx --coverage"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "sonnet"
     }
   ]
