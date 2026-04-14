@@ -337,7 +337,8 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1224",
@@ -849,6 +850,30 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1250",
+      "title": "[Security Test] spiral-ui config API: auth and data-leak guards",
+      "priority": "high",
+      "description": "Write security tests verifying that the POST /api/config endpoint introduced by US-1214 rejects unauthenticated requests and never leaks sensitive runtime values in error responses. Tests should use pytest with httpx or requests against a test client wrapping the spiral-ui backend.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_config_security.py::test_unauthenticated_post_returns_401_or_403 -v exits 0",
+        "uv run pytest tests/test_config_security.py::test_config_error_body_contains_no_secrets -v exits 0",
+        "uv run pytest tests/test_config_security.py -v --tb=short exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_config_security.py (create — security test module for US-1214)",
+        "File to edit: lib/spiral_ui_config.py (reference only — do not modify; import for fixtures)",
+        "Test command: uv run pytest tests/test_config_security.py -v --tb=short",
+        "Use FastAPI/Flask test client or httpx.AsyncClient to POST /api/config without auth headers",
+        "Assert response status in {401, 403} and that response body JSON contains no keys matching 'token|key|secret|password'"
+      ],
+      "dependencies": [
+        "US-1214"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
       "model": "haiku"
     }
   ]
