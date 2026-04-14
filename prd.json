@@ -159,7 +159,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1216",
@@ -178,7 +179,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -695,6 +696,26 @@
         "File to create: spiral_ui/components/TestsTab.tsx (~80 lines with table and filter UI)",
         "File to create: lib/test_reporter.py with parse_pytest_json function (~40 lines)",
         "Test command: pytest tests/test_test_reporter.py::test_parse_pytest_json -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1240",
+      "title": "CLI: Add spiral doctor command for SPIRAL environment health check",
+      "priority": "medium",
+      "description": "Diagnostic command that validates the SPIRAL runtime environment (Python, uv, node, docker, git) and generates single-line remediation steps for any missing or misconfigured dependencies.",
+      "acceptanceCriteria": [
+        "Check Python >=3.13, uv >=0.8, node >=20, docker daemon running, git >=2.30 with actual versions reported",
+        "Return exit code 0 if all checks pass; exit code 1 and list first failed check if any fail",
+        "Output remediation command for first failure (e.g., 'Run: uv sync' or 'Install node via nvm')"
+      ],
+      "technicalNotes": [
+        "File to create: lib/doctor.py with check_environment function (~90 lines, 6 checks with version detection)",
+        "File to edit: spiral.sh (add 'doctor' subcommand case, ~10 lines)",
+        "Test command: pytest tests/test_doctor.py::test_doctor_missing_uv -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
