@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -25,19 +26,19 @@ def fixtures_dir() -> Path:
 
 
 @pytest.fixture
-def valid_story(fixtures_dir: Path) -> dict:
+def valid_story(fixtures_dir: Path) -> dict[str, Any]:
     """Load valid constitution story fixture."""
     fixture_path = fixtures_dir / "valid_constitution_story.json"
     with open(fixture_path, encoding="utf-8") as fh:
-        return json.load(fh)
+        return json.load(fh)  # type: ignore[no-any-return]
 
 
 @pytest.fixture
-def invalid_story(fixtures_dir: Path) -> dict:
+def invalid_story(fixtures_dir: Path) -> dict[str, Any]:
     """Load invalid constitution story fixture."""
     fixture_path = fixtures_dir / "invalid_goal_story.json"
     with open(fixture_path, encoding="utf-8") as fh:
-        return json.load(fh)
+        return json.load(fh)  # type: ignore[no-any-return]
 
 
 @pytest.fixture
@@ -50,7 +51,7 @@ def constitution_path() -> str:
 class TestValidStoryPasses:
     """Test that stories matching constitution goals are accepted."""
 
-    def test_valid_story_passes(self, valid_story: dict, constitution_path: str) -> None:
+    def test_valid_story_passes(self, valid_story: dict[str, Any], constitution_path: str) -> None:
         """Verify a valid story passes Phase S validation."""
         # Parse constitution rules
         rules = parse_constitution_rules(constitution_path)
@@ -67,7 +68,7 @@ class TestValidStoryPasses:
 class TestGoalMismatchFails:
     """Test that stories with goal mismatches are rejected."""
 
-    def test_goal_mismatch_fails(self, invalid_story: dict) -> None:
+    def test_goal_mismatch_fails(self, invalid_story: dict[str, Any]) -> None:
         """Verify a story with forbidden content fails with constitution violation message."""
         # Use explicit forbidden phrases that match the invalid story
         forbidden_phrases = ["skip testing", "bypass", "quality gates"]
