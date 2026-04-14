@@ -809,51 +809,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1248",
-      "title": "[Regression Test] changelog_generator.py: git-cliff invocation and output grouping",
-      "priority": "medium",
-      "description": "Write a pytest regression test that mocks the git-cliff subprocess call and verifies that generate_changelog() produces output grouped into feat/fix/docs sections using US-NNNN story IDs from conventional commits. Also assert .cliff.toml exists and contains the expected US-NNNN pattern rule.",
-      "acceptanceCriteria": [
-        ".cliff.toml exists at the repo root and contains a pattern that matches 'US-\\d+' commit subject tokens",
-        "generate_changelog(start_sha, end_sha, prd_path, iteration_num) returns a string containing at least one of the section headers: '## feat', '## fix', or '## docs'",
-        "Test passes: `uv run pytest tests/test_changelog_generator.py -v` exits 0"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_changelog_generator.py (create new test file, mirrors tests/test_changelog_generator.py from similar_solutions)",
-        "File to edit: lib/changelog_generator.py (function generate_changelog)",
-        "File to edit: .cliff.toml (verify US-NNNN pattern section exists)",
-        "Test command: uv run pytest tests/test_changelog_generator.py -v",
-        "Mock subprocess.run in tests using monkeypatch; return a fake stdout with '## feat\\n- US-1231 add changelog'"
-      ],
-      "dependencies": [
-        "US-1231"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1249",
-      "title": "CLI: Add `spiral docs` command to generate API documentation from lib/*.py",
-      "priority": "medium",
-      "description": "Add a CLI subcommand that auto-generates markdown API documentation from Python docstrings in lib/. Outputs docs/api.md with function signatures, parameters, return types, and module organization. Extends Phase G beyond CHANGELOG generation.",
-      "acceptanceCriteria": [
-        "`spiral docs --output docs/api.md --format markdown` generates markdown with table of contents, sections per module (lib.merge, lib.retry, lib.validation), and function signatures with docstrings",
-        "Validation step warns if public functions lack docstrings; generated markdown passes basic syntax check (no unclosed code blocks)",
-        "Output includes at least lib.prd_schema, lib.merge, lib.story_validation functions with full signatures and parameter descriptions"
-      ],
-      "technicalNotes": [
-        "File to create: lib/docs_generator.py (generate_docs() function using pdoc3)",
-        "File to create: tests/test_docs_generator.py with test_generate_api_docs() assertion checking for module sections and function names",
-        "File to edit: lib/cli_subcommands.sh (add 'docs' case handler calling python lib/docs_generator.py)",
-        "Test command: uv run pytest tests/test_docs_generator.py -v && grep -q 'lib.merge' docs/api.md"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1250",
       "title": "[Security Test] spiral-ui config API: auth and data-leak guards",
       "priority": "high",
@@ -899,78 +854,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1252",
-      "title": "[Regression Test] Federated PRD: schema validation and basic include merge",
-      "priority": "medium",
-      "description": "Write a regression test guarding the prd.include schema addition and basic story composition of US-1212. Validates that prd.schema.json accepts the include array, that a fixture sub-project PRD loads correctly, and that Phase M merges included stories with correct namespace prefixes (e.g., web:US-100).",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_federated_prd.py::test_prd_include_schema_validates -v exits 0",
-        "uv run pytest tests/test_federated_prd.py::test_included_stories_receive_namespace_prefix -v exits 0",
-        "uv run pytest tests/test_federated_prd.py -v --tb=short exits 0 with all tests passing"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_federated_prd.py (create — regression tests for US-1212 schema and merge)",
-        "File to edit: tests/fixtures/subproject_web_prd.json (create — minimal sub-project PRD with 2 stories)",
-        "File to edit: prd.schema.json (reference only — validate against this; do not modify schema here)",
-        "Test command: uv run pytest tests/test_federated_prd.py::test_prd_include_schema_validates -v",
-        "Use jsonschema.validate() to check a prd.json with prd.include passes schema; assert merged story IDs contain 'web:' prefix"
-      ],
-      "dependencies": [
-        "US-1212"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1253",
-      "title": "[Performance Test] spiral-ui: Config API response time benchmark",
-      "priority": "medium",
-      "description": "Write a performance benchmark for the POST /api/config endpoint introduced in US-1214. The test captures a baseline response time and fails if any subsequent run degrades by more than 20%. This guards against regressions in the config load/validate/persist cycle.",
-      "acceptanceCriteria": [
-        "POST /api/config with valid payload responds in under 200ms on first call (baseline)",
-        "Running the benchmark twice produces a second result within 20% of the first",
-        "uv run pytest tests/test_spiral_ui_config_perf.py -v exits 0"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_spiral_ui_config_perf.py (new file — create benchmark fixture)",
-        "File to edit: lib/spiral_ui_config.py (load_config / save_config — read to understand call path)",
-        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -v",
-        "Use time.perf_counter() around load_config() + save_config() calls; store baseline in a tmp file or module-level variable",
-        "Mock filesystem writes with tmp_path fixture so the benchmark does not depend on .spiral/ existing"
-      ],
-      "dependencies": [
-        "US-1214"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1254",
-      "title": "[Regression Test] Success-Pattern Library: Phase L extraction and Phase A scoring",
-      "priority": "medium",
-      "description": "Write a regression test guarding the success-pattern feedback loop from US-1225. The test simulates a zero-retry story pass, asserts characteristics are appended to .spiral/_success_patterns.jsonl, and verifies Phase A candidate scoring boosts stories resembling those patterns.",
-      "acceptanceCriteria": [
-        "After a simulated zero-retry pass, .spiral/_success_patterns.jsonl contains a new line with file_count, ac_count, and keywords fields",
-        "Phase A scoring function returns a higher score for a candidate matching a stored pattern than for one that does not",
-        "uv run pytest tests/test_success_patterns.py -v exits 0"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_success_patterns.py (new file — create regression fixtures)",
-        "File to edit: lib/phases/phase_l.py or spiral.sh Phase L section (extraction logic)",
-        "Test command: uv run pytest tests/test_success_patterns.py -v",
-        "Use tmp_path to isolate .spiral/_success_patterns.jsonl writes; do not mutate project state",
-        "Import extract_success_pattern() and score_candidate() directly to unit-test without running full SPIRAL"
-      ],
-      "dependencies": [
-        "US-1225"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1255",
       "title": "Phase I: Add timeout handler with graceful scope reduction",
       "priority": "high",
@@ -990,7 +873,31 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-1256",
+      "title": "[Security Test] spiral-ui: SettingsTab access control (US-1215)",
+      "priority": "high",
+      "description": "Write security tests verifying that the GET /api/config endpoint and SettingsTab React component introduced in US-1215 enforce access control. Tests must confirm unauthorized requests are rejected and error responses contain no sensitive data.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_us1215.py::test_unauthenticated_get_config_returns_401 -v passes",
+        "uv run pytest tests/test_security_us1215.py::test_error_response_contains_no_secrets -v passes: response body contains no token/password/key substrings",
+        "uv run pytest tests/ -k us_1215 -v exits 0 with all security tests passing"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_security_us1215.py — use pytest + httpx or requests to hit GET /api/config without auth, assert 401/403",
+        "Reference implementation under test: spiral-ui/src/components/SettingsTab.tsx and spiral-ui/src/App.tsx (from US-1215)",
+        "Test command: uv run pytest tests/test_security_us1215.py -v --tb=short"
+      ],
+      "dependencies": [
+        "US-1215"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet",
+      "last_attempted": "2026-04-14T06:41:29Z"
     }
   ]
 }
