@@ -245,9 +245,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "_passedCommit": "5d836730b9663971c31bbcb1a2ab167b0cb8a1bd"
     },
     {
       "id": "US-1220",
