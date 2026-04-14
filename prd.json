@@ -945,6 +945,52 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1254",
+      "title": "[Regression Test] Success-Pattern Library: Phase L extraction and Phase A scoring",
+      "priority": "medium",
+      "description": "Write a regression test guarding the success-pattern feedback loop from US-1225. The test simulates a zero-retry story pass, asserts characteristics are appended to .spiral/_success_patterns.jsonl, and verifies Phase A candidate scoring boosts stories resembling those patterns.",
+      "acceptanceCriteria": [
+        "After a simulated zero-retry pass, .spiral/_success_patterns.jsonl contains a new line with file_count, ac_count, and keywords fields",
+        "Phase A scoring function returns a higher score for a candidate matching a stored pattern than for one that does not",
+        "uv run pytest tests/test_success_patterns.py -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_success_patterns.py (new file — create regression fixtures)",
+        "File to edit: lib/phases/phase_l.py or spiral.sh Phase L section (extraction logic)",
+        "Test command: uv run pytest tests/test_success_patterns.py -v",
+        "Use tmp_path to isolate .spiral/_success_patterns.jsonl writes; do not mutate project state",
+        "Import extract_success_pattern() and score_candidate() directly to unit-test without running full SPIRAL"
+      ],
+      "dependencies": [
+        "US-1225"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1255",
+      "title": "Phase I: Add timeout handler with graceful scope reduction",
+      "priority": "high",
+      "description": "Implement a 5-minute timeout for Ralph story implementation. On first timeout, scope_reducer.py strips optional acceptance criteria and retries automatically. On second timeout, the story is marked FAILED with reason 'timeout_scope_exhausted'.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_timeout_handler.py::test_scope_reduction_removes_optional -v passes: optional ACs (marked _priority=optional) are stripped from story JSON before retry",
+        "uv run pytest tests/test_timeout_handler.py::test_retry_marker_and_count -v passes: reduced-scope retry sets _timeout_reduced=true and increments retry-counts.json entry",
+        "uv run pytest tests/test_timeout_handler.py::test_second_timeout_marks_failed -v passes: second timeout sets status=FAILED, reason=timeout_scope_exhausted, appends row to results.tsv",
+        "grep 'timeout_scope_exhausted' results.tsv confirms failure is logged after a simulated double-timeout run"
+      ],
+      "technicalNotes": [
+        "File to create: lib/impl/scope_reducer.py — functions: extract_optional_requirements(criteria: list[dict]) -> list[dict], apply_scope_reduction(story: dict) -> dict",
+        "File to edit: lib/impl/retry.sh (select_retry_strategy) — detect exit code 124 (timeout), invoke scope_reducer.py via uv run python, pass reduced story JSON to next Ralph invocation",
+        "File to create: tests/test_timeout_handler.py — pytest tests for all three timeout scenarios above",
+        "Test command: uv run pytest tests/test_timeout_handler.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
     }
   ]
 }
