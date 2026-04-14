@@ -48,7 +48,8 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "_passedCommit": "639d4c0e6d2c3ae2b7933f5fcbc0d3bde69dc82d"
+      "_passedCommit": "639d4c0e6d2c3ae2b7933f5fcbc0d3bde69dc82d",
+      "_scopeCreep": true
     },
     {
       "id": "US-1211",
@@ -66,6 +67,53 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "_passedCommit": "40bbfd741e87ff66d43b33610a8f5908470273a2"
+    },
+    {
+      "id": "US-1212",
+      "title": "Federated PRD: Add prd.include field for sub-project story composition",
+      "priority": "high",
+      "description": "Enable prd.json to include stories from sub-projects via a prd.include array. Phase M merges included stories with namespace prefixes (e.g., web:US-100) and validates against circular includes and missing files.",
+      "acceptanceCriteria": [
+        "prd.json accepts top-level prd.include array of file paths without schema validation errors: uv run python lib/prd_schema.py prd.json",
+        "load_prd_with_includes() merges stories from a sub-project prd.json with namespace prefix applied to story IDs",
+        "Circular include raises an explicit error before any stories are merged",
+        "Merged stories have _original_id field set to the pre-namespace story ID"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/merge_stories.py (add load_prd_with_includes function)",
+        "File to edit: prd.schema.json (add prd.include array field definition)",
+        "File to edit: tests/test_federated_prd.py (new test file for include loading and circular detection)",
+        "File to create: tests/fixtures/subproject_web_prd.json (minimal fixture with 2 stories)",
+        "Test command: uv run pytest tests/test_federated_prd.py::test_circular_include_detection -v",
+        "Test command: uv run pytest tests/test_federated_prd.py::test_namespace_prefix_applied -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1213",
+      "title": "CLI: Add --config flag to spiral.sh for loading custom configuration files",
+      "priority": "medium",
+      "description": "Allow users to specify custom config files via --config flag to override or extend spiral.config.sh, enabling multiple config profiles for different SPIRAL modes (research-only, fast-implement, validation-strict).",
+      "acceptanceCriteria": [
+        "spiral.sh --config /path/to/custom.config.sh loads custom config after base config, custom vars override base",
+        "Config validation (lib/validate_config.sh) runs after both files loaded; error if custom config has syntax errors",
+        "Config vars from both files are merged; missing vars in custom config fall back to base defaults"
+      ],
+      "technicalNotes": [
+        "Edit spiral.sh parse_args() to extract --config flag and store path in CUSTOM_CONFIG variable",
+        "Modify spiral.sh main() to source CUSTOM_CONFIG after sourcing spiral.config.sh (if provided)",
+        "Test command: bats tests/test_custom_config.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
