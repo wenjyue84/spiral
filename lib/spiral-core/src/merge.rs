@@ -40,11 +40,24 @@ fn matches_focus(story: &serde_json::Value, focus: &str) -> bool {
     if focus.is_empty() {
         return true;
     }
-    let focus_lower = focus.to_lowercase();
+    // Phase T stories (test-fix / test-story) always pass focus filter
+    if let Some(source) = story.get("_source").and_then(|v| v.as_str()) {
+        if source == "test-fix" || source == "test-story" {
+            return true;
+        }
+    }
     let title = story.get("title").and_then(|v| v.as_str()).unwrap_or("");
     let desc = story.get("description").and_then(|v| v.as_str()).unwrap_or("");
     let searchable = format!("{} {}", title, desc).to_lowercase();
-    searchable.contains(&focus_lower)
+    // Split focus into tokens on whitespace/commas — return true if ANY token appears in story
+    // Mirrors Python matches_focus() logic: compound phrases like "spiral-ui dashboard UX"
+    // should not require all words as a contiguous substring
+    focus
+        .to_lowercase()
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .map(|t| t.trim())
+        .filter(|t| t.len() >= 3) // skip short stop-words like "a", "as", "to"
+        .any(|token| searchable.contains(token))
 }
 
 fn load_candidates(path: &str) -> Vec<serde_json::Value> {
