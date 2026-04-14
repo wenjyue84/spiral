@@ -223,7 +223,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -307,6 +307,27 @@
         "File to edit: lib/cli_subcommands.sh (add 'validate-federation' subcommand handler)",
         "Test fixtures: tests/fixtures/prd-a.json (includes prd-b), tests/fixtures/prd-b.json (includes prd-c), tests/fixtures/circular-prd-a.json (circular)",
         "Test command: uv run pytest tests/test_federation_validator.py::test_detect_circular_dependency -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1223",
+      "title": "CLI: Add spiral status-watch command with live token burn rate and estimated completion time",
+      "priority": "medium",
+      "description": "Add `spiral status-watch` subcommand displaying live dashboard: current phase, stories passed/failed, cumulative token spend, token burn rate, worker status, and ETA. Refreshes every 2 seconds by polling results.tsv and .spiral/_checkpoint.json.",
+      "acceptanceCriteria": [
+        "Command `spiral status-watch` prints live dashboard with: phase, pass/fail/retry counts, tokens spent, burn rate (tokens/sec), active worker count and current story per worker",
+        "Dashboard refreshes every 2 seconds; Ctrl+C exits cleanly",
+        "Estimated completion time calculated from average story token cost and remaining story backlog"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_subcommands.sh (add 'status-watch' case calling lib/watch_status.py)",
+        "Create lib/watch_status.py with live terminal UI using ANSI escape codes or curses module",
+        "Test command: uv run pytest tests/test_status_watch.py::test_live_dashboard_refresh -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
