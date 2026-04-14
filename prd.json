@@ -136,7 +136,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -655,6 +655,29 @@
         "US-1212"
       ],
       "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1238",
+      "title": "[E2E Test] spiral-ui ActivityLogTable: badges, filtering, detail modal - guard US-1218",
+      "priority": "medium",
+      "description": "Write a Playwright end-to-end test in tests/web/ActivityLog.test.tsx that navigates to the Activity Log page, asserts colour-coded status badges are visible, clicks a status filter, and opens a story detail modal by clicking a row, guarding against regressions in US-1218.",
+      "acceptanceCriteria": [
+        "npx playwright test tests/web/ActivityLog.test.tsx --reporter=line exits 0",
+        "Test asserts at least one status badge with a colour class (e.g., .badge-pass) is visible on the page",
+        "Test clicks a table row and asserts a modal containing story details appears in the DOM"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/web/ActivityLog.test.tsx (new file — add test blocks for badge render, filter click, and modal open)",
+        "The spiral-ui dev server must be running on http://localhost:5299 before the test; use baseURL in playwright.config.ts",
+        "Use page.locator('[data-testid=\"story-modal\"]') pattern — add data-testid attributes to ActivityLogTable.tsx if missing",
+        "Test command: npx playwright test tests/web/ActivityLog.test.tsx --reporter=line"
+      ],
+      "dependencies": [
+        "US-1218"
+      ],
+      "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
     }
