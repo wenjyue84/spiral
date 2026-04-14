@@ -335,7 +335,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -826,6 +826,27 @@
       "dependencies": [
         "US-1231"
       ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1249",
+      "title": "CLI: Add `spiral docs` command to generate API documentation from lib/*.py",
+      "priority": "medium",
+      "description": "Add a CLI subcommand that auto-generates markdown API documentation from Python docstrings in lib/. Outputs docs/api.md with function signatures, parameters, return types, and module organization. Extends Phase G beyond CHANGELOG generation.",
+      "acceptanceCriteria": [
+        "`spiral docs --output docs/api.md --format markdown` generates markdown with table of contents, sections per module (lib.merge, lib.retry, lib.validation), and function signatures with docstrings",
+        "Validation step warns if public functions lack docstrings; generated markdown passes basic syntax check (no unclosed code blocks)",
+        "Output includes at least lib.prd_schema, lib.merge, lib.story_validation functions with full signatures and parameter descriptions"
+      ],
+      "technicalNotes": [
+        "File to create: lib/docs_generator.py (generate_docs() function using pdoc3)",
+        "File to create: tests/test_docs_generator.py with test_generate_api_docs() assertion checking for module sections and function names",
+        "File to edit: lib/cli_subcommands.sh (add 'docs' case handler calling python lib/docs_generator.py)",
+        "Test command: uv run pytest tests/test_docs_generator.py -v && grep -q 'lib.merge' docs/api.md"
+      ],
+      "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
