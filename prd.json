@@ -93,9 +93,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "_passedCommit": "ef174243fd86d31ecbae129f0ccf258ac278a346"
     },
     {
       "id": "US-1213",
@@ -111,6 +112,69 @@
         "Edit spiral.sh parse_args() to extract --config flag and store path in CUSTOM_CONFIG variable",
         "Modify spiral.sh main() to source CUSTOM_CONFIG after sourcing spiral.config.sh (if provided)",
         "Test command: bats tests/test_custom_config.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1214",
+      "title": "spiral-ui: Create backend config API and Python config module",
+      "priority": "medium",
+      "description": "Create lib/spiral_ui_config.py to load, validate, and persist SPIRAL runtime config (SPIRAL_MAX_PENDING, SPIRAL_MODEL_ROUTING, SPIRAL_VALIDATE_CMD) to .spiral/ui-config.json. Expose a POST /api/config endpoint in the spiral-ui backend that delegates to this module.",
+      "acceptanceCriteria": [
+        "POST /api/config with valid payload writes updated values to .spiral/ui-config.json and returns 200",
+        "POST /api/config with invalid payload (e.g., SPIRAL_MAX_PENDING=-1) returns 422 with a descriptive error message",
+        "uv run pytest tests/test_ui_settings_api.py -v passes with at least save and validation test cases"
+      ],
+      "technicalNotes": [
+        "File to create: lib/spiral_ui_config.py (load_config, validate_config, save_config functions)",
+        "File to edit: spiral-ui/src/api/config.ts (add POST /api/config route handler calling lib/spiral_ui_config.py)",
+        "Test command: uv run pytest tests/test_ui_settings_api.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1215",
+      "title": "spiral-ui: Add Settings tab component to display and edit runtime config",
+      "priority": "medium",
+      "description": "Create a SettingsTab React component that fetches current config from GET /api/config, renders editable fields for SPIRAL_MAX_PENDING, SPIRAL_MODEL_ROUTING, and SPIRAL_VALIDATE_CMD, and calls POST /api/config on Save with a success/error toast.",
+      "acceptanceCriteria": [
+        "Settings tab renders with pre-populated input fields from GET /api/config response",
+        "Clicking Save calls POST /api/config; a success toast appears on 200, an error toast appears on 4xx",
+        "Invalid input (empty required field or negative integer) disables Save button before submission"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/SettingsTab.tsx (form component with useQuery/useMutation)",
+        "File to edit: spiral-ui/src/App.tsx or main layout (add Settings tab to nav)",
+        "Test command: cd spiral-ui && npx vitest run src/components/SettingsTab.test.tsx"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1216",
+      "title": "Phase V: Add granular verification via test markers and file-touch assertions",
+      "priority": "medium",
+      "description": "Enhance Phase V to parse test file markers (e.g., // STORY:US-1234), verify that all filesTouch files were created/modified, and report specific verification failures.",
+      "acceptanceCriteria": [
+        "Phase V parses prd.json story's filesTouch list and asserts each file exists in git tree after story commit",
+        "Phase V scans test files for markers matching story ID (e.g., // STORY:US-1234 in tests/*.py); fails if story has no matching test marker",
+        "Verification failures include specific details: file path, marker location, or git diff assertion result"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phases/phase_v_verification.py (Phase V orchestration with file and marker checks)",
+        "File to edit: lib/story_verification.py (add verify_file_touches() and verify_test_marker() functions)",
+        "Test command: uv run pytest tests/test_phase_v_verification.py::test_verify_missing_file_touch -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
