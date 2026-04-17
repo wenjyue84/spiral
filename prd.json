@@ -856,7 +856,10 @@
       "passes": true,
       "_source": "seed",
       "model": "haiku",
-      "last_attempted": "2026-04-17T14:58:01Z"
+      "last_attempted": "2026-04-17T14:58:01Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n`lib/workers/decompose_story.py` builds a decomposition prompt from the parent story + failure context, but never queries `learned_lessons.py` for relevant past failures.\n\n## Problem Identified\n`query_lessons()` exists in `lib/learned_lessons.py` but `decompose_story.py` doesn't import or use it, so the learning loop is broken — sub-stories don't inherit known anti-patterns.\n\n## Planned Changes\n- **`lib/workers/decompose_story.py`**: Add `query_lessons` import, `--lessons` CLI arg, `build_lessons_section()` helper, and inject lessons into the prompt (gated by `SPIRAL_LESSON_INJECTION`)\n- **`tests/test_decompose_lessons.py`**: New test file covering all 4 acceptance criteria\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_decompose_lessons.py\"],\n  \"files_to_modify\": [\"lib/workers/decompose_story.py\"],\n  \"functions_to_add\": [\"build_lessons_section\"],\n  \"estimated_loc\": 90\n}\n</plan>\nNow let me make the changes to `lib/workers/decompose_story.py`:\nNow add the `build_lessons_section` function after `STORY_PREFIX`:\nNow find where the prompt is built in `main()` and inject the lessons:\nNow add the `--lessons` CLI argument. Let me find the argparse section:\nNow write the test file:\nAll 5 tests pass. Let me run pre-commit and type checks:\nAll clean. Now mark the story as passing and commit:\nDone. US-1257 is complete.\n\n**Summary of changes:**\n\n- **`lib/workers/decompose_story.py`**: Added `build_lessons_section()` function that calls `query_lessons()` from `lib/learned_lessons.py`, formats the top-3 matching lessons as an XML block, and appends it to the decomposition prompt. Gated by `SPIRAL_LESSON_INJECTION` env var (default: `true`). Added `--lessons` CLI arg.\n\n- **`tests/test_decompose_lessons.py`**: 5 tests covering all acceptance criteria — injection when lessons match, 3+ tag-matching lessons produce output, `SPIRAL_LESSON_INJECTION=false` suppresses injection, default behavior, and missing file returns empty string gracefully."
+      }
     },
     {
       "id": "US-1258",
