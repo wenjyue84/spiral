@@ -1157,6 +1157,27 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku"
+    },
+    {
+      "id": "US-1269",
+      "title": "[E2E Test] SPIRAL Crash Recovery via --resume Flag",
+      "priority": "high",
+      "description": "SPIRAL writes checkpoints after each phase but has no tested --resume path. This story adds the --resume flag to spiral.sh, implements checkpoint_read_and_resume in lib/checkpoint.sh, and writes a bats integration test that kills SPIRAL mid-Phase I and verifies clean recovery without re-running prior phases.",
+      "acceptanceCriteria": [
+        "After SPIRAL is killed mid-Phase I, .spiral/_checkpoint.json contains keys: iteration, phase, completed_stories, timestamp — verified by: cat .spiral/_checkpoint.json | jq 'has(\"completed_stories\")'",
+        "SPIRAL restarted with --resume skips to Phase I story N+1 (not phase 0); verified by grep 'Resuming at' .spiral/spiral.log",
+        "tests/bats-core/bin/bats tests/integration/test_crash_recovery.bats exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/checkpoint.sh (new checkpoint_read_and_resume() function — reads .spiral/_checkpoint.json with jq, exports SPIRAL_RESUME_PHASE and SPIRAL_RESUME_STORY_INDEX)",
+        "File to edit: spiral.sh (parse --resume flag in argument loop; skip phases before SPIRAL_RESUME_PHASE when set; source lib/checkpoint.sh)",
+        "File to edit: tests/integration/test_crash_recovery.bats (new file — use kill -9 on SPIRAL PID after story 2 begins, then restart with --resume)",
+        "Test command: tests/bats-core/bin/bats tests/integration/test_crash_recovery.bats -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet"
     }
   ]
 }

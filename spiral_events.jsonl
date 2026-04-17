@@ -5594,3 +5594,23 @@
 {"ts": "2026-04-17T16:12:27.233449+00:00", "type": "route_story_assigned", "story_id": "US-1266", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-04-17T16:12:27.234217+00:00", "type": "route_story_assigned", "story_id": "US-1267", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-04-17T16:12:27.235466+00:00", "type": "route_story_assigned", "story_id": "US-1268", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-04-17T16:13:06.280889+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-686\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"timestamp": "2026-04-17T16:17:18.223213+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Graph Tab: Visualize Story Dependencies and File Conflicts", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-04-17T16:17:18.224077+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Keyboard Shortcuts System with Interactive Help Modal", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-04-17T16:17:18.224807+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Phase Execution Profiler: Track and Display Phase Timings Across Iterations", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-04-17T16:17:18.225471+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Cost Projection CLI: Per-Story Token Estimates by Complexity Tier", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"ts": "2026-04-17T16:19:59.237276+00:00", "type": "route_story_assigned", "story_id": "US-1237", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.237965+00:00", "type": "route_story_assigned", "story_id": "US-1238", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.238605+00:00", "type": "route_story_assigned", "story_id": "US-1242", "complexity_score": 65, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.239292+00:00", "type": "route_story_assigned", "story_id": "US-1244", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.240081+00:00", "type": "route_story_assigned", "story_id": "US-1245", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.240874+00:00", "type": "route_story_assigned", "story_id": "US-1246", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.241679+00:00", "type": "route_story_assigned", "story_id": "US-1247", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.242440+00:00", "type": "route_story_assigned", "story_id": "US-1261", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.243303+00:00", "type": "route_story_assigned", "story_id": "US-1262", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.244228+00:00", "type": "route_story_assigned", "story_id": "US-1263", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.245155+00:00", "type": "route_story_assigned", "story_id": "US-1264", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.246481+00:00", "type": "route_story_assigned", "story_id": "US-1265", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.247212+00:00", "type": "route_story_assigned", "story_id": "US-1266", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.247838+00:00", "type": "route_story_assigned", "story_id": "US-1267", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-17T16:19:59.248401+00:00", "type": "route_story_assigned", "story_id": "US-1269", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
