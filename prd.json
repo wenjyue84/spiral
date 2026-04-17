@@ -1284,6 +1284,29 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku"
+    },
+    {
+      "id": "US-1275",
+      "title": "[Security Test] spiral-ui SettingsTab: block unauthorized config reads and writes",
+      "priority": "high",
+      "description": "Write security tests verifying that the GET and POST /api/config endpoints used by SettingsTab (US-1215) reject unauthenticated requests. Ensures no sensitive data leaks in error responses.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_us1215.py -v exits 0 with all tests passing",
+        "Test asserts unauthenticated GET /api/config returns status_code in (401, 403)",
+        "Test asserts unauthenticated POST /api/config returns status_code in (401, 403) and response body contains no secrets"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us1215.py (create: test_settings_get_rejects_unauthenticated, test_settings_post_rejects_unauthenticated, test_no_secrets_in_error_response)",
+        "Use httpx or requests with no Authorization header for both GET and POST calls",
+        "Test command: uv run pytest tests/test_security_us1215.py -v",
+        "Also runnable as: uv run pytest tests/ -k us_1215 -v"
+      ],
+      "dependencies": [
+        "US-1215"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
     }
   ]
 }
