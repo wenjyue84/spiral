@@ -8,7 +8,9 @@ results.tsv files with proper backward-compatibility for missing columns.
 
 import csv
 import json
+import os
 import re
+import time
 from dataclasses import asdict, dataclass
 from typing import TextIO
 
@@ -211,3 +213,60 @@ def write_results_tsv(path: str, records: list[ResultsRecord]) -> None:
         writer.writeheader()
         for record in records:
             writer.writerow(asdict(record))
+
+
+def _debounced_reindex(results_path: str, min_interval: float = 1.0) -> None:
+    """Trigger history index rebuild at most once per min_interval seconds.
+
+    Uses a timestamp file in .spiral/ as the debounce gate.
+    Silently skips if the index module is unavailable.
+    """
+    ts_path = os.path.join(".spiral", "history_reindex_ts")
+    now = time.monotonic()
+    try:
+        mtime = os.path.getmtime(ts_path)
+        if now - mtime < min_interval:
+            return
+    except FileNotFoundError:
+        pass
+
+    try:
+        # Touch the timestamp file before reindexing so concurrent callers skip
+        os.makedirs(".spiral", exist_ok=True)
+        with open(ts_path, "w", encoding="utf-8") as f:
+            f.write(str(now))
+
+        # Lazy import to avoid circular deps and make the module optional
+        import importlib.util
+
+        spec = importlib.util.find_spec("history_search")
+        if spec is None:
+            return
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        mod.build_index(results_path=results_path)
+    except Exception:  # noqa: BLE001
+        pass  # Never fail a results write due to index issues
+
+
+def append_results_row(path: str, record: ResultsRecord) -> None:
+    """Append a single ResultsRecord row to results.tsv.
+
+    If the file does not exist, writes a header first.
+    Triggers a debounced FTS5 history index rebuild after appending.
+    """
+    write_header = not os.path.isfile(path)
+    with open(path, "a", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=HEADER,
+            delimiter="\t",
+            extrasaction="ignore",
+            lineterminator="\n",
+        )
+        if write_header:
+            writer.writeheader()
+        writer.writerow(asdict(record))
+
+    _debounced_reindex(path)

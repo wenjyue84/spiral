@@ -512,3 +512,57 @@ Based on the user story JSON, here is a technical brief for the implementing age
 
 ### Gotchas
 - The `python3` alias may not be available on all platforms in bats; resolved by checking `command -v python3` with fallback to `python`
+## Iteration 2 - Fri, Apr 17, 2026 11:18:08 PM
+Completed: Ralph prompt: inject relevant learned-lessons sidecar into Claude CLI call at runtime (ID: US-1258) in 9m
+
+
+## Pre-analysis for US-1259 (Gemini 2.5 Pro)
+This technical brief is for a Python-based implementation, not a Frappe application as mentioned in the prompt. The user story's content is unrelated to the Frappe framework.
+
+**Project:** Spiral
+**Feature:** FTS5-based search for historical execution results.
+
+**1. Files to Modify:**
+*   `lib/history_search.py`: New file to house the core indexing and search logic.
+*   `lib/results_tsv.py`: Modify the append/write function to trigger re-indexing.
+*   `tests/test_history_search.py`: New property-based test file.
+*   `.gitignore`: Add `.spiral/history.db` to prevent committing the index.
+
+**2. Involved DocTypes/Hooks:**
+*   None. This is not a Frappe application. The integration point is the file write operation in `lib/results_tsv.py`.
+
+**3. Implementation Approach:**
+*   **`history_search.py`**:
+    *   Use the standard `sqlite3` library. Create a virtual table using FTS5.
+    *   `build_index()`: Wipes and rebuilds `.spiral/history.db`. It should parse `results.tsv`, find failure snippets (likely in `.spiral/crashes/`), and read recent git commit subjects (`git log ...`). It will concatenate these into a single text field for indexing.
+    *   `find_similar_attempts(query, k)`: Executes an FTS `MATCH` query against the index, retrieving the top `k` results based on relevance (e.g., BM25).
+*   **`results_tsv.py`**:
+    *   In the function that appends a row, add a call to a debounced re-indexing function. A simple file-based timestamp check can achieve the 1-second debounce requirement.
+
+**4. Edge Cases & Gotchas:**
+*   The exact paths for "failure snippets" need to be located or assumed (e.g., `.spiral/crashes/*.txt`).
+*   The re-indexing process should run in a non-blocking way if `results_tsv.py` is used in a performance-sensitive context.
+*   The property test must carefully construct synthetic data and queries to ensure the recall measurement is meaningful.
+*   Ensure the host system's SQLite version supports FTS5 (standard in modern Python).
+
+
+## Iteration 3 - Story: Historical FTS5 index over results.tsv + failure snippets (US-1259)
+
+### What was implemented
+- Created `lib/history_search.py` with `build_index()` and `find_similar_attempts(query, k)`
+- SQLite FTS5 virtual table with `unicode61 remove_diacritics 2` tokenizer for case-insensitive search
+- `build_index()` parses results.tsv + reads crash snippets from `.spiral/crashes/<story_id>.txt`
+- `find_similar_attempts()` uses FTS5 MATCH + rank ordering (BM25), handles bad queries gracefully
+- Added `append_results_row()` and `_debounced_reindex()` to `lib/results_tsv.py`
+- Debounce: timestamp file `.spiral/history_reindex_ts` gates reindex to max 1/second
+- Created `tests/test_history_search.py` with 9 tests including N=50 recall property test
+
+### Patterns discovered
+- `.spiral/` already gitignored — `history.db` is automatically excluded
+- SQLite FTS5 is standard in Python 3.13 — no extra deps needed
+- `importlib.util.find_spec` + `exec_module` pattern allows lazy optional module loading without circular imports
+
+### Gotchas
+- `time.monotonic()` resets between processes — debounce uses file mtime for cross-process safety
+- FTS5 `MATCH` raises `sqlite3.OperationalError` for invalid queries (e.g. bare OR/AND) — must catch it
+- `ruff format` expands inline dict/tuple comprehensions — budget extra lines
