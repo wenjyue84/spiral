@@ -656,7 +656,7 @@
         "US-1218"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1195,6 +1195,26 @@
         "File to edit: tests/test_cli_lint.py (new file — tests for valid and invalid prd.json paths)",
         "File to create: tests/fixtures/bad_prd.json (minimal JSON with one invalid field for test fixture)",
         "Test command: uv run pytest tests/test_cli_lint.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1271",
+      "title": "CLI: Add `spiral lint --fix` and `--strict` Flags with Constitution Validation",
+      "priority": "medium",
+      "description": "Extends the spiral lint command (from prior story) with constitution.md rule-syntax checking, a --fix flag that auto-corrects JSON indentation and trailing whitespace, and a --strict flag that treats unused stories as errors. Each flag is independently testable.",
+      "acceptanceCriteria": [
+        "python main.py lint --strict with prd.json containing a story with passes=false and no filesTouch exits 1 with 'WARNING: unused story' promoted to ERROR",
+        "python main.py lint --fix rewrites prd.json with 2-space indent and no trailing whitespace; file content differs from original; exits 0",
+        "uv run pytest tests/test_cli_lint.py::test_lint_strict_unused tests/test_cli_lint.py::test_lint_fix_formatting -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_lint.py (add validate_constitution(path) using regex for rule block syntax; add --fix rewrite via json.dumps indent=2; add --strict flag that upgrades warning exit codes)",
+        "File to edit: tests/test_cli_lint.py (add test_lint_strict_unused and test_lint_fix_formatting test functions)",
+        "Test command: uv run pytest tests/test_cli_lint.py::test_lint_strict_unused tests/test_cli_lint.py::test_lint_fix_formatting -v --tb=short"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
