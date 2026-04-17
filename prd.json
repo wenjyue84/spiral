@@ -762,7 +762,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1306,6 +1306,29 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1276",
+      "title": "[Regression Test] Federated PRD: reject circular includes and missing files",
+      "priority": "medium",
+      "description": "Add regression tests in tests/test_federated_prd.py that verify Phase M raises a clear error when a prd.include entry points to a non-existent file and when two PRDs include each other in a cycle. Guards the validation branch of US-1212.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_federated_prd.py::test_include_missing_file_raises -v exits 0",
+        "uv run pytest tests/test_federated_prd.py::test_include_circular_raises -v exits 0",
+        "Removing the circular-include guard in lib/merge_stories.py causes test_include_circular_raises to fail"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_federated_prd.py (add test_include_missing_file_raises and test_include_circular_raises)",
+        "File to edit: lib/merge_stories.py (confirm circular-include guard exists; add if absent)",
+        "Test command: uv run pytest tests/test_federated_prd.py -k 'circular or missing_file' -v",
+        "Use pytest.raises(ValueError) or similar; construct minimal in-memory prd dicts to avoid filesystem writes"
+      ],
+      "dependencies": [
+        "US-1212"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "haiku"
     }
   ]
