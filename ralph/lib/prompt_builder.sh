@@ -219,6 +219,34 @@ $_LP_FILTERED"
     fi
   fi
 
+  # ── US-1258: Learned-lessons sidecar injection ──────────────────────────
+  # Write a per-story .spiral/ralph-lessons-<id>.md via lib/write_ralph_lessons.py,
+  # then inject its content into the user prompt. Gated by SPIRAL_LESSON_INJECTION.
+  if [[ "${SPIRAL_LESSON_INJECTION:-true}" != "false" && -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then
+    _LL_LESSONS_PATH="${SPIRAL_LEARNED_LESSONS:-.spiral/learned_lessons.jsonl}"
+    if [[ -f "$_LL_LESSONS_PATH" ]]; then
+      _LL_SIDECAR="${SPIRAL_SCRATCH_DIR:-.spiral}/ralph-lessons-${NEXT_STORY}.md"
+      _LL_STORY_TMP=$(mktemp -p "${SPIRAL_SCRATCH_DIR:-.spiral}" _ll_story_XXXXXX.json 2>/dev/null || echo "${SPIRAL_SCRATCH_DIR:-.spiral}/_ll_story_$$.json")
+      printf '%s' "${STORY_JSON}" >"$_LL_STORY_TMP"
+      if "${SPIRAL_PYTHON:-python3}" "$SPIRAL_HOME/lib/write_ralph_lessons.py" \
+            --story-json "@${_LL_STORY_TMP}" \
+            --lessons "$_LL_LESSONS_PATH" \
+            --output "$_LL_SIDECAR" \
+            --top-k 3 2>/dev/null; then
+        _LL_CONTENT=$(cat "$_LL_SIDECAR" 2>/dev/null || true)
+        if [[ -n "$_LL_CONTENT" ]]; then
+          RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+
+
+$_LL_CONTENT"
+          echo "  [lessons] Learned-lessons sidecar injected for $NEXT_STORY"
+          log_ralph_event "learned_lessons_injected" "\"story_id\":\"$NEXT_STORY\",\"sidecar\":\"$_LL_SIDECAR\""
+        fi
+      fi
+      rm -f "$_LL_STORY_TMP" 2>/dev/null || true
+    fi
+  fi
+
   # ── US-280: File context injection (diff or full) ────────────────────────
   if [[ -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then
     _FILE_CTX=$(build_files_context "$STORY_JSON" 2>/dev/null || true)

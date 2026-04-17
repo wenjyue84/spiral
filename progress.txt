@@ -460,3 +460,55 @@ Completed: [Security Test] spiral-ui: SettingsTab access control (US-1215) (ID: 
 ### Gotchas
 - `from __future__ import annotations` required for `dict[str, Any]` in function signatures under Python 3.13 strict mypy
 - Remove unused `pytest` import or ruff F401 fails
+## Iteration 1 - Fri, Apr 17, 2026 11:07:32 PM
+Completed: Phase I decompose: inject learned-lessons into decomposition prompt (close the learning loop) (ID: US-1257) in 8m
+
+
+## Pre-analysis for US-1258 (Gemini 2.5 Pro)
+Based on the user story JSON, here is a technical brief for the implementing agent. The user's mention of Frappe/Python appears to be a misinterpretation; the story pertains to the `Ralph` shell-based tooling within the Spiral project.
+
+**Subject: Technical Brief for US-1258: Ralph Learned Lessons Injection**
+
+**1. Files to Modify / Create:**
+*   `ralph/ralph.sh`: The main script to orchestrate lesson injection.
+*   `ralph/CLAUDE.md`: The prompt template that needs to reference the lessons.
+*   **New File:** A Python helper script, e.g., `lib/lesson_retriever.py`, to handle the logic of finding relevant lessons.
+*   **New File:** A BATS test file, `tests/test_ralph_lessons.bats`, for integration testing.
+
+**2. Involved Frappe DocTypes or Hooks:**
+*   None. This task is confined to the command-line interface and does not interact with the Frappe framework.
+
+**3. Recommended Implementation Approach:**
+1.  **Modify `ralph/ralph.sh`:**
+    *   Add a check for the `SPIRAL_LESSON_INJECTION` environment variable. If it is `false`, skip the following steps.
+    *   Invoke the new Python script (`lib/lesson_retriever.py`) to fetch lessons, passing the story details. Pipe the output to a sidecar file: `.spiral/ralph-lessons.md`.
+2.  **Create `lib/lesson_retriever.py`:**
+    *   This script should read a source of "learned lessons" (e.g., a project-local `lessons.jsonl`).
+    *   It will use the input story description to perform a similarity search (e.g., keyword-based) to find the top-K most relevant lessons.
+    *   It then formats and prints the lessons to stdout as Markdown.
+3.  **Update `ralph/CLAUDE.md`:**
+    *   Add a section that conditionally includes the sidecar's content. Example: `if [[ -f ".spiral/ralph-lessons.md" ]]; then cat .spiral/ralph-lessons.md; fi`.
+4.  **Create `tests/test_ralph_lessons.bats`:**
+    *   Write tests to assert that the sidecar file is created and its contents are passed to the final command when the feature is enabled, and that they are absent when disabled.
+
+**4. Edge Cases & Gotchas:**
+*   The lesson data source is not defined in the story; a simple `lessons.jsonl` file is a reasonable assumption.
+*   The system must handle cases where no relevant lessons are found; the Python script should output nothing or a "No lessons found" message, and the prompt should render gracefully.
+*   The temporary sidecar file (`ralph-lessons.md`) should be cleaned up after the main script executes to prevent state pollution.
+
+
+
+## Iteration 2 - Story: Ralph prompt: inject relevant learned-lessons sidecar into Claude CLI call at runtime (US-1258)
+
+### What was implemented
+- Created `lib/write_ralph_lessons.py` — Python helper that reads `.spiral/learned_lessons.jsonl`, calls `query_lessons()`, writes a per-story `.spiral/ralph-lessons-<story>.md` sidecar
+- Added learned-lessons sidecar injection section to `ralph/lib/prompt_builder.sh` — generates sidecar before each Ralph call, injects content into `RALPH_USER_PROMPT`
+- Gated by `SPIRAL_LESSON_INJECTION` env var (default: true, disabled when =false)
+- Created `tests/test_ralph_lessons.bats` with 4 tests covering injection, sidecar file creation, disable flag, and missing file handling
+
+### Patterns discovered
+- `lib/learned_lessons.py` imports `lib.failure_categorizer` which requires project root on sys.path — need `sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))` in addition to dirname insert
+- Prompt builder uses `${SPIRAL_PYTHON:-python3}` for Python invocation — tests must ensure python is resolvable
+
+### Gotchas
+- The `python3` alias may not be available on all platforms in bats; resolved by checking `command -v python3` with fallback to `python`
