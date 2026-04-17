@@ -698,7 +698,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "sonnet"
     },
     {
@@ -1218,6 +1218,29 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1272",
+      "title": "[Regression Test] Federated PRD: Phase M namespace-prefixed story merge",
+      "priority": "medium",
+      "description": "Write a regression test that verifies lib/merge_stories.py correctly merges sub-project stories with namespace prefixes (e.g., web:US-100) when prd.include is present. The test must catch regressions in the merge logic without requiring schema changes.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_federated_prd.py::test_us_1212_merge -v` exits 0",
+        "Test asserts that a story from subproject_web_prd.json appears in merged output with ID prefixed `web:`",
+        "Test asserts that a story whose dependency references a missing sub-project file raises MergeError or equivalent"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_federated_prd.py (add test_us_1212_merge function)",
+        "File to edit: lib/merge_stories.py (read to find the merge entry point function before writing assertions)",
+        "Test command: uv run pytest tests/test_federated_prd.py::test_us_1212_merge -v",
+        "Import and call the merge function directly rather than invoking through CLI to keep the test fast"
+      ],
+      "dependencies": [
+        "US-1212"
+      ],
+      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     }
