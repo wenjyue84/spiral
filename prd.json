@@ -591,7 +591,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-17T15:53:18Z"
+      "last_attempted": "2026-04-17T15:53:18Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n`lib/story_query.py` line 69 calls `tsv.get(\"model\")` without checking if `tsv` is `None`, causing `AttributeError` for all stories that have no TSV row (e.g., passing stories with no TSV entry).\n\n## Problem Identified\n`tsv` can be `None` when a story has no results.tsv entry. The tokens calculation uses a conditional expression correctly, but the model and last_failure lines do not guard against `None`.\n\n## Planned Changes\n- `lib/story_query.py`: Fix lines 69-72 to guard against `tsv is None` before calling `.get()`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"lib/story_query.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\nAll 9 tests pass. Now run mypy and pre-commit:\nThe mypy errors are pre-existing in other files (`reachability_verifier.py`, `routing/ucb1_select.py`, `ui/spiral_dashboard.py`) — not in my changes. Tests pass and mypy is clean for `story_query.py`. Now mark the story as passing and commit:\nNow document learnings in progress.txt:\nDone. US-1235 is complete.\n\n**What happened:** The implementation was already in place from a prior attempt (`lib/story_query.py`, `lib/cli_subcommands.sh` query handler, `tests/test_story_query.py`). All 9 tests were failing due to a single `AttributeError` on line 69 — `tsv.get(\"model\")` was called when `tsv` is `None` (stories with no results.tsv entry). Fixed with a one-line guard: `(tsv.get(\"model\") if tsv else None) or story.get(\"model\") or \"\"`. All 9 tests now pass."
+      }
     },
     {
       "id": "US-1236",

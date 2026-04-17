@@ -617,3 +617,20 @@ This technical brief is for implementing a FastMCP server for SPIRAL, based on t
 ### Gotchas
 - `globals().update(vars(real_mcp))` overwrites `__path__` → breaks submodule lookup. Only export public attrs.
 - `importlib.util.find_spec("mcp")` checks sys.modules first — can cause recursion if called from within __init__.py while mcp is being loaded. Use `spec_from_file_location` with explicit path instead.
+## Iteration 1 - Fri, Apr 17, 2026 11:53:15 PM
+Completed: MCP server exposing SPIRAL state (lib/mcp/spiral_mcp.py) for Claude Code integration (ID: US-1260) in 16m
+
+
+## Iteration 2 - Story: CLI spiral query stories (US-1235)
+
+### What was implemented
+- Fixed `AttributeError` in `lib/story_query.py:69` — `tsv.get("model")` was called without None guard when story has no results.tsv entry
+- All 3 files were already present from prior attempt: `lib/story_query.py`, `lib/cli_subcommands.sh` (query handler), `tests/test_story_query.py`
+- One-line fix: `model = (tsv.get("model") if tsv else None) or story.get("model") or ""`
+
+### Patterns discovered
+- When prior attempt fails due to test errors, check the actual test output first — often the implementation is mostly complete, just needs a small bug fix
+- ruff format auto-expands multi-line expressions; pre-commit reformatted story_query.py lines automatically
+
+### Gotchas
+- Pre-existing mypy errors in other files (reachability_verifier.py, routing/ucb1_select.py, ui/spiral_dashboard.py) cause the mypy pre-commit hook to fail — these are NOT caused by this story's changes and should be ignored for this story
