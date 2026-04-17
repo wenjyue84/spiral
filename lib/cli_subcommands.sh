@@ -233,3 +233,22 @@ except Exception:
   fi
   exit 0
 fi
+
+# ── query stories: filter/sort/export prd.json + results.tsv ─────────────────
+QUERY_MODE="${QUERY_MODE:-0}"
+QUERY_SUBCOMMAND="${QUERY_SUBCOMMAND:-}"
+QUERY_STATUS="${QUERY_STATUS:-}"
+QUERY_COMPLEXITY="${QUERY_COMPLEXITY:-}"
+QUERY_PROJECT="${QUERY_PROJECT:-}"
+QUERY_BY_PROJECT="${QUERY_BY_PROJECT:-0}"
+QUERY_FORMAT="${QUERY_FORMAT:-table}"
+if [[ "$QUERY_MODE" -eq 1 ]] && [[ "$QUERY_SUBCOMMAND" == "stories" ]]; then
+  _QUERY_ARGS=("$PRD_FILE" "${RESULTS_TSV:-$REPO_ROOT/results.tsv}")
+  [[ -n "$QUERY_STATUS" ]] && _QUERY_ARGS+=("--status" "$QUERY_STATUS")
+  [[ -n "$QUERY_COMPLEXITY" ]] && _QUERY_ARGS+=("--complexity" "$QUERY_COMPLEXITY")
+  [[ -n "$QUERY_PROJECT" ]] && _QUERY_ARGS+=("--project" "$QUERY_PROJECT")
+  [[ "$QUERY_BY_PROJECT" -eq 1 ]] && _QUERY_ARGS+=("--by-project")
+  _QUERY_ARGS+=("--format" "$QUERY_FORMAT")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_query.py" "${_QUERY_ARGS[@]}"
+  exit $?
+fi

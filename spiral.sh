@@ -137,6 +137,13 @@ FLAKY_REPORT_MODE=0                          # 1 = print flaky test quarantine r
 SHOW_FLAKY_TESTS_MODE=0                      # 1 = print flaky tests from test synthesis history and exit (--show-flaky-tests)
 CALIBRATION_REPORT_MODE=0                    # 1 = print calibration report and exit (--calibration-report)
 SHOW_PATTERNS_MODE=0                         # 1 = display learned retry patterns and exit (--show-patterns)
+QUERY_MODE=0                                 # 1 = run story query and exit (--query)
+QUERY_SUBCOMMAND=""                          # subcommand for --query (e.g. "stories")
+QUERY_STATUS=""                              # --status filter for query
+QUERY_COMPLEXITY=""                          # --complexity filter for query
+QUERY_PROJECT=""                             # --project filter for query
+QUERY_BY_PROJECT=0                           # 1 = group output by project (--by-project)
+QUERY_FORMAT="table"                         # output format: table|json|csv
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -313,6 +320,22 @@ while [[ $# -gt 0 ]]; do
       SHOW_PATTERNS_MODE=1
       shift
       ;;
+    --query)
+      QUERY_MODE=1
+      QUERY_SUBCOMMAND="${2:-}"
+      shift 2
+      # Parse optional query flags (consume until next -- flag or end)
+      while [[ $# -gt 0 ]] && [[ "$1" != --* || "$1" == --status || "$1" == --complexity || "$1" == --project || "$1" == --by-project || "$1" == --format ]]; do
+        case $1 in
+          --status)    QUERY_STATUS="$2";    shift 2 ;;
+          --complexity) QUERY_COMPLEXITY="$2"; shift 2 ;;
+          --project)   QUERY_PROJECT="$2";   shift 2 ;;
+          --by-project) QUERY_BY_PROJECT=1;  shift ;;
+          --format)    QUERY_FORMAT="$2";    shift 2 ;;
+          *) break ;;
+        esac
+      done
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -383,6 +406,12 @@ while [[ $# -gt 0 ]]; do
       echo "  --show-flaky-tests         Print tests failing <50% across last 5 iterations (excluded from Phase T) and exit"
       echo "  --calibration-report       Print actual vs estimated complexity calibration data and exit"
       echo "  --show-patterns            Display learned retry patterns (0-retry vs 3+ retry stories) and exit"
+      echo "  --query stories            Query prd.json stories with optional filters and exit"
+      echo "    --status pass|fail|pending  Filter by story status"
+      echo "    --complexity small|medium|large  Filter by complexity"
+      echo "    --project PREFIX           Filter by story ID prefix (e.g. US, UT)"
+      echo "    --by-project               Group results by project prefix with pass rates"
+      echo "    --format table|json|csv    Output format (default: table)"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --continuous               Never stop — loop back to Phase A after all stories pass"
