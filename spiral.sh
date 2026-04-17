@@ -144,6 +144,9 @@ QUERY_COMPLEXITY=""                          # --complexity filter for query
 QUERY_PROJECT=""                             # --project filter for query
 QUERY_BY_PROJECT=0                           # 1 = group output by project (--by-project)
 QUERY_FORMAT="table"                         # output format: table|json|csv
+EXPLAIN_MODE=0                               # 1 = explain a single story and exit (--explain)
+EXPLAIN_STORY_ID=""                          # story ID to explain
+EXPLAIN_FORMAT="text"                        # output format: text|markdown|json
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -332,6 +335,19 @@ while [[ $# -gt 0 ]]; do
           --project)   QUERY_PROJECT="$2";   shift 2 ;;
           --by-project) QUERY_BY_PROJECT=1;  shift ;;
           --format)    QUERY_FORMAT="$2";    shift 2 ;;
+          *) break ;;
+        esac
+      done
+      ;;
+    --explain)
+      EXPLAIN_MODE=1
+      EXPLAIN_STORY_ID="${2:-}"
+      shift 2
+      while [[ $# -gt 0 ]] && [[ "$1" == --markdown || "$1" == --json || "$1" == --format ]]; do
+        case $1 in
+          --markdown) EXPLAIN_FORMAT="markdown"; shift ;;
+          --json)     EXPLAIN_FORMAT="json";     shift ;;
+          --format)   EXPLAIN_FORMAT="${2:-text}"; shift 2 ;;
           *) break ;;
         esac
       done

@@ -234,6 +234,22 @@ except Exception:
   exit 0
 fi
 
+# ── explain: display full context for a single story ─────────────────────────
+EXPLAIN_MODE="${EXPLAIN_MODE:-0}"
+EXPLAIN_STORY_ID="${EXPLAIN_STORY_ID:-}"
+EXPLAIN_FORMAT="${EXPLAIN_FORMAT:-text}"
+if [[ "$EXPLAIN_MODE" -eq 1 ]]; then
+  if [[ -z "$EXPLAIN_STORY_ID" ]]; then
+    echo "[spiral] ERROR: Usage: spiral explain <story-id> [--markdown|--json]" >&2
+    exit 1
+  fi
+  _EXPLAIN_ARGS=("$PRD_FILE" "$EXPLAIN_STORY_ID" "--format" "$EXPLAIN_FORMAT")
+  _RESULTS_TSV="${RESULTS_TSV:-$REPO_ROOT/results.tsv}"
+  [[ -f "$_RESULTS_TSV" ]] && _EXPLAIN_ARGS+=("--results" "$_RESULTS_TSV")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_formatter.py" "${_EXPLAIN_ARGS[@]}"
+  exit $?
+fi
+
 # ── query stories: filter/sort/export prd.json + results.tsv ─────────────────
 QUERY_MODE="${QUERY_MODE:-0}"
 QUERY_SUBCOMMAND="${QUERY_SUBCOMMAND:-}"
