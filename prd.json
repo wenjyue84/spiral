@@ -1093,6 +1093,70 @@
       "passes": false,
       "_source": "seed",
       "model": "sonnet"
+    },
+    {
+      "id": "US-1266",
+      "title": "E2E Test: SettingsTab displays, edits, and saves runtime config",
+      "priority": "medium",
+      "description": "Add a Playwright e2e test that navigates to the Settings tab in spiral-ui, asserts editable fields for SPIRAL_MAX_PENDING, SPIRAL_MODEL_ROUTING, and SPIRAL_VALIDATE_CMD are visible, submits a change, and asserts a success toast appears. Guards against breakage of US-1215.",
+      "acceptanceCriteria": [
+        "npx playwright test --grep us_1215 exits 0 in headless mode",
+        "Test asserts all three config fields render with current values fetched from GET /api/config",
+        "Test submits a config change and asserts success toast is visible in the DOM"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/web/SettingsTab.e2e.ts (create; add test for us_1215 config display and save flow)",
+        "File to edit: spiral-ui/src/components/SettingsTab.tsx (reference component under test)",
+        "Test command: npx playwright test tests/web/SettingsTab.e2e.ts --grep us_1215"
+      ],
+      "dependencies": [
+        "US-1215"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1267",
+      "title": "CLI: Add spiral logs command with context-based filtering",
+      "priority": "medium",
+      "description": "Implement `spiral logs <story-id>` command to retrieve and display detailed Ralph implementation logs with filtering by log level and phase context (parse/decompose/implement/verify).",
+      "acceptanceCriteria": [
+        "Command `spiral logs US-123` outputs all logs for story with columns: timestamp | level | context | message | source:line",
+        "Supports flags: --level=ERROR (filter by DEBUG/INFO/WARN/ERROR), --context=implement (filter by phase: parse/decompose/implement/verify)",
+        "Output is ANSI colorized (errors=red, warns=yellow, info=blue) and includes clickable file path:line references"
+      ],
+      "technicalNotes": [
+        "File to create: lib/log_viewer.py with functions: read_story_logs(story_id), parse_log_line(line), filter_by_level(logs, level), colorize_output(logs)",
+        "File to edit: lib/cli_subcommands.sh to add 'logs' case handler, parse story-id and flags, call log_viewer.py",
+        "Test command: uv run pytest tests/test_log_viewer.py::test_filter_by_level -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1268",
+      "title": "Phase I: Error Classification Engine with Intelligent Retry Routing",
+      "priority": "high",
+      "description": "Ralph retries stories with a fixed haiku→sonnet→opus escalation regardless of failure cause. This story creates lib/error_classifier.py to parse failure messages and return the appropriate retry strategy, then wires it into lib/impl/retry.sh so each retry is strategy-driven rather than always escalating.",
+      "acceptanceCriteria": [
+        "uv run python -c \"from lib.error_classifier import classify_error; t,c,s = classify_error('SyntaxError: unexpected indent'); assert t=='SyntaxError' and c>0.9\" exits 0",
+        "uv run pytest tests/test_error_classifier.py -v passes with coverage of all 6 error types (SyntaxError, TimeoutError, MemoryError, ContextOverflow, LogicError, ResourceError)",
+        "After a failed story attempt, results.tsv contains non-empty 'error_type' and 'retry_strategy' columns for that row",
+        "uv run mypy lib/error_classifier.py --strict exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/error_classifier.py (new file — classify_error(error_msg: str) -> tuple[str, float, str] using regex dict keyed by error type)",
+        "File to edit: lib/impl/retry.sh (select_retry_strategy function — call python -m lib.error_classifier and read stdout JSON before escalation logic)",
+        "File to edit: tests/test_error_classifier.py (new file — parametrize over all 6 error types with fixture error strings)",
+        "Test command: uv run pytest tests/test_error_classifier.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
     }
   ]
 }
