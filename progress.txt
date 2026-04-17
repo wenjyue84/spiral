@@ -566,3 +566,54 @@ This technical brief is for a Python-based implementation, not a Frappe applicat
 - `time.monotonic()` resets between processes — debounce uses file mtime for cross-process safety
 - FTS5 `MATCH` raises `sqlite3.OperationalError` for invalid queries (e.g. bare OR/AND) — must catch it
 - `ruff format` expands inline dict/tuple comprehensions — budget extra lines
+
+## Pre-analysis for US-1260 (Gemini 2.5 Pro)
+This technical brief is for implementing a FastMCP server for SPIRAL, based on the user story JSON. The initial prompt mentioning Frappe/lhdn_payroll_integration is disregarded as it contradicts the story's content.
+
+**1. Files to Modify:**
+*   `lib/mcp/spiral_mcp.py`: New file for the main server logic.
+*   `pyproject.toml`: To add the `fastmcp` dependency.
+*   `README.md`: To add documentation for using the new MCP server.
+*   `prd.json`: Will be read by multiple tools and modified by `spiral_add_story`.
+
+**2. Key Components:**
+*   **Server:** A `fastmcp` server running over stdio, defined in `lib/mcp/spiral_mcp.py`.
+*   **Data Sources:**
+    *   `prd.json`: The main source for user stories.
+    *   `.spiral/_checkpoint.json`: For current iteration status.
+    *   `results.tsv`: For recent failure data.
+*   **Validation:** `lib/prd_schema.py` will be used to validate new stories.
+
+**3. Implementation Approach:**
+*   In `lib/mcp/spiral_mcp.py`, create a `FastMCP` instance.
+*   Implement five tool functions:
+    *   `spiral_status()`: Reads and returns content from `.spiral/_checkpoint.json`.
+    *   `spiral_stories(filter)`: Reads `prd.json`, filters stories, and returns a JSON array.
+    *   `spiral_recent_failures(n)`: Reads the last `n` failure records from `results.tsv`.
+    *   `spiral_iteration(n)`: Retrieves specific iteration data (likely from `_checkpoint.json`).
+    *   `spiral_add_story(body, source)`: Validates input against `lib/prd_schema.py`, then appends the new story to `prd.json`.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the `spiral_add_story` operation on `prd.json` is atomic to prevent data corruption.
+*   Gracefully handle parsing errors for all data source files (JSON, TSV).
+*   Return values from all tools must be strictly JSON-serializable.
+*   The `spiral_add_story` tool must return a clear error if schema validation fails.
+
+
+## Iteration 4 - Story: MCP server exposing SPIRAL state (US-1260)
+
+### What was implemented
+- Created `lib/mcp/__init__.py` — transparent proxy to real `mcp` SDK (solves sys.path shadowing)
+- Created `lib/mcp/spiral_mcp.py` — FastMCP server with 5 tools over stdio
+- Added `fastmcp>=2.0` to `lib/pyproject.toml`
+- Added SPIRAL MCP Server section to README.md with .mcp.json setup instructions
+
+### Patterns discovered
+- The editable-install `.pth` file adds `lib/` to sys.path hundreds of times — `lib/mcp/` permanently shadows the real `mcp` SDK package
+- Fix: `lib/mcp/__init__.py` uses `importlib.util.spec_from_file_location` to load the real SDK from `.venv/Lib/site-packages/mcp/` directly, then registers it in `sys.modules["mcp"]`
+- Must preserve `__name__`, `__spec__`, `__path__`, `__file__` in globals() after proxy load — otherwise Python can't locate `lib.mcp.spiral_mcp` submodule
+- prd_schema loaded via `spec_from_file_location` (not sys.path insert) to avoid further shadowing
+
+### Gotchas
+- `globals().update(vars(real_mcp))` overwrites `__path__` → breaks submodule lookup. Only export public attrs.
+- `importlib.util.find_spec("mcp")` checks sys.modules first — can cause recursion if called from within __init__.py while mcp is being loaded. Use `spec_from_file_location` with explicit path instead.
