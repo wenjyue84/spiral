@@ -63,13 +63,9 @@ def query_stories(
         tsv = tsv_rows.get(sid)
         status = _status_of(story, tsv)
         complexity: str = story.get("estimatedComplexity", "small")
-        tokens = int(tsv.get("cache_read_tokens", 0) or 0) + int(
-            tsv.get("cache_creation_tokens", 0) or 0
-        ) if tsv else 0
-        model = tsv.get("model") or story.get("model") or ""
-        last_failure = (
-            tsv.get("status", "") if tsv and tsv.get("status") in ("reject", "fail", "error") else ""
-        )
+        tokens = int(tsv.get("cache_read_tokens", 0) or 0) + int(tsv.get("cache_creation_tokens", 0) or 0) if tsv else 0
+        model = (tsv.get("model") if tsv else None) or story.get("model") or ""
+        last_failure = tsv.get("status", "") if tsv and tsv.get("status") in ("reject", "fail", "error") else ""
 
         # Derive project prefix (e.g. "US", "UT", or custom namespace)
         project = sid.split("-")[0] if "-" in sid else "UNKNOWN"
@@ -162,7 +158,10 @@ def group_by_project(stories: list[dict[str, Any]]) -> str:
 def main(argv: list[str]) -> None:
     """Entry point when called from cli_subcommands.sh."""
     if len(argv) < 3:
-        print("Usage: story_query.py <prd.json> <results.tsv> [--status S] [--complexity C] [--project P] [--by-project] [--format table|json|csv]", file=sys.stderr)
+        print(
+            "Usage: story_query.py <prd.json> <results.tsv> [--status S] [--complexity C] [--project P] [--by-project] [--format table|json|csv]",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     prd_path = argv[1]

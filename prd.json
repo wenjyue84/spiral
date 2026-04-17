@@ -589,8 +589,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-17T15:53:18Z"
     },
     {
       "id": "US-1236",
@@ -989,7 +990,8 @@
       "last_attempted": "2026-04-17T15:35:17Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nNo `lib/mcp/` directory exists. `fastmcp` is not in dependencies. The story requires a FastMCP stdio server with 5 tools sourcing data from `prd.json`, `.spiral/_checkpoint.json`, and `results.tsv`.\n\n## Problem Identified\nNeed to create `lib/mcp/spiral_mcp.py` with a FastMCP server, add `fastmcp` to deps, and document `.mcp.json` setup in README.\n\n## Planned Changes\n- Create `lib/mcp/__init__.py` (empty package marker)\n- Create `lib/mcp/spiral_mcp.py` with 5 tools\n- Modify `lib/pyproject.toml` to add `fastmcp`\n- Modify `README.md` to add MCP setup section\n\n<plan>\n{\n  \"files_to_create\": [\"lib/mcp/__init__.py\", \"lib/mcp/spiral_mcp.py\"],\n  \"files_to_modify\": [\"lib/pyproject.toml\", \"README.md\"],\n  \"functions_to_add\": [\"spiral_status\", \"spiral_stories\", \"spiral_recent_failures\", \"spiral_iteration\", \"spiral_add_story\"],\n  \"estimated_loc\": 130\n}\n</plan>\nNow I have all the context needed. Let me implement the solution.\nNow add `fastmcp` to dependencies and install it:\nThe `lib/mcp/` package shadows the real `mcp` Python SDK. Fix: remove the `lib/` sys.path insert that causes the collision.\nThe editable install puts `lib/` on sys.path permanently via `.pth`, causing `lib/mcp/` to shadow the real `mcp` SDK. Fix `lib/mcp/__init__.py` to transparently proxy the real `mcp` package:\nThe `globals().update(vars(_real_mcp))` overwrites `__spec__` and `__path__`, breaking submodule lookup. Fix: preserve the module's own path info:\nImport works. Now test the tools:\nAll tools work. Now test `python -m lib.mcp.spiral_mcp` startup:\nServer starts and listens on stdio (no output = correct for MCP stdio transport). Now add the README documentation:\nNow run quality checks:\nAll quality checks pass. Now run pre-commit and update prd.json:\nPre-existing mypy errors in other files — not my code. My new files pass cleanly (verified above). Now update prd.json:\nNow commit:\nNow append to progress.txt:\nDone. US-1260 is implemented and marked `passes: true`.\n\n**Summary:**\n- `lib/mcp/spiral_mcp.py` — FastMCP server runnable via `python -m lib.mcp.spiral_mcp` with 5 tools: `spiral_status`, `spiral_stories`, `spiral_recent_failures`, `spiral_iteration`, `spiral_add_story`\n- `lib/mcp/__init__.py` — transparent proxy that loads the real `mcp` SDK from site-packages, working around the `lib/` editable-install sys.path collision\n- `lib/pyproject.toml` — added `fastmcp>=2.0`\n- `README.md` — new \"SPIRAL MCP Server\" section with `.mcp.json` setup and example usage"
-      }
+      },
+      "_passedCommit": "479ac3851ed5ab86ed1f03fe2fa99ceeedc462a7"
     }
   ]
 }

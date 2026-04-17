@@ -107,7 +107,15 @@ class TestFormatCsv:
             rows = list(reader)
             assert len(rows) == 2
             assert set(reader.fieldnames or []) >= {
-                "ID", "Title", "Status", "Project", "Complexity", "Tokens", "Cost", "Model", "Last_Failure_Reason"
+                "ID",
+                "Title",
+                "Status",
+                "Project",
+                "Complexity",
+                "Tokens",
+                "Cost",
+                "Model",
+                "Last_Failure_Reason",
             }
 
     def test_format_csv_values(self) -> None:
