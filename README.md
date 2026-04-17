@@ -481,6 +481,52 @@ spiral/
 └── .gitignore
 ```
 
+## SPIRAL MCP Server
+
+The SPIRAL MCP server lets Claude Code query live SPIRAL state without reading files manually — useful for progress checks, debugging failures, and adding stories from within a Claude session.
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `spiral_status` | Current iteration, phase, and run metadata from `.spiral/_checkpoint.json` |
+| `spiral_stories(filter)` | Stories from `prd.json`; optional substring filter on id/title/source |
+| `spiral_recent_failures(n)` | Last *n* non-passing rows from `results.tsv` |
+| `spiral_iteration(n)` | All `results.tsv` rows for iteration *n* |
+| `spiral_add_story(body, source)` | Validate (via `lib/prd_schema.py`) and append a new story to `prd.json` |
+
+### Setup
+
+Add the server to your project's `.mcp.json` (or `~/.claude/settings.json` for global access):
+
+```json
+{
+  "mcpServers": {
+    "spiral": {
+      "command": "uv",
+      "args": ["run", "--no-dev", "python", "-m", "lib.mcp.spiral_mcp"],
+      "cwd": "/path/to/your/spiral/repo"
+    }
+  }
+}
+```
+
+Or register via the Claude Code CLI:
+
+```bash
+claude mcp add spiral -- uv run --no-dev python -m lib.mcp.spiral_mcp
+```
+
+### Example Usage (in a Claude session)
+
+```
+spiral_status()           → {"iter": 23, "phase": "M", ...}
+spiral_stories("fails")   → [{...}, ...] (stories where "fails" appears in id/title)
+spiral_recent_failures(5) → last 5 rows where status != "pass"
+spiral_add_story({"id": "US-1300", "title": "...", "priority": "medium",
+  "description": "...", "acceptanceCriteria": ["..."]}, source="seed")
+```
+
 ## Firecrawl MCP (Optional)
 
 Firecrawl is an optional Phase R enhancement. It replaces `WebFetch` with a dedicated scraper that returns **clean LLM-optimized markdown**, handles JavaScript-rendered pages, and offloads heavy scraping from Claude — saving significant tokens on research iterations.

@@ -24,6 +24,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "websockets>=14.0",
     "uvicorn>=0.30.0",
+    "fastmcp>=2.0",
 ]
 
 [project.optional-dependencies]
