@@ -633,7 +633,7 @@
         "US-1212"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1178,6 +1178,28 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1270",
+      "title": "CLI: Add `spiral lint` Core Command for PRD and Config Validation",
+      "priority": "medium",
+      "description": "Users can pass invalid prd.json or misconfigured spiral.config.sh without knowing until runtime. This story adds the spiral lint subcommand that validates prd.json against prd.schema.json and checks spiral.config.sh for undefined variable references, printing errors with file and line numbers and exiting non-zero on failure.",
+      "acceptanceCriteria": [
+        "python main.py lint with a valid prd.json and config exits 0 with no output",
+        "python main.py lint with tests/fixtures/bad_prd.json prints 'ERROR: prd.json line N: <reason>' to stderr and exits 1",
+        "uv run pytest tests/test_cli_lint.py::test_lint_invalid_prd tests/test_cli_lint.py::test_lint_valid_prd -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_lint.py (new file — load_and_validate_prd(path) uses jsonschema against prd.schema.json; check_config_sh(path) regex-scans for bare $VAR without default)",
+        "File to edit: lib/cli_subcommands.sh (add 'lint' case in dispatch, ~8 lines — call python main.py lint)",
+        "File to edit: tests/test_cli_lint.py (new file — tests for valid and invalid prd.json paths)",
+        "File to create: tests/fixtures/bad_prd.json (minimal JSON with one invalid field for test fixture)",
+        "Test command: uv run pytest tests/test_cli_lint.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
