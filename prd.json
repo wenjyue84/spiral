@@ -901,7 +901,16 @@
       "_failureReason": "oversized_diff: produced 3002 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
       "_antiPatterns": [
         "oversized_diff: produced 3002 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ]
+      ],
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe `lib/dashboard/api.py` FastAPI app uses `_APIKeyMiddleware` — when `SPIRAL_DASHBOARD_API_KEY` is set, all endpoints (except `/health`) require `X-API-Key` header. Missing → 401, wrong → 403. No dedicated `/api/config` GET endpoint exists; SettingsTab uses props passed from parent + `/api/save-config` Vite middleware.\n\n## Problem Identified\nUS-1256 needs security tests for config access control. Previous attempt produced 3002 lines (limit 800). Must write a minimal test file following the existing `test_security_us_1096.py` pattern.\n\n## Planned Changes\n- Create `tests/test_security_us1215.py` (~45 lines) with exact test names from acceptance criteria\n- Update `prd.json` to mark US-1256 as `passes: true`\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_security_us1215.py\"],\n  \"files_to_modify\": [\"prd.json\"],\n  \"functions_to_add\": [\"test_unauthenticated_get_config_returns_401\", \"test_error_response_contains_no_secrets\"],\n  \"estimated_loc\": 50\n}\n</plan>\nNow run the tests to verify they pass.\nAll 4 tests pass. Now run the `-k us_1215` variant from the acceptance criteria.\nNeed to adjust — the acceptance criteria expect module-level test functions (no class), and all should match the `-k us_1215` filter. Let me fix.\nAll 3 acceptance criteria pass. Now run pre-commit and update prd.json.\nThe mypy errors are all pre-existing (in `reachability_verifier.py`, `ucb1_select.py`, `spiral_dashboard.py`) — not in my test file. My file passed ruff lint, ruff format, and mypy (no errors from my file).\nClean. Now commit.\nNow update progress.txt.\nDone. US-1256 implemented with a 51-line diff (well under the 800-line limit):\n\n- **Created** `tests/test_security_us1215.py` — 4 tests verifying dashboard API auth enforcement and no-secret-leak in error responses\n- **Updated** `prd.json` — marked US-1256 `passes: true`\n- All 3 acceptance criteria verified passing\nThe background task failure is the same pre-existing mypy errors I already identified — not from my file. The story is complete and committed. My test file passes mypy strict cleanly (`Success: no issues found in 1 source file`)."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 103,
+        "tokensAfterMasking": 102,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     }
   ]
 }

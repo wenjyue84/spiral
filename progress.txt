@@ -395,3 +395,22 @@ Completed: Add top-5 costliest stories table to AnalyticsTab (ID: US-1279) in 3m
 - ✓ Git commit successful with full acceptance criteria tracking
 ## Iteration 4 - Tue, Apr 14, 2026  3:33:12 AM
 Completed: Add keyword search filter to StoriesListAccordion (ID: US-1280) in 3m
+## Iteration 1 - Fri, Apr 17, 2026 10:38:08 PM
+FAILED diff-guard: [Security Test] spiral-ui: SettingsTab access control (US-1215) (ID: US-1256) — 3002 lines > 800 limit — attempt 1/3
+
+
+## Iteration 2 - Story: [Security Test] spiral-ui: SettingsTab access control (US-1256)
+
+### What was implemented
+- Created tests/test_security_us1215.py with 4 security tests (~45 lines)
+- Tests use FastAPI TestClient against lib/dashboard/api.py with SPIRAL_DASHBOARD_API_KEY auth
+- Verifies: unauthenticated → 401, wrong key → 403, valid key → allowed, no secrets leaked
+
+### Patterns discovered
+- Dashboard API auth is middleware-based (_APIKeyMiddleware) — all endpoints protected uniformly
+- Previous attempt produced 3002-line diff; minimal 45-line test file + prd.json change = ~51 lines
+
+### Gotchas
+- Acceptance criteria reference module-level test functions, not class methods — use bare functions not TestClass
+- No /api/config endpoint exists; SettingsTab uses props + /api/save-config Vite middleware
+- Pre-existing mypy errors in 3 other files (reachability_verifier, ucb1_select, spiral_dashboard) — unrelated
