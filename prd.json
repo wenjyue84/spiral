@@ -742,7 +742,7 @@
         "US-1226"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1240,6 +1240,26 @@
       "dependencies": [
         "US-1212"
       ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1273",
+      "title": "Phase S: Detect Duplicate Stories via Semantic Similarity and Flag for Merge",
+      "priority": "medium",
+      "description": "Phase S (story validation) currently checks constitution and goal alignment. This story adds a deduplication step that compares story intent across pending/completed stories and flags potential duplicates based on semantic similarity, reducing redundant work and improving story quality.",
+      "acceptanceCriteria": [
+        "lib/story_dedup.py exports find_duplicates(story: dict, existing_stories: list) → list of (existing_id, similarity: float, merge_reason: str)",
+        "Similarity >0.75 flags as 'likely duplicate', >0.85 flags as 'high-confidence merge candidate'",
+        "Phase S logs duplicates in _validated_stories.json with new field 'duplicate_of' if found"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/story_dedup.py (new, ~100 lines using difflib.SequenceMatcher)",
+        "File to edit: lib/phases/phase_s.sh (call dedup check before constitution validation, ~10 lines)",
+        "Test command: uv run pytest tests/test_story_dedup.py::test_find_duplicates -v"
+      ],
+      "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
