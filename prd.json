@@ -1263,6 +1263,27 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1274",
+      "title": "Phase G: Generate API docs from story acceptance criteria",
+      "priority": "high",
+      "description": "Create lib/api_doc_generator.py with generate_api_docs() that builds Python stub modules per story with ACs as docstrings, then renders .spiral/docs/api/ HTML. Invoke from Phase G in spiral.sh after story commits so docs are always current.",
+      "acceptanceCriteria": [
+        "uv run python -c \"from lib.api_doc_generator import generate_api_docs; print('OK')\" exits 0",
+        "After calling generate_api_docs(), .spiral/docs/api/index.html exists and its text contains every story ID passed in",
+        "uv run pytest tests/test_api_doc_generator.py::test_generate_api_docs -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/api_doc_generator.py (create: story_to_stub(story) -> str, generate_api_docs(prd, stories, output_dir), render_index_html(stories, output_dir))",
+        "File to edit: spiral.sh (Phase G section ~line 1200: add call `uv run python lib/api_doc_generator.py` after story commits)",
+        "File to edit: tests/test_api_doc_generator.py (create: test_generate_api_docs, test_render_index_html using tmp_path fixture)",
+        "Test command: uv run pytest tests/test_api_doc_generator.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
     }
   ]
 }
