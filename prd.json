@@ -895,9 +895,13 @@
         "US-1215"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-04-14T06:41:29Z"
+      "last_attempted": "2026-04-17T14:38:11Z",
+      "_failureReason": "oversized_diff: produced 3002 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
+      "_antiPatterns": [
+        "oversized_diff: produced 3002 lines but limit is 800. Keep total insertions+deletions under 800 lines."
+      ]
     }
   ]
 }
