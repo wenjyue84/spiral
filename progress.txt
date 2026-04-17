@@ -634,3 +634,26 @@ Completed: MCP server exposing SPIRAL state (lib/mcp/spiral_mcp.py) for Claude C
 
 ### Gotchas
 - Pre-existing mypy errors in other files (reachability_verifier.py, routing/ucb1_select.py, ui/spiral_dashboard.py) cause the mypy pre-commit hook to fail — these are NOT caused by this story's changes and should be ignored for this story
+## Iteration 2 - Fri, Apr 17, 2026 11:58:06 PM
+Completed: CLI: Add `spiral query stories` with filtering, sorting, and table/JSON/CSV export formats (ID: US-1235) in 4m
+
+
+## Iteration 3 - Story: CLI spiral explain <story-id> (US-1236)
+
+### What was implemented
+- Created `lib/story_formatter.py` with `format_story_explain(story, results_row, fmt)` supporting text/markdown/json
+- Text format: box header with ID/title/source badge, then Description, AC, Technical Notes, Files, Research Context, Run Metadata
+- Markdown format: # heading, badges, ## sections for each group — suitable for Notion/docs
+- JSON format: raw story object merged with `_results` key from results.tsv
+- Research context section: only shown for `_source == "research"` stories; URLs with credibility (high/medium/low based on domain)
+- Added `--explain <story-id> [--markdown|--json]` flag parsing to spiral.sh
+- Added EXPLAIN_MODE handler to lib/cli_subcommands.sh
+- Created `tests/test_story_formatter.py` with 14 passing tests
+
+### Patterns discovered
+- Ruff E741 flags ambiguous single-letter variable names (l, O, I) in comprehensions — use descriptive names like `lw` instead of `l`
+- Pre-existing mypy errors in reachability_verifier.py, routing/ucb1_select.py, ui/spiral_dashboard.py are NOT caused by this story — confirmed in progress.txt from prior iteration
+- `python lib/story_formatter.py prd.json <story-id>` works standalone without going through bash (useful for testing)
+
+### Gotchas
+- mypy pre-commit hook fails due to pre-existing errors in other files; this is expected and documented
