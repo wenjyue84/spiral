@@ -417,3 +417,46 @@ FAILED diff-guard: [Security Test] spiral-ui: SettingsTab access control (US-121
 ## Iteration 2 - Fri, Apr 17, 2026 10:48:19 PM
 Completed: [Security Test] spiral-ui: SettingsTab access control (US-1215) (ID: US-1256) in 9m
 
+
+## Pre-analysis for US-1257 (Gemini 2.5 Pro)
+### Technical Brief: US-1257 - Inject Lessons into Decomposition Prompt
+
+**Objective:** Enhance the story decomposition process by injecting relevant "learned lessons" into the prompt, creating a feedback loop from past issues to future planning.
+
+**1. Python Files to Modify:**
+*   `lib/decompose_story.py`: This is the primary file. It will be modified to import and use the lesson querying functionality.
+*   `tests/test_decompose_lessons.py`: A new unit test file to be created to verify the injection logic.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This user story pertains to the Spiral project's internal Python scripts, not a Frappe application. The logic is contained within standard Python modules.
+
+**3. Implementation Approach:**
+1.  In `lib/decompose_story.py`, import `query_lessons` from `lib.learned_lessons`.
+2.  Locate the function responsible for building the decomposition prompt.
+3.  Implement a check for the `SPIRAL_LESSON_INJECTION` environment variable. If it is set to `false`, the lesson injection logic should be skipped.
+4.  Before generating the final prompt, call `query_lessons()`, passing keywords or tags from the current story being decomposed.
+5.  If relevant lessons are returned, format the top 3 into a clear, designated section (e.g., "### Known pitfalls to avoid:") and append it to the prompt string.
+6.  Create `tests/test_decompose_lessons.py` to test the logic, mocking the `query_lessons` return value and asserting that the final prompt correctly includes the lesson text.
+
+**4. Edge Cases & Gotchas:**
+*   **No Lessons Found:** The logic must gracefully handle cases where `query_lessons()` returns no results; the prompt should be generated normally without an empty "pitfalls" section.
+*   **Prompt Formatting:** The injected lessons must be formatted clearly to avoid confusing the language model. A structured prefix is recommended.
+*   **Performance:** `query_lessons` reads from a file (`.spiral/learned_lessons.jsonl`). Ensure this operation is efficient and doesn't significantly slow down the decomposition process.
+
+
+## Iteration [N] - Story: Phase I decompose: inject learned-lessons into decomposition prompt (US-1257)
+
+### What was implemented
+- Added `build_lessons_section()` to `lib/workers/decompose_story.py` that calls `query_lessons()` and formats top-K matching lessons into an XML block
+- Added `--lessons` CLI arg (default: `.spiral/learned_lessons.jsonl`)
+- Lessons injected after the base prompt; gated by `SPIRAL_LESSON_INJECTION` env var (default: true)
+- Added `sys.path.insert` for `lib/` so `from learned_lessons import query_lessons` resolves
+- Created `tests/test_decompose_lessons.py` with 5 tests covering all acceptance criteria
+
+### Patterns discovered
+- `lib/workers/` uses `sys.path.insert(0, os.path.dirname(__file__))` for local imports; parent `lib/` imports need a second insert one level up
+- Token overlap in `query_lessons()` is Jaccard similarity — works well when story title/description shares keywords with lesson patterns
+
+### Gotchas
+- `from __future__ import annotations` required for `dict[str, Any]` in function signatures under Python 3.13 strict mypy
+- Remove unused `pytest` import or ruff F401 fails

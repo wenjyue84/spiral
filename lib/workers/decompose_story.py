@@ -20,6 +20,8 @@ from typing import Any
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from learned_lessons import query_lessons
 from llm_models import DecompositionResult, validate_llm_json
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
@@ -27,6 +29,28 @@ from spiral_io import atomic_write_json, configure_utf8_stdout
 configure_utf8_stdout()
 
 STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
+
+
+def build_lessons_section(lessons_path: str, story: dict[str, Any], top_k: int = 3) -> str:
+    """Return a formatted lessons block to append to the decomposition prompt.
+
+    Returns empty string when SPIRAL_LESSON_INJECTION=false or no matches found.
+    """
+    if os.environ.get("SPIRAL_LESSON_INJECTION", "true").lower() == "false":
+        return ""
+    from pathlib import Path
+
+    matches = query_lessons(Path(lessons_path), story, top_k=top_k)
+    if not matches:
+        return ""
+    lines = ["\n<learned_lessons>"]
+    lines.append("  Previous failures to avoid when designing sub-stories:")
+    for i, lesson in enumerate(matches, 1):
+        lines.append(f"  {i}. [{lesson.get('error_category', 'error')}] {lesson.get('pattern', '')}")
+        lines.append(f"     Fix: {lesson.get('fix', '')}")
+    lines.append("</learned_lessons>\n")
+    return "\n".join(lines)
+
 
 DECOMPOSE_PROMPT = """\
 You are decomposing a failed user story into 2-{max_sub} smaller, independent sub-stories.
@@ -179,6 +203,7 @@ def main() -> int:
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json")
     parser.add_argument("--story-id", required=True, help="Story ID to decompose (e.g. US-005)")
     parser.add_argument("--progress", default="progress.txt", help="Path to progress.txt")
+    parser.add_argument("--lessons", default=".spiral/learned_lessons.jsonl", help="Path to lessons JSONL")
     parser.add_argument("--model", default="sonnet", help="Claude model (default: sonnet)")
     parser.add_argument("--max-substories", type=int, default=4, help="Max sub-stories (default: 4)")
     parser.add_argument("--dry-run", action="store_true", help="Print prompt without modifying prd.json")
@@ -234,6 +259,7 @@ def main() -> int:
         failure_context=failure_context,
         max_sub=args.max_substories,
     )
+    prompt += build_lessons_section(args.lessons, parent)
 
     if args.dry_run:
         print("[decompose] DRY RUN — prompt that would be sent to Claude:")
