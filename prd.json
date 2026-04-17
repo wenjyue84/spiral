@@ -746,6 +746,69 @@
       "model": "haiku"
     },
     {
+      "id": "US-1245",
+      "title": "Phase V: Create lib/phase_v_evidence.py with test evidence aggregator",
+      "priority": "medium",
+      "description": "Create lib/phase_v_evidence.py with an aggregate_test_evidence function that parses pytest -v output for a list of stories and returns a dict mapping story_id to per-target PASS/FAIL results. This is the core evidence collection logic, tested in isolation before integration.",
+      "acceptanceCriteria": [
+        "lib/phase_v_evidence.py exists and exports aggregate_test_evidence(story_list: List[dict]) -> dict",
+        "Function parses pytest -v stdout and returns {story_id: {target_file: 'PASS'|'FAIL'}} for each story",
+        "uv run pytest tests/test_phase_v_evidence.py::test_evidence_aggregation -v passes"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_v_evidence.py (aggregate_test_evidence function — use subprocess.run(['uv','run','pytest','-v', target], capture_output=True) per target)",
+        "File to create: tests/test_phase_v_evidence.py (test_evidence_aggregation — mock subprocess output with sample pytest -v text)",
+        "Test command: uv run pytest tests/test_phase_v_evidence.py::test_evidence_aggregation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1246",
+      "title": "Phase V: Integrate evidence aggregator into spiral.sh and update prd.schema.json",
+      "priority": "medium",
+      "description": "Update prd.schema.json to allow the verification.testFiles field to accept an array, then wire lib/phase_v_evidence.py into the Phase V section of spiral.sh so evidence.json is written after each story verification run.",
+      "acceptanceCriteria": [
+        "prd.schema.json validation accepts verification.testFiles as either a string or array of strings",
+        "Phase V section in spiral.sh calls phase_v_evidence.py and writes .spiral/evidence.json with structure {story_id: {target: PASS|FAIL}}",
+        "uv run python lib/prd_schema.py prd.json exits 0 after schema change"
+      ],
+      "technicalNotes": [
+        "File to edit: prd.schema.json (verification object — change testFiles from type:string to oneOf:[string, array of string])",
+        "File to edit: spiral.sh (Phase V section ~line search for 'phase_v' or 'PHASE V' — add: python lib/phase_v_evidence.py after pytest calls, redirect output to .spiral/evidence.json)",
+        "Test command: uv run python lib/prd_schema.py prd.json"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1247",
+      "title": "[Regression Test] Loop Quality Score: composite metric written to _loop_quality.jsonl",
+      "priority": "medium",
+      "description": "Write a pytest regression test that guards the US-1226 loop-quality score feature. The test must confirm that after Phase C the composite score (0-100) is computed from the three sub-metrics and appended to .spiral/_loop_quality.jsonl, and that the one-line summary is printed.",
+      "acceptanceCriteria": [
+        "After invoking the Phase C quality scorer with mock iteration data, `.spiral/_loop_quality.jsonl` contains an entry with keys: generation_quality, redundancy_ratio, calibration_accuracy, composite_score",
+        "composite_score is a float in [0, 100]; removing the feature causes KeyError or missing file, making the test fail",
+        "`uv run pytest tests/ -k us_1226 -v` exits 0 with no failures"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_loop_quality.py (new file — unit tests for score computation and jsonl append)",
+        "File to edit: lib/loop_quality.py or equivalent Phase C scorer module",
+        "Test command: uv run pytest tests/test_loop_quality.py -v",
+        "Use tmp_path fixture to isolate .spiral/_loop_quality.jsonl; assert json.loads(line) structure"
+      ],
+      "dependencies": [
+        "US-1226"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1250",
       "title": "[Security Test] spiral-ui config API: auth and data-leak guards",
       "priority": "high",
@@ -855,12 +918,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "seed",
-      "model": "haiku",
-      "last_attempted": "2026-04-17T14:58:01Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`lib/workers/decompose_story.py` builds a decomposition prompt from the parent story + failure context, but never queries `learned_lessons.py` for relevant past failures.\n\n## Problem Identified\n`query_lessons()` exists in `lib/learned_lessons.py` but `decompose_story.py` doesn't import or use it, so the learning loop is broken — sub-stories don't inherit known anti-patterns.\n\n## Planned Changes\n- **`lib/workers/decompose_story.py`**: Add `query_lessons` import, `--lessons` CLI arg, `build_lessons_section()` helper, and inject lessons into the prompt (gated by `SPIRAL_LESSON_INJECTION`)\n- **`tests/test_decompose_lessons.py`**: New test file covering all 4 acceptance criteria\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_decompose_lessons.py\"],\n  \"files_to_modify\": [\"lib/workers/decompose_story.py\"],\n  \"functions_to_add\": [\"build_lessons_section\"],\n  \"estimated_loc\": 90\n}\n</plan>\nNow let me make the changes to `lib/workers/decompose_story.py`:\nNow add the `build_lessons_section` function after `STORY_PREFIX`:\nNow find where the prompt is built in `main()` and inject the lessons:\nNow add the `--lessons` CLI argument. Let me find the argparse section:\nNow write the test file:\nAll 5 tests pass. Let me run pre-commit and type checks:\nAll clean. Now mark the story as passing and commit:\nDone. US-1257 is complete.\n\n**Summary of changes:**\n\n- **`lib/workers/decompose_story.py`**: Added `build_lessons_section()` function that calls `query_lessons()` from `lib/learned_lessons.py`, formats the top-3 matching lessons as an XML block, and appends it to the decomposition prompt. Gated by `SPIRAL_LESSON_INJECTION` env var (default: `true`). Added `--lessons` CLI arg.\n\n- **`tests/test_decompose_lessons.py`**: 5 tests covering all acceptance criteria — injection when lessons match, 3+ tag-matching lessons produce output, `SPIRAL_LESSON_INJECTION=false` suppresses injection, default behavior, and missing file returns empty string gracefully."
-      },
-      "_passedCommit": "d51b6404d1a42dd1c7fb9002b2fd7448bc7a5bb8"
+      "model": "haiku"
     },
     {
       "id": "US-1258",
@@ -883,12 +941,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "seed",
-      "model": "sonnet",
-      "last_attempted": "2026-04-17T15:07:36Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `ralph/lib/prompt_builder.sh` builds `RALPH_USER_PROMPT` with various injections (episodic memory, learned patterns, plan cache, etc.)\n- `lib/learned_lessons.py` has `query_lessons()` that finds relevant lessons by keyword overlap\n- US-1257 already wired lessons into the decomposition prompt in `lib/workers/decompose_story.py`\n- US-1258 needs to wire lessons into the **Ralph CLI call** itself — a sidecar file written before each Ralph invocation\n\n## Problem Identified\nRalph workers don't receive learned lessons from `.spiral/learned_lessons.jsonl` at runtime. The decomposer gets them (US-1257), but the implementation agent does not.\n\n## Planned Changes\n1. **Create `lib/write_ralph_lessons.py`** — Python helper that reads `.spiral/learned_lessons.jsonl`, calls `query_lessons()`, writes `.spiral/ralph-lessons-<story>.md`\n2. **Edit `ralph/lib/prompt_builder.sh`** — Add lesson sidecar injection section that calls the Python helper and appends the sidecar content to `RALPH_USER_PROMPT`, gated by `SPIRAL_LESSON_INJECTION`\n3. **Create `tests/test_ralph_lessons.bats`** — Integration test asserting lesson content appears in the prompt when lessons match, and is absent when disabled\n4. **Edit `prd.json`** — Mark US-1258 as `passes: true`\n\n<plan>\n{\n  \"files_to_create\": [\"lib/write_ralph_lessons.py\", \"tests/test_ralph_lessons.bats\"],\n  \"files_to_modify\": [\"ralph/lib/prompt_builder.sh\", \"prd.json\"],\n  \"functions_to_add\": [\"write_lessons_sidecar (Python)\", \"inject_lessons_sidecar (bash section)\"],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me implement.\nNow inject the lesson sidecar into `prompt_builder.sh`. I'll add it after the existing learned patterns section (line 220) and before the file context injection (line 222).\nNow create the bats test file.\nNow let me run the tests and type checks.\nLet me debug the failing tests.\nLet me debug without the cleanup step.\nThe issue is the import chain. `learned_lessons.py` imports from `lib.failure_categorizer` which requires running from the project root. Let me fix the Python script.\nNeed to also add the project root to sys.path so `lib.failure_categorizer` resolves.\nPython script works. Now let me also check if the bats test issue is because `SPIRAL_HOME` needs to point to the project root and `python3` needs to be available. Let me also check what `_resolve_jq` does.\nThe bats test needs `SPIRAL_PYTHON` set. The prompt_builder invokes `\"${SPIRAL_PYTHON:-python3}\"`. Let me re-run the bats tests with more debug info.\nAll 4 tests pass. The issue was `python3` not being found without explicit `SPIRAL_PYTHON`. Let me make the test more robust by adding `SPIRAL_PYTHON` to setup.\nNow run mypy and ruff checks.\nAll clean. Now run the bats tests once more to confirm they all pass.\nAll 4 tests pass. Now mark the story as complete in prd.json.\nNow update progress.txt and run pre-commit.\nThe ruff failures are all in pre-existing files (`.claude/hooks/`, `env_test/`) — not in my changes. Let me verify my files are clean.\nMy files are clean. The pre-commit failures are all pre-existing (env_test vendor, hooks file). Now commit.\nDone. US-1258 implemented:\n\n1. **`lib/write_ralph_lessons.py`** — Python helper that reads `.spiral/learned_lessons.jsonl`, calls `query_lessons()`, and writes a per-story Markdown sidecar\n2. **`ralph/lib/prompt_builder.sh`** — New section invokes the helper before each Ralph CLI call and injects sidecar content into `RALPH_USER_PROMPT`\n3. **`tests/test_ralph_lessons.bats`** — 4 integration tests: injection works, sidecar file created, disabled via env var, silent skip on missing file\n4. Gated by `SPIRAL_LESSON_INJECTION=false` (default: true)"
-      },
-      "_passedCommit": "0deaeb5031a1cda842a2d5987ca4273f5b8493c4"
+      "model": "sonnet"
     },
     {
       "id": "US-1259",
@@ -909,8 +962,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "seed",
-      "model": "haiku",
-      "last_attempted": "2026-04-17T15:18:11Z"
+      "model": "haiku"
     },
     {
       "id": "US-1260",
@@ -934,6 +986,113 @@
       "passes": false,
       "_source": "seed",
       "model": "haiku"
+    },
+    {
+      "id": "US-1261",
+      "title": "Model routing: add optional Ollama local tier below haiku for trivial complexity stories",
+      "priority": "medium",
+      "description": "Extend lib/routing/llm_router.py with an ollama tier selected when complexity=trivial AND SPIRAL_ENABLE_LOCAL_TIER=true AND Ollama health-check (GET http://localhost:11434/api/tags) returns 200. Defaults to gemma4:latest. Falls through to haiku on timeout or low-confidence. Respects feedback_no_anthropic_api.md (Claude CLI only, Ollama via local daemon).",
+      "acceptanceCriteria": [
+        "llm_router.py exposes a 4th tier 'ollama' below 'haiku'",
+        "Selection guarded by SPIRAL_ENABLE_LOCAL_TIER (default false) and a 2-second health check",
+        "Fallthrough to haiku on non-200 / timeout; recorded in results.tsv as tier_escalation=ollama->haiku",
+        "Unit test covers both success and fallback paths"
+      ],
+      "technicalNotes": [
+        "uv run pytest tests/test_llm_router_ollama.py -v",
+        "spiral.config.sh gains SPIRAL_ENABLE_LOCAL_TIER, SPIRAL_OLLAMA_MODEL"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1262",
+      "title": "Interrupt-and-redirect: file-signal IPC so running Ralph worker can be stopped or redirected",
+      "priority": "medium",
+      "description": "Ralph worker polls .spiral/interrupt.json between retries. Schema: {action: stop|redirect, note?: string, ts: iso}. On stop worker finishes current LLM call then exits cleanly; on redirect it prepends note to story context and re-enters Phase I. CLI: spiral interrupt --redirect '...'. Hermes-inspired: interrupt-and-redirect.",
+      "acceptanceCriteria": [
+        "ralph/ralph.sh polls the interrupt file between retries (not mid-LLM-call)",
+        "New subcommand 'spiral interrupt' writes the JSON with correct schema",
+        "bats test writes interrupt file mid-run and asserts worker exits <=30s with worktree intact",
+        "Dashboard (spiral_dashboard.py) gains an 'i' key binding that prompts for note and writes the file"
+      ],
+      "technicalNotes": [
+        "tests/test_interrupt_redirect.bats",
+        "Document the file schema in docs/interrupt.md"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1263",
+      "title": "WhatsApp notification plugin (plugins/notify-whatsapp/) for iteration and story reports",
+      "priority": "medium",
+      "description": "Mirror plugins/notify-slack/ to produce plugins/notify-whatsapp/. Hooks: post-story (optional, throttled) and run-completion (always when enabled). Uses local whatsapp-baileys endpoint or configured webhook. Report format follows feedback_plain_language_reports.md (no jargon, include pass delta per feedback_progress_comparison.md).",
+      "acceptanceCriteria": [
+        "plugins/notify-whatsapp/plugin.toml with hooks=['post-story','run-completion']",
+        "Hook script reads JSON from stdin and POSTs plain-language report to WHATSAPP_WEBHOOK_URL",
+        "Omits DLQ mention when dlq=0; includes 'N new stories passed (was M last run)' line",
+        "Opt-in via SPIRAL_NOTIFY_WHATSAPP=true; disabled by default"
+      ],
+      "technicalNotes": [
+        "Manual smoke test against local whatsapp-baileys service",
+        "Reuse template: plugins/notify-slack/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "seed",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1264",
+      "title": "Trajectory export: results.tsv + worker logs to JSONL for LLM fine-tuning / RL training",
+      "priority": "low",
+      "description": "lib/export_trajectories.py walks results.tsv, checkpoints, and worker logs, emits JSONL in OpenAI SFT / trl shape: {messages: [...], reward: float, meta: {story_id, model, tokens, duration}}. Opt-in, out-of-loop; no effect on normal runs. Hermes-inspired: batch_runner.py + trajectory_compressor.py.",
+      "acceptanceCriteria": [
+        "uv run python -m lib.export_trajectories --out trajectories.jsonl produces valid JSONL",
+        "Each line passes a schema check (messages array, reward float in [-1,1])",
+        "Failed attempts get reward<=0; passed attempts get reward>0",
+        "README documents the export command and schema"
+      ],
+      "technicalNotes": [
+        "uv run pytest tests/test_export_trajectories.py -v"
+      ],
+      "dependencies": [
+        "US-1259"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "seed",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1265",
+      "title": "Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand",
+      "priority": "low",
+      "description": "Extend plugin.toml schema with name, version, description, inputs, outputs, tags. Add 'spiral skills list' (enumerate local plugins) and 'spiral skills install <url>' (fetch+verify+extract a plugin tarball into plugins/). Deferred; implement only after US-1263 lands so there is a second plugin to round-trip.",
+      "acceptanceCriteria": [
+        "Every plugin.toml in plugins/ gains the new metadata block (backward compatible)",
+        "'spiral skills list' round-trips metadata from notify-slack and notify-whatsapp",
+        "'spiral skills install' rejects unsigned / schema-invalid plugins",
+        "Schema documented in plugins/README.md"
+      ],
+      "technicalNotes": [
+        "uv run pytest tests/test_skills_cli.py -v"
+      ],
+      "dependencies": [
+        "US-1263"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed",
+      "model": "sonnet"
     }
   ]
 }

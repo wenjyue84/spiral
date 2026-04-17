@@ -125,3 +125,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-17T14:38:08Z	21	1	US-1256	[Security Test] spiral-ui: SettingsTab access control (US-1215)	reject	269	opus	1		reset-after-phase-a-drift	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-17T14:48:18Z	21	2	US-1256	[Security Test] spiral-ui: SettingsTab access control (US-1215)	keep	564	opus	1	48db6f9ac6d1a89d6c18dc53c6df4cd5e508d882	reset-after-phase-a-drift	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-17T15:07:32Z	22	1	US-1257	Phase I decompose: inject learned-lessons into decomposition prompt (close the learning loop)	keep	524	sonnet	0	d51b6404d1a42dd1c7fb9002b2fd7448bc7a5bb8	reset-after-phase-a-drift	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-17T15:18:08Z	22	2	US-1258	Ralph prompt: inject relevant learned-lessons sidecar into Claude CLI call at runtime	keep	591	opus	0	0deaeb5031a1cda842a2d5987ca4273f5b8493c4	reset-after-phase-a-drift	false	0	0	0	0	0	0	0		0	0	0	0				
