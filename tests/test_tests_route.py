@@ -1,11 +1,10 @@
 """Test suite for GET /api/tests/summary endpoint (US-1308)."""
 
 import json
-import pytest
-import subprocess
-import time
 from pathlib import Path
 from typing import Generator
+
+import pytest
 
 
 @pytest.fixture
