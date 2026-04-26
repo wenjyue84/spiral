@@ -10,6 +10,8 @@ Exposes:
 - GET /api/dashboard/phase-cost-breakdown — Token/cost per phase from results.tsv (US-641)
 - GET /api/dashboard/worker-phase-swimlane — Worker phase status for swimlane chart (US-750)
 - GET /api/dashboard/throughput — Stories completed per hour (US-1254)
+- GET /api/config — Read runtime config from .spiral/ui-config.json (US-1214)
+- POST /api/config — Write runtime config to .spiral/ui-config.json (US-1214)
 - WebSocket /ws/cost — Real-time cost delta streaming endpoint
 - WebSocket /ws/timeline — Real-time phase transition events
 - WebSocket /ws/overview — Real-time cross-project overview updates
@@ -1037,6 +1039,43 @@ async def throughput_endpoint() -> dict[str, Any]:
     except Exception as e:
         logger.error(f"[/api/dashboard/throughput] Error aggregating throughput: {e}")
         return {"hourly_throughput": [], "total_hours": 0, "error": str(e)}
+
+
+_CONFIG_PATH = Path(".spiral/ui-config.json")
+_ALLOWED_CONFIG_KEYS = frozenset({"SPIRAL_MAX_PENDING", "SPIRAL_MODEL_ROUTING", "SPIRAL_VALIDATE_CMD"})
+
+
+@app.get("/api/config")
+async def get_config() -> dict[str, Any]:
+    """Read runtime config from .spiral/ui-config.json."""
+    if _CONFIG_PATH.exists():
+        try:
+            with open(_CONFIG_PATH, encoding="utf-8") as f:
+                data: dict[str, Any] = json.load(f)
+            return data
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+
+@app.post("/api/config")
+async def post_config(payload: dict[str, Any]) -> dict[str, str]:
+    """Write runtime config values to .spiral/ui-config.json."""
+    unknown = set(payload.keys()) - _ALLOWED_CONFIG_KEYS
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"Unknown config keys: {sorted(unknown)}")
+    _CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    existing: dict[str, Any] = {}
+    if _CONFIG_PATH.exists():
+        try:
+            with open(_CONFIG_PATH, encoding="utf-8") as f:
+                existing = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
+    existing.update(payload)
+    with open(_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(existing, f, indent=2)
+    return {"status": "ok"}
 
 
 # Export for use in tests and main application

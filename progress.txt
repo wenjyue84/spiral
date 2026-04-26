@@ -1156,3 +1156,28 @@ Completed: Phase S: Track story rejection reasons and add `spiral explain-reject
 ## Iteration 3 - Mon, Apr 27, 2026  5:10:55 AM
 Completed: [Regression Test] CLI: trace-dependencies command for US-1209 (ID: US-1285) in 8m
 
+
+## Iteration [N] - Story: [Security Test] Config API: block unauthorized access (US-1214) (US-1304)
+
+### What was implemented
+- Added `GET /api/config` and `POST /api/config` endpoints to `lib/dashboard/api.py`
+- Endpoints auto-inherit auth from `_APIKeyMiddleware` (which blocks all non-/health routes when SPIRAL_DASHBOARD_API_KEY is set)
+- Created `tests/test_security_us1214.py` with 6 security tests covering all acceptance criteria
+
+### Patterns discovered
+- `_APIKeyMiddleware` in `lib/dashboard/api.py` enforces auth globally for all routes except `/health`; adding new routes to the app automatically gets auth protection
+- Error responses from the middleware only return `{"detail": "Authentication required"}` or `{"detail": "Forbidden"}` — no secrets leaked
+
+### Gotchas
+- US-1214 in prd.json refers to "spiral-ui: Create backend config API" but the actual git commit for that ID was about Ralph learned patterns injection — the /api/config endpoint did NOT exist before this story
+- ruff formatter reformatted `frozenset({...})` to keep set literal on one line
+
+### Files touched
+- lib/dashboard/api.py (modified, +32 lines — added GET/POST /api/config endpoints)
+- tests/test_security_us1214.py (new, 56 lines)
+- prd.json (modified, marked US-1304 passes: true)
+
+### Quality gates passed
+- ✓ All 6 pytest tests pass (100%)
+- ✓ mypy --strict on lib/dashboard/api.py (no issues)
+- ✓ ruff check + format passed
