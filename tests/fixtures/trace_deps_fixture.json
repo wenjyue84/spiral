@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "productName": "TraceDepTest",
+  "branchName": "main",
+  "overview": "Fixture PRD for regression testing trace-dependencies CLI command",
+  "goals": [
+    "Test dependency chain resolution",
+    "Test circular dependency detection"
+  ],
+  "userStories": [
+    {
+      "id": "US-101",
+      "title": "Root story with dependencies",
+      "priority": "high",
+      "description": "Root of a dependency chain",
+      "acceptanceCriteria": [
+        "Can be traced with dependencies"
+      ],
+      "technicalNotes": [],
+      "dependencies": [
+        "US-102"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "filesTouch": [
+        "root.py"
+      ]
+    },
+    {
+      "id": "US-102",
+      "title": "Middle story in chain",
+      "priority": "high",
+      "description": "Middle of a dependency chain",
+      "acceptanceCriteria": [
+        "Resolves as child of US-101"
+      ],
+      "technicalNotes": [],
+      "dependencies": [
+        "US-103"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "filesTouch": [
+        "middle.py"
+      ]
+    },
+    {
+      "id": "US-103",
+      "title": "Leaf story in chain",
+      "priority": "high",
+      "description": "End of a dependency chain",
+      "acceptanceCriteria": [
+        "Resolves as grandchild of US-101"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "filesTouch": [
+        "leaf.py"
+      ]
+    },
+    {
+      "id": "US-201",
+      "title": "First story in circular cycle",
+      "priority": "high",
+      "description": "Part of a circular dependency",
+      "acceptanceCriteria": [
+        "Detects cycle with US-202"
+      ],
+      "technicalNotes": [],
+      "dependencies": [
+        "US-202"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-202",
+      "title": "Second story in circular cycle",
+      "priority": "high",
+      "description": "Part of a circular dependency",
+      "acceptanceCriteria": [
+        "Detects cycle with US-201"
+      ],
+      "technicalNotes": [],
+      "dependencies": [
+        "US-201"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "PROJECT-A-US-005",
+      "title": "Multi-project story",
+      "priority": "medium",
+      "description": "Story with federated project prefix",
+      "acceptanceCriteria": [
+        "Shows sub_project label"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "sub_project": "project-a"
+    }
+  ]
+}
