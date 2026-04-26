@@ -148,6 +148,9 @@ QUERY_FORMAT="table"                         # output format: table|json|csv
 EXPLAIN_MODE=0                               # 1 = explain a single story and exit (--explain)
 EXPLAIN_STORY_ID=""                          # story ID to explain
 EXPLAIN_FORMAT="text"                        # output format: text|markdown|json
+EXPLAIN_REJECTION_MODE=0                     # 1 = explain story rejection and exit (--explain-rejection)
+EXPLAIN_REJECTION_STORY_ID=""                # story ID to explain rejection for
+EXPLAIN_REJECTION_FORMAT="text"              # output format: text|json
 LOGS_MODE=0                                  # 1 = view story logs and exit (--logs)
 LOGS_STORY_ID=""                             # story ID to view logs for
 LOGS_LEVEL=""                                # log level filter: DEBUG|INFO|WARN|ERROR
@@ -397,6 +400,24 @@ while [[ $# -gt 0 ]]; do
             ;;
           --context)
             LOGS_CONTEXT="${2:-}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
+    --explain-rejection)
+      EXPLAIN_REJECTION_MODE=1
+      EXPLAIN_REJECTION_STORY_ID="${2:-}"
+      shift 2
+      while [[ $# -gt 0 ]] && [[ "$1" == --json || "$1" == --format ]]; do
+        case $1 in
+          --json)
+            EXPLAIN_REJECTION_FORMAT="json"
+            shift
+            ;;
+          --format)
+            EXPLAIN_REJECTION_FORMAT="${2:-text}"
             shift 2
             ;;
           *) break ;;

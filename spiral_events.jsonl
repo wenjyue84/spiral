@@ -6134,3 +6134,22 @@
 {"timestamp": "2026-04-26T20:30:07.603490+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Export outstanding payments as CSV for bulk tenant follow-up", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
 {"timestamp": "2026-04-26T20:30:07.604002+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Dashboard payment health card with overdue and upcoming due indicators", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
 {"timestamp": "2026-04-26T20:30:07.604408+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Quick refund and credit note entry for payment overpayments and corrections", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-04-26T20:48:40.871958+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "spiral-ui: Dark Mode Toggle with System Preference Detection", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"ts": "2026-04-26T20:51:00.476037+00:00", "type": "route_story_assigned", "story_id": "US-1265", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.476456+00:00", "type": "route_story_assigned", "story_id": "US-1283", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.476806+00:00", "type": "route_story_assigned", "story_id": "US-1285", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.477141+00:00", "type": "route_story_assigned", "story_id": "US-1286", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.477468+00:00", "type": "route_story_assigned", "story_id": "US-1288", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.477805+00:00", "type": "route_story_assigned", "story_id": "US-1289", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.478137+00:00", "type": "route_story_assigned", "story_id": "US-1290", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.478463+00:00", "type": "route_story_assigned", "story_id": "US-1291", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.478814+00:00", "type": "route_story_assigned", "story_id": "US-1293", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.479152+00:00", "type": "route_story_assigned", "story_id": "US-1294", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.479483+00:00", "type": "route_story_assigned", "story_id": "US-1295", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.479808+00:00", "type": "route_story_assigned", "story_id": "US-1296", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.480135+00:00", "type": "route_story_assigned", "story_id": "US-1297", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.480461+00:00", "type": "route_story_assigned", "story_id": "US-1298", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.480815+00:00", "type": "route_story_assigned", "story_id": "US-1299", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.481147+00:00", "type": "route_story_assigned", "story_id": "US-1300", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.481484+00:00", "type": "route_story_assigned", "story_id": "US-1302", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T20:51:00.481813+00:00", "type": "route_story_assigned", "story_id": "US-1303", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}

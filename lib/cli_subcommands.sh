@@ -273,6 +273,20 @@ if [[ "$LOGS_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── explain-rejection: display story rejection summary ──────────────────────────
+EXPLAIN_REJECTION_MODE="${EXPLAIN_REJECTION_MODE:-0}"
+EXPLAIN_REJECTION_STORY_ID="${EXPLAIN_REJECTION_STORY_ID:-}"
+EXPLAIN_REJECTION_FORMAT="${EXPLAIN_REJECTION_FORMAT:-text}"
+if [[ "$EXPLAIN_REJECTION_MODE" -eq 1 ]]; then
+  if [[ -z "$EXPLAIN_REJECTION_STORY_ID" ]]; then
+    echo "[spiral] ERROR: Usage: spiral explain-rejection <story-id> [--json]" >&2
+    exit 1
+  fi
+  _REJECT_ARGS=("$PRD_FILE" "$EXPLAIN_REJECTION_STORY_ID" "--format" "$EXPLAIN_REJECTION_FORMAT")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cli_explain_rejection.py" "${_REJECT_ARGS[@]}"
+  exit $?
+fi
+
 # ── query stories: filter/sort/export prd.json + results.tsv ─────────────────
 QUERY_MODE="${QUERY_MODE:-0}"
 QUERY_SUBCOMMAND="${QUERY_SUBCOMMAND:-}"
