@@ -1493,3 +1493,6 @@ Completed: spiral-ui: Tests tab React component with story grid and detail modal
 - ✓ mypy --strict on lib/federated_search.py + lib/cli/search_stories.py (no issues)
 - ✓ ruff check + format passed (clean)
 - ✓ Required test: test_search_finds_stories_in_main_and_subprojects PASSED
+## Iteration 3 - Mon, Apr 27, 2026  6:38:00 AM
+Completed: CLI: Add `spiral search <query>` command for federated story discovery across main and sub-projects (ID: US-1286) in 4m
+

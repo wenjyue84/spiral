@@ -1556,11 +1556,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-04-26T22:31:39Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`lib/federated_search.py` and `lib/cli/search_stories.py` are already implemented. Tests pass. The test file has two F841 unused variable warnings that need fixing.\n\n## Problem Identified\nThe `sub_path` variable is assigned but never used in `test_search_finds_stories_in_main_and_subprojects` and `test_search_project_filter`.\n\n## Planned Changes\n- `tests/test_federated_search.py`: Remove unused `sub_path =` assignments (replace with `_write_prd(...)` calls with `_` or just call without assignment)\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_federated_search.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 4\n}\n</plan>\nAll quality checks pass. Now mark the story complete and commit.\nUS-1286 is complete. The implementation was already in place from a prior attempt — `lib/federated_search.py`, `lib/cli/search_stories.py`, and the `spiral search` CLI wiring in `spiral.sh`/`lib/cli_subcommands.sh`. All 10 tests pass. The only fix needed was removing 2 unused `sub_path` variable assignments in the test file to satisfy ruff F841. Story marked `passes: true`."
-      }
+      "model": "sonnet"
     },
     {
       "id": "US-1287",
@@ -1749,6 +1745,114 @@
       "model": "haiku"
     },
     {
+      "id": "US-1296",
+      "title": "[Regression Test] Meta-Harness: Success-Pattern Library appends on zero-retry pass",
+      "priority": "medium",
+      "description": "Write a regression test that guards the success-pattern extraction logic from US-1225. The test must verify that after a story completes with 0 retries, its characteristics are appended to .spiral/_success_patterns.jsonl, and that Phase A candidate scoring reads this file. Breaking either side must cause the test to fail.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_success_patterns.py -v exits 0 with at least one test collected",
+        "Test asserts that calling the extraction function with a zero-retry story result appends one JSON line to _success_patterns.jsonl containing keys: file_count, ac_count, keywords",
+        "Test asserts that the Phase A scoring function returns a higher score for a candidate matching a stored pattern than for one with no match"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_success_patterns.py (create)",
+        "File to edit: lib/phases/phase_l.sh or equivalent Python module (read to locate the extraction logic introduced by US-1225)",
+        "Test command: uv run pytest tests/test_success_patterns.py -v --tb=short",
+        "Use tmp_path fixture to write _success_patterns.jsonl to a temporary directory; patch the path constant before calling the extraction function"
+      ],
+      "dependencies": [
+        "US-1225"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1297",
+      "title": "CLI: Add spiral export-progress command to bundle PRD, results, and metrics as snapshot",
+      "priority": "medium",
+      "description": "Add a CLI subcommand `spiral export-progress [--format json|zip]` that bundles the current spiral state (prd.json, results.tsv, learning.md, loop_quality.jsonl, metadata) into a single JSON or ZIP file for stakeholder sharing or iteration archiving.",
+      "acceptanceCriteria": [
+        "Command `spiral export-progress` outputs JSON with schema: { prd, results, learning, loopQuality, metadata: { iteration, timestamp, passCount, failCount, totalCost, checksum } }",
+        "Command `spiral export-progress --format zip` creates ZIP archive containing prd.json, results.tsv, learning.md, retry-counts.json, and README.md explaining contents",
+        "Exported file includes sha256 checksum in metadata to detect corruption; filename is timestamped (e.g., spiral-export-2026-04-14T18:30:00Z.json)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/export_progress.py (new), lib/snapshot_schema.py (new for JSON schema validation), lib/cli_subcommands.sh (add export-progress handler)",
+        "Test command: uv run pytest tests/test_export_progress.py::test_export_json -v; uv run pytest tests/test_export_progress.py::test_export_zip -v",
+        "Read from: prd.json, results.tsv, learning.md, .spiral/loop_quality.jsonl, retry-counts.json; compute metadata from file contents and iteration state"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1298",
+      "title": "spiral-ui frontend: ThroughputMetrics widget on Dashboard with auto-refresh",
+      "priority": "medium",
+      "description": "Create a ThroughputMetrics React component that fetches /api/throughput every 30 seconds and renders velocity and median cycle time. Register the widget on the Dashboard page. Requires the backend endpoint from the companion story.",
+      "acceptanceCriteria": [
+        "Dashboard renders ThroughputMetrics showing 'X stories/hour' and cycle time by complexity band (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx)",
+        "Component polls /api/throughput every 30 seconds when iteration is running (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx --testNamePattern=refresh)",
+        "Displays 'Insufficient data' string when API returns empty metrics (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx --testNamePattern=insufficient)"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/ThroughputMetrics.tsx (ThroughputMetrics component)",
+        "File to create: spiral-ui/src/components/ThroughputMetrics.test.tsx (unit tests with MSW or vi.mock)",
+        "File to edit: spiral-ui/src/pages/Dashboard.tsx (import and render <ThroughputMetrics />)",
+        "Test command: npm run test -- src/components/ThroughputMetrics.test.tsx",
+        "Use recharts BarChart for cycle-time distribution; useInterval or setInterval in useEffect for 30s polling"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1299",
+      "title": "Phase E: Hint recommender from story attempt history",
+      "priority": "medium",
+      "description": "Create lib/hint_recommender.py that reads results.tsv and returns decomposition, model, and retry hints for a story before Phase I runs. Integrate into the Phase E handler so hints are appended to prd.json story._hints before implementation begins.",
+      "acceptanceCriteria": [
+        "suggest_hints_from_history() returns dict with keys decomposition_suggested, recommended_model, recommended_retries (verified by: uv run pytest tests/test_hint_recommender.py::test_suggest_hints_schema -v)",
+        "When haiku pass rate < 50% for the story's complexity band, recommended_model is 'sonnet' (verified by: uv run pytest tests/test_hint_recommender.py::test_low_haiku_pass_rate_escalates_model -v)",
+        "Phase E handler writes returned hints into story._hints array in prd.json before Phase I (verified by: uv run pytest tests/test_hint_recommender.py::test_hints_persisted_to_prd -v)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/hint_recommender.py (analyze_story_cohort, suggest_hints_from_history)",
+        "File to edit: lib/phases.py (Phase E handler — call suggest_hints_from_history and patch story._hints)",
+        "File to create: tests/test_hint_recommender.py with fixture results_tsv containing >=10 sample attempts across haiku/sonnet",
+        "Test command: uv run pytest tests/test_hint_recommender.py -v",
+        "Read results.tsv with csv.DictReader; group by complexity band using collections.defaultdict"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1300",
+      "title": "CLI: spiral batch <operation> --stories-file for multi-story operations",
+      "priority": "medium",
+      "description": "Enable batch operations on multiple stories (mark-done, retrigger, update-metadata) by reading story IDs from a file. Improves CLI ergonomics for managing groups of stories without manual iteration.",
+      "acceptanceCriteria": [
+        "spiral batch mark-done --stories-file completed.txt marks all stories in file as done in prd.json and adds timestamps",
+        "spiral batch retrigger --stories-file failed.txt resets retry counts and re-queues stories for Phase I",
+        "Batch operations log results with counts: '3 stories marked done, 1 skipped (not pending)'",
+        "File format: one story ID per line (US-123, UT-456, etc.)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/batch_operations.py with parse_story_file() and execute_batch_operation() functions",
+        "File to edit: lib/cli_subcommands.sh to add batch subcommand handler",
+        "Test command: uv run pytest tests/test_batch_operations.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1301",
       "title": "Phase X: Build lib/dependency_resolver.py with NLP-based story blocker inference and DAG cycle detection",
       "priority": "high",
@@ -1766,6 +1870,50 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1302",
+      "title": "CLI: spiral cost-estimate <num-iterations> with historical accuracy bounds",
+      "priority": "medium",
+      "description": "New CLI subcommand that predicts total cost and token burn for N iterations using historical data from results.tsv, with confidence intervals based on per-model variance.",
+      "acceptanceCriteria": [
+        "spiral cost-estimate 5 reads results.tsv and computes avg tokens/story per model and per complexity band",
+        "Outputs: 'Estimated cost for 5 iterations: $X.XX (68% confidence: $L.LL - $H.HH) based on 47 historical attempts'",
+        "Includes breakdown by model (haiku 60%, sonnet 30%, opus 10%) and notes escalation impact on cost"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_subcommands.sh (add 'cost-estimate' handler)",
+        "Create lib/cost_estimator.py with compute_historical_stats() and predict_cost_for_n_iterations() using numpy for variance",
+        "Test command: uv run pytest tests/test_cost_estimator.py::test_cost_estimate_with_variance -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1303",
+      "title": "[Regression Test] CLI trace-dependencies: verify full dep chain output",
+      "priority": "medium",
+      "description": "Write a regression test for the spiral trace-dependencies CLI command introduced in US-1209. The test invokes the command against a fixture prd.json containing a known multi-level dependency chain and asserts that all story IDs, file paths, and cross-project boundary markers appear in the output.",
+      "acceptanceCriteria": [
+        "Test invokes the CLI with a fixture prd.json and captures stdout; assert all expected story IDs appear in output",
+        "Test asserts circular-dependency detection triggers a non-zero exit code when a cycle is present in the fixture",
+        "uv run pytest tests/ -k us_1209 -v exits with code 0 and both assertions pass"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_regression_us1209.py (new file — regression tests for trace-dependencies CLI)",
+        "File to edit: tests/fixtures/dep_chain_prd.json (new fixture — multi-level deps including cross-project boundary)",
+        "Test command: uv run pytest tests/ -k us_1209 -v",
+        "Use subprocess.run(['python', 'main.py', 'trace-dependencies', 'US-001'], capture_output=True) to invoke CLI",
+        "Circular-dependency fixture should have US-001 depend on US-002, US-002 depend on US-001"
+      ],
+      "dependencies": [
+        "US-1209"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -1839,6 +1987,28 @@
       "model": "haiku"
     },
     {
+      "id": "US-1307",
+      "title": "Deduplication Confidence Scorer: suggest and merge similar stories",
+      "priority": "medium",
+      "description": "Add lib/dedup_confidence.py with TF-IDF similarity scoring over prd.json stories, and wire two new CLI subcommands: spiral dedup-suggestions (show top duplicate pairs) and spiral merge <id1> <id2> (combine stories and mark originals superseded). Seed stories are excluded from dedup candidates.",
+      "acceptanceCriteria": [
+        "`spiral dedup-suggestions` prints at least one pair with confidence ≥0.75 when obvious duplicates exist in prd.json: `uv run pytest tests/test_dedup_confidence.py::test_high_confidence_detection -v`",
+        "`spiral merge US-X US-Y` writes a new story with combined acceptanceCriteria and sets superseded_by on both originals: `uv run pytest tests/test_dedup_confidence.py::test_merge_sets_superseded_by -v`",
+        "Seed stories (source == 'seed') never appear as dedup candidates: `uv run pytest tests/test_dedup_confidence.py::test_seed_excluded -v`"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dedup_confidence.py (find_duplicates(prd_data) → List[Tuple[str,str,float]] sorted by score desc, merge_stories(id1, id2, prd_data) → dict)",
+        "File to edit: lib/cli_subcommands.sh (add dedup-suggestions and merge command handlers near existing subcommand dispatch)",
+        "File to create: tests/test_dedup_confidence.py",
+        "Test command: uv run pytest tests/test_dedup_confidence.py -v",
+        "Use sklearn TfidfVectorizer on title + description concatenation; cosine_similarity threshold 0.75"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1308",
       "title": "spiral-ui: Backend GET /api/tests/summary endpoint from spiral_events.jsonl",
       "priority": "high",
@@ -1856,12 +2026,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-26T22:10:09Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe `server.ts` file exists with Express endpoints for various dashboards (`/api/dashboard/*`). The `spiral_events.jsonl` file contains various event types. I need to add a new endpoint `/api/tests/summary` that parses verification events.\n\n## Problem Identified\nNeed to create a backend endpoint that:\n- Reads `spiral_events.jsonl`\n- Filters for `verification` events\n- Groups by `story_id`\n- Returns JSON array with: `story_id`, `test_status`, `test_count`, `file_touch_ok`, `coverage_pct`\n\n## Planned Changes\n1. Add `GET /api/tests/summary` endpoint to `spiral-ui/server.ts`\n2. Create TypeScript test file `spiral-ui/tests/unit/tests-route.spec.ts`\n3. Update `package.json` to include test script if needed\n\n<plan>\n{\n  \"files_to_create\": [\n    \"spiral-ui/tests/unit/tests-route.spec.ts\"\n  ],\n  \"files_to_modify\": [\n    \"spiral-ui/server.ts\"\n  ],\n  \"functions_to_add\": [\n    \"GET /api/tests/summary endpoint handler\"\n  ],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me implement the endpoint.\nNow let me create a test file for the endpoint. I'll create a Python test file as specified in the story.\nLet me verify the endpoint was added correctly to server.ts:\nNow let me run quality checks:\nPerfect! I have successfully implemented story **US-1308**. Here's a summary:\n\n## Implementation Summary: US-1308"
-      },
-      "_passedCommit": "77c5a5a547483199672eadb2ece9554db8958b81"
+      "model": "haiku"
     },
     {
       "id": "US-1309",
@@ -1882,12 +2047,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-26T22:20:22Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Backend endpoint `GET /api/tests/summary` (from US-1308) returns array of `TestSummary` objects\n- TestSummary has: story_id, test_status?, test_count, file_touch_ok, coverage_pct\n- Existing TestsTab at `dashboard/TestsTab.tsx` is a test executor (different purpose)\n- No React Query integration or useTestResults hook exists\n- No test files in spiral-ui\n\n## Problem Identified\nNeed to create new React components to display aggregated test results by story with:\n1. A grid/table showing columns: Story ID, Test Status, Test Count, File-Touch OK, Coverage %\n2. Click row → open modal showing test failure details\n3. Custom hook to fetch data\n4. Component tests\n\n## Planned Changes\n\n<plan>\n{\n  \"files_to_create\": [\n    \"spiral-ui/src/tabs/TestsTab.tsx\",\n    \"spiral-ui/src/hooks/useTestResults.ts\",\n    \"spiral-ui/src/components/TestDetailModal.tsx\",\n    \"spiral-ui/src/tabs/TestsTab.test.tsx\",\n    \"vitest.config.ts\"\n  ],\n  \"files_to_modify\": [\n    \"spiral-ui/package.json\"\n  ],\n  \"functions_to_add\": [\n    \"useTestResults\",\n    \"TestsTab\",\n    \"TestDetailModal\"\n  ],\n  \"estimated_loc\": 280\n}\n</plan>\n\nNow implementing the components. Let me start by adding vitest and testing libraries to package.json:\nLet me verify the tests one more time and then commit:\nExcellent! All tests pass. Let me verify TypeScript and then mark the story complete:\n## Summary"
-      },
-      "_passedCommit": "0b79901fd1e826d8790d05ff193a9f1311ae99b9"
+      "model": "haiku"
     }
   ]
 }
