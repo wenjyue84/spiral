@@ -1648,7 +1648,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-26T23:23:13Z"
+      "last_attempted": "2026-04-26T23:23:13Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- SnapshotManager already has save() and restore() methods\n- cli_subcommands.sh already handles snapshot save/restore via environment variables\n- No list() method exists in SnapshotManager\n- No tests exist for snapshot list functionality\n\n## Problem Identified\nNeed to implement `spiral snapshot list` command that scans .spiral/ for snapshot archives and displays metadata (size, story count, creation time) in ASCII table format by default, with optional JSON output.\n\n## Planned Changes\n1. **lib/snapshot.py**: Add `list(out_dir='.spiral')` method that scans for snapshots and returns metadata\n2. **lib/cli_subcommands.sh**: Add snapshot_list_handler that formats output as ASCII table or JSON\n3. **tests/test_snapshot.py**: Add test_snapshot_list_ascii and test_snapshot_list_json tests\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"lib/snapshot.py\",\n    \"lib/cli_subcommands.sh\",\n    \"tests/test_snapshot.py\"\n  ],\n  \"functions_to_add\": [\n    \"SnapshotManager.list\",\n    \"snapshot_list_handler\",\n    \"test_snapshot_list_ascii\",\n    \"test_snapshot_list_json\"\n  ],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me execute the implementation:\n## Summary"
+      }
     },
     {
       "id": "US-1291",
