@@ -1496,3 +1496,56 @@ Completed: spiral-ui: Tests tab React component with story grid and detail modal
 ## Iteration 3 - Mon, Apr 27, 2026  6:38:00 AM
 Completed: CLI: Add `spiral search <query>` command for federated story discovery across main and sub-projects (ID: US-1286) in 4m
 
+## Iteration [N] - Story: CLI: Add spiral metrics export-timeseries to export token burn and story throughput as time series JSON (US-1288)
+
+### What was implemented
+- Created `lib/metrics_export.py` with functions:
+  - `parse_results_tsv()` - reads results.tsv and groups rows by spiral_iter
+  - `parse_spiral_events()` - extracts Phase G completion timestamps from spiral_events.jsonl
+  - `aggregate_timeseries()` - aggregates iteration data with cumulative tokens, stories_passed_delta, avg_model_tier, total_cost
+  - `export_timeseries()` - main entry point that validates min 10 records and writes JSON output
+  - Helper functions: `_total_tokens_from_duration()`, `_cost_per_token()`, `_model_tier_score()`
+- Modified `spiral.sh` to:
+  - Add METRICS_MODE, METRICS_SUBCOMMAND, METRICS_OUTPUT variable declarations
+  - Add metrics command case handler for parsing "metrics export-timeseries <output.json>"
+  - Add metrics command to help text
+- Modified `lib/cli_subcommands.sh` to:
+  - Add metrics export-timeseries handler that calls metrics_export.py with results.tsv and spiral_events.jsonl
+  - Validate output filename is provided
+- Created `tests/test_metrics_export.py` with 31 comprehensive tests covering:
+  - Token/cost calculations for all models (haiku, sonnet, opus)
+  - Model tier scoring
+  - TSV/JSONL parsing with edge cases
+  - Time-series aggregation logic
+  - Output validation and minimum record checking
+  - JSON format compliance
+
+### Patterns discovered
+- CLI subcommands in spiral.sh use case statement with variable flags (e.g., SEARCH_MODE, SKILLS_MODE)
+- cli_subcommands.sh handlers follow pattern: check mode flag and subcommand, validate args, call Python module, exit
+- Pricing calculation: tokens = duration_sec * TOKENS_PER_SEC_OUTPUT * (1 + INPUT_OUTPUT_RATIO)
+- Cost per token varies by model: haiku $0.80/M, sonnet $3.00/M, opus $15.00/M
+
+### Gotchas
+- Phase G events in spiral_events.jsonl may be sparse (depends on iteration history)
+- If Phase G timestamp not available, falls back to first story timestamp in iteration
+- Command rejects if fewer than 10 total story records exist (satisfies acceptance criterion)
+- Model tier scoring: haiku=1, sonnet=2, opus=3 (for averaging across iterations)
+
+### Files touched
+- lib/metrics_export.py (new, 228 lines)
+- tests/test_metrics_export.py (new, 400 lines)
+- spiral.sh (modified, +15 lines for METRICS variables and command parsing)
+- lib/cli_subcommands.sh (modified, +16 lines for metrics export-timeseries handler)
+- prd.json (modified, marked US-1288 passes: true)
+
+### Quality gates passed
+- ✓ All 31 vitest tests pass (uv run pytest tests/test_metrics_export.py -v)
+- ✓ mypy strict type checking passes (lib/metrics_export.py, tests/test_metrics_export.py)
+- ✓ shellcheck --severity=error passes (spiral.sh, lib/cli_subcommands.sh)
+- ✓ Real data test: export_timeseries() successfully generates JSON from results.tsv and spiral_events.jsonl
+- ✓ All three acceptance criteria met:
+  - [x] JSON output with {iteration, timestamp, cumulative_tokens, stories_passed_delta, avg_model_tier, total_cost}
+  - [x] Timestamps from spiral_events.jsonl Phase G completion; tokens from results.tsv duration_sec
+  - [x] Minimum 10 records validation (rejects if fewer)
+
