@@ -1760,3 +1760,60 @@ Here is the technical brief for the Claude Code agent.
 ## Iteration 3 - Mon, Apr 27, 2026  7:36:32 AM
 Completed: CLI: `spiral snapshot list` command with ASCII table and --json flag (ID: US-1290) in 12m
 
+
+## Iteration [N] - Story: Phase I: Enrich error messages with recovery hints indexed by failure type (US-1315)
+
+### What was implemented
+- Created `lib/error_hints.py` with FailureHintMapper class:
+  - Maps 8 failure types to structured recovery hints (suggestion + action)
+  - Failure types: missing_dependency, syntax_error, type_error, test_assertion, timeout, oom, context_overflow, other
+  - Actionable suggestions: "Ensure all imports", "Fix syntax", "Verify types", "Re-read tests", "Optimize performance", "Optimize memory", "Reduce scope", "Try different approach"
+  - Clickable actions: "Check imports", "Validate syntax", "Review types", "Review tests", "Increase timeout", "Check memory", "View decomposition", "Review error log"
+  - RecoveryHint dataclass with to_tsv() for TSV-safe formatting (no tabs, newlines, quotes)
+  - Pattern-based categorization (_categorize_by_pattern) for error output matching
+
+- Updated `lib/impl/retry.sh` with enrich_results_with_hints() function:
+  - Enriches results.tsv with recovery hints after failure categorization
+  - Adds "hint" column to TSV header if not present
+  - Updates the latest row for a story_id with the recovery hint
+  - Non-fatal: returns gracefully if TSV not found or error_hints.py unavailable
+  - Logs enrichment success to stderr with failure type
+
+- Created comprehensive test suite `tests/test_error_hints.py` with 21 tests:
+  - TestFailureHintRegistry (4 tests): validates all 8 types registered with proper suggestion + action
+  - TestRecoveryHintStructure (5 tests): validates TSV-safe formatting (removes tabs, newlines, quotes; truncates to 200 chars)
+  - TestPatternMatching (7 tests): validates 7+ failure patterns match their correct failure types + pattern override
+  - TestConvenienceFunctions (3 tests): validates hint_text() helper function
+  - TestHintCompleteness (2 tests): validates all hints have actionable content
+
+### Patterns discovered
+- Recovery hints need both actionable suggestion (what to do) and clickable action (UI integration point)
+- Pattern matching must check specific patterns before general ones (e.g., "type checking" before "expected")
+- TSV enrichment requires column management: check if column exists before adding, pad rows if needed
+- Error categorization benefit from expanded pattern lists (e.g., "cannot allocate" for oom, "type checking" for type_error)
+- Tests validate both structure (suggestions, actions present) and content (keywords match failure type)
+
+### Gotchas
+- TSV enrichment is non-trivial: need to add column to header and backfill all existing rows
+- awk for TSV column addition is fragile; better to use Python for production TSV updates
+- Pattern matching order matters in dicts: Python 3.7+ preserves insertion order
+- Windows line ending warnings (LF→CRLF) are expected and not a failure
+- Recovery hints should be concise (<200 chars) for TSV storage and display
+- Pattern "expected" appears in both test_assertion and type_error contexts; require type_error check first
+
+### Files touched
+- lib/error_hints.py (new, 176 lines)
+- tests/test_error_hints.py (new, 310 lines)
+- lib/impl/retry.sh (modified, +65 lines)
+- prd.json (modified, marked US-1315 passes: true)
+
+### Quality gates passed
+- ✓ All 21 pytest tests pass (100%)
+- ✓ mypy --strict on lib/error_hints.py (no issues)
+- ✓ ruff check passed (lint + format)
+- ✓ Git commit successful with full acceptance criteria tracking
+- ✓ All three acceptance criteria met:
+  - [x] Each story failure in results.tsv includes 'hint' column with recovery suggestion
+  - [x] Hints are generated from failure regex patterns and include clickable action
+  - [x] Test suite validates 8+ failure pattern→hint mappings with regex matching
+
