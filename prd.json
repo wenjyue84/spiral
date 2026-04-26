@@ -1221,7 +1221,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1672,6 +1672,49 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1293",
+      "title": "spiral-ui: Add /api/tests/latest and /api/tests/rerun backend endpoints",
+      "priority": "medium",
+      "description": "Create Flask route file spiral-ui/backend/routes/tests.py exposing GET /api/tests/latest (parses .spiral/test-results/ JSON) and POST /api/tests/rerun/:testId (runs pytest on one test via SSE stream). Register routes in app.py.",
+      "acceptanceCriteria": [
+        "GET /api/tests/latest returns JSON array with fields test_id, test_name, file, status, duration_ms, error_message (verified by pytest assert on response JSON schema)",
+        "POST /api/tests/rerun/:testId streams SSE events and exits with final status event containing pass or fail",
+        "Unit test file tests/test_spiral_ui_tests_api.py covers both endpoints and passes"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/backend/routes/tests.py (parse_test_results(), stream_rerun())",
+        "File to edit: spiral-ui/backend/app.py (register Blueprint for tests routes)",
+        "File to create: tests/test_spiral_ui_tests_api.py (test_tests_latest_endpoint, test_tests_rerun_streams_sse)",
+        "Test command: uv run pytest tests/test_spiral_ui_tests_api.py -v",
+        "Parse .spiral/test-results/*.json using pytest --json-report output format"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1294",
+      "title": "spiral-ui: Add Tests tab frontend component with SSE re-run streaming",
+      "priority": "medium",
+      "description": "Create a TestsTab React component that fetches GET /api/tests/latest on mount, renders a sortable table (test name, status, duration, file), and supports per-row re-run via SSE from POST /api/tests/rerun/:testId with live status update.",
+      "acceptanceCriteria": [
+        "Tests tab renders a table with columns: test name, status badge (pass/fail/error), duration, file path",
+        "Clicking Re-run on a row opens an inline SSE log panel that updates in real-time until the stream closes",
+        "Tab appears in the main navigation and is reachable at the /tests route without page reload"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/frontend/tabs/Tests.tsx (TestsTab component, useSseRerun hook)",
+        "File to edit: spiral-ui/frontend/App.tsx (add /tests route and nav link)",
+        "Test command: npx vitest run spiral-ui/frontend/tabs/Tests.test.tsx",
+        "File to create: spiral-ui/frontend/tabs/Tests.test.tsx (renders table, rerun opens SSE panel)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     }
   ]
