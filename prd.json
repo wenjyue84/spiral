@@ -1856,7 +1856,8 @@
       "last_attempted": "2026-04-26T22:10:09Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe `server.ts` file exists with Express endpoints for various dashboards (`/api/dashboard/*`). The `spiral_events.jsonl` file contains various event types. I need to add a new endpoint `/api/tests/summary` that parses verification events.\n\n## Problem Identified\nNeed to create a backend endpoint that:\n- Reads `spiral_events.jsonl`\n- Filters for `verification` events\n- Groups by `story_id`\n- Returns JSON array with: `story_id`, `test_status`, `test_count`, `file_touch_ok`, `coverage_pct`\n\n## Planned Changes\n1. Add `GET /api/tests/summary` endpoint to `spiral-ui/server.ts`\n2. Create TypeScript test file `spiral-ui/tests/unit/tests-route.spec.ts`\n3. Update `package.json` to include test script if needed\n\n<plan>\n{\n  \"files_to_create\": [\n    \"spiral-ui/tests/unit/tests-route.spec.ts\"\n  ],\n  \"files_to_modify\": [\n    \"spiral-ui/server.ts\"\n  ],\n  \"functions_to_add\": [\n    \"GET /api/tests/summary endpoint handler\"\n  ],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me implement the endpoint.\nNow let me create a test file for the endpoint. I'll create a Python test file as specified in the story.\nLet me verify the endpoint was added correctly to server.ts:\nNow let me run quality checks:\nPerfect! I have successfully implemented story **US-1308**. Here's a summary:\n\n## Implementation Summary: US-1308"
-      }
+      },
+      "_passedCommit": "77c5a5a547483199672eadb2ece9554db8958b81"
     },
     {
       "id": "US-1309",
@@ -1876,8 +1877,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-26T22:20:22Z"
     }
   ]
 }

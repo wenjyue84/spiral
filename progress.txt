@@ -1366,3 +1366,35 @@ This is a Python/Flask task for the `spiral-ui` backend, not a Frappe applicatio
 -   **File Not Found:** Handle the case where the `spiral_events.jsonl` file doesn't exist (return an empty list).
 -   **JSON Errors:** Wrap line parsing in a `try/except` block to skip corrupted lines.
 -   **Missing Keys:** Use `.get()` with default values when accessing keys like `coverage_pct` from the event data to prevent `KeyError`.
+## Iteration 1 - Mon, Apr 27, 2026  6:20:20 AM
+Completed: spiral-ui: Backend GET /api/tests/summary endpoint from spiral_events.jsonl (ID: US-1308) in 9m
+
+
+## Pre-analysis for US-1309 (Gemini 2.5 Pro)
+Here is the technical brief for the user story:
+
+**Objective:** Implement a "Tests" tab in the Spiral UI to display test results from the backend.
+
+**Files to Modify/Create:**
+*   `spiral-ui/src/tabs/TestsTab.tsx`: The main React component for the tab.
+*   `spiral-ui/src/hooks/useTestResults.ts`: A new React Query hook for data fetching.
+*   `spiral-ui/src/components/TestDetailModal.tsx`: A new modal component to show test failure details.
+
+**Key Components & Hooks:**
+*   **`TestsTab.tsx`**: This will be a new top-level component. It will use the `useTestResults` hook to get data and render it in a grid. It will also manage the state for the `TestDetailModal`.
+*   **`useTestResults.ts`**: This hook should use React Query (`useQuery`) to make a `GET` request to the `/api/tests/summary` endpoint. It will handle the async logic, caching, and state (loading, error, data).
+*   **`TestDetailModal.tsx`**: A presentational component that receives test failure details as props and displays them when a user clicks a row in the grid.
+
+**Implementation Approach:**
+1.  In `useTestResults.ts`, define the `useQuery` hook to fetch and return the test summary data.
+2.  In `TestsTab.tsx`, call the hook to get the data. Render a table or grid with the specified columns. Add an `onClick` handler to each row.
+3.  The `onClick` handler should store the selected story's data in the local state and set a "modal open" flag to true.
+4.  Pass the selected story's failure logs and the "modal open" state to the `TestDetailModal` component as props.
+5.  Create a unit test file `TestsTab.test.tsx` to verify component rendering and basic interactions.
+
+**Gotchas & Edge Cases:**
+*   The API endpoint `/api/tests/summary` is a key dependency. Ensure its data structure is known and handled correctly.
+*   Gracefully handle API loading and error states in the UI.
+*   Ensure the modal's content area can scroll if the failure logs are long.
+*   For the grid, confirm if an existing component library (e.g., shadcn/ui, MUI) is in use or if a simple table is preferred.
+
