@@ -1,3 +1,43 @@
+## Iteration [N] - Story: spiral-ui: Backend GET /api/tests/summary endpoint (US-1308)
+
+### What was implemented
+- Added `GET /api/tests/summary` endpoint to `spiral-ui/server.ts`
+  - Reads `spiral_events.jsonl` from project root
+  - Filters for events with `event_type == "verification"`
+  - Groups verification events by `story_id`
+  - Aggregates fields: test_status, test_count, file_touch_ok, coverage_pct
+  - For duplicate story IDs: takes latest test_status, max test_count, AND of file_touch_ok, max coverage_pct
+  - Returns JSON array sorted by story_id
+  - Returns empty array if spiral_events.jsonl doesn't exist
+  - Gracefully skips malformed JSON lines
+- Created `tests/test_tests_route.py` with 6 comprehensive tests:
+  - test_tests_summary_endpoint_returns_json_array: validates response is JSON array
+  - test_tests_summary_groups_by_story_id: verifies events are grouped by story_id
+  - test_tests_summary_has_required_fields: validates all required fields present
+  - test_tests_summary_aggregates_latest_values: tests multi-event aggregation logic
+  - test_tests_summary_handles_empty_file: tests graceful handling of empty events file
+  - test_tests_summary_ignores_non_verification_events: verifies filtering works correctly
+
+### Patterns discovered
+- Express.js endpoints in server.ts follow consistent pattern: check file existence, read+parse lines, aggregate, return JSON
+- JSONL parsing handles both empty files and malformed lines gracefully
+- TestEvent interface uses optional fields with defaults for flexibility
+- Aggregation logic: test_count uses max (for tracking total tests), file_touch_ok uses AND (for all files OK requirement), coverage_pct uses max
+
+### Gotchas
+- spiral_events.jsonl currently has no "verification" events in the codebase (test uses synthetic data), so endpoint will return empty array in production
+- Pre-existing mypy errors in other files unrelated to this story
+
+### Files touched
+- spiral-ui/server.ts (modified, +89 lines with endpoint implementation)
+- tests/test_tests_route.py (new, 180 lines)
+- prd.json (modified, marked US-1308 passes: true)
+
+### Quality gates passed
+- ✓ All 6 pytest tests pass (100%)
+- ✓ TypeScript compilation (npx tsc --noEmit) — no errors
+- ✓ Git commits successful with full acceptance criteria tracking
+
 ## Iteration [N] - Story: Phase R: create research_quality_checker.py with scoring and replay logic (US-1281)
 
 ### What was implemented
@@ -1301,3 +1341,28 @@ This brief outlines the plan to implement a new `spiral skills` subcommand for p
 ## Iteration 2 - Mon, Apr 27, 2026  5:58:53 AM
 Completed: Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand (ID: US-1265) in 7m
 
+
+## Pre-analysis for US-1308 (Gemini 2.5 Pro)
+This is a Python/Flask task for the `spiral-ui` backend, not a Frappe application. The goal is to create a new `GET /api/tests/summary` endpoint.
+
+**1. Files to Modify:**
+-   `spiral-ui/backend/routes/tests.py` (Create New): This file will house the Flask Blueprint and the route logic.
+-   `spiral-ui/backend/app.py` (Modify): This file needs to be updated to register the new `tests` blueprint.
+
+**2. Frappe Context:**
+-   None. This project is independent of the Frappe framework. The data source is a local `spiral_events.jsonl` file, not a Frappe DocType.
+
+**3. Implementation Approach:**
+-   In `tests.py`, define a new Flask `Blueprint`.
+-   Create a route for `GET /summary`.
+-   The route handler should open `spiral_events.jsonl` from the project root.
+-   Iterate through each line, parse the JSON, and filter for `verification` events.
+-   Use a dictionary keyed by `story_id` to aggregate the latest event data for each story.
+-   Transform the aggregated data into a list of summary objects and return as a JSON response.
+-   In `app.py`, import the blueprint from `tests.py` and register it with the Flask app instance.
+
+**4. Edge Cases & Gotchas:**
+-   **File Path:** Ensure the path to `spiral_events.jsonl` is resolved correctly from the backend directory.
+-   **File Not Found:** Handle the case where the `spiral_events.jsonl` file doesn't exist (return an empty list).
+-   **JSON Errors:** Wrap line parsing in a `try/except` block to skip corrupted lines.
+-   **Missing Keys:** Use `.get()` with default values when accessing keys like `coverage_pct` from the event data to prevent `KeyError`.
