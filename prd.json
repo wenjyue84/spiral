@@ -1007,7 +1007,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1262",
@@ -1440,6 +1441,30 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1282",
+      "title": "[Security Test] spiral-ui Settings tab auth/permission guard",
+      "priority": "high",
+      "description": "Write security tests verifying that the SettingsTab React component and its backing API (GET/POST /api/config from US-1215) block unauthenticated access and do not leak sensitive data in error responses.",
+      "acceptanceCriteria": [
+        "GET /api/config without auth header returns 401 or 403 (verify with: uv run pytest tests/test_security_us1215.py::test_unauthenticated_get -v)",
+        "POST /api/config with malformed or missing auth returns 401 or 403 (verify with: uv run pytest tests/test_security_us1215.py::test_unauthorized_post -v)",
+        "Error response body contains no sensitive field names (verify with: uv run pytest tests/test_security_us1215.py::test_no_sensitive_leak -v)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us1215.py (new file — create test module)",
+        "File to edit: spiral-ui/src/components/SettingsTab.tsx (confirm auth-gating pattern used)",
+        "Test command: uv run pytest tests/test_security_us1215.py -v",
+        "Mirror test structure from test_security_us1214.py; parameterize over GET and POST methods",
+        "SettingsTab frontend tests are out of scope for pytest — focus tests on backend /api/config route only"
+      ],
+      "dependencies": [
+        "US-1215"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
     }
   ]
 }
