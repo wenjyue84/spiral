@@ -136,3 +136,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-26T18:36:18Z	8	1	US-1287	Integration test: Phase S rejects antiPattern stories and warns on empty ACs	keep	895	sonnet	0	33f50c48719a9fd65d86c7d0292fb9f4fda118e2	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-26T19:15:52Z	9	1	US-1292	Phase R: Add research result caching with 24-hour TTL	keep	501	haiku	0	07166b0c9c507061cb05924053588bdd1d3f71e7	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-26T20:40:05Z	17	1	US-1301	Phase X: Build lib/dependency_resolver.py with NLP-based story blocker inference and DAG cycle detection	keep	674	haiku	0	dc1ff4e6e1bc9d679d248d09f5ff81b2efef57ae	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-26T20:58:51Z	18	1	US-1283	Phase S: Track story rejection reasons and add `spiral explain-rejection <id>` CLI command	reject	464	haiku	1		69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				

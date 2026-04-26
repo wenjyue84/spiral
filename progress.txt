@@ -1148,3 +1148,6 @@ This technical brief is for implementing a Python user story within the Spiral p
   - [x] Rejection reasons include: constitution_mismatch, goal_misaligned, duplicate_detected, acceptance_criteria_incomplete
   - [x] `spiral explain-rejection US-123` command displays human-readable summary with remediation hints
   - [x] All rejections logged to .spiral/rejections.jsonl for telemetry
+## Iteration 1 - Mon, Apr 27, 2026  4:58:51 AM
+FAILED diagnosis-block gate: Phase S: Track story rejection reasons and add `spiral explain-rejection <id>` CLI command (ID: US-1283) — no diagnosis block found — attempt 1/3
+
