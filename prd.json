@@ -1222,7 +1222,8 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1272",
@@ -1244,7 +1245,7 @@
         "US-1212"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1713,6 +1714,29 @@
         "File to create: spiral-ui/frontend/tabs/Tests.test.tsx (renders table, rerun opens SSE panel)"
       ],
       "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1295",
+      "title": "[E2E Test] spiral-ui ActivityLogTable: filter by status and open detail modal",
+      "priority": "medium",
+      "description": "Write a Playwright end-to-end test for the ActivityLogTable component added in US-1218. The test must assert that clicking a status badge filters the table rows and that clicking any row opens a detail modal showing story fields. Tests run headless in CI.",
+      "acceptanceCriteria": [
+        "npx playwright test spiral-ui/tests/e2e/activity-log.spec.ts --reporter=line exits 0",
+        "Test clicks a 'passed' status badge and asserts only rows with status 'passed' remain visible",
+        "Test clicks the first table row and asserts a modal appears containing at least one story field (e.g. title or description)"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral-ui/tests/e2e/activity-log.spec.ts (create; use @playwright/test)",
+        "File to edit: spiral-ui/src/components/ActivityLogTable.tsx (read to find data-testid / aria labels for badges, rows, and modal)",
+        "Test command: npx playwright test spiral-ui/tests/e2e/activity-log.spec.ts --reporter=line",
+        "Seed the page with fixture data via a mock API route (page.route) if the backend is not available in test mode"
+      ],
+      "dependencies": [
+        "US-1218"
+      ],
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
