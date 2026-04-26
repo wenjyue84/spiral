@@ -1,0 +1,25 @@
+{
+  "stories": [
+    {
+      "id": "FIXTURE-AP-001",
+      "title": "Add GPG key management for release signing",
+      "description": "Implement GPG key management to sign all release artifacts before deployment to ensure authenticity. This requires installing the GPG toolchain as a rare external dependency on every CI runner.",
+      "acceptanceCriteria": [
+        "GPG keys are generated and stored securely in the key store",
+        "All release artifacts are signed with the GPG key before deployment"
+      ],
+      "technicalNotes": ["lib/gpg_sign.py"],
+      "estimatedComplexity": "small",
+      "_source": "research"
+    },
+    {
+      "id": "FIXTURE-EAC-001",
+      "title": "Track story velocity metrics over time",
+      "description": "Add a feature to record how many stories pass per iteration so operators can track velocity trends across SPIRAL runs and identify slowdowns early.",
+      "acceptanceCriteria": [],
+      "technicalNotes": ["lib/velocity.py"],
+      "estimatedComplexity": "small",
+      "_source": "research"
+    }
+  ]
+}

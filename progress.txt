@@ -871,3 +871,30 @@ Completed: WhatsApp notification plugin (plugins/notify-whatsapp/) for iteration
 ## Iteration 3 - Mon, Apr 27, 2026  2:05:46 AM
 Completed: E2E Test: SettingsTab displays, edits, and saves runtime config (ID: US-1266) in 15m
 
+
+## Iteration N - Story: Integration test: Phase S rejects antiPattern stories and warns on empty ACs (US-1287)
+
+### What was implemented
+- Added `_load_constitution_antipatterns()` function to `lib/prd/validate_stories.py`
+  - Parses `ANTIPATTERN: <phrase>` lines from constitution files
+- Added step 1.5 anti-pattern check in validation loop: rejects with "Matches antiPattern: ..."
+- Added step 1.6 empty-AC warning: prints WARNING but does NOT reject
+- Modified floor gate: 0 ACs = warning only (not rejection); 1 AC still rejected as "too_simple"
+- Created `tests/fixtures/prd_with_invalid_stories.json` with FIXTURE-AP-001 (GPG antiPattern) and FIXTURE-EAC-001 (empty ACs)
+- Created `tests/integration/test_phase_s_edge_cases.py` with test_antipattern_match and test_empty_acceptance_criteria
+
+### Patterns discovered
+- Integration tests for Phase S load fixture from tests/fixtures/ and write to tmp_path
+- validate_stories() supports `min_overlap=0` to bypass goal alignment in tests
+- `SPIRAL_STORY_MIN_QUALITY_SCORE=0` env var disables quality gate (useful in tests)
+- Anti-pattern phrases use `ANTIPATTERN:` prefix in constitution (distinct from `NEVER:`/`NOT:`)
+
+### Gotchas
+- 10 pre-existing test failures in test_phase_s_integration.py (unrelated to this story)
+- mypy strict requires explicit `dict[str, str]` type params on function signatures
+
+### Quality gates passed
+- ✓ test_antipattern_match passes
+- ✓ test_empty_acceptance_criteria passes
+- ✓ mypy --strict on both modified files
+- ✓ ruff I001/F401 checks pass

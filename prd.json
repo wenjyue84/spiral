@@ -1076,28 +1076,6 @@
       "model": "sonnet"
     },
     {
-      "id": "US-1265",
-      "title": "Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand",
-      "priority": "low",
-      "description": "Extend plugin.toml schema with name, version, description, inputs, outputs, tags. Add 'spiral skills list' (enumerate local plugins) and 'spiral skills install <url>' (fetch+verify+extract a plugin tarball into plugins/). Deferred; implement only after US-1263 lands so there is a second plugin to round-trip.",
-      "acceptanceCriteria": [
-        "Every plugin.toml in plugins/ gains the new metadata block (backward compatible)",
-        "'spiral skills list' round-trips metadata from notify-slack and notify-whatsapp",
-        "'spiral skills install' rejects unsigned / schema-invalid plugins",
-        "Schema documented in plugins/README.md"
-      ],
-      "technicalNotes": [
-        "uv run pytest tests/test_skills_cli.py -v"
-      ],
-      "dependencies": [
-        "US-1263"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "seed",
-      "model": "sonnet"
-    },
-    {
       "id": "US-1266",
       "title": "E2E Test: SettingsTab displays, edits, and saves runtime config",
       "priority": "medium",
@@ -1424,26 +1402,6 @@
       "model": "sonnet"
     },
     {
-      "id": "US-1281",
-      "title": "Phase R: create research_quality_checker.py with scoring and replay logic",
-      "priority": "medium",
-      "description": "Create lib/research_quality_checker.py implementing compute_quality_score(research_result, story_title) returning a 0-1 float based on citation count, source diversity, and TF-IDF relevance, and should_replay(score, attempt_count) returning bool. Write unit tests covering score calculation and replay gate.",
-      "acceptanceCriteria": [
-        "`uv run pytest tests/test_phase_r_quality.py::test_compute_quality_score -v` passes and asserts score is in [0.0, 1.0]",
-        "`uv run pytest tests/test_phase_r_quality.py::test_should_replay_below_threshold -v` passes and returns True when score < 0.7 and attempt < 3",
-        "`uv run pytest tests/test_phase_r_quality.py::test_should_not_replay_at_max_attempts -v` passes and returns False when attempt_count >= 3"
-      ],
-      "technicalNotes": [
-        "File to create: lib/research_quality_checker.py (compute_quality_score, should_replay; use sklearn TfidfVectorizer or simple cosine sim)",
-        "File to create: tests/test_phase_r_quality.py (test_compute_quality_score, test_should_replay_below_threshold, test_should_not_replay_at_max_attempts)",
-        "Test command: uv run pytest tests/test_phase_r_quality.py -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1282",
       "title": "[Security Test] spiral-ui Settings tab auth/permission guard",
       "priority": "high",
@@ -1469,28 +1427,6 @@
       "_scopeCreep": true
     },
     {
-      "id": "US-1283",
-      "title": "Phase S: Track story rejection reasons and add `spiral explain-rejection <id>` CLI command",
-      "priority": "medium",
-      "description": "Enhance Phase S validation to capture structured rejection reasons when stories fail constitution or dedup checks. Add a CLI command to query why a story was rejected, improving debuggability for large PRD backlogs.",
-      "acceptanceCriteria": [
-        "When Phase S rejects a story, store rejection reason in prd.json under story._rejectionLog: [{ timestamp, reason, details }]",
-        "Rejection reasons include: 'constitution_mismatch', 'goal_misaligned', 'duplicate_detected', 'acceptance_criteria_incomplete'",
-        "CLI command `spiral explain-rejection US-123` displays human-readable rejection summary with remediation hints",
-        "All rejections also logged to .spiral/rejections.jsonl for telemetry (one JSON per line)"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/spiral/story_validate.py (add track_rejection_reason function)",
-        "File to create: lib/cli_explain_rejection.py (main_explain_rejection function that queries prd.json)",
-        "File to edit: lib/phases/phase_s.sh (call track_rejection_reason before skipping story)",
-        "Test command: uv run pytest tests/test_phase_s_rejection_tracking.py::test_rejection_logged -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1284",
       "title": "Add MockClaudeAPI fixture for isolated phase behavior testing",
       "priority": "high",
@@ -1511,6 +1447,26 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku"
+    },
+    {
+      "id": "US-1287",
+      "title": "Integration test: Phase S rejects antiPattern stories and warns on empty ACs",
+      "priority": "high",
+      "description": "Add test cases to the Phase S edge-case suite that verify antiPattern rejection and empty-acceptanceCriteria warning. Uses a fixture PRD containing one story that matches an antiPattern rule and one with an empty acceptanceCriteria array.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/integration/test_phase_s_edge_cases.py::test_antipattern_match -v exits 0 and the story is rejected with reason containing 'Matches antiPattern'",
+        "uv run pytest tests/integration/test_phase_s_edge_cases.py::test_empty_acceptance_criteria -v exits 0 and the story is not rejected (only a warning is logged)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/fixtures/prd_with_invalid_stories.json (new; include one story whose goal matches a constitution antiPattern, one story with acceptanceCriteria: [])",
+        "File to edit: tests/integration/test_phase_s_edge_cases.py (add functions: test_antipattern_match, test_empty_acceptance_criteria)",
+        "Test command: uv run pytest tests/integration/test_phase_s_edge_cases.py::test_antipattern_match tests/integration/test_phase_s_edge_cases.py::test_empty_acceptance_criteria -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-04-26T18:20:52Z"
     }
   ]
 }

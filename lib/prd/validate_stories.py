@@ -243,6 +243,28 @@ def _load_constitution_forbidden(path: str) -> list[str]:
     return forbidden
 
 
+def _load_constitution_antipatterns(path: str) -> list[str]:
+    """Extract antiPattern phrases from a constitution file.
+
+    Lines matching ``ANTIPATTERN:`` prefix are treated as antiPattern phrases
+    (case-insensitive substring match against story title + description).
+    """
+    antipatterns: list[str] = []
+    if not path or not os.path.exists(path):
+        return antipatterns
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line.upper().startswith("ANTIPATTERN:"):
+                    phrase = line[len("ANTIPATTERN:") :].strip().lower()
+                    if phrase:
+                        antipatterns.append(phrase)
+    except OSError:
+        pass
+    return antipatterns
+
+
 def _validate_via_batch_api(
     all_candidates: list[dict],
     goals: list[str],
@@ -547,8 +569,9 @@ def validate_stories(
     goals: list[str] = prd.get("goals", [])
     gkw = _goal_keywords(goals) if goals else set()
 
-    # Load optional constitution forbidden phrases
+    # Load optional constitution forbidden phrases and anti-patterns
     forbidden_phrases = _load_constitution_forbidden(constitution_path)
+    antipattern_phrases = _load_constitution_antipatterns(constitution_path)
 
     # Combine candidates from all sources (dedup by lower-cased title)
     research_stories = _load_candidates(research_path)
@@ -690,6 +713,19 @@ def validate_stories(
                     except ImportError:
                         pass  # story_rewriter not available
 
+        # 1.5. Anti-pattern check (applies to all stories, same scope as constitution)
+        if rejection_reason is None and antipattern_phrases:
+            _ap_text = (title + " " + story.get("description", "")).lower()
+            for _ap_phrase in antipattern_phrases:
+                if _ap_phrase in _ap_text:
+                    rejection_reason = f'Matches antiPattern: "{_ap_phrase}"'
+                    break
+
+        # 1.6. Warn on empty acceptanceCriteria (non-fatal, applies to all sources)
+        _ac_early = story.get("acceptanceCriteria", [])
+        if isinstance(_ac_early, list) and len(_ac_early) == 0:
+            print(f"  [S] WARNING: {title[:60]!r} has empty acceptanceCriteria — add ACs before implementation")
+
         # 2. Goal alignment check
         # Skipped for: test-fix, test-story (auto-approved; constitution still runs)
         # Applied for: research, ai-example (must connect to project goals)
@@ -781,7 +817,9 @@ def validate_stories(
             description = story.get("description", "")
             tech_notes = story.get("technicalNotes", [])
             _min_ac = int(os.environ.get("SPIRAL_STORY_MIN_AC_COUNT", "2"))
-            if isinstance(ac_list, list) and len(ac_list) < _min_ac:
+            if isinstance(ac_list, list) and len(ac_list) == 0:
+                pass  # warning already emitted in step 1.6; not a hard rejection
+            elif isinstance(ac_list, list) and 0 < len(ac_list) < _min_ac:
                 rejection_reason = (
                     f"too_simple: only {len(ac_list)}"
                     f" {'criterion' if len(ac_list) == 1 else 'criteria'}"
