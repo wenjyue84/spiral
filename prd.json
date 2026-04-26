@@ -1051,12 +1051,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "seed",
-      "model": "haiku",
-      "last_attempted": "2026-04-26T17:44:42Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- The Slack plugin exists at `plugins/notify-slack/` with `plugin.toml`, `post-story`, and `run-completion` hooks\n- The run-completion hook receives JSON via stdin with: total_stories, passed_stories, failed_stories, skipped_stories, duration_seconds\n- The post-story hook receives JSON via stdin with story context (iteration, story_id, story_title, story_passes, retry_count)\n- The plugin system automatically discovers plugins in the `plugins/` directory\n\n## Problem Identified\nNeed to create a WhatsApp notification plugin that mirrors the Slack plugin functionality but POSTs to a WhatsApp webhook endpoint instead. The run-completion hook must include plain-language report format with pass delta (new vs previous run).\n\n## Planned Changes\n- Create `plugins/notify-whatsapp/plugin.toml` with WhatsApp configuration\n- Create `plugins/notify-whatsapp/post-story` hook script for story notifications\n- Create `plugins/notify-whatsapp/run-completion` hook script with plain-language summary and pass delta\n- Store previous pass count in `.spiral/whatsapp_prev_passes` for delta calculation\n\n<plan>\n{\n  \"files_to_create\": [\n    \"plugins/notify-whatsapp/plugin.toml\",\n    \"plugins/notify-whatsapp/post-story\",\n    \"plugins/notify-whatsapp/run-completion\"\n  ],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow let me create the plugin files:\nI need to fix the run-completion script to update the pass count file before checking the webhook URL. This ensures the delta calculation works correctly even if the webhook is not configured:\nPerfect! Now let me document this in progress.txt:\nPerfect! Story **US-1263** is now complete. Here's the final summary:\n\n## ✅ Implementation Complete: US-1263"
-      },
-      "_passedCommit": "fa783504201f9dd821c943cfdb433e617fa57426"
+      "model": "haiku"
     },
     {
       "id": "US-1264",
@@ -1081,6 +1076,28 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1265",
+      "title": "Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand",
+      "priority": "low",
+      "description": "Extend plugin.toml schema with name, version, description, inputs, outputs, tags. Add 'spiral skills list' (enumerate local plugins) and 'spiral skills install <url>' (fetch+verify+extract a plugin tarball into plugins/). Deferred; implement only after US-1263 lands so there is a second plugin to round-trip.",
+      "acceptanceCriteria": [
+        "Every plugin.toml in plugins/ gains the new metadata block (backward compatible)",
+        "'spiral skills list' round-trips metadata from notify-slack and notify-whatsapp",
+        "'spiral skills install' rejects unsigned / schema-invalid plugins",
+        "Schema documented in plugins/README.md"
+      ],
+      "technicalNotes": [
+        "uv run pytest tests/test_skills_cli.py -v"
+      ],
+      "dependencies": [
+        "US-1263"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed",
+      "model": "sonnet"
+    },
+    {
       "id": "US-1266",
       "title": "E2E Test: SettingsTab displays, edits, and saves runtime config",
       "priority": "medium",
@@ -1100,11 +1117,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-26T17:50:03Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nI need to create an E2E test for the SettingsTab component that:\n1. Navigates to the Settings tab in spiral-ui dashboard\n2. Asserts three editable fields are visible: SPIRAL_MAX_PENDING, SPIRAL_MODEL_ROUTING, SPIRAL_VALIDATE_CMD\n3. Submits a config change and asserts a success toast appears\n\nThe SettingsTab component exists at `spiral-ui/src/components/dashboard/SettingsTab.tsx` and displays these three fields from the CONFIG_FIELDS schema. The component POSTs to `/api/save-config` and shows success/error messages.\n\n## Problem Identified\n\nStory US-1266 requires:\n1. Creating playwright.config.ts for test configuration\n2. Creating tests/web/SettingsTab.e2e.ts with E2E test\n3. The test must be grep-able with pattern \"us_1215\" (the dependency story)\n4. Test must run successfully in headless mode via `npx playwright test --grep us_1215`\n\n## Planned Changes\n\n1. **Create playwright.config.ts**: Configure Playwright to run tests against localhost:5299 (spiral-ui dev server), set headless mode, configure reporters\n2. **Create tests/web/SettingsTab.e2e.ts**: Write Playwright test that:\n   - Navigates to /{project}/settings route\n   - Waits for and asserts visibility of SPIRAL_MAX_PENDING, SPIRAL_MODEL_ROUTING, SPIRAL_VALIDATE_CMD fields with test IDs\n   - Changes one field value\n   - Clicks Save button\n   - Asserts success toast message appears in DOM\n   - Uses `@test(us_1215)` annotation for grep matching\n\n<plan>\n{\n  \"files_to_create\": [\"playwright.config.ts\", \"tests/web/SettingsTab.e2e.ts\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me create the playwright configuration and test file:\nLet me fix the test name to be grep-compatible:\nLet me check how /api/project-live is implemented to understand the initial data loading:\nLet me refine my test to use better selectors that will be more reliable:\nLet me verify that the test syntax is correct by checking if we can parse it:\nLet me install @playwright/test at the project root:\nNow let me run the test to see if it passes. The test will automatically start the dev server:\nLet me check if the browser installation is complete:\nLet me git add and commit the changes for the test:\nLet me wait a moment for the browser installation and then try running the test:\nLet me check the output of the browser installation:\nPerfect! The test passes all acceptance criteria. Let me update prd.json and progress.txt:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1267",
@@ -1347,6 +1360,49 @@
       "model": "haiku"
     },
     {
+      "id": "US-1278",
+      "title": "CLI: spiral cost-breakdown command with per-phase token and dollar analysis",
+      "priority": "medium",
+      "description": "Add CLI command to analyze and report token spend and cost per phase, per model, and per story type, with JSON/CSV export and historical baseline comparison. Provides cost transparency and helps identify expensive phases.",
+      "acceptanceCriteria": [
+        "`spiral cost-breakdown` outputs table with columns: Phase | Stories | Tokens | Cost | Avg Model | % of Total",
+        "`spiral cost-breakdown --output json` exports full breakdown indexed by phase and story ID",
+        "`spiral cost-breakdown --compare <baseline.tsv>` shows delta vs historical baseline with ↑↓ indicators"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cost_analyzer.py (implement parse_results_tsv, breakdown_by_phase, format_table functions)",
+        "File to edit: spiral.sh (register cost-breakdown subcommand in CLI parser around line 1500)",
+        "Test command: uv run pytest tests/test_cost_analyzer.py::test_cost_breakdown_format -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1279",
+      "title": "[Performance Test] Config API load/persist latency benchmark (US-1214)",
+      "priority": "medium",
+      "description": "Write a performance benchmark test for the config load, validate, and persist operations in lib/spiral_ui_config.py and the POST /api/config endpoint from US-1214. Captures a baseline and asserts response time stays within 20% of it.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_us_1214_perf.py -k 'config_load_latency' -v exits 0 and prints measured p95 latency in ms",
+        "uv run pytest tests/test_us_1214_perf.py -k 'api_config_post_latency' -v exits 0 and fails if median response time exceeds 200 ms",
+        "uv run pytest tests/test_us_1214_perf.py -v exits non-zero if lib/spiral_ui_config.py does not exist"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us_1214_perf.py (create; use timeit or time.perf_counter around spiral_ui_config.load_config() calls)",
+        "File to edit: lib/spiral_ui_config.py (import only — do not modify; confirm function signatures first)",
+        "Test command: uv run pytest tests/test_us_1214_perf.py -v -s",
+        "Use pytest-benchmark if available (uv run pytest --co -q to check); otherwise use time.perf_counter with 100 iterations and assert mean < 0.2s"
+      ],
+      "dependencies": [
+        "US-1214"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1280",
       "title": "CLI: spiral doctor - Environment Health Check with Auto-Remediation Suggestions",
       "priority": "high",
@@ -1366,6 +1422,26 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1281",
+      "title": "Phase R: create research_quality_checker.py with scoring and replay logic",
+      "priority": "medium",
+      "description": "Create lib/research_quality_checker.py implementing compute_quality_score(research_result, story_title) returning a 0-1 float based on citation count, source diversity, and TF-IDF relevance, and should_replay(score, attempt_count) returning bool. Write unit tests covering score calculation and replay gate.",
+      "acceptanceCriteria": [
+        "`uv run pytest tests/test_phase_r_quality.py::test_compute_quality_score -v` passes and asserts score is in [0.0, 1.0]",
+        "`uv run pytest tests/test_phase_r_quality.py::test_should_replay_below_threshold -v` passes and returns True when score < 0.7 and attempt < 3",
+        "`uv run pytest tests/test_phase_r_quality.py::test_should_not_replay_at_max_attempts -v` passes and returns False when attempt_count >= 3"
+      ],
+      "technicalNotes": [
+        "File to create: lib/research_quality_checker.py (compute_quality_score, should_replay; use sklearn TfidfVectorizer or simple cosine sim)",
+        "File to create: tests/test_phase_r_quality.py (test_compute_quality_score, test_should_replay_below_threshold, test_should_not_replay_at_max_attempts)",
+        "Test command: uv run pytest tests/test_phase_r_quality.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1282",
@@ -1393,6 +1469,28 @@
       "_scopeCreep": true
     },
     {
+      "id": "US-1283",
+      "title": "Phase S: Track story rejection reasons and add `spiral explain-rejection <id>` CLI command",
+      "priority": "medium",
+      "description": "Enhance Phase S validation to capture structured rejection reasons when stories fail constitution or dedup checks. Add a CLI command to query why a story was rejected, improving debuggability for large PRD backlogs.",
+      "acceptanceCriteria": [
+        "When Phase S rejects a story, store rejection reason in prd.json under story._rejectionLog: [{ timestamp, reason, details }]",
+        "Rejection reasons include: 'constitution_mismatch', 'goal_misaligned', 'duplicate_detected', 'acceptance_criteria_incomplete'",
+        "CLI command `spiral explain-rejection US-123` displays human-readable rejection summary with remediation hints",
+        "All rejections also logged to .spiral/rejections.jsonl for telemetry (one JSON per line)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/spiral/story_validate.py (add track_rejection_reason function)",
+        "File to create: lib/cli_explain_rejection.py (main_explain_rejection function that queries prd.json)",
+        "File to edit: lib/phases/phase_s.sh (call track_rejection_reason before skipping story)",
+        "Test command: uv run pytest tests/test_phase_s_rejection_tracking.py::test_rejection_logged -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1284",
       "title": "Add MockClaudeAPI fixture for isolated phase behavior testing",
       "priority": "high",
@@ -1412,12 +1510,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-26T17:36:20Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe project uses pytest with conftest.py containing various fixtures. Phase A likely calls the Claude CLI via subprocess.run. Tests need a way to mock these calls without hitting the real API.\n\n## Problem Identified\n\nNeed to create a MockClaudeAPI fixture that intercepts subprocess.run calls to the Claude CLI when CLAUDE_CLI_MOCK=true, enabling isolated testing of SPIRAL phases with predefined responses for success, timeout, and malformed JSON scenarios.\n\n## Planned Changes\n\n- Create `tests/fixtures/mock_claude.py` with MockClaudeAPI class and mock_claude_env context manager that patches subprocess.run\n- Create `tests/fixtures/sample_responses.json` with predefined responses for scenarios (success, timeout, malformed_json)\n- Create `tests/test_phase_a_integration.py` with three test functions\n- Create `tests/fixtures/__init__.py` to make fixtures directory a package\n\n<plan>\n{\n  \"files_to_create\": [\n    \"tests/fixtures/__init__.py\",\n    \"tests/fixtures/mock_claude.py\",\n    \"tests/fixtures/sample_responses.json\",\n    \"tests/test_phase_a_integration.py\"\n  ],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\n    \"MockClaudeAPI\",\n    \"mock_claude_env\"\n  ],\n  \"estimated_loc\": 280\n}\n</plan>\n\nNow executing the plan:\nNow let me run the acceptance criteria tests:\nExcellent! All acceptance criteria pass. Now let me run quality checks:\nPerfect! All tests pass. Now let me run pre-commit hooks and update prd.json:\nThe pre-commit errors are in external dependencies, not my code. My files passed ruff checks. Let me commit my changes:\nNow let me document the implementation in progress.txt:\nPerfect! Let me run a final verification of all acceptance criteria:\nExcellent! All acceptance criteria pass successfully. Here's a summary of the completed work:\n\n## Summary"
-      },
-      "_passedCommit": "58c1e341f9787c1946beb290a1b21ec9c3a17927"
+      "model": "haiku"
     }
   ]
 }
