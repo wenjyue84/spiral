@@ -1076,6 +1076,28 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1265",
+      "title": "Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand",
+      "priority": "low",
+      "description": "Extend plugin.toml schema with name, version, description, inputs, outputs, tags. Add 'spiral skills list' (enumerate local plugins) and 'spiral skills install <url>' (fetch+verify+extract a plugin tarball into plugins/). Deferred; implement only after US-1263 lands so there is a second plugin to round-trip.",
+      "acceptanceCriteria": [
+        "Every plugin.toml in plugins/ gains the new metadata block (backward compatible)",
+        "'spiral skills list' round-trips metadata from notify-slack and notify-whatsapp",
+        "'spiral skills install' rejects unsigned / schema-invalid plugins",
+        "Schema documented in plugins/README.md"
+      ],
+      "technicalNotes": [
+        "uv run pytest tests/test_skills_cli.py -v"
+      ],
+      "dependencies": [
+        "US-1263"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed",
+      "model": "sonnet"
+    },
+    {
       "id": "US-1266",
       "title": "E2E Test: SettingsTab displays, edits, and saves runtime config",
       "priority": "medium",
@@ -1423,8 +1445,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-26T20:40:07Z"
+      "model": "haiku"
     },
     {
       "id": "US-1282",
@@ -1680,6 +1701,158 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1294",
+      "title": "spiral-ui: Add Tests tab frontend component with SSE re-run streaming",
+      "priority": "medium",
+      "description": "Create a TestsTab React component that fetches GET /api/tests/latest on mount, renders a sortable table (test name, status, duration, file), and supports per-row re-run via SSE from POST /api/tests/rerun/:testId with live status update.",
+      "acceptanceCriteria": [
+        "Tests tab renders a table with columns: test name, status badge (pass/fail/error), duration, file path",
+        "Clicking Re-run on a row opens an inline SSE log panel that updates in real-time until the stream closes",
+        "Tab appears in the main navigation and is reachable at the /tests route without page reload"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/frontend/tabs/Tests.tsx (TestsTab component, useSseRerun hook)",
+        "File to edit: spiral-ui/frontend/App.tsx (add /tests route and nav link)",
+        "Test command: npx vitest run spiral-ui/frontend/tabs/Tests.test.tsx",
+        "File to create: spiral-ui/frontend/tabs/Tests.test.tsx (renders table, rerun opens SSE panel)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1295",
+      "title": "[E2E Test] spiral-ui ActivityLogTable: filter by status and open detail modal",
+      "priority": "medium",
+      "description": "Write a Playwright end-to-end test for the ActivityLogTable component added in US-1218. The test must assert that clicking a status badge filters the table rows and that clicking any row opens a detail modal showing story fields. Tests run headless in CI.",
+      "acceptanceCriteria": [
+        "npx playwright test spiral-ui/tests/e2e/activity-log.spec.ts --reporter=line exits 0",
+        "Test clicks a 'passed' status badge and asserts only rows with status 'passed' remain visible",
+        "Test clicks the first table row and asserts a modal appears containing at least one story field (e.g. title or description)"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral-ui/tests/e2e/activity-log.spec.ts (create; use @playwright/test)",
+        "File to edit: spiral-ui/src/components/ActivityLogTable.tsx (read to find data-testid / aria labels for badges, rows, and modal)",
+        "Test command: npx playwright test spiral-ui/tests/e2e/activity-log.spec.ts --reporter=line",
+        "Seed the page with fixture data via a mock API route (page.route) if the backend is not available in test mode"
+      ],
+      "dependencies": [
+        "US-1218"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1296",
+      "title": "[Regression Test] Meta-Harness: Success-Pattern Library appends on zero-retry pass",
+      "priority": "medium",
+      "description": "Write a regression test that guards the success-pattern extraction logic from US-1225. The test must verify that after a story completes with 0 retries, its characteristics are appended to .spiral/_success_patterns.jsonl, and that Phase A candidate scoring reads this file. Breaking either side must cause the test to fail.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_success_patterns.py -v exits 0 with at least one test collected",
+        "Test asserts that calling the extraction function with a zero-retry story result appends one JSON line to _success_patterns.jsonl containing keys: file_count, ac_count, keywords",
+        "Test asserts that the Phase A scoring function returns a higher score for a candidate matching a stored pattern than for one with no match"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_success_patterns.py (create)",
+        "File to edit: lib/phases/phase_l.sh or equivalent Python module (read to locate the extraction logic introduced by US-1225)",
+        "Test command: uv run pytest tests/test_success_patterns.py -v --tb=short",
+        "Use tmp_path fixture to write _success_patterns.jsonl to a temporary directory; patch the path constant before calling the extraction function"
+      ],
+      "dependencies": [
+        "US-1225"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1297",
+      "title": "CLI: Add spiral export-progress command to bundle PRD, results, and metrics as snapshot",
+      "priority": "medium",
+      "description": "Add a CLI subcommand `spiral export-progress [--format json|zip]` that bundles the current spiral state (prd.json, results.tsv, learning.md, loop_quality.jsonl, metadata) into a single JSON or ZIP file for stakeholder sharing or iteration archiving.",
+      "acceptanceCriteria": [
+        "Command `spiral export-progress` outputs JSON with schema: { prd, results, learning, loopQuality, metadata: { iteration, timestamp, passCount, failCount, totalCost, checksum } }",
+        "Command `spiral export-progress --format zip` creates ZIP archive containing prd.json, results.tsv, learning.md, retry-counts.json, and README.md explaining contents",
+        "Exported file includes sha256 checksum in metadata to detect corruption; filename is timestamped (e.g., spiral-export-2026-04-14T18:30:00Z.json)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/export_progress.py (new), lib/snapshot_schema.py (new for JSON schema validation), lib/cli_subcommands.sh (add export-progress handler)",
+        "Test command: uv run pytest tests/test_export_progress.py::test_export_json -v; uv run pytest tests/test_export_progress.py::test_export_zip -v",
+        "Read from: prd.json, results.tsv, learning.md, .spiral/loop_quality.jsonl, retry-counts.json; compute metadata from file contents and iteration state"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1298",
+      "title": "spiral-ui frontend: ThroughputMetrics widget on Dashboard with auto-refresh",
+      "priority": "medium",
+      "description": "Create a ThroughputMetrics React component that fetches /api/throughput every 30 seconds and renders velocity and median cycle time. Register the widget on the Dashboard page. Requires the backend endpoint from the companion story.",
+      "acceptanceCriteria": [
+        "Dashboard renders ThroughputMetrics showing 'X stories/hour' and cycle time by complexity band (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx)",
+        "Component polls /api/throughput every 30 seconds when iteration is running (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx --testNamePattern=refresh)",
+        "Displays 'Insufficient data' string when API returns empty metrics (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx --testNamePattern=insufficient)"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/ThroughputMetrics.tsx (ThroughputMetrics component)",
+        "File to create: spiral-ui/src/components/ThroughputMetrics.test.tsx (unit tests with MSW or vi.mock)",
+        "File to edit: spiral-ui/src/pages/Dashboard.tsx (import and render <ThroughputMetrics />)",
+        "Test command: npm run test -- src/components/ThroughputMetrics.test.tsx",
+        "Use recharts BarChart for cycle-time distribution; useInterval or setInterval in useEffect for 30s polling"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1299",
+      "title": "Phase E: Hint recommender from story attempt history",
+      "priority": "medium",
+      "description": "Create lib/hint_recommender.py that reads results.tsv and returns decomposition, model, and retry hints for a story before Phase I runs. Integrate into the Phase E handler so hints are appended to prd.json story._hints before implementation begins.",
+      "acceptanceCriteria": [
+        "suggest_hints_from_history() returns dict with keys decomposition_suggested, recommended_model, recommended_retries (verified by: uv run pytest tests/test_hint_recommender.py::test_suggest_hints_schema -v)",
+        "When haiku pass rate < 50% for the story's complexity band, recommended_model is 'sonnet' (verified by: uv run pytest tests/test_hint_recommender.py::test_low_haiku_pass_rate_escalates_model -v)",
+        "Phase E handler writes returned hints into story._hints array in prd.json before Phase I (verified by: uv run pytest tests/test_hint_recommender.py::test_hints_persisted_to_prd -v)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/hint_recommender.py (analyze_story_cohort, suggest_hints_from_history)",
+        "File to edit: lib/phases.py (Phase E handler — call suggest_hints_from_history and patch story._hints)",
+        "File to create: tests/test_hint_recommender.py with fixture results_tsv containing >=10 sample attempts across haiku/sonnet",
+        "Test command: uv run pytest tests/test_hint_recommender.py -v",
+        "Read results.tsv with csv.DictReader; group by complexity band using collections.defaultdict"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1300",
+      "title": "CLI: spiral batch <operation> --stories-file for multi-story operations",
+      "priority": "medium",
+      "description": "Enable batch operations on multiple stories (mark-done, retrigger, update-metadata) by reading story IDs from a file. Improves CLI ergonomics for managing groups of stories without manual iteration.",
+      "acceptanceCriteria": [
+        "spiral batch mark-done --stories-file completed.txt marks all stories in file as done in prd.json and adds timestamps",
+        "spiral batch retrigger --stories-file failed.txt resets retry counts and re-queues stories for Phase I",
+        "Batch operations log results with counts: '3 stories marked done, 1 skipped (not pending)'",
+        "File format: one story ID per line (US-123, UT-456, etc.)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/batch_operations.py with parse_story_file() and execute_batch_operation() functions",
+        "File to edit: lib/cli_subcommands.sh to add batch subcommand handler",
+        "Test command: uv run pytest tests/test_batch_operations.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1301",
       "title": "Phase X: Build lib/dependency_resolver.py with NLP-based story blocker inference and DAG cycle detection",
       "priority": "high",
@@ -1697,12 +1870,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-26T20:26:29Z",
-      "_phaseI": {
-        "diagnosisBlock": "### Current State\n- US-1301 requires building `lib/dependency_resolver.py` with NLP-based keyword matching to infer story dependencies\n- spiralsh currently has Phase X (context build) but it focuses on repo maps, not dependency inference\n- Existing `lib/tools/infer_dependencies.py` uses file-touch overlap (Jaccard), not NLP keyword matching\n- No `lib/dependency_resolver.py` or `tests/test_dependency_resolver.py` exist yet\n\n### Problem Identified\nNeed to implement NLP-based story dependency inference that:\n1. Scans prd.json story titles and descriptions for keywords: 'requires', 'depends on', 'blocked by', 'after', 'must complete'\n2. Builds a dependency graph and validates it's a DAG (no cycles)\n3. Outputs `.spiral/dependencies.json` with structure: {story_id, depends_on, blocked_by, critical, depth_in_dag, blocker_count}\n4. Integrates into spiral.sh after Phase S\n\n### Planned Changes\n- Create `lib/dependency_resolver.py` with `infer_dependencies()`, `detect_cycles()`, and main function\n- Create `tests/test_dependency_resolver.py` with cycle detection and keyword matching tests\n- Update `spiral.sh` to invoke `lib/dependency_resolver.py` after Phase S and store results in `.spiral/dependencies.json`\n\n<plan>\n{\n  \"files_to_create\": [\"lib/dependency_resolver.py\", \"tests/test_dependency_resolver.py\"],\n  \"files_to_modify\": [\"spiral.sh\"],\n  \"functions_to_add\": [\"infer_dependencies\", \"detect_cycles\", \"cmd_resolver\"],\n  \"estimated_loc\": 250\n}\n</plan>\n\nNow I'll implement the solution:"
-      },
-      "_passedCommit": "dc1ff4e6e1bc9d679d248d09f5ff81b2efef57ae"
+      "model": "haiku"
     }
   ]
 }

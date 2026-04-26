@@ -114,9 +114,7 @@ def compute_dag_metrics(
     Returns:
       Dict mapping story_id -> {depends_on, blocked_by, critical, depth_in_dag, blocker_count}
     """
-    story_ids_raw = {
-        s.get("id") for s in stories if isinstance(s, dict) and "id" in s and s.get("id")
-    }
+    story_ids_raw = {s.get("id") for s in stories if isinstance(s, dict) and "id" in s and s.get("id")}
     story_ids = cast(set[str], story_ids_raw)
     metrics: dict[str, dict[str, Any]] = {}
 
