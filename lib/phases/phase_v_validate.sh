@@ -743,7 +743,7 @@ PYEOF
 
         # Update story with results
         if echo "$_REACH_RESULT" | grep -q "✓"; then
-          echo "  [V] Reach OK: $_story_id ($__STORY_TITLE)"
+          echo "  [V] Reach OK: $_story_id ($_STORY_TITLE)"
           "$JQ" --arg id "$_story_id" \
             '(.userStories[] | select(.id == $id) | ._reachabilityCheck) = {"status":"pass"}' \
             "$PRD_FILE" >"$PRD_FILE.tmp" 2>/dev/null && mv "$PRD_FILE.tmp" "$PRD_FILE" || true
