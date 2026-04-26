@@ -131,3 +131,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-26T16:47:08Z	1	1	US-1246	Phase V: Integrate evidence aggregator into spiral.sh and update prd.schema.json	reject	356	sonnet	1		69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-26T16:56:40Z	1	2	US-1264	Trajectory export: results.tsv + worker logs to JSONL for LLM fine-tuning / RL training	keep	530	sonnet	0	02a61e7221fbed83726054fb496546c6e6891ea3	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-26T17:44:39Z	7	1	US-1284	Add MockClaudeAPI fixture for isolated phase behavior testing	keep	417	haiku	0	58c1e341f9787c1946beb290a1b21ec9c3a17927	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-26T17:50:00Z	7	2	US-1263	WhatsApp notification plugin (plugins/notify-whatsapp/) for iteration and story reports	keep	289	haiku	0	fa783504201f9dd821c943cfdb433e617fa57426	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				

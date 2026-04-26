@@ -9,7 +9,7 @@ SPIRAL_FOCUS="Improve SPIRAL as a product. Focus areas (rotate each iteration): 
 SPIRAL_GATE_MODE="proceed"
 
 # ── Enable Phase R (web research) for fresh story discovery ──────────────────
-SKIP_RESEARCH=0
+SKIP_RESEARCH="0"
 
 # ── Python interpreter ───────────────────────────────────────────────────────
 # Use venv Python directly — "uv run python" fails when quoted in spiral.sh ($SPIRAL_PYTHON is quoted)
@@ -29,18 +29,18 @@ SPIRAL_WORKER_POOL="${SPIRAL_WORKER_POOL:-true}"
 # Persistent cache directory across iterations for faster test reruns (10-15% speedup)
 SPIRAL_PYTEST_CACHE_DIR=".spiral/.pytest_cache"
 # Max cache size in MB before pruning (0 = no limit)
-SPIRAL_PYTEST_CACHE_MAX_MB=100
+SPIRAL_PYTEST_CACHE_MAX_MB="100"
 
 # ── Phase V timeout (seconds) ─────────────────────────────────────────────
 # Default 300s is too short for 2900+ tests. Increased to 600s.
-SPIRAL_VALIDATE_TIMEOUT=600
+SPIRAL_VALIDATE_TIMEOUT="600"
 
 # ── Baseline test count (for test ratchet in ralph) ──────────────────────────
 # DISABLED: pytest --collect-only was consuming the entire Ralph budget (1800s)
 # inside the Claude CLI session, causing every story to time out during baseline
 # counting. Hardcoded to last known passing count (~2900) as instant fallback.
 # Re-enable once baseline counting is moved outside the Claude CLI session.
-export SPIRAL_TEST_BASELINE_CMD='echo 2900'
+export SPIRAL_TEST_BASELINE_CMD="echo 2900"
 
 # ── Model routing: auto routes haiku→sonnet→opus by story complexity ─────────
 # Options: auto | haiku | sonnet | opus
@@ -126,11 +126,11 @@ SPIRAL_REPO_MAP_MAX_LINES="${SPIRAL_REPO_MAP_MAX_LINES:-150}"
 # ── Phase-specific model defaults ────────────────────────────────────────────
 # Each non-implementation phase can use a cheaper model (haiku is ~15x cheaper
 # than sonnet). Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.
-SPIRAL_RESEARCH_MODEL="haiku" # Phase R: research synthesis model
+SPIRAL_RESEARCH_MODEL="haiku"  # Phase R: research synthesis model
 # Model for Phase A LLM story generation. Defaults to haiku (cheapest).
 # SPIRAL_AI_SUGGEST_MODEL="claude-haiku-4-5-20251001"
-SPIRAL_VALIDATION_MODEL="haiku" # Phase S: story validation (future — currently Python-only)
-SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently Python-only)
+SPIRAL_VALIDATION_MODEL="haiku"  # Phase S: story validation (future — currently Python-only)
+SPIRAL_MERGE_MODEL="haiku"  # Phase M: merge decisions (future — currently Python-only)
 # Bulk override format: SPIRAL_PHASE_MODEL_OVERRIDE=R:haiku,S:haiku,M:haiku
 # SPIRAL_PHASE_MODEL_OVERRIDE=""
 
@@ -151,7 +151,7 @@ SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently
 # called from the codebase. Prevents "code exists but doesn't work" implementations.
 # Default false = soft warning (logged but does not block)
 # Set to true to hard block: Phase V fails if any dead features detected
-SPIRAL_STRICT_DEAD_FEATURE="${SPIRAL_STRICT_DEAD_FEATURE:-false}"
+SPIRAL_STRICT_DEAD_FEATURE="false"
 
 # ── Phase Timing Regression Detector (US-1008) ───────────────────────────────
 # Records execution time baseline (P50/P90) for each SPIRAL phase from the last 10
@@ -225,11 +225,11 @@ SPIRAL_SEQUENTIAL_MERGE="${SPIRAL_SEQUENTIAL_MERGE:-true}"
 # (remaining_workers * this + 512) MB free before launching each worker.
 # Default 1536 = V8 heap (1024) + typical non-heap overhead (512).
 # Set lower (1024) on machines with limited free RAM.
-export SPIRAL_MEMORY_GATE_MB=1024
+export SPIRAL_MEMORY_GATE_MB="1024"
 
 # Hard timeout (minutes) for memory gate. 0 = wait forever (old behavior).
 # Default 2 = wait up to 2 min, then launch anyway (watchdog handles runtime).
-export SPIRAL_MEMORY_WAIT_MAX_MINS=2
+export SPIRAL_MEMORY_WAIT_MAX_MINS="2"
 
 # ── Dispatch mode: control worker scheduling strategy (US-361) ──────────────────
 # Options: dag (new default) | parallel (legacy all-parallel)
@@ -245,9 +245,9 @@ SPIRAL_MEMORY_POOL="${SPIRAL_MEMORY_POOL:-true}"
 # RAM excluded from pool for OS + orchestrator overhead (MB)
 SPIRAL_POOL_RESERVE_MB="${SPIRAL_POOL_RESERVE_MB:-1024}"
 # Per-tier reservation sizes (MB)
-SPIRAL_POOL_TIER_SMALL="${SPIRAL_POOL_TIER_SMALL:-768}"    # haiku, score 0-1
-SPIRAL_POOL_TIER_MEDIUM="${SPIRAL_POOL_TIER_MEDIUM:-1536}" # sonnet, score 2-4
-SPIRAL_POOL_TIER_LARGE="${SPIRAL_POOL_TIER_LARGE:-2560}"   # opus, score 5+, retries >= 2
+SPIRAL_POOL_TIER_SMALL="${SPIRAL_POOL_TIER_SMALL:-768}"  # haiku, score 0-1
+SPIRAL_POOL_TIER_MEDIUM="${SPIRAL_POOL_TIER_MEDIUM:-1536}"  # sonnet, score 2-4
+SPIRAL_POOL_TIER_LARGE="${SPIRAL_POOL_TIER_LARGE:-2560}"  # opus, score 5+, retries >= 2
 # V8 heap as percentage of reservation (remainder = non-heap overhead)
 SPIRAL_POOL_V8_HEAP_FRACTION="${SPIRAL_POOL_V8_HEAP_FRACTION:-65}"
 # Interval (seconds) for reclaiming reservations from dead worker PIDs
@@ -257,44 +257,44 @@ SPIRAL_POOL_RECLAIM_INTERVAL="${SPIRAL_POOL_RECLAIM_INTERVAL:-30}"
 # Prevents flooding prd.json during aggressive non-stop runs.
 # Tightened to 15: at ~3-5 completions/iter, Phase R only runs when backlog is
 # nearly clear, keeping the pending gap under control.
-SPIRAL_MAX_PENDING=15
+SPIRAL_MAX_PENDING="18"
 
 # ── Dead weight threshold: auto-archive stories stuck N+ iterations ────────────
 # When a non-passed story survives more than this many iterations without progress,
 # it's automatically marked _archived:true to prevent backlog bloat (US-779).
 # Phase I skips archived stories but they remain in prd.json for audit.
 # Default: 5 iterations. Set to 0 to disable dead weight detection.
-SPIRAL_DEAD_WEIGHT_THRESHOLD=5
+SPIRAL_DEAD_WEIGHT_THRESHOLD="5"
 
 # ── Total story count assertion ceiling ───────────────────────────────────────
 # Spiral has 264 total stories (243 done + 21 pending + room for research).
 # Override the default of 200 to prevent abort on assert.
-SPIRAL_MAX_TOTAL_STORIES=450
+SPIRAL_MAX_TOTAL_STORIES="450"
 
 # ── Auto-stash dirty working tree before Phase I (US-177) ────────────────────
 # Stashes uncommitted changes before ralph runs, pops them after.
 # Required when running SPIRAL on itself (prd.json, config, etc. are always dirty).
-SPIRAL_AUTO_STASH=true
+SPIRAL_AUTO_STASH="true"
 
 # ── Stale git lock-file cleanup (US-225) ─────────────────────────────────────
 # Lock files in worktrees older than this many minutes are removed (if no live
 # git process is found). 0 = disable automatic cleanup.
-SPIRAL_LOCK_TIMEOUT_MINUTES=5
+SPIRAL_LOCK_TIMEOUT_MINUTES="5"
 
 # ── Batch size: cap stories visible to ralph per iteration ────────────────
 # Only the N highest-priority pending stories are included in the PRD slice
 # passed to ralph. 0 = disabled (all pending stories visible, current behavior).
-SPIRAL_STORY_BATCH_SIZE=10
+SPIRAL_STORY_BATCH_SIZE="10"
 
 # ── Research story cap: max new stories Phase R may add per iteration ─────────
 # Prevents Phase R from flooding prd.json each cycle. Matches the implementation
 # rate (~3-5 completions/iter) so pending count stays roughly flat.
-SPIRAL_MAX_RESEARCH_STORIES=5
+SPIRAL_MAX_RESEARCH_STORIES="5"
 
 # ── AI suggestion cap: max Phase A stories generated per iteration ────────────
 # Phase A runs after Phase R and adds AI-generated story candidates.
 # Set to 0 to stop generating new stories and focus on clearing the backlog.
-SPIRAL_MAX_AI_SUGGEST=5
+SPIRAL_MAX_AI_SUGGEST="5"
 
 # ── AI suggestion quality threshold: filter low-quality stories (US-790) ─────────
 # Stories scoring below this threshold are discarded before Phase S validation.
@@ -302,7 +302,7 @@ SPIRAL_MAX_AI_SUGGEST=5
 # acceptance criteria quality (25%), scope clarity (15%).
 # Tier 1 (user-facing): ~90, Tier 2 (reliability): ~75, Tier 3 (power user): ~60, Tier 4 (infra): ~20.
 # Default 40 filters out infrastructure-only and poorly-scoped stories.
-SPIRAL_AI_SUGGEST_MIN_SCORE=40
+SPIRAL_AI_SUGGEST_MIN_SCORE="40"
 
 # ── Completed story history limit for Phase A dedup (US-1133) ──────────────────
 # Number of most-recent completed stories (passes=true) to inject into the Phase A
@@ -310,13 +310,13 @@ SPIRAL_AI_SUGGEST_MIN_SCORE=40
 # duplicates of completed work. Grouped by epicId for compactness.
 # Set to 0 to disable injection (all completed stories excluded from prompt).
 # Default: 50 completed stories (token cost < 500 per iteration).
-SPIRAL_AI_SUGGEST_HISTORY_LIMIT=50
+SPIRAL_AI_SUGGEST_HISTORY_LIMIT="50"
 
 # ── Dead weight detection: auto-archive stories stuck 5+ iterations ─────────────
 # Tracks _pending_iterations counter per story. Stories exceeding this threshold
 # are marked _archived: true with _archiveReason to prevent backlog bloat.
 # Archived stories remain in prd.json for audit but are excluded from Phase I dispatch.
-SPIRAL_DEAD_WEIGHT_THRESHOLD=5
+SPIRAL_DEAD_WEIGHT_THRESHOLD="5"
 
 # ── Phase S: Message Batches API validation (US-390) ──────────────────────
 # Set to 1 to submit Phase S validation requests to the Anthropic Message
@@ -382,20 +382,20 @@ SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
 # reasons, then exits with ERR_ZERO_PROGRESS (exit code 9).
 # 0 = disabled (unlimited retries; recovery strategies still apply).
 # Default 3 matches the existing graduated recovery (decompose → halve batch → halt).
-SPIRAL_CONSECUTIVE_FAIL_ABORT=0 # disabled — allow retries on difficult sub-stories
+SPIRAL_CONSECUTIVE_FAIL_ABORT="0 # disabled — allow retries on difficult sub-stories"  # disabled — allow retries on difficult sub-stories"  # disabled — allow retries on difficult sub-stories"  # disabled — allow retries on difficult sub-stories
 
 # ── Skip disk space preflight check (slow on Windows NTFS) ──────────────────
-export SPIRAL_SKIP_DISK_CHECK=1
+export SPIRAL_SKIP_DISK_CHECK="1"
 
 # ── Implementation timeout per story ─────────────────────────────────────
-export SPIRAL_IMPL_TIMEOUT=2400
-export SPIRAL_WORKER_TIMEOUT=2400
+export SPIRAL_IMPL_TIMEOUT="2400"
+export SPIRAL_WORKER_TIMEOUT="2400"
 
 # ── Per-complexity timeouts (defaults: small=300, medium=600, large=1200) ──
 # Doubled to give Ralph enough runway for complex stories (integration tests, CLI tools)
-export SPIRAL_STORY_TIMEOUT_SMALL=1200
-export SPIRAL_STORY_TIMEOUT_MEDIUM=1800
-export SPIRAL_STORY_TIMEOUT_LARGE=3600
+export SPIRAL_STORY_TIMEOUT_SMALL="1200"
+export SPIRAL_STORY_TIMEOUT_MEDIUM="1800"
+export SPIRAL_STORY_TIMEOUT_LARGE="3600"
 
 # ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
@@ -452,20 +452,20 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # are found, or when all stories are complete (final gate always runs full suite).
 # For pytest: test file derived as <SPIRAL_TEST_PREFIX><basename>.py
 # For vitest: appends --related <filesTouch entries> to SPIRAL_VALIDATE_CMD
-SPIRAL_INCREMENTAL_VALIDATE=true
+SPIRAL_INCREMENTAL_VALIDATE="true"
 # SPIRAL_TEST_PREFIX="tests/test_"
 
 # ── Full test suite frequency (US-1102) ──────────────────────────────────────
 # Force full suite every N iterations as a safety net. Default 5 = every 5th
 # iteration runs full suite regardless of what changed. Also forced on final
 # Phase C when all stories are complete. Set to 0 to disable (always incremental).
-SPIRAL_FULL_TEST_EVERY_N=5
+SPIRAL_FULL_TEST_EVERY_N="5"
 
 # ── Last-failed tests in incremental mode (US-1102) ──────────────────────────
 # When true, incremental pytest runs add --lf flag to also run previously
 # failing tests, helping catch regressions. Set to false to run only affected
 # tests. Ignored for vitest and other non-pytest frameworks.
-SPIRAL_USE_LAST_FAILED=true
+SPIRAL_USE_LAST_FAILED="true"
 
 # ── Self-consistency hallucination check (US-228) ──────────────────────────
 # When true, skips consistency checks on story acceptance criteria (fast path).
@@ -491,14 +491,14 @@ SPIRAL_SKIP_STORY_IDS="US-318,US-319,US-320,US-321,US-322,US-323,US-324,US-325,U
 # ── Dashboard auto-refresh interval (seconds) ─────────────────────────────
 # The HTML dashboard includes a <meta http-equiv='refresh'> tag so the browser
 # reloads automatically during active runs. Set to 0 to disable (static mode).
-SPIRAL_DASHBOARD_REFRESH_SECS=30
+SPIRAL_DASHBOARD_REFRESH_SECS="30"
 
 # ── Large PRD streaming threshold (US-123) ────────────────────────────────
 # When prd.json exceeds this size (in KB), ralph.sh switches to jq --stream
 # to avoid loading the entire document into memory. Default 512 KB covers
 # ~1000-story PRDs comfortably. Set to 0 to always use streaming (useful for
 # testing). Requires jq 1.6+ for --stream support.
-SPIRAL_PRD_STREAM_THRESHOLD_KB=2048 # streaming jq path has a bug; keep on in-memory path until prd.json > 2MB
+SPIRAL_PRD_STREAM_THRESHOLD_KB="2048 # streaming jq path has a bug; keep on in-memory path until prd.json > 2MB"  # streaming jq path has a bug; keep on in-memory path until prd.json > 2MB"  # streaming jq path has a bug; keep on in-memory path until prd.json > 2MB"  # streaming jq path has a bug; keep on in-memory path until prd.json > 2MB
 
 # ── Research output cache TTL (US-170) ───────────────────────────────────
 # When set to a positive integer, Phase R is skipped entirely if
@@ -506,7 +506,7 @@ SPIRAL_PRD_STREAM_THRESHOLD_KB=2048 # streaming jq path has a bug; keep on in-me
 # Also controls URL-level cache expiry in lib/research_cache.py.
 # 0 = disabled (Phase R always runs). Default: 0.
 # Example: SPIRAL_RESEARCH_CACHE_TTL_HOURS=6  # reuse research for up to 6h
-SPIRAL_RESEARCH_CACHE_TTL_HOURS=4
+SPIRAL_RESEARCH_CACHE_TTL_HOURS="4"
 
 # ── Query-level semantic cache TTL (US-773) ──────────────────────────────
 # Number of iterations to retain cached research query results (based on iteration number).
@@ -605,24 +605,24 @@ SPIRAL_OTEL_EMIT_MESSAGES="${SPIRAL_OTEL_EMIT_MESSAGES:-false}"
 #   redact (entire field removed, not pattern-matched).
 #   Default: gen_ai.input.messages,gen_ai.output.messages
 # SPIRAL_OTEL_SCRUB_FIELDS="gen_ai.input.messages,gen_ai.output.messages"
-export SPIRAL_MAX_DIFF_LINES=800
+export SPIRAL_MAX_DIFF_LINES="800"
 
 # ── Phase V: AC Verification (US-1005) ───────────────────────────────────────
 # When true, Phase V runs AC verification after pytest passes.
 # Executes extracted assertions from .spiral/ac_checks/{story_id}.json and
 # reports per-AC pass/fail results. Story fails only if zero assertions pass.
-SPIRAL_AC_VERIFY=true
+SPIRAL_AC_VERIFY="true"
 
 # ── Phase V: Dead Feature Detection (US-1006) ─────────────────────────────────
 # When true, Phase V detects newly added Python functions/classes that are never
 # called or imported (dead code). Default is soft warning (logs but does not block).
 # Set to true to enable hard block: story fails if dead features found.
-SPIRAL_STRICT_DEAD_FEATURE=false
+SPIRAL_STRICT_DEAD_FEATURE="false"
 
 # ── Reachability Verifier (US-1007) ────────────────────────────────────────
 # Verify new Python modules for Phase stories are wired into spiral.sh/main.py.
 # Default is soft warning (logs but does not block). Set to true to hard-block.
-SPIRAL_STRICT_REACHABILITY=false
+SPIRAL_STRICT_REACHABILITY="false"
 
 # ── Auto-archive completed stories (US-1132) ───────────────────────────────
 # At iteration start, if completed story count >= threshold, automatically
