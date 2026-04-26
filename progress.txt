@@ -1,3 +1,42 @@
+## Iteration [N] - Story: WhatsApp notification plugin (plugins/notify-whatsapp/) for iteration and story reports (US-1263)
+
+### What was implemented
+- Created `plugins/notify-whatsapp/plugin.toml` with configuration for post-story and run-completion hooks
+- Created `plugins/notify-whatsapp/post-story` hook script that sends simple story pass/fail notifications
+- Created `plugins/notify-whatsapp/run-completion` hook script with plain-language run summary and pass delta
+- Implemented pass delta tracking in `.spiral/whatsapp_prev_passes` file for per-run comparison
+- Opt-in via SPIRAL_NOTIFY_WHATSAPP=true environment variable (disabled by default)
+- Plain-language format follows feedback_plain_language_reports.md (no jargon, no "DLQ" when zero)
+- Includes "N new stories passed (was M last run)" format for progress comparison
+
+### Patterns discovered
+- Plugin system auto-discovers plugins in plugins/ directory and loads hook scripts
+- Hook scripts read JSON from stdin via `jq` with fallback error handling (||)
+- Plain-language messages use simple string concatenation with embedded newlines
+- Pass count tracking persists in .spiral/ directory for cross-run state (survives plugin restarts)
+- Both hooks ignore curl errors to prevent breaking SPIRAL if webhook is misconfigured
+
+### Gotchas
+- Pass count file must be updated before checking webhook URL, so delta calculation works even when webhook is unconfigured
+- SPIRAL_NOTIFY_WHATSAPP=false is the default, so plugin is truly opt-in
+- Plain-language format omits failure/skipped counts when zero (feedback_plain_language_reports.md)
+
+### Files touched
+- plugins/notify-whatsapp/plugin.toml (new, 21 lines)
+- plugins/notify-whatsapp/post-story (new, 82 lines)
+- plugins/notify-whatsapp/run-completion (new, 103 lines)
+- prd.json (marked US-1263 passes: true)
+
+### Quality gates passed
+- ✓ shellcheck validation on both hook scripts (--severity=error)
+- ✓ shfmt formatting check passed (no changes needed)
+- ✓ Git commit successful with full acceptance criteria tracking
+- ✓ All acceptance criteria met:
+  - [x] plugins/notify-whatsapp/plugin.toml with hooks=['post-story','run-completion']
+  - [x] Hook script reads JSON from stdin and POSTs to WHATSAPP_WEBHOOK_URL
+  - [x] Plain-language report with pass delta (new vs previous run)
+  - [x] Opt-in via SPIRAL_NOTIFY_WHATSAPP=true; disabled by default
+
 ## Iteration [N] - Story: Add analytics CSV export button to AnalyticsTab (US-1277)
 
 ### What was implemented
@@ -772,3 +811,6 @@ This task involves creating a pytest fixture to mock `subprocess.run` for `claud
 - ✓ mypy --strict validation on test_phase_a_integration.py
 - ✓ ruff lint/check on both Python files (no errors)
 - ✓ Git commit successful with acceptance criteria tracking
+## Iteration 1 - Mon, Apr 27, 2026  1:44:39 AM
+Completed: Add MockClaudeAPI fixture for isolated phase behavior testing (ID: US-1284) in 6m
+
