@@ -1005,7 +1005,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "model": "haiku"
     },
@@ -1420,6 +1420,26 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1281",
+      "title": "Phase R: create research_quality_checker.py with scoring and replay logic",
+      "priority": "medium",
+      "description": "Create lib/research_quality_checker.py implementing compute_quality_score(research_result, story_title) returning a 0-1 float based on citation count, source diversity, and TF-IDF relevance, and should_replay(score, attempt_count) returning bool. Write unit tests covering score calculation and replay gate.",
+      "acceptanceCriteria": [
+        "`uv run pytest tests/test_phase_r_quality.py::test_compute_quality_score -v` passes and asserts score is in [0.0, 1.0]",
+        "`uv run pytest tests/test_phase_r_quality.py::test_should_replay_below_threshold -v` passes and returns True when score < 0.7 and attempt < 3",
+        "`uv run pytest tests/test_phase_r_quality.py::test_should_not_replay_at_max_attempts -v` passes and returns False when attempt_count >= 3"
+      ],
+      "technicalNotes": [
+        "File to create: lib/research_quality_checker.py (compute_quality_score, should_replay; use sklearn TfidfVectorizer or simple cosine sim)",
+        "File to create: tests/test_phase_r_quality.py (test_compute_quality_score, test_should_replay_below_threshold, test_should_not_replay_at_max_attempts)",
+        "Test command: uv run pytest tests/test_phase_r_quality.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
