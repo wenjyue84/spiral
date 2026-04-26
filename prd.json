@@ -1358,7 +1358,7 @@
         "US-1215"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1784,6 +1784,28 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1298",
+      "title": "spiral-ui frontend: ThroughputMetrics widget on Dashboard with auto-refresh",
+      "priority": "medium",
+      "description": "Create a ThroughputMetrics React component that fetches /api/throughput every 30 seconds and renders velocity and median cycle time. Register the widget on the Dashboard page. Requires the backend endpoint from the companion story.",
+      "acceptanceCriteria": [
+        "Dashboard renders ThroughputMetrics showing 'X stories/hour' and cycle time by complexity band (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx)",
+        "Component polls /api/throughput every 30 seconds when iteration is running (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx --testNamePattern=refresh)",
+        "Displays 'Insufficient data' string when API returns empty metrics (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx --testNamePattern=insufficient)"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/ThroughputMetrics.tsx (ThroughputMetrics component)",
+        "File to create: spiral-ui/src/components/ThroughputMetrics.test.tsx (unit tests with MSW or vi.mock)",
+        "File to edit: spiral-ui/src/pages/Dashboard.tsx (import and render <ThroughputMetrics />)",
+        "Test command: npm run test -- src/components/ThroughputMetrics.test.tsx",
+        "Use recharts BarChart for cycle-time distribution; useInterval or setInterval in useEffect for 30s polling"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
