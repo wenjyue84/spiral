@@ -1985,7 +1985,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-27T12:00:00Z"
+      "last_attempted": "2026-04-27T12:00:00Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nThe `lib/history_search.py` file exists with the `find_similar_attempts()` function. Currently, it returns dicts with 6 keys: `story_id`, `model`, `outcome`, `duration`, `cost`, and `failure_message`. The `failure_message` field may contain sensitive execution data (API keys, tokens, passwords in error messages).\n\n## Problem Identified\n\nStory US-1306 is a security test story for US-1259. The acceptance criteria requires:\n1. No sensitive fields in query results\n2. Safe error handling for missing DB\n3. Result schema must contain **only** (story_id, model, outcome, duration, cost) keys\n\nCurrently, the code returns `failure_message` which violates the third criterion and poses a security risk by exposing potentially sensitive error details.\n\n## Planned Changes\n\n1. **lib/history_search.py**: Remove `failure_message` from the returned dict (line 139)\n2. **tests/test_history_security.py** (new file): Create three security test functions:\n   - `test_no_sensitive_fields_in_results`: Verify sensitive data isn't in results\n   - `test_missing_db_safe_error`: Verify safe error handling for missing DB\n   - `test_result_schema`: Verify returned dicts have exactly the 5 expected keys\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_history_security.py\"],\n  \"files_to_modify\": [\"lib/history_search.py\"],\n  \"functions_to_add\": [\"test_no_sensitive_fields_in_results\", \"test_missing_db_safe_error\", \"test_result_schema\"],\n  \"estimated_loc\": 95\n}\n</plan>\n\nNow implementing:\nNow creating the security test file:\nNow let me run the tests to verify they pass:\nLet me check the results.tsv format by looking at the parser:\nLet me fix the tests by including the proper TSV columns:\nPerfect! All tests pass. Now let me run quality checks:\nExcellent! All tests pass. Let me update prd.json to mark the story as complete:\nNow let me commit all changes:\nLet me run a final verification that all acceptance criteria are met:\nPerfect! Let me verify the full test suite one more time:\nPerfect! Let me verify the final state:\n## Summary"
+      }
     }
   ]
 }
