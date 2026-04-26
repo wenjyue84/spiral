@@ -1076,6 +1076,28 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1265",
+      "title": "Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand",
+      "priority": "low",
+      "description": "Extend plugin.toml schema with name, version, description, inputs, outputs, tags. Add 'spiral skills list' (enumerate local plugins) and 'spiral skills install <url>' (fetch+verify+extract a plugin tarball into plugins/). Deferred; implement only after US-1263 lands so there is a second plugin to round-trip.",
+      "acceptanceCriteria": [
+        "Every plugin.toml in plugins/ gains the new metadata block (backward compatible)",
+        "'spiral skills list' round-trips metadata from notify-slack and notify-whatsapp",
+        "'spiral skills install' rejects unsigned / schema-invalid plugins",
+        "Schema documented in plugins/README.md"
+      ],
+      "technicalNotes": [
+        "uv run pytest tests/test_skills_cli.py -v"
+      ],
+      "dependencies": [
+        "US-1263"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed",
+      "model": "sonnet"
+    },
+    {
       "id": "US-1266",
       "title": "E2E Test: SettingsTab displays, edits, and saves runtime config",
       "priority": "medium",
@@ -1180,8 +1202,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-26T19:15:54Z"
+      "model": "haiku"
     },
     {
       "id": "US-1271",
@@ -1448,6 +1469,28 @@
       "_scopeCreep": true
     },
     {
+      "id": "US-1283",
+      "title": "Phase S: Track story rejection reasons and add `spiral explain-rejection <id>` CLI command",
+      "priority": "medium",
+      "description": "Enhance Phase S validation to capture structured rejection reasons when stories fail constitution or dedup checks. Add a CLI command to query why a story was rejected, improving debuggability for large PRD backlogs.",
+      "acceptanceCriteria": [
+        "When Phase S rejects a story, store rejection reason in prd.json under story._rejectionLog: [{ timestamp, reason, details }]",
+        "Rejection reasons include: 'constitution_mismatch', 'goal_misaligned', 'duplicate_detected', 'acceptance_criteria_incomplete'",
+        "CLI command `spiral explain-rejection US-123` displays human-readable rejection summary with remediation hints",
+        "All rejections also logged to .spiral/rejections.jsonl for telemetry (one JSON per line)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/spiral/story_validate.py (add track_rejection_reason function)",
+        "File to create: lib/cli_explain_rejection.py (main_explain_rejection function that queries prd.json)",
+        "File to edit: lib/phases/phase_s.sh (call track_rejection_reason before skipping story)",
+        "Test command: uv run pytest tests/test_phase_s_rejection_tracking.py::test_rejection_logged -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1284",
       "title": "Add MockClaudeAPI fixture for isolated phase behavior testing",
       "priority": "high",
@@ -1470,6 +1513,48 @@
       "model": "haiku"
     },
     {
+      "id": "US-1285",
+      "title": "[Regression Test] CLI: trace-dependencies command for US-1209",
+      "priority": "medium",
+      "description": "Write a regression test guarding the spiral trace-dependencies CLI command introduced in US-1209. The test invokes the command against a fixture PRD with a known dependency chain and asserts the correct output structure, including circular dependency detection.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_regression_us1209.py::test_trace_dependencies_resolves_chain -v exits 0",
+        "uv run pytest tests/test_regression_us1209.py::test_trace_dependencies_detects_circular -v exits 0",
+        "uv run pytest tests/ -k us_1209 -v exits 0 with at least 2 tests collected"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_regression_us1209.py (two test functions covering happy-path chain resolution and circular dependency detection)",
+        "Use a fixture prd.json with at least 3 stories forming a chain; store under tests/fixtures/trace_deps_fixture.json",
+        "Test command: uv run pytest tests/test_regression_us1209.py -v --tb=short"
+      ],
+      "dependencies": [
+        "US-1209"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1286",
+      "title": "CLI: Add `spiral search <query>` command for federated story discovery across main and sub-projects",
+      "priority": "medium",
+      "description": "Implement CLI command `spiral search <query>` that performs full-text search across prd.json title/description/acceptanceCriteria fields and all included sub-projects via prd.include. Returns results with project name, story ID, and match score.",
+      "acceptanceCriteria": [
+        "Command `spiral search \"authentication\"` returns stories matching query from main prd.json and all prd.include references, sorted by relevance score",
+        "Support output formats: --format table (default with ID/project/title/score), --format json, --format csv with header",
+        "Optional filter by project: `spiral search auth --project prisma-teong` returns only stories from specified sub-project"
+      ],
+      "technicalNotes": [
+        "File to create: lib/cli/search_stories.py with class FederatedStorySearch(query, config) using fuzzy matching (fuzzywuzzy)",
+        "File to create: lib/federated_search.py with function search_across_projects(query, prd_root) recursively loading prd.include",
+        "Test command: uv run pytest tests/test_federated_search.py::test_search_finds_stories_in_main_and_subprojects -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
       "id": "US-1287",
       "title": "Integration test: Phase S rejects antiPattern stories and warns on empty ACs",
       "priority": "high",
@@ -1487,6 +1572,86 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1288",
+      "title": "CLI: Add spiral metrics export-timeseries to export token burn and story throughput as time series JSON",
+      "priority": "medium",
+      "description": "Add new CLI command `spiral metrics export-timeseries <output.json>` that parses results.tsv and spiral_events.jsonl to extract time-series data: iteration, timestamp, cumulative tokens, stories passed per iteration, average model tier. Enables external dashboarding and trend analysis beyond spiral-ui.",
+      "acceptanceCriteria": [
+        "Command outputs JSON array with entries: {iteration, timestamp, cumulative_tokens, stories_passed_delta, avg_model_tier, total_cost}",
+        "Timestamps derived from spiral_events.jsonl Phase G completion times; tokens summed from results.tsv cost field",
+        "Output file contains min 10 data points; command rejects if fewer than 10 story records exist"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/metrics_export.py (new; functions: parse_results_tsv(), parse_spiral_events(), aggregate_timeseries())",
+        "File to edit: lib/cli_subcommands.sh (add export-timeseries case handler that calls metrics_export.py)",
+        "Test command: uv run pytest tests/test_metrics_export.py::test_export_timeseries_format -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1289",
+      "title": "CLI: `spiral snapshot save` and `snapshot restore` commands",
+      "priority": "medium",
+      "description": "Add SnapshotManager.save() and SnapshotManager.restore() to lib/snapshot.py using Python's tarfile module. Wire both subcommands into lib/cli_subcommands.sh so that `spiral snapshot save` creates .spiral/snapshot-<ISO8601>.tar.gz and `spiral snapshot restore <timestamp>` extracts and overwrites current state.",
+      "acceptanceCriteria": [
+        "`spiral snapshot save` creates .spiral/snapshot-<ISO8601>.tar.gz containing prd.json, results.tsv, .spiral/checkpoint.json, and retry-counts.json",
+        "`spiral snapshot restore <timestamp>` extracts the matching archive and overwrites prd.json and results.tsv; prints checkpoint resume info to stdout",
+        "uv run pytest tests/test_snapshot.py::test_snapshot_save -v and tests/test_snapshot.py::test_snapshot_restore_overwrites_prd -v both pass"
+      ],
+      "technicalNotes": [
+        "File to create: lib/snapshot.py (SnapshotManager class; save(out_dir='.spiral') and restore(timestamp, out_dir='.spiral') methods using tarfile)",
+        "File to edit: lib/cli_subcommands.sh (add snapshot_save_handler and snapshot_restore_handler that call python lib/snapshot.py save/restore)",
+        "Test command: uv run pytest tests/test_snapshot.py::test_snapshot_restore_overwrites_prd -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1290",
+      "title": "CLI: `spiral snapshot list` command with ASCII table and --json flag",
+      "priority": "medium",
+      "description": "Add SnapshotManager.list() to lib/snapshot.py that scans .spiral/ for snapshot archives and returns metadata (size, story count, creation time). Wire `spiral snapshot list` into lib/cli_subcommands.sh with plain ASCII-table output and a --json flag for structured output.",
+      "acceptanceCriteria": [
+        "`spiral snapshot list` prints an ASCII table with columns: timestamp, size (human-readable), story count, creation time",
+        "`spiral snapshot list --json` outputs a valid JSON array with the same fields",
+        "uv run pytest tests/test_snapshot.py::test_snapshot_list_ascii -v and tests/test_snapshot.py::test_snapshot_list_json -v both pass"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/snapshot.py (add list(out_dir='.spiral') -> list[dict] method; parse story count from prd.json inside each archive without full extraction)",
+        "File to edit: lib/cli_subcommands.sh (add snapshot_list_handler; use printf for ASCII table, json.dumps for --json)",
+        "Test command: uv run pytest tests/test_snapshot.py::test_snapshot_list_ascii -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1291",
+      "title": "CLI: Add `spiral cost-analysis` for detailed cost breakdown by phase, model, and story",
+      "priority": "medium",
+      "description": "New CLI command to analyze token costs and spend across phases, models, and stories from results.tsv, with comparison to prior iteration.",
+      "acceptanceCriteria": [
+        "`spiral cost-analysis` shows total spend, cost per phase (A/R/T/S/E/M/X/G/I/V/C/L), cost per model tier (haiku/sonnet/opus), and average cost per story",
+        "`--detailed` flag shows per-story breakdown sorted by highest cost; `--json` exports structured data for scripting",
+        "`--compare-iteration N` compares current iteration to iteration N with delta and % change in table format"
+      ],
+      "technicalNotes": [
+        "File to create: lib/cost_analysis.py (parse_results_tsv, compute_phase_costs, compute_model_costs functions)",
+        "File to edit: lib/cli_subcommands.sh (add cost-analysis handler with option parsing)",
+        "Test command: uv run pytest tests/test_cost_analysis.py::test_cost_breakdown_by_phase -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1292",
@@ -1507,12 +1672,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-26T19:07:00Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nLooking at the codebase, I found:\n- An existing `lib/phases/research_cache.py` that caches research results by \"topic\"\n- Phase R research is already implemented in `lib/phases/phase_r_research.sh` which uses the topic cache\n- The story asks for a NEW file `lib/phase_r_cache.py` that caches by \"query\" (query string hash)\n- No `--clear-research-cache` flag exists in spiral.sh yet\n\nThe distinction: The existing research_cache.py caches by research topic (focus area), while the story wants query-level caching (for Gemini API query strings).\n\n## Problem Identified\n\nUS-1292 requires implementing a query-level caching layer that:\n1. Uses query string hash as cache key (not topic)\n2. Validates 24-hour TTL before returning cached results\n3. Stores results with explicit timestamp_created and timestamp_expires fields\n4. Is configurable via SPIRAL_RESEARCH_CACHE_TTL_HOURS environment variable\n5. Includes a --clear-research-cache flag to flush the cache\n\n## Planned Changes\n\n**Files to create:**\n- `lib/phase_r_cache.py` — Query-level caching module with `get_cached_research()` and `cache_research()` functions\n\n**Files to modify:**\n- `spiral.sh` — Add --clear-research-cache flag handler\n- `tests/test_phase_r_cache.py` — Add the test specified in acceptance criteria (test_cache_hit_returns_results_within_ttl)\n\n<plan>\n{\n  \"files_to_create\": [\"lib/phase_r_cache.py\"],\n  \"files_to_modify\": [\"spiral.sh\", \"tests/test_phase_r_cache.py\"],\n  \"functions_to_add\": [\"get_cached_research\", \"cache_research\", \"clear_cache\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow let me implement this:\nNow I need to add tests. Let me update the test file to include the specific test mentioned in the acceptance criteria:\n## Summary"
-      },
-      "_passedCommit": "07166b0c9c507061cb05924053588bdd1d3f71e7"
+      "model": "haiku"
     }
   ]
 }
