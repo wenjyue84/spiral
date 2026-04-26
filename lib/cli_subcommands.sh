@@ -287,6 +287,23 @@ if [[ "$EXPLAIN_REJECTION_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── search: full-text fuzzy search across prd.json and prd.include ────────────
+SEARCH_MODE="${SEARCH_MODE:-0}"
+SEARCH_QUERY="${SEARCH_QUERY:-}"
+SEARCH_FORMAT="${SEARCH_FORMAT:-table}"
+SEARCH_PROJECT="${SEARCH_PROJECT:-}"
+SEARCH_MIN_SCORE="${SEARCH_MIN_SCORE:-30}"
+if [[ "$SEARCH_MODE" -eq 1 ]]; then
+  if [[ -z "$SEARCH_QUERY" ]]; then
+    echo "[spiral] ERROR: Usage: spiral search <query> [--format table|json|csv] [--project NAME]" >&2
+    exit 1
+  fi
+  _SEARCH_ARGS=("$PRD_FILE" "$SEARCH_QUERY" "--format" "$SEARCH_FORMAT" "--min-score" "$SEARCH_MIN_SCORE")
+  [[ -n "$SEARCH_PROJECT" ]] && _SEARCH_ARGS+=("--project" "$SEARCH_PROJECT")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cli/search_stories.py" "${_SEARCH_ARGS[@]}"
+  exit $?
+fi
+
 # ── query stories: filter/sort/export prd.json + results.tsv ─────────────────
 QUERY_MODE="${QUERY_MODE:-0}"
 QUERY_SUBCOMMAND="${QUERY_SUBCOMMAND:-}"

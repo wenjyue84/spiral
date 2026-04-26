@@ -140,3 +140,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-26T21:02:01Z	18	2	US-1283	Phase S: Track story rejection reasons and add `spiral explain-rejection <id>` CLI command	keep	163	sonnet	1	00d59cec700ea5e9736a5e4de9a6c3c5e019902c	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-26T21:10:55Z	18	3	US-1285	[Regression Test] CLI: trace-dependencies command for US-1209	keep	494	haiku	0	9d5814d7f9f28eb5cf3152d8aa202d6c555d1955	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-26T21:24:59Z	19	1	US-1304	[Security Test] Config API: block unauthorized access (US-1214)	keep	384	sonnet	0	f7df773c63c158cb26e23666696f582109577529	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-26T21:32:23Z	19	2	US-1305	[Security Test] history_search.py: no unauthorized DB read via API (US-1259)	keep	308	sonnet	0	f115a11146893a3365902df35e8439350cc6f94e	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				

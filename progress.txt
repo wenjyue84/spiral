@@ -1219,3 +1219,6 @@ Completed: [Security Test] Config API: block unauthorized access (US-1214) (ID: 
   - [x] GET /api/history/search returns 401/403 without auth (test_history_endpoint_unauth)
   - [x] Error response body contains no SQLite row data or file-system paths
   - [x] `uv run pytest tests/test_security_us1259.py -v` exits 0 with all tests passing
+## Iteration 2 - Mon, Apr 27, 2026  5:32:24 AM
+Completed: [Security Test] history_search.py: no unauthorized DB read via API (US-1259) (ID: US-1305) in 5m
+

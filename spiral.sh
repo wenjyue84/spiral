@@ -155,6 +155,11 @@ LOGS_MODE=0                                  # 1 = view story logs and exit (--l
 LOGS_STORY_ID=""                             # story ID to view logs for
 LOGS_LEVEL=""                                # log level filter: DEBUG|INFO|WARN|ERROR
 LOGS_CONTEXT=""                              # log context filter: parse|decompose|implement|verify
+SEARCH_MODE=0                                # 1 = search stories and exit (search subcommand)
+SEARCH_QUERY=""                              # search query string
+SEARCH_FORMAT="table"                        # output format: table|json|csv
+SEARCH_PROJECT=""                            # optional sub-project filter
+SEARCH_MIN_SCORE=30                          # minimum fuzzy score (0-100)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -424,6 +429,28 @@ while [[ $# -gt 0 ]]; do
         esac
       done
       ;;
+    search)
+      SEARCH_MODE=1
+      SEARCH_QUERY="${2:-}"
+      shift 2
+      while [[ $# -gt 0 ]]; do
+        case $1 in
+          --format)
+            SEARCH_FORMAT="${2:-table}"
+            shift 2
+            ;;
+          --project)
+            SEARCH_PROJECT="${2:-}"
+            shift 2
+            ;;
+          --min-score)
+            SEARCH_MIN_SCORE="${2:-30}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -504,6 +531,10 @@ while [[ $# -gt 0 ]]; do
       echo "  --logs STORY_ID            View implementation logs for a story with filtering and exit"
       echo "    --level DEBUG|INFO|WARN|ERROR  Filter by log level (shows level and higher)"
       echo "    --context parse|decompose|implement|verify  Filter by phase context"
+      echo "  search QUERY               Full-text fuzzy search across prd.json and prd.include sub-projects"
+      echo "    --format table|json|csv    Output format (default: table)"
+      echo "    --project NAME             Filter results to a specific sub-project"
+      echo "    --min-score N              Minimum match score 0-100 (default: 30)"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --continuous               Never stop — loop back to Phase A after all stories pass"

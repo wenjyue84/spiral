@@ -1076,6 +1076,28 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1265",
+      "title": "Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand",
+      "priority": "low",
+      "description": "Extend plugin.toml schema with name, version, description, inputs, outputs, tags. Add 'spiral skills list' (enumerate local plugins) and 'spiral skills install <url>' (fetch+verify+extract a plugin tarball into plugins/). Deferred; implement only after US-1263 lands so there is a second plugin to round-trip.",
+      "acceptanceCriteria": [
+        "Every plugin.toml in plugins/ gains the new metadata block (backward compatible)",
+        "'spiral skills list' round-trips metadata from notify-slack and notify-whatsapp",
+        "'spiral skills install' rejects unsigned / schema-invalid plugins",
+        "Schema documented in plugins/README.md"
+      ],
+      "technicalNotes": [
+        "uv run pytest tests/test_skills_cli.py -v"
+      ],
+      "dependencies": [
+        "US-1263"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed",
+      "model": "sonnet"
+    },
+    {
       "id": "US-1266",
       "title": "E2E Test: SettingsTab displays, edits, and saves runtime config",
       "priority": "medium",
@@ -1723,6 +1745,114 @@
       "model": "haiku"
     },
     {
+      "id": "US-1296",
+      "title": "[Regression Test] Meta-Harness: Success-Pattern Library appends on zero-retry pass",
+      "priority": "medium",
+      "description": "Write a regression test that guards the success-pattern extraction logic from US-1225. The test must verify that after a story completes with 0 retries, its characteristics are appended to .spiral/_success_patterns.jsonl, and that Phase A candidate scoring reads this file. Breaking either side must cause the test to fail.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_success_patterns.py -v exits 0 with at least one test collected",
+        "Test asserts that calling the extraction function with a zero-retry story result appends one JSON line to _success_patterns.jsonl containing keys: file_count, ac_count, keywords",
+        "Test asserts that the Phase A scoring function returns a higher score for a candidate matching a stored pattern than for one with no match"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_success_patterns.py (create)",
+        "File to edit: lib/phases/phase_l.sh or equivalent Python module (read to locate the extraction logic introduced by US-1225)",
+        "Test command: uv run pytest tests/test_success_patterns.py -v --tb=short",
+        "Use tmp_path fixture to write _success_patterns.jsonl to a temporary directory; patch the path constant before calling the extraction function"
+      ],
+      "dependencies": [
+        "US-1225"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1297",
+      "title": "CLI: Add spiral export-progress command to bundle PRD, results, and metrics as snapshot",
+      "priority": "medium",
+      "description": "Add a CLI subcommand `spiral export-progress [--format json|zip]` that bundles the current spiral state (prd.json, results.tsv, learning.md, loop_quality.jsonl, metadata) into a single JSON or ZIP file for stakeholder sharing or iteration archiving.",
+      "acceptanceCriteria": [
+        "Command `spiral export-progress` outputs JSON with schema: { prd, results, learning, loopQuality, metadata: { iteration, timestamp, passCount, failCount, totalCost, checksum } }",
+        "Command `spiral export-progress --format zip` creates ZIP archive containing prd.json, results.tsv, learning.md, retry-counts.json, and README.md explaining contents",
+        "Exported file includes sha256 checksum in metadata to detect corruption; filename is timestamped (e.g., spiral-export-2026-04-14T18:30:00Z.json)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/export_progress.py (new), lib/snapshot_schema.py (new for JSON schema validation), lib/cli_subcommands.sh (add export-progress handler)",
+        "Test command: uv run pytest tests/test_export_progress.py::test_export_json -v; uv run pytest tests/test_export_progress.py::test_export_zip -v",
+        "Read from: prd.json, results.tsv, learning.md, .spiral/loop_quality.jsonl, retry-counts.json; compute metadata from file contents and iteration state"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1298",
+      "title": "spiral-ui frontend: ThroughputMetrics widget on Dashboard with auto-refresh",
+      "priority": "medium",
+      "description": "Create a ThroughputMetrics React component that fetches /api/throughput every 30 seconds and renders velocity and median cycle time. Register the widget on the Dashboard page. Requires the backend endpoint from the companion story.",
+      "acceptanceCriteria": [
+        "Dashboard renders ThroughputMetrics showing 'X stories/hour' and cycle time by complexity band (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx)",
+        "Component polls /api/throughput every 30 seconds when iteration is running (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx --testNamePattern=refresh)",
+        "Displays 'Insufficient data' string when API returns empty metrics (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx --testNamePattern=insufficient)"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/ThroughputMetrics.tsx (ThroughputMetrics component)",
+        "File to create: spiral-ui/src/components/ThroughputMetrics.test.tsx (unit tests with MSW or vi.mock)",
+        "File to edit: spiral-ui/src/pages/Dashboard.tsx (import and render <ThroughputMetrics />)",
+        "Test command: npm run test -- src/components/ThroughputMetrics.test.tsx",
+        "Use recharts BarChart for cycle-time distribution; useInterval or setInterval in useEffect for 30s polling"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1299",
+      "title": "Phase E: Hint recommender from story attempt history",
+      "priority": "medium",
+      "description": "Create lib/hint_recommender.py that reads results.tsv and returns decomposition, model, and retry hints for a story before Phase I runs. Integrate into the Phase E handler so hints are appended to prd.json story._hints before implementation begins.",
+      "acceptanceCriteria": [
+        "suggest_hints_from_history() returns dict with keys decomposition_suggested, recommended_model, recommended_retries (verified by: uv run pytest tests/test_hint_recommender.py::test_suggest_hints_schema -v)",
+        "When haiku pass rate < 50% for the story's complexity band, recommended_model is 'sonnet' (verified by: uv run pytest tests/test_hint_recommender.py::test_low_haiku_pass_rate_escalates_model -v)",
+        "Phase E handler writes returned hints into story._hints array in prd.json before Phase I (verified by: uv run pytest tests/test_hint_recommender.py::test_hints_persisted_to_prd -v)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/hint_recommender.py (analyze_story_cohort, suggest_hints_from_history)",
+        "File to edit: lib/phases.py (Phase E handler — call suggest_hints_from_history and patch story._hints)",
+        "File to create: tests/test_hint_recommender.py with fixture results_tsv containing >=10 sample attempts across haiku/sonnet",
+        "Test command: uv run pytest tests/test_hint_recommender.py -v",
+        "Read results.tsv with csv.DictReader; group by complexity band using collections.defaultdict"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1300",
+      "title": "CLI: spiral batch <operation> --stories-file for multi-story operations",
+      "priority": "medium",
+      "description": "Enable batch operations on multiple stories (mark-done, retrigger, update-metadata) by reading story IDs from a file. Improves CLI ergonomics for managing groups of stories without manual iteration.",
+      "acceptanceCriteria": [
+        "spiral batch mark-done --stories-file completed.txt marks all stories in file as done in prd.json and adds timestamps",
+        "spiral batch retrigger --stories-file failed.txt resets retry counts and re-queues stories for Phase I",
+        "Batch operations log results with counts: '3 stories marked done, 1 skipped (not pending)'",
+        "File format: one story ID per line (US-123, UT-456, etc.)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/batch_operations.py with parse_story_file() and execute_batch_operation() functions",
+        "File to edit: lib/cli_subcommands.sh to add batch subcommand handler",
+        "Test command: uv run pytest tests/test_batch_operations.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1301",
       "title": "Phase X: Build lib/dependency_resolver.py with NLP-based story blocker inference and DAG cycle detection",
       "priority": "high",
@@ -1740,6 +1870,50 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1302",
+      "title": "CLI: spiral cost-estimate <num-iterations> with historical accuracy bounds",
+      "priority": "medium",
+      "description": "New CLI subcommand that predicts total cost and token burn for N iterations using historical data from results.tsv, with confidence intervals based on per-model variance.",
+      "acceptanceCriteria": [
+        "spiral cost-estimate 5 reads results.tsv and computes avg tokens/story per model and per complexity band",
+        "Outputs: 'Estimated cost for 5 iterations: $X.XX (68% confidence: $L.LL - $H.HH) based on 47 historical attempts'",
+        "Includes breakdown by model (haiku 60%, sonnet 30%, opus 10%) and notes escalation impact on cost"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_subcommands.sh (add 'cost-estimate' handler)",
+        "Create lib/cost_estimator.py with compute_historical_stats() and predict_cost_for_n_iterations() using numpy for variance",
+        "Test command: uv run pytest tests/test_cost_estimator.py::test_cost_estimate_with_variance -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1303",
+      "title": "[Regression Test] CLI trace-dependencies: verify full dep chain output",
+      "priority": "medium",
+      "description": "Write a regression test for the spiral trace-dependencies CLI command introduced in US-1209. The test invokes the command against a fixture prd.json containing a known multi-level dependency chain and asserts that all story IDs, file paths, and cross-project boundary markers appear in the output.",
+      "acceptanceCriteria": [
+        "Test invokes the CLI with a fixture prd.json and captures stdout; assert all expected story IDs appear in output",
+        "Test asserts circular-dependency detection triggers a non-zero exit code when a cycle is present in the fixture",
+        "uv run pytest tests/ -k us_1209 -v exits with code 0 and both assertions pass"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_regression_us1209.py (new file — regression tests for trace-dependencies CLI)",
+        "File to edit: tests/fixtures/dep_chain_prd.json (new fixture — multi-level deps including cross-project boundary)",
+        "Test command: uv run pytest tests/ -k us_1209 -v",
+        "Use subprocess.run(['python', 'main.py', 'trace-dependencies', 'US-001'], capture_output=True) to invoke CLI",
+        "Circular-dependency fixture should have US-001 depend on US-002, US-002 depend on US-001"
+      ],
+      "dependencies": [
+        "US-1209"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -1764,12 +1938,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-04-26T21:18:05Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe `lib/dashboard/api.py` has global `_APIKeyMiddleware` that enforces auth on all routes except `/health`. However, there's no `/api/config` endpoint yet. The story US-1214 (which supposedly created this endpoint) appears to have been implemented for a different feature in the git history.\n\n## Problem Identified\nNeed to:\n1. Add `GET /api/config` and `POST /api/config` routes to `lib/dashboard/api.py`\n2. Create `tests/test_security_us1214.py` that verifies auth blocks unauthenticated requests and error responses contain no secrets\n\n## Planned Changes\n- `lib/dashboard/api.py`: Add minimal `GET /api/config` and `POST /api/config` routes (they'll auto-inherit auth from `_APIKeyMiddleware`)\n- `tests/test_security_us1214.py`: New security test file with tests for POST and GET /api/config auth enforcement and no-secret leak checks\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_security_us1214.py\"],\n  \"files_to_modify\": [\"lib/dashboard/api.py\"],\n  \"functions_to_add\": [\"get_config\", \"post_config\"],\n  \"estimated_loc\": 70\n}\n</plan>\nNow I'll add the config endpoints to `api.py` and create the test file:\nNow create the security test file:\nAll 6 tests pass. Now run mypy and ruff checks:\nAll 6 tests pass. Mark story as complete and commit:\nUS-1304 complete.\n\n- Added `GET /api/config` and `POST /api/config` to `lib/dashboard/api.py` — they auto-inherit auth from the existing `_APIKeyMiddleware`\n- Created `tests/test_security_us1214.py` with 6 tests: unauthenticated POST returns 401/403, unauthenticated GET returns 401/403, error responses contain no secrets for both methods, valid key allows access\n- All 6 tests pass, mypy strict clean, ruff clean"
-      },
-      "_passedCommit": "f7df773c63c158cb26e23666696f582109577529"
+      "model": "sonnet"
     },
     {
       "id": "US-1305",
@@ -1793,11 +1962,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-04-26T21:25:02Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`lib/history_search.py` is a pure Python library with no HTTP route. `find_similar_attempts()` is not exposed via any API endpoint.\n\n## Problem Identified\nUS-1305 requires security tests that verify `find_similar_attempts` is protected by auth. Since no HTTP route exists, one must be added to the dashboard API, then tests written to verify auth enforcement and no data leakage.\n\n## Planned Changes\n- `lib/dashboard/api.py`: add `GET /api/history/search` endpoint (auto-auth via `_APIKeyMiddleware`, calls `find_similar_attempts`)\n- `tests/test_security_us1259.py`: new file with 3 tests: `test_history_endpoint_unauth` (401/403), no-SQLite-paths-in-error, and `.spiral/history.db` permissions check\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_security_us1259.py\"],\n  \"files_to_modify\": [\"lib/dashboard/api.py\"],\n  \"functions_to_add\": [\"history_search_endpoint\"],\n  \"estimated_loc\": 75\n}\n</plan>\nNow I'll add the history search endpoint to the API and create the test file:\nNow create the test file:\nAll tests pass. Now run mypy and ruff checks:\nAll tests pass. Now mark the story complete and commit:\nDone. US-1305 implemented and committed.\n\n**Summary:**\n- Added `GET /api/history/search` to `lib/dashboard/api.py` — exposes `find_similar_attempts()` through the authenticated dashboard API, auto-protected by `_APIKeyMiddleware`\n- Response sanitised to only return `story_id`, `model`, `outcome`, `duration` — no raw SQLite rows or file paths\n- Created `tests/test_security_us1259.py` with 6 tests: all 5 pass, 1 skipped (file-permission check only runs when `.spiral/history.db` exists)\n- All acceptance criteria met: `test_history_endpoint_unauth` confirms 401/403, error body has no SQLite leakage, full suite exits 0"
-      }
+      "model": "sonnet"
     }
   ]
 }
