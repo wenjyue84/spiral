@@ -1222,3 +1222,79 @@ Completed: [Security Test] Config API: block unauthorized access (US-1214) (ID: 
 ## Iteration 2 - Mon, Apr 27, 2026  5:32:24 AM
 Completed: [Security Test] history_search.py: no unauthorized DB read via API (US-1259) (ID: US-1305) in 5m
 
+## Iteration 1 - Mon, Apr 27, 2026  5:50:15 AM
+Completed: [Security Test] history_search: DB access control and data-leak guards (US-1259) (ID: US-1306) in 6m
+
+
+## Pre-analysis for US-1265 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1265.
+
+**Subject: Technical Brief for US-1265: Plugin Metadata and 'skills' Subcommand**
+
+This brief outlines the plan to implement a new `spiral skills` subcommand for plugin management and enrich plugin manifests with structured metadata.
+
+**1. Python Files to Modify:**
+
+*   **Create `spiral/skills.py`:** This new file will house the core logic for the `skills` subcommand using a CLI framework like Typer.
+    *   `list_skills()`: Scans the `plugins/` directory, parses each `plugin.toml` using `tomllib`, and prints a formatted list of the new metadata.
+    *   `install_skill(url: str)`: Downloads a plugin tarball, verifies its `plugin.toml` against a schema, and extracts it into the `plugins/` directory.
+*   **Modify `main.py`:** Import the new `skills` subcommand from `spiral/skills.py` and register it with the main application CLI router.
+*   **Create `tests/test_skills_cli.py`:** Add unit and integration tests covering the `list` and `install` functionality, as referenced in the technical notes. Mock filesystem and network requests.
+*   **Create/Update `plugins/README.md`:** Document the new, backward-compatible `plugin.toml` schema, including `name`, `version`, `description`, `inputs`, `outputs`, and `tags`.
+
+**2. Frappe DocTypes/Hooks Involved:**
+
+*   None. This user story pertains to the core Python CLI application (`spiral`) and does not involve any Frappe DocTypes or hooks.
+
+**3. Recommended Implementation Approach:**
+
+1.  Define the extended `plugin.toml` structure as a Pydantic model in `spiral/skills.py` to enable robust schema validation.
+2.  Implement the `list` command first, ensuring it fails gracefully for plugins that don't yet have the new metadata fields.
+3.  For the `install` command, use the `requests` library for downloading and `tarfile` for extraction.
+4.  Prioritize the validation step in `install`, checking the downloaded `plugin.toml` against the Pydantic model before any filesystem extraction occurs.
+
+**4. Edge Cases & Gotchas:**
+
+*   **Security:** The `install` command must be treated as a security-sensitive feature. The acceptance criteria demand rejection of invalid plugins; start with strict TOML schema validation. Full cryptographic signature checking is a potential future enhancement but is complex.
+*   **Dependency:** This story depends on **US-1263**. The `list` command requires at least two plugins to exist for meaningful round-trip testing.
+*   **Error Handling:** The `install` command must handle network errors (e.g., 404s), corrupted tarballs, and plugins with missing or invalid `plugin.toml` files.
+*   **Compatibility:** Per the acceptance criteria, the system must remain backward compatible. The `list` command should not fail if it encounters an older plugin without the new metadata.
+
+
+## Iteration [N] - Story: Plugin manifest enriched with agentskills.io-style metadata + spiral skills subcommand (US-1265)
+
+### What was implemented
+- Enriched `plugins/notify-slack/plugin.toml` and `plugins/notify-whatsapp/plugin.toml` with description, tags, inputs, outputs (backward compatible)
+- Created `lib/skills_cli.py`: parse_plugin_toml, validate_plugin_schema, list_skills, install_skill
+- Added `spiral skills list` / `spiral skills install <url>` subcommand via spiral.sh + lib/cli_subcommands.sh
+- `install` rejects non-tarball, missing plugin.toml, invalid TOML, or missing required fields
+- Documented plugin.toml schema in `plugins/README.md`
+- 13 passing tests in `tests/test_skills_cli.py`
+
+### Patterns discovered
+- `lib/cli_subcommands.sh` pattern: check MODE flag → build args → call Python module → `exit $?`
+- spiral.sh arg parsing: add flag vars before `while [[ $# -gt 0 ]]` loop, then a `case` branch
+- `tomllib` (stdlib since 3.11) for reading TOML; open in `"rb"` mode
+- `tarfile.open(fileobj=io.BytesIO(...))` for in-memory tarball parsing
+- `filter="data"` on `extractall` avoids Python 3.14 deprecation warning
+
+### Gotchas
+- ruff I001: `from __future__ import annotations` must be first, then stdlib imports alphabetically
+- ruff F401: remove unused `tempfile` import
+- `validate_plugin_schema` checks `hooks` presence AND non-empty list; empty `[]` fails `not plugin.get("hooks")`
+
+### Files touched
+- lib/skills_cli.py (new, ~160 lines)
+- tests/test_skills_cli.py (new, ~155 lines)
+- plugins/README.md (new, ~95 lines)
+- plugins/notify-slack/plugin.toml (modified, +metadata fields)
+- plugins/notify-whatsapp/plugin.toml (modified, +metadata fields)
+- spiral.sh (modified, +SKILLS_MODE vars + case branch)
+- lib/cli_subcommands.sh (modified, +skills handler)
+- prd.json (marked US-1265 passes: true)
+
+### Quality gates passed
+- ✓ All 13 pytest tests pass (100%)
+- ✓ mypy --strict on lib/skills_cli.py (no issues)
+- ✓ ruff check + format passed
+- ✓ All acceptance criteria met
