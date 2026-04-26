@@ -783,7 +783,11 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "sonnet"
+      "model": "sonnet",
+      "_failureReason": "oversized_diff: produced 3209 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
+      "_antiPatterns": [
+        "oversized_diff: produced 3209 lines but limit is 800. Keep total insertions+deletions under 800 lines."
+      ]
     },
     {
       "id": "US-1247",
@@ -1068,9 +1072,10 @@
         "US-1259"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-04-26T16:47:11Z"
     },
     {
       "id": "US-1265",

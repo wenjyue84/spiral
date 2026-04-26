@@ -757,6 +757,45 @@ Alternatively, use the [`pin-github-action`](https://github.com/mheap/pin-github
 npx pin-github-action .github/workflows/*.yml
 ```
 
+## Trajectory Export (LLM Fine-tuning / RL Training)
+
+Export SPIRAL run history as JSONL for LLM fine-tuning (SFT) or reinforcement learning (RL) training:
+
+```bash
+uv run python -m lib.export_trajectories --out trajectories.jsonl
+# Custom paths:
+uv run python -m lib.export_trajectories --out out.jsonl --tsv results.tsv
+```
+
+### Output Schema
+
+Each line is a JSON object:
+
+```json
+{
+  "messages": [
+    {"role": "system",    "content": "You are Ralph, an autonomous implementation agent…"},
+    {"role": "user",      "content": "Implement story US-123: <story title>. Attempt 1 …"},
+    {"role": "assistant", "content": "Story US-123 implementation succeeded. Status: keep …"}
+  ],
+  "reward": 1.0,
+  "meta": {
+    "story_id":   "US-123",
+    "model":      "sonnet",
+    "tokens":     15000,
+    "duration":   45.5,
+    "retry_num":  0,
+    "spiral_iter":"5",
+    "status":     "keep",
+    "timestamp":  "2026-04-01T00:00:00Z"
+  }
+}
+```
+
+**Reward mapping:** `keep` (passed) → `1.0`; `reject` / `skip` (failed) → `-1.0`. Reward is always in `[-1, 1]`.
+
+Source data: `results.tsv` (one row per story attempt). The export is opt-in and read-only — it never modifies `results.tsv` or any other SPIRAL state.
+
 ## License
 
 MIT

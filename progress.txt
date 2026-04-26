@@ -657,3 +657,24 @@ Completed: CLI: Add `spiral query stories` with filtering, sorting, and table/JS
 
 ### Gotchas
 - mypy pre-commit hook fails due to pre-existing errors in other files; this is expected and documented
+## Iteration 1 - Mon, Apr 27, 2026 12:47:08 AM
+FAILED diff-guard: Phase V: Integrate evidence aggregator into spiral.sh and update prd.schema.json (ID: US-1246) — 3209 lines > 800 limit — attempt 1/3
+
+
+## Iteration N - Story: Trajectory export results.tsv + worker logs to JSONL (US-1264)
+
+### What was implemented
+- Created lib/export_trajectories.py: reads results.tsv, maps keep->1.0/reject->-1.0 reward, emits JSONL in OpenAI SFT/trl shape
+- Schema: {messages: [{role, content}], reward: float in [-1,1], meta: {story_id, model, tokens, duration, ...}}
+- CLI: uv run python -m lib.export_trajectories --out trajectories.jsonl [--tsv results.tsv]
+- Created tests/test_export_trajectories.py with 11 tests covering reward mapping, schema validation, CLI output
+- Added Trajectory Export section to README.md
+
+### Patterns discovered
+- results.tsv status is "keep" (pass) or "reject" (fail) — not "pass"/"fail"
+- Worker logs (.spiral/_claude_raw_<pid>.tmp) are named by PID with no direct story_id link; synthetic messages from TSV metadata work well for SFT/RL training
+- lib/export_trajectories.py can be imported as module or run as __main__ via python -m lib.export_trajectories
+
+### Gotchas
+- Pre-existing mypy errors in reachability_verifier.py, routing/ucb1_select.py, ui/spiral_dashboard.py are NOT caused by this story
+- cache_read_tokens + cache_creation_tokens = total tokens (review_tokens is separate)
