@@ -1378,7 +1378,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1801,6 +1801,28 @@
         "File to edit: spiral-ui/src/pages/Dashboard.tsx (import and render <ThroughputMetrics />)",
         "Test command: npm run test -- src/components/ThroughputMetrics.test.tsx",
         "Use recharts BarChart for cycle-time distribution; useInterval or setInterval in useEffect for 30s polling"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1299",
+      "title": "Phase E: Hint recommender from story attempt history",
+      "priority": "medium",
+      "description": "Create lib/hint_recommender.py that reads results.tsv and returns decomposition, model, and retry hints for a story before Phase I runs. Integrate into the Phase E handler so hints are appended to prd.json story._hints before implementation begins.",
+      "acceptanceCriteria": [
+        "suggest_hints_from_history() returns dict with keys decomposition_suggested, recommended_model, recommended_retries (verified by: uv run pytest tests/test_hint_recommender.py::test_suggest_hints_schema -v)",
+        "When haiku pass rate < 50% for the story's complexity band, recommended_model is 'sonnet' (verified by: uv run pytest tests/test_hint_recommender.py::test_low_haiku_pass_rate_escalates_model -v)",
+        "Phase E handler writes returned hints into story._hints array in prd.json before Phase I (verified by: uv run pytest tests/test_hint_recommender.py::test_hints_persisted_to_prd -v)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/hint_recommender.py (analyze_story_cohort, suggest_hints_from_history)",
+        "File to edit: lib/phases.py (Phase E handler — call suggest_hints_from_history and patch story._hints)",
+        "File to create: tests/test_hint_recommender.py with fixture results_tsv containing >=10 sample attempts across haiku/sonnet",
+        "Test command: uv run pytest tests/test_hint_recommender.py -v",
+        "Read results.tsv with csv.DictReader; group by complexity band using collections.defaultdict"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
