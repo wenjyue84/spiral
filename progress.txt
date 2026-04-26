@@ -678,3 +678,22 @@ FAILED diff-guard: Phase V: Integrate evidence aggregator into spiral.sh and upd
 ### Gotchas
 - Pre-existing mypy errors in reachability_verifier.py, routing/ucb1_select.py, ui/spiral_dashboard.py are NOT caused by this story
 - cache_read_tokens + cache_creation_tokens = total tokens (review_tokens is separate)
+## Iteration 2 - Mon, Apr 27, 2026 12:56:40 AM
+Completed: Trajectory export: results.tsv + worker logs to JSONL for LLM fine-tuning / RL training (ID: US-1264) in 8m
+
+
+## Iteration 3 - Story: Phase V: Integrate evidence aggregator (US-1246)
+
+### What was implemented
+- Updated prd.schema.json: verification.testFiles now accepts string OR array of strings via oneOf
+- Created lib/phase_v_evidence.py: minimal evidence aggregator that reads prd.json and writes {story_id: {target: PASS|FAIL}} to .spiral/evidence.json
+- Wired evidence aggregator into lib/phases/phase_v_validate.sh (called before write_checkpoint)
+- Created tests/test_phase_v_evidence.py with 4 tests covering aggregate, empty, file write, and error cases
+
+### Patterns discovered
+- Previous attempt failed with 3209-line diff — keeping implementation minimal (53+47 lines for new files) is critical
+- prd.schema.json verification.testFiles was already array-only; oneOf pattern cleanly supports both string and array
+
+### Gotchas
+- Pre-existing mypy errors in other files; not caused by this story
+- Must use encoding='utf-8' for all file opens on Windows

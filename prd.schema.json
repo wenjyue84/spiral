@@ -299,9 +299,11 @@
           "description": "Per-story verification contract. When present, Phase V uses this instead of the filesTouch heuristic.",
           "properties": {
             "testFiles": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Explicit test files to run (overrides filesTouch heuristic)"
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "string" } }
+              ],
+              "description": "Explicit test file(s) to run (string or array of strings; overrides filesTouch heuristic)"
             },
             "testMarker": {
               "type": "string",

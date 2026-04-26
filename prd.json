@@ -782,12 +782,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet",
-      "_failureReason": "oversized_diff: produced 3209 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
-      "_antiPatterns": [
-        "oversized_diff: produced 3209 lines but limit is 800. Keep total insertions+deletions under 800 lines."
-      ]
+      "passes": true,
+      "model": "sonnet"
     },
     {
       "id": "US-1247",
@@ -1074,11 +1070,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "seed",
-      "model": "sonnet",
-      "last_attempted": "2026-04-26T16:47:11Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`results.tsv` has 130 rows with columns: timestamp, spiral_iter, ralph_iter, story_id, story_title, status (keep/reject), duration_sec, model, retry_num, etc. Worker logs at `.spiral/_claude_raw_<pid>.tmp` contain JSONL stream events with no direct story_id link in filename.\n\n## Problem Identified\nUS-1264 needs a `lib/export_trajectories.py` module that reads results.tsv and emits JSONL in OpenAI SFT / trl shape for LLM fine-tuning, with reward mapped from pass/fail status.\n\n## Planned Changes\n- Create `lib/export_trajectories.py`: reads results.tsv, maps keep→reward=1.0 / reject→reward=-1.0, emits JSONL with messages array + meta\n- Create `tests/test_export_trajectories.py`: schema validation + reward logic tests\n- Append export docs to `README.md` (in a section)\n\n<plan>\n{\n  \"files_to_create\": [\"lib/export_trajectories.py\", \"tests/test_export_trajectories.py\"],\n  \"files_to_modify\": [\"README.md\"],\n  \"functions_to_add\": [\"load_results_tsv\", \"build_trajectory\", \"export_trajectories\", \"main\"],\n  \"estimated_loc\": 160\n}\n</plan>\nNow I'll write the implementation files:\nAll 11 tests pass. Now verify the CLI command works end-to-end:\nNow append the export docs to README.md:\nNow run pre-commit to check for issues:\nThe mypy errors are pre-existing (documented in progress.txt). Ruff lint + format passed. Re-run tests to confirm:\nAll 11 tests pass. Now mark the story as passing and commit:\nUS-1264 is complete.\n\n**Summary:**\n- `lib/export_trajectories.py` — reads `results.tsv`, maps `keep`→reward=1.0 / `reject`→reward=-1.0, emits JSONL in OpenAI SFT/trl shape\n- `tests/test_export_trajectories.py` — 11 tests, all passing (reward mapping, schema validation, export output)\n- `README.md` — added \"Trajectory Export\" section documenting the CLI command and output schema\n- `prd.json` — US-1264 marked `passes: true`"
-      }
+      "model": "sonnet"
     },
     {
       "id": "US-1265",
@@ -1336,6 +1328,31 @@
         "US-1212"
       ],
       "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1277",
+      "title": "[E2E Test] Settings tab: fetch config, edit fields, and save via POST /api/config",
+      "priority": "medium",
+      "description": "Add a Playwright e2e test that opens the spiral-ui Settings tab, verifies editable fields are rendered with current config values, changes SPIRAL_MAX_PENDING, clicks Save, and asserts a success toast appears. Guards the user flow introduced by US-1215.",
+      "acceptanceCriteria": [
+        "npx playwright test tests/e2e/settings_tab.spec.ts --reporter=line exits 0",
+        "Test asserts that the SPIRAL_MAX_PENDING input is visible and pre-populated from GET /api/config",
+        "Test asserts a success toast is visible after clicking Save",
+        "Test fails if the SettingsTab component or POST /api/config endpoint is removed"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/e2e/settings_tab.spec.ts (create; add settingsTab suite with fetch, edit, save, and toast assertions)",
+        "File to edit: spiral-ui/src/components/SettingsTab.tsx (verify data-testid attributes exist on inputs and Save button; add if missing)",
+        "File to edit: spiral-ui/src/App.tsx (confirm Settings tab route/tab panel is reachable; add data-testid='settings-tab' if missing)",
+        "Test command: npx playwright test tests/e2e/settings_tab.spec.ts --reporter=line",
+        "Mock POST /api/config with page.route() to return {ok: true} without hitting a real server"
+      ],
+      "dependencies": [
+        "US-1215"
+      ],
+      "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
     }

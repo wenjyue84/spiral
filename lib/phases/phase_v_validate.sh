@@ -753,6 +753,11 @@ PYEOF
       done
     fi
 
+    # ── Evidence aggregator (US-1246) ──────────────────────────────────────
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/phase_v_evidence.py" \
+      --prd "$PRD_FILE" \
+      --out "$SCRATCH_DIR/evidence.json" 2>/dev/null || true
+
     write_checkpoint "$SPIRAL_ITER" "V"
   fi
   run_phase_hook POST "V" || true
