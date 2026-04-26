@@ -1027,7 +1027,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "model": "sonnet"
     },
@@ -1464,7 +1464,30 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet"
+      "model": "sonnet",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-1283",
+      "title": "Phase S: Track story rejection reasons and add `spiral explain-rejection <id>` CLI command",
+      "priority": "medium",
+      "description": "Enhance Phase S validation to capture structured rejection reasons when stories fail constitution or dedup checks. Add a CLI command to query why a story was rejected, improving debuggability for large PRD backlogs.",
+      "acceptanceCriteria": [
+        "When Phase S rejects a story, store rejection reason in prd.json under story._rejectionLog: [{ timestamp, reason, details }]",
+        "Rejection reasons include: 'constitution_mismatch', 'goal_misaligned', 'duplicate_detected', 'acceptance_criteria_incomplete'",
+        "CLI command `spiral explain-rejection US-123` displays human-readable rejection summary with remediation hints",
+        "All rejections also logged to .spiral/rejections.jsonl for telemetry (one JSON per line)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/spiral/story_validate.py (add track_rejection_reason function)",
+        "File to create: lib/cli_explain_rejection.py (main_explain_rejection function that queries prd.json)",
+        "File to edit: lib/phases/phase_s.sh (call track_rejection_reason before skipping story)",
+        "Test command: uv run pytest tests/test_phase_s_rejection_tracking.py::test_rejection_logged -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
