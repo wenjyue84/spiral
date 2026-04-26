@@ -1,0 +1,21 @@
+[plugin]
+name = "notify-whatsapp"
+version = "1.0.0"
+hooks = ["post-story", "run-completion"]
+allowed_env = ["WHATSAPP_WEBHOOK_URL"]
+
+# Description: Sends story lifecycle notifications to WhatsApp
+#
+# Supported hooks:
+#  - post-story: Notifies when a story is complete (passes or fails)
+#  - run-completion: Notifies with summary when SPIRAL run finishes
+#
+# Configuration:
+#  - Set WHATSAPP_WEBHOOK_URL env var to your WhatsApp webhook endpoint
+#    (e.g., local whatsapp-baileys service or configured webhook)
+#  - Opt-in via SPIRAL_NOTIFY_WHATSAPP=true (disabled by default)
+#  - Messages are plain-language format (no jargon, includes pass delta)
+#
+# Example webhook URL:
+#  export WHATSAPP_WEBHOOK_URL="http://localhost:3000/webhook"
+#  export SPIRAL_NOTIFY_WHATSAPP=true

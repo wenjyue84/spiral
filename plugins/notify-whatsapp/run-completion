@@ -1,0 +1,103 @@
+#!/bin/bash
+# WhatsApp notification hook — RUN-COMPLETION
+#
+# Reads run summary from stdin as JSON with fields:
+#   - total_stories, passed_stories, failed_stories, skipped_stories, duration_seconds
+#
+# Posts a comprehensive run summary to WhatsApp webhook when SPIRAL completes.
+# Includes plain-language report format with pass delta (new vs previous run).
+
+set -euo pipefail
+
+# Check if WhatsApp notifications are enabled
+if [[ "${SPIRAL_NOTIFY_WHATSAPP:-false}" != "true" ]]; then
+  exit 0
+fi
+
+# Read run summary from stdin
+context=$(cat)
+
+# Extract fields from JSON
+total_stories=$(echo "$context" | jq -r '.total_stories // 0' 2>/dev/null || echo "0")
+passed_stories=$(echo "$context" | jq -r '.passed_stories // 0' 2>/dev/null || echo "0")
+failed_stories=$(echo "$context" | jq -r '.failed_stories // 0' 2>/dev/null || echo "0")
+skipped_stories=$(echo "$context" | jq -r '.skipped_stories // 0' 2>/dev/null || echo "0")
+duration_seconds=$(echo "$context" | jq -r '.duration_seconds // 0' 2>/dev/null || echo "0")
+
+# Calculate pass delta (new vs previous run)
+prev_passes_file=".spiral/whatsapp_prev_passes"
+prev_passes=0
+if [[ -f "$prev_passes_file" ]]; then
+  prev_passes=$(cat "$prev_passes_file" 2>/dev/null || echo "0")
+fi
+
+pass_delta=$((passed_stories - prev_passes))
+
+# Store current pass count for next run
+mkdir -p ".spiral"
+echo "$passed_stories" >"$prev_passes_file"
+
+# Check if webhook is configured
+if [[ -z "${WHATSAPP_WEBHOOK_URL:-}" ]]; then
+  exit 0
+fi
+
+# Format duration
+duration_min=$((duration_seconds / 60))
+duration_sec=$((duration_seconds % 60))
+duration_text="${duration_min}m ${duration_sec}s"
+
+# Determine overall status
+if [[ "$failed_stories" -eq 0 ]]; then
+  status_emoji="✅"
+  status_text="SUCCESS"
+else
+  status_emoji="⚠️"
+  status_text="COMPLETED"
+fi
+
+# Build plain-language message (no jargon, following feedback_plain_language_reports.md)
+message="${status_emoji} SPIRAL Run ${status_text}
+
+Stories completed: ${passed_stories}/${total_stories}"
+
+# Include pass delta (new stories passed)
+if [[ "$pass_delta" -gt 0 ]]; then
+  message="${message}
+${pass_delta} new stories passed (was ${prev_passes} last run)"
+elif [[ "$pass_delta" -eq 0 && "$prev_passes" -gt 0 ]]; then
+  message="${message}
+No change since last run (${passed_stories} passed)"
+fi
+
+# Add failure count if there are failures
+if [[ "$failed_stories" -gt 0 ]]; then
+  message="${message}
+${failed_stories} failed"
+fi
+
+# Add skipped count if there are skipped stories (only mention if non-zero)
+if [[ "$skipped_stories" -gt 0 ]]; then
+  message="${message}
+${skipped_stories} skipped"
+fi
+
+# Add duration
+message="${message}
+Duration: ${duration_text}"
+
+# Build JSON payload for WhatsApp webhook
+payload=$(
+  cat <<EOF
+{
+  "text": "$message"
+}
+EOF
+)
+
+# Send to WhatsApp webhook (ignore errors to avoid breaking SPIRAL if webhook fails)
+curl -s -X POST "$WHATSAPP_WEBHOOK_URL" \
+  -H 'Content-type: application/json' \
+  --data "$payload" >/dev/null 2>&1 || true
+
+exit 0

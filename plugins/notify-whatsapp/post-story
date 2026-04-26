@@ -1,0 +1,82 @@
+#!/bin/bash
+# WhatsApp notification hook — POST-STORY
+#
+# Receives story context JSON on stdin with fields:
+#   - iteration, spiral_run_id, story_id, timestamp_iso
+#   - story_title (optional), story_passes (optional), retry_count (optional)
+#
+# Posts a story completion notification to WhatsApp webhook when a story completes.
+# Called after a story passes or fails.
+
+set -euo pipefail
+
+# Check if WhatsApp notifications are enabled
+if [[ "${SPIRAL_NOTIFY_WHATSAPP:-false}" != "true" ]]; then
+  exit 0
+fi
+
+# Check if webhook is configured
+if [[ -z "${WHATSAPP_WEBHOOK_URL:-}" ]]; then
+  exit 0
+fi
+
+# Read context from stdin
+context=$(cat)
+
+# Extract fields from JSON (with fallbacks for missing fields)
+iteration=$(echo "$context" | jq -r '.iteration // 0' 2>/dev/null || echo "0")
+story_id=$(echo "$context" | jq -r '.story_id // ""' 2>/dev/null || echo "")
+
+# If story_id is empty, skip notification (invalid context)
+if [[ -z "$story_id" ]]; then
+  exit 0
+fi
+
+# Try to extract optional fields with sensible defaults
+story_title=$(echo "$context" | jq -r '.story_title // ""' 2>/dev/null || echo "")
+story_passes=$(echo "$context" | jq -r '.story_passes // ""' 2>/dev/null || echo "")
+retry_count=$(echo "$context" | jq -r '.retry_count // ""' 2>/dev/null || echo "")
+
+# If passes status not in context, skip (this hook is only for story completion events)
+if [[ -z "$story_passes" ]]; then
+  exit 0
+fi
+
+# Determine status based on pass/fail
+if [[ "$story_passes" == "true" ]]; then
+  status="✅ PASSED"
+  status_short="passed"
+else
+  status="❌ FAILED"
+  status_short="failed"
+fi
+
+# Build plain-language message
+message="SPIRAL Story ${status_short}: $story_id"
+if [[ -n "$story_title" ]]; then
+  message="${message}
+Title: ${story_title}"
+fi
+message="${message}
+Status: ${status}
+Iteration: ${iteration}"
+if [[ -n "$retry_count" ]]; then
+  message="${message}
+Retries: ${retry_count}"
+fi
+
+# Build JSON payload for WhatsApp webhook
+payload=$(
+  cat <<EOF
+{
+  "text": "$message"
+}
+EOF
+)
+
+# Send to WhatsApp webhook (ignore errors to avoid breaking SPIRAL if webhook fails)
+curl -s -X POST "$WHATSAPP_WEBHOOK_URL" \
+  -H 'Content-type: application/json' \
+  --data "$payload" >/dev/null 2>&1 || true
+
+exit 0
