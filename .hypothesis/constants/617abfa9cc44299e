@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\results_tsv.py
+# hypothesis_version: 6.151.9
+
+[1.0, '.spiral', 'a', 'batch_id', 'cache_hit', 'cache_read_tokens', 'commit_sha', 'conflict_file_count', 'conflict_files', 'duration_sec', 'error_category', 'estimated_complexity', 'failed_files', 'failure_message', 'failure_root_cause', 'failure_type', 'history_reindex_ts', 'history_search', 'ignore', 'model', 'peak_rss_kb', 'phase_timing', 'quota_exceeded', 'quota_source', 'ralph_iter', 'replace', 'retry_num', 'review_tokens', 'run_id', 'scope_tag', 'spiral_iter', 'status', 'story_id', 'story_title', 'sub_project', 'sys_cpu_s', 'timestamp', 'user_cpu_s', 'utf-8', 'votes_accept', 'votes_reject', 'w', 'wall_seconds', 'worker_id', '—:,']

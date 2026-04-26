@@ -9,7 +9,6 @@ import tempfile
 from lib.cli.search_stories import FederatedStorySearch
 from lib.federated_search import search_across_projects
 
-
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
 _MAIN_PRD: dict = {
