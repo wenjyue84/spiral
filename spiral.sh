@@ -147,6 +147,10 @@ QUERY_FORMAT="table"                         # output format: table|json|csv
 EXPLAIN_MODE=0                               # 1 = explain a single story and exit (--explain)
 EXPLAIN_STORY_ID=""                          # story ID to explain
 EXPLAIN_FORMAT="text"                        # output format: text|markdown|json
+LOGS_MODE=0                                  # 1 = view story logs and exit (--logs)
+LOGS_STORY_ID=""                             # story ID to view logs for
+LOGS_LEVEL=""                                # log level filter: DEBUG|INFO|WARN|ERROR
+LOGS_CONTEXT=""                              # log context filter: parse|decompose|implement|verify
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -376,6 +380,24 @@ while [[ $# -gt 0 ]]; do
         esac
       done
       ;;
+    --logs)
+      LOGS_MODE=1
+      LOGS_STORY_ID="${2:-}"
+      shift 2
+      while [[ $# -gt 0 ]] && [[ "$1" == --level || "$1" == --context ]]; do
+        case $1 in
+          --level)
+            LOGS_LEVEL="${2:-}"
+            shift 2
+            ;;
+          --context)
+            LOGS_CONTEXT="${2:-}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -452,6 +474,9 @@ while [[ $# -gt 0 ]]; do
       echo "    --project PREFIX           Filter by story ID prefix (e.g. US, UT)"
       echo "    --by-project               Group results by project prefix with pass rates"
       echo "    --format table|json|csv    Output format (default: table)"
+      echo "  --logs STORY_ID            View implementation logs for a story with filtering and exit"
+      echo "    --level DEBUG|INFO|WARN|ERROR  Filter by log level (shows level and higher)"
+      echo "    --context parse|decompose|implement|verify  Filter by phase context"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --continuous               Never stop — loop back to Phase A after all stories pass"

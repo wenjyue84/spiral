@@ -133,3 +133,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-26T17:44:39Z	7	1	US-1284	Add MockClaudeAPI fixture for isolated phase behavior testing	keep	417	haiku	0	58c1e341f9787c1946beb290a1b21ec9c3a17927	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-26T17:50:00Z	7	2	US-1263	WhatsApp notification plugin (plugins/notify-whatsapp/) for iteration and story reports	keep	289	haiku	0	fa783504201f9dd821c943cfdb433e617fa57426	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-26T18:05:46Z	7	3	US-1266	E2E Test: SettingsTab displays, edits, and saves runtime config	keep	904	haiku	0	2cb1c9c6d845f9feca4661986bcea81d1f923681	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-26T18:36:18Z	8	1	US-1287	Integration test: Phase S rejects antiPattern stories and warns on empty ACs	keep	895	sonnet	0	33f50c48719a9fd65d86c7d0292fb9f4fda118e2	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				

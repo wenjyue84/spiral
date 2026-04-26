@@ -250,6 +250,23 @@ if [[ "$EXPLAIN_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── logs: view implementation logs for a story ──────────────────────────────────
+LOGS_MODE="${LOGS_MODE:-0}"
+LOGS_STORY_ID="${LOGS_STORY_ID:-}"
+LOGS_LEVEL="${LOGS_LEVEL:-}"
+LOGS_CONTEXT="${LOGS_CONTEXT:-}"
+if [[ "$LOGS_MODE" -eq 1 ]]; then
+  if [[ -z "$LOGS_STORY_ID" ]]; then
+    echo "[spiral] ERROR: Usage: spiral logs <story-id> [--level LEVEL] [--context CONTEXT]" >&2
+    exit 1
+  fi
+  _LOGS_ARGS=("$LOGS_STORY_ID")
+  [[ -n "$LOGS_LEVEL" ]] && _LOGS_ARGS+=("--level" "$LOGS_LEVEL")
+  [[ -n "$LOGS_CONTEXT" ]] && _LOGS_ARGS+=("--context" "$LOGS_CONTEXT")
+  "$SPIRAL_PYTHON" -m lib.log_viewer "${_LOGS_ARGS[@]}"
+  exit $?
+fi
+
 # ── query stories: filter/sort/export prd.json + results.tsv ─────────────────
 QUERY_MODE="${QUERY_MODE:-0}"
 QUERY_SUBCOMMAND="${QUERY_SUBCOMMAND:-}"

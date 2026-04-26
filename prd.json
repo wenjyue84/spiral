@@ -1076,6 +1076,28 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1265",
+      "title": "Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand",
+      "priority": "low",
+      "description": "Extend plugin.toml schema with name, version, description, inputs, outputs, tags. Add 'spiral skills list' (enumerate local plugins) and 'spiral skills install <url>' (fetch+verify+extract a plugin tarball into plugins/). Deferred; implement only after US-1263 lands so there is a second plugin to round-trip.",
+      "acceptanceCriteria": [
+        "Every plugin.toml in plugins/ gains the new metadata block (backward compatible)",
+        "'spiral skills list' round-trips metadata from notify-slack and notify-whatsapp",
+        "'spiral skills install' rejects unsigned / schema-invalid plugins",
+        "Schema documented in plugins/README.md"
+      ],
+      "technicalNotes": [
+        "uv run pytest tests/test_skills_cli.py -v"
+      ],
+      "dependencies": [
+        "US-1263"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed",
+      "model": "sonnet"
+    },
+    {
       "id": "US-1266",
       "title": "E2E Test: SettingsTab displays, edits, and saves runtime config",
       "priority": "medium",
@@ -1402,6 +1424,26 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1281",
+      "title": "Phase R: create research_quality_checker.py with scoring and replay logic",
+      "priority": "medium",
+      "description": "Create lib/research_quality_checker.py implementing compute_quality_score(research_result, story_title) returning a 0-1 float based on citation count, source diversity, and TF-IDF relevance, and should_replay(score, attempt_count) returning bool. Write unit tests covering score calculation and replay gate.",
+      "acceptanceCriteria": [
+        "`uv run pytest tests/test_phase_r_quality.py::test_compute_quality_score -v` passes and asserts score is in [0.0, 1.0]",
+        "`uv run pytest tests/test_phase_r_quality.py::test_should_replay_below_threshold -v` passes and returns True when score < 0.7 and attempt < 3",
+        "`uv run pytest tests/test_phase_r_quality.py::test_should_not_replay_at_max_attempts -v` passes and returns False when attempt_count >= 3"
+      ],
+      "technicalNotes": [
+        "File to create: lib/research_quality_checker.py (compute_quality_score, should_replay; use sklearn TfidfVectorizer or simple cosine sim)",
+        "File to create: tests/test_phase_r_quality.py (test_compute_quality_score, test_should_replay_below_threshold, test_should_not_replay_at_max_attempts)",
+        "Test command: uv run pytest tests/test_phase_r_quality.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1282",
       "title": "[Security Test] spiral-ui Settings tab auth/permission guard",
       "priority": "high",
@@ -1427,6 +1469,28 @@
       "_scopeCreep": true
     },
     {
+      "id": "US-1283",
+      "title": "Phase S: Track story rejection reasons and add `spiral explain-rejection <id>` CLI command",
+      "priority": "medium",
+      "description": "Enhance Phase S validation to capture structured rejection reasons when stories fail constitution or dedup checks. Add a CLI command to query why a story was rejected, improving debuggability for large PRD backlogs.",
+      "acceptanceCriteria": [
+        "When Phase S rejects a story, store rejection reason in prd.json under story._rejectionLog: [{ timestamp, reason, details }]",
+        "Rejection reasons include: 'constitution_mismatch', 'goal_misaligned', 'duplicate_detected', 'acceptance_criteria_incomplete'",
+        "CLI command `spiral explain-rejection US-123` displays human-readable rejection summary with remediation hints",
+        "All rejections also logged to .spiral/rejections.jsonl for telemetry (one JSON per line)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/spiral/story_validate.py (add track_rejection_reason function)",
+        "File to create: lib/cli_explain_rejection.py (main_explain_rejection function that queries prd.json)",
+        "File to edit: lib/phases/phase_s.sh (call track_rejection_reason before skipping story)",
+        "Test command: uv run pytest tests/test_phase_s_rejection_tracking.py::test_rejection_logged -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1284",
       "title": "Add MockClaudeAPI fixture for isolated phase behavior testing",
       "priority": "high",
@@ -1449,6 +1513,48 @@
       "model": "haiku"
     },
     {
+      "id": "US-1285",
+      "title": "[Regression Test] CLI: trace-dependencies command for US-1209",
+      "priority": "medium",
+      "description": "Write a regression test guarding the spiral trace-dependencies CLI command introduced in US-1209. The test invokes the command against a fixture PRD with a known dependency chain and asserts the correct output structure, including circular dependency detection.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_regression_us1209.py::test_trace_dependencies_resolves_chain -v exits 0",
+        "uv run pytest tests/test_regression_us1209.py::test_trace_dependencies_detects_circular -v exits 0",
+        "uv run pytest tests/ -k us_1209 -v exits 0 with at least 2 tests collected"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_regression_us1209.py (two test functions covering happy-path chain resolution and circular dependency detection)",
+        "Use a fixture prd.json with at least 3 stories forming a chain; store under tests/fixtures/trace_deps_fixture.json",
+        "Test command: uv run pytest tests/test_regression_us1209.py -v --tb=short"
+      ],
+      "dependencies": [
+        "US-1209"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1286",
+      "title": "CLI: Add `spiral search <query>` command for federated story discovery across main and sub-projects",
+      "priority": "medium",
+      "description": "Implement CLI command `spiral search <query>` that performs full-text search across prd.json title/description/acceptanceCriteria fields and all included sub-projects via prd.include. Returns results with project name, story ID, and match score.",
+      "acceptanceCriteria": [
+        "Command `spiral search \"authentication\"` returns stories matching query from main prd.json and all prd.include references, sorted by relevance score",
+        "Support output formats: --format table (default with ID/project/title/score), --format json, --format csv with header",
+        "Optional filter by project: `spiral search auth --project prisma-teong` returns only stories from specified sub-project"
+      ],
+      "technicalNotes": [
+        "File to create: lib/cli/search_stories.py with class FederatedStorySearch(query, config) using fuzzy matching (fuzzywuzzy)",
+        "File to create: lib/federated_search.py with function search_across_projects(query, prd_root) recursively loading prd.include",
+        "Test command: uv run pytest tests/test_federated_search.py::test_search_finds_stories_in_main_and_subprojects -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
       "id": "US-1287",
       "title": "Integration test: Phase S rejects antiPattern stories and warns on empty ACs",
       "priority": "high",
@@ -1465,11 +1571,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-04-26T18:20:52Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`validate_stories.py` has constitution checks (forbidden phrases) but no `_antiPatterns` check and no warning-only path for empty `acceptanceCriteria`.\n\n## Problem Identified\nNeed to add to Phase S:\n1. Anti-pattern phrase detection from constitution (`ANTIPATTERN:` prefix) with rejection reason \"Matches antiPattern: ...\"\n2. Warning-only (not rejection) for `acceptanceCriteria: []`\n3. Fixture PRD with both story types\n4. Integration tests in `tests/integration/test_phase_s_edge_cases.py`\n\n## Planned Changes\n- `lib/prd/validate_stories.py`: add `_load_constitution_antipatterns()`, add anti-pattern check in loop, add 0-AC warning + floor gate adjustment\n- `tests/fixtures/prd_with_invalid_stories.json`: new fixture with antiPattern story + empty-AC story\n- `tests/integration/test_phase_s_edge_cases.py`: new with `test_antipattern_match` + `test_empty_acceptance_criteria`\n\n<plan>\n{\n  \"files_to_create\": [\"tests/fixtures/prd_with_invalid_stories.json\", \"tests/integration/test_phase_s_edge_cases.py\"],\n  \"files_to_modify\": [\"lib/prd/validate_stories.py\"],\n  \"functions_to_add\": [\"_load_constitution_antipatterns\", \"test_antipattern_match\", \"test_empty_acceptance_criteria\"],\n  \"estimated_loc\": 130\n}\n</plan>\nNow I have all the insertion points. Let me make the changes.\nNow add the anti-pattern check (step 1.5) after the constitution rewrite block, and the empty-AC warning:\nNow modify the floor gate to treat 0 ACs as warning-only instead of rejection:\nNow create the fixture file:\nNow create the integration test file:\nNow run the specific tests to verify:\nBoth tests pass. Let me also run the existing Phase S tests to verify no regressions:\nThese failures might be pre-existing. Let me check:\nPre-existing failures (10 tests) - not caused by my changes. Let me restore my changes:\nBoth target tests pass. Now run mypy and ruff on the changed files:\nAll checks pass. Now update `prd.json` and commit:\nUS-1287 is complete.\n\n**Summary:**\n\n- **`lib/prd/validate_stories.py`**: Added `_load_constitution_antipatterns()` (parses `ANTIPATTERN:` prefix lines), a new step 1.5 anti-pattern check that rejects with `\"Matches antiPattern: ...\"`, a step 1.6 warning for empty `acceptanceCriteria` (non-fatal), and modified the floor gate so 0 ACs emit a warning instead of rejection.\n\n- **`tests/fixtures/prd_with_invalid_stories.json`**: Fixture with `FIXTURE-AP-001` (GPG key story matching antiPattern) and `FIXTURE-EAC-001` (story with `acceptanceCriteria: []`).\n\n- **`tests/integration/test_phase_s_edge_cases.py`**: `test_antipattern_match` asserts rejection reason contains `\"Matches antiPattern\"`; `test_empty_acceptance_criteria` asserts the empty-AC story reaches `accepted` without rejection."
-      }
+      "model": "sonnet"
     }
   ]
 }

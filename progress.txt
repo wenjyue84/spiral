@@ -898,3 +898,6 @@ Completed: E2E Test: SettingsTab displays, edits, and saves runtime config (ID: 
 - ✓ test_empty_acceptance_criteria passes
 - ✓ mypy --strict on both modified files
 - ✓ ruff I001/F401 checks pass
+## Iteration 1 - Mon, Apr 27, 2026  2:36:18 AM
+Completed: Integration test: Phase S rejects antiPattern stories and warns on empty ACs (ID: US-1287) in 14m
+
