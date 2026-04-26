@@ -1,3 +1,41 @@
+## Iteration [N] - Story: CLI: Add `spiral lint` Core Command for PRD and Config Validation (US-1270)
+
+### What was implemented
+- Created `lib/cli_lint.py` with:
+  - `load_and_validate_prd(path)`: validates prd.json against prd.schema.json using jsonschema
+  - `check_config_sh(path)`: regex-scans spiral.config.sh for undefined variables (bare $VAR without defaults)
+  - `lint(prd_path, config_path)`: main entry point that combines both validators
+- Added `lint` subcommand to main.py with parser and handler (cmd_lint)
+- Created `tests/test_cli_lint.py` with 4 comprehensive tests:
+  - test_lint_valid_prd: validates 0 exit + no output for valid files
+  - test_lint_invalid_prd: validates 1 exit + error messages for invalid files
+  - test_lint_undefined_variable: detects bare $VAR usage without defaults
+  - test_lint_variable_with_default: allows ${VAR:-default} syntax
+- Created `tests/fixtures/bad_prd.json`: test fixture with missing required field
+
+### Patterns discovered
+- jsonschema.validate() raises ValidationError with clear message for schema violations
+- Variable pattern matching needs to exclude ${VAR:-...} syntax which has default values
+- Schema file lookup uses candidate list approach (prd dir first, then cwd) for flexibility
+- Error messages to stderr use "ERROR: filename line N: reason" format for CI integration
+
+### Gotchas
+- Path handling on Windows requires .resolve() to handle relative paths correctly
+- Ruff format expands wrapped lines - budget extra lines when breaking long strings
+- Pre-existing mypy errors in reachability_verifier, ucb1_select, spiral_dashboard (not from this story)
+
+### Files touched
+- lib/cli_lint.py (new, 117 lines)
+- tests/test_cli_lint.py (new, 102 lines)
+- tests/fixtures/bad_prd.json (new, 3 lines)
+- main.py (modified, +23 lines)
+
+### Quality gates passed
+- ✓ All 4 pytest tests pass
+- ✓ mypy --strict on lib/cli_lint.py (no issues)
+- ✓ ruff check passed (lint + format)
+- ✓ Git commits successful with acceptance criteria tracking
+
 ## Iteration [N] - Story: WhatsApp notification plugin (plugins/notify-whatsapp/) for iteration and story reports (US-1263)
 
 ### What was implemented
@@ -900,4 +938,38 @@ Completed: E2E Test: SettingsTab displays, edits, and saves runtime config (ID: 
 - ✓ ruff I001/F401 checks pass
 ## Iteration 1 - Mon, Apr 27, 2026  2:36:18 AM
 Completed: Integration test: Phase S rejects antiPattern stories and warns on empty ACs (ID: US-1287) in 14m
+
+## Iteration 1 - Mon, Apr 27, 2026  3:15:52 AM
+Completed: Phase R: Add research result caching with 24-hour TTL (ID: US-1292) in 8m
+
+
+## Pre-analysis for US-1270 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the `spiral lint` command, based on the provided user story.
+
+**Project:** Spiral Core CLI
+**Objective:** Implement a `spiral lint` subcommand to validate `prd.json` against its schema and check `spiral.config.sh` for unset variables.
+
+**Python Files to Modify/Create:**
+*   `main.py`: Add argument parsing for the new `lint` subcommand.
+*   `lib/cli_lint.py` (New File): To house the core validation logic.
+*   `lib/cli_subcommands.sh`: Modify to add the `lint` case to the command dispatcher.
+*   `tests/test_cli_lint.py` (New File): To test the lint command's success and failure modes.
+*   `tests/fixtures/bad_prd.json` (New File): An invalid JSON file for testing.
+
+**Frappe DocTypes/Hooks Involved:**
+*   None. This is a core CLI feature, independent of the Frappe framework.
+
+**Recommended Implementation Approach:**
+1.  In `main.py`, use a library like `argparse` to add the `lint` subcommand which will trigger the validation logic.
+2.  Create `lib/cli_lint.py`. Implement a function `validate_prd(path)` that uses the `jsonschema` library to validate the given `prd.json` file against `prd.schema.json`.
+3.  In the same file, add a function `validate_config(path)` that reads `spiral.config.sh` line by line. Use regex to find variable usages (e.g., `$VAR`, `${VAR}`) that aren't assignments or don't have default values (`${VAR:-default}`).
+4.  The main `lint` function should call both validators, collect errors, print them to stderr, and exit with a non-zero status code if any errors are found.
+5.  In `lib/cli_subcommands.sh`, add a case for `lint` that executes `python main.py lint`.
+6.  Write tests in `tests/test_cli_lint.py` to verify that the command exits 0 for valid files and exits 1 with appropriate error messages for invalid files.
+
+**Edge Cases & Gotchas:**
+*   The regex for shell variable checking must be careful to avoid false positives from variables in comments, strings, or assignments.
+*   Error reporting needs to be precise, including file paths and line numbers for user-friendly debugging.
+*   Ensure the linter can reliably locate the `prd.schema.json` file, likely relative to the project root.
+*   Strict adherence to exit codes (0 for success, 1 for failure) is critical for CI integration.
 
