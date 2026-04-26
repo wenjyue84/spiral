@@ -1095,11 +1095,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "seed",
-      "model": "sonnet",
-      "last_attempted": "2026-04-26T21:50:18Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Two plugins exist: `plugins/notify-slack/` and `plugins/notify-whatsapp/`, each with a basic `plugin.toml` that only has `[plugin]` section with `name`, `version`, `hooks`, `allowed_env`\n- `lib/cli_subcommands.sh` handles subcommands via bash, calling Python modules\n- `spiral.sh` parses CLI args and sets mode flags\n- No `tests/test_skills_cli.py` or `plugins/README.md` exist yet\n\n## Problem Identified\nUS-1265 requires: (1) enrich `plugin.toml` with structured metadata, (2) `spiral skills list` CLI subcommand, (3) `spiral skills install <url>` with validation, (4) document in `plugins/README.md`\n\n## Planned Changes\n- `plugins/notify-slack/plugin.toml` — add `description`, `inputs`, `outputs`, `tags` fields\n- `plugins/notify-whatsapp/plugin.toml` — same\n- `lib/skills_cli.py` — new Python module: `list_skills()` + `install_skill()`\n- `spiral.sh` — add `skills` subcommand arg parsing (SKILLS_MODE, SKILLS_SUBCOMMAND, SKILLS_URL)\n- `lib/cli_subcommands.sh` — add `skills` handler that calls `lib/skills_cli.py`\n- `tests/test_skills_cli.py` — tests per technical notes\n- `plugins/README.md` — schema documentation\n\n<plan>\n{\n  \"files_to_create\": [\"lib/skills_cli.py\", \"tests/test_skills_cli.py\", \"plugins/README.md\"],\n  \"files_to_modify\": [\"plugins/notify-slack/plugin.toml\", \"plugins/notify-whatsapp/plugin.toml\", \"spiral.sh\", \"lib/cli_subcommands.sh\"],\n  \"functions_to_add\": [\"list_skills\", \"install_skill\", \"parse_plugin_toml\", \"validate_plugin_schema\"],\n  \"estimated_loc\": 200\n}\n</plan>\nNow let me write all the files:\nNow enrich the plugin.toml files:\nNow add parsing in spiral.sh:\nNow find where `search` subcommand is parsed to add `skills` after it:\nNow add the handler in `lib/cli_subcommands.sh`:\nNow create the tests:\nNow create `plugins/README.md`:\nNow run the tests:\nAll 13 tests pass. Let me fix the extractall deprecation warning:\n13/13 passing, no warnings. Now mark the story as passing and commit:\nNow append to progress.txt:\nUS-1265 is complete. Here's a summary:\n\n**All 4 acceptance criteria met:**\n\n1. **Every `plugin.toml` enriched** — added `description`, `tags`, `inputs`, `outputs` to both `notify-slack` and `notify-whatsapp` manifests (backward compatible; old fields unchanged)\n\n2. **`spiral skills list` round-trips metadata** — prints a formatted table from both plugins; tested by `test_list_skills_round_trips_notify_slack/whatsapp`\n\n3. **`spiral skills install` rejects invalid plugins** — rejects non-tarballs, missing `plugin.toml`, invalid TOML, and missing required fields (`name`, `version`, `hooks`)\n\n4. **Schema documented** — `plugins/README.md` created with full schema table, supported hooks, and CLI usage examples\n\n**13/13 tests passing**, mypy strict clean, ruff clean."
-      }
+      "model": "sonnet"
     },
     {
       "id": "US-1266",
@@ -1988,12 +1984,29 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-27T12:00:00Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe `lib/history_search.py` file exists with the `find_similar_attempts()` function. Currently, it returns dicts with 6 keys: `story_id`, `model`, `outcome`, `duration`, `cost`, and `failure_message`. The `failure_message` field may contain sensitive execution data (API keys, tokens, passwords in error messages).\n\n## Problem Identified\n\nStory US-1306 is a security test story for US-1259. The acceptance criteria requires:\n1. No sensitive fields in query results\n2. Safe error handling for missing DB\n3. Result schema must contain **only** (story_id, model, outcome, duration, cost) keys\n\nCurrently, the code returns `failure_message` which violates the third criterion and poses a security risk by exposing potentially sensitive error details.\n\n## Planned Changes\n\n1. **lib/history_search.py**: Remove `failure_message` from the returned dict (line 139)\n2. **tests/test_history_security.py** (new file): Create three security test functions:\n   - `test_no_sensitive_fields_in_results`: Verify sensitive data isn't in results\n   - `test_missing_db_safe_error`: Verify safe error handling for missing DB\n   - `test_result_schema`: Verify returned dicts have exactly the 5 expected keys\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_history_security.py\"],\n  \"files_to_modify\": [\"lib/history_search.py\"],\n  \"functions_to_add\": [\"test_no_sensitive_fields_in_results\", \"test_missing_db_safe_error\", \"test_result_schema\"],\n  \"estimated_loc\": 95\n}\n</plan>\n\nNow implementing:\nNow creating the security test file:\nNow let me run the tests to verify they pass:\nLet me check the results.tsv format by looking at the parser:\nLet me fix the tests by including the proper TSV columns:\nPerfect! All tests pass. Now let me run quality checks:\nExcellent! All tests pass. Let me update prd.json to mark the story as complete:\nNow let me commit all changes:\nLet me run a final verification that all acceptance criteria are met:\nPerfect! Let me verify the full test suite one more time:\nPerfect! Let me verify the final state:\n## Summary"
-      },
-      "_passedCommit": "26f9ceace06990889224e28dc032982a601cabf6"
+      "model": "haiku"
+    },
+    {
+      "id": "US-1307",
+      "title": "Deduplication Confidence Scorer: suggest and merge similar stories",
+      "priority": "medium",
+      "description": "Add lib/dedup_confidence.py with TF-IDF similarity scoring over prd.json stories, and wire two new CLI subcommands: spiral dedup-suggestions (show top duplicate pairs) and spiral merge <id1> <id2> (combine stories and mark originals superseded). Seed stories are excluded from dedup candidates.",
+      "acceptanceCriteria": [
+        "`spiral dedup-suggestions` prints at least one pair with confidence ≥0.75 when obvious duplicates exist in prd.json: `uv run pytest tests/test_dedup_confidence.py::test_high_confidence_detection -v`",
+        "`spiral merge US-X US-Y` writes a new story with combined acceptanceCriteria and sets superseded_by on both originals: `uv run pytest tests/test_dedup_confidence.py::test_merge_sets_superseded_by -v`",
+        "Seed stories (source == 'seed') never appear as dedup candidates: `uv run pytest tests/test_dedup_confidence.py::test_seed_excluded -v`"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dedup_confidence.py (find_duplicates(prd_data) → List[Tuple[str,str,float]] sorted by score desc, merge_stories(id1, id2, prd_data) → dict)",
+        "File to edit: lib/cli_subcommands.sh (add dedup-suggestions and merge command handlers near existing subcommand dispatch)",
+        "File to create: tests/test_dedup_confidence.py",
+        "Test command: uv run pytest tests/test_dedup_confidence.py -v",
+        "Use sklearn TfidfVectorizer on title + description concatenation; cosine_similarity threshold 0.75"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }

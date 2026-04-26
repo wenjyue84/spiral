@@ -1298,3 +1298,6 @@ This brief outlines the plan to implement a new `spiral skills` subcommand for p
 - ✓ mypy --strict on lib/skills_cli.py (no issues)
 - ✓ ruff check + format passed
 - ✓ All acceptance criteria met
+## Iteration 2 - Mon, Apr 27, 2026  5:58:53 AM
+Completed: Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand (ID: US-1265) in 7m
+

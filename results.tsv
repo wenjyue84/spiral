@@ -142,3 +142,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-26T21:24:59Z	19	1	US-1304	[Security Test] Config API: block unauthorized access (US-1214)	keep	384	sonnet	0	f7df773c63c158cb26e23666696f582109577529	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-26T21:32:23Z	19	2	US-1305	[Security Test] history_search.py: no unauthorized DB read via API (US-1259)	keep	308	sonnet	0	f115a11146893a3365902df35e8439350cc6f94e	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-26T21:50:15Z	20	1	US-1306	[Security Test] history_search: DB access control and data-leak guards (US-1259)	keep	413	haiku	0	26f9ceace06990889224e28dc032982a601cabf6	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-26T21:58:53Z	20	2	US-1265	Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand	keep	478	sonnet	0	386d4e53ed26609af41d3c86f985f062b01c0ce8	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				

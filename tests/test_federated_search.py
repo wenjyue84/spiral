@@ -6,10 +6,8 @@ import json
 import os
 import tempfile
 
-import pytest
-
-from lib.federated_search import search_across_projects
 from lib.cli.search_stories import FederatedStorySearch
+from lib.federated_search import search_across_projects
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────

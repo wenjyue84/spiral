@@ -17,10 +17,10 @@ from rapidfuzz import fuzz
 _SEARCH_FIELDS = ("title", "description", "acceptanceCriteria")
 
 
-def _score_story(story: dict[str, Any], query: str) -> int:
+def _score_story(story: dict[str, Any], query: str) -> float:
     """Return a fuzzy match score (0-100) for a story against a query."""
     query_lower = query.lower()
-    best = 0
+    best: float = 0
     for field in _SEARCH_FIELDS:
         value = story.get(field, "")
         if isinstance(value, list):
