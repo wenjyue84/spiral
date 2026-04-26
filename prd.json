@@ -1136,7 +1136,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1572,6 +1572,86 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1288",
+      "title": "CLI: Add spiral metrics export-timeseries to export token burn and story throughput as time series JSON",
+      "priority": "medium",
+      "description": "Add new CLI command `spiral metrics export-timeseries <output.json>` that parses results.tsv and spiral_events.jsonl to extract time-series data: iteration, timestamp, cumulative tokens, stories passed per iteration, average model tier. Enables external dashboarding and trend analysis beyond spiral-ui.",
+      "acceptanceCriteria": [
+        "Command outputs JSON array with entries: {iteration, timestamp, cumulative_tokens, stories_passed_delta, avg_model_tier, total_cost}",
+        "Timestamps derived from spiral_events.jsonl Phase G completion times; tokens summed from results.tsv cost field",
+        "Output file contains min 10 data points; command rejects if fewer than 10 story records exist"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/metrics_export.py (new; functions: parse_results_tsv(), parse_spiral_events(), aggregate_timeseries())",
+        "File to edit: lib/cli_subcommands.sh (add export-timeseries case handler that calls metrics_export.py)",
+        "Test command: uv run pytest tests/test_metrics_export.py::test_export_timeseries_format -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1289",
+      "title": "CLI: `spiral snapshot save` and `snapshot restore` commands",
+      "priority": "medium",
+      "description": "Add SnapshotManager.save() and SnapshotManager.restore() to lib/snapshot.py using Python's tarfile module. Wire both subcommands into lib/cli_subcommands.sh so that `spiral snapshot save` creates .spiral/snapshot-<ISO8601>.tar.gz and `spiral snapshot restore <timestamp>` extracts and overwrites current state.",
+      "acceptanceCriteria": [
+        "`spiral snapshot save` creates .spiral/snapshot-<ISO8601>.tar.gz containing prd.json, results.tsv, .spiral/checkpoint.json, and retry-counts.json",
+        "`spiral snapshot restore <timestamp>` extracts the matching archive and overwrites prd.json and results.tsv; prints checkpoint resume info to stdout",
+        "uv run pytest tests/test_snapshot.py::test_snapshot_save -v and tests/test_snapshot.py::test_snapshot_restore_overwrites_prd -v both pass"
+      ],
+      "technicalNotes": [
+        "File to create: lib/snapshot.py (SnapshotManager class; save(out_dir='.spiral') and restore(timestamp, out_dir='.spiral') methods using tarfile)",
+        "File to edit: lib/cli_subcommands.sh (add snapshot_save_handler and snapshot_restore_handler that call python lib/snapshot.py save/restore)",
+        "Test command: uv run pytest tests/test_snapshot.py::test_snapshot_restore_overwrites_prd -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1290",
+      "title": "CLI: `spiral snapshot list` command with ASCII table and --json flag",
+      "priority": "medium",
+      "description": "Add SnapshotManager.list() to lib/snapshot.py that scans .spiral/ for snapshot archives and returns metadata (size, story count, creation time). Wire `spiral snapshot list` into lib/cli_subcommands.sh with plain ASCII-table output and a --json flag for structured output.",
+      "acceptanceCriteria": [
+        "`spiral snapshot list` prints an ASCII table with columns: timestamp, size (human-readable), story count, creation time",
+        "`spiral snapshot list --json` outputs a valid JSON array with the same fields",
+        "uv run pytest tests/test_snapshot.py::test_snapshot_list_ascii -v and tests/test_snapshot.py::test_snapshot_list_json -v both pass"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/snapshot.py (add list(out_dir='.spiral') -> list[dict] method; parse story count from prd.json inside each archive without full extraction)",
+        "File to edit: lib/cli_subcommands.sh (add snapshot_list_handler; use printf for ASCII table, json.dumps for --json)",
+        "Test command: uv run pytest tests/test_snapshot.py::test_snapshot_list_ascii -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1291",
+      "title": "CLI: Add `spiral cost-analysis` for detailed cost breakdown by phase, model, and story",
+      "priority": "medium",
+      "description": "New CLI command to analyze token costs and spend across phases, models, and stories from results.tsv, with comparison to prior iteration.",
+      "acceptanceCriteria": [
+        "`spiral cost-analysis` shows total spend, cost per phase (A/R/T/S/E/M/X/G/I/V/C/L), cost per model tier (haiku/sonnet/opus), and average cost per story",
+        "`--detailed` flag shows per-story breakdown sorted by highest cost; `--json` exports structured data for scripting",
+        "`--compare-iteration N` compares current iteration to iteration N with delta and % change in table format"
+      ],
+      "technicalNotes": [
+        "File to create: lib/cost_analysis.py (parse_results_tsv, compute_phase_costs, compute_model_costs functions)",
+        "File to edit: lib/cli_subcommands.sh (add cost-analysis handler with option parsing)",
+        "Test command: uv run pytest tests/test_cost_analysis.py::test_cost_breakdown_by_phase -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
