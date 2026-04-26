@@ -1088,3 +1088,63 @@ This technical brief is for implementing a Python user story within the Spiral p
 *   The structure of `research_result` is undefined; assume a dictionary like `{'content': str, 'sources': [{'url': str}]}`.
 *   Ensure the `sklearn` dependency is added to the project's `pyproject.toml`.
 *   Handle potential division-by-zero errors if `research_result` is empty or lacks sources.
+
+## Iteration [N] - Story: Phase S: Track story rejection reasons and add `spiral explain-rejection <id>` CLI command (US-1283)
+
+### What was implemented
+- Created `lib/cli_explain_rejection.py` with:
+  - `_load_prd()`: loads prd.json safely with type validation
+  - `_find_story()`: queries prd.json for rejected story
+  - `_format_text()`: human-readable rejection summary with remediation hints
+  - `_format_json()`: JSON format for machine consumption
+  - `_remediation_hints()`: generates context-specific fix suggestions based on rejection reason
+  - `main()`: CLI entry point with --format flag support
+- Created `lib/track_rejections.py` with:
+  - `track_rejections()`: updates prd.json with _rejectionLog entries and writes telemetry
+  - `_normalize_reason()`: maps raw rejection reasons to standard forms (constitution_mismatch, goal_misaligned, duplicate_detected, acceptance_criteria_incomplete, quality_score_too_low)
+  - CLI interface with --prd, --rejected, --rejections-jsonl args
+- Modified `lib/phases/phase_s_story_validate.sh`:
+  - Integrated track_rejections.py call after validation completes
+  - Logs rejections to .spiral/rejections.jsonl for telemetry
+- Modified `lib/cli_subcommands.sh`:
+  - Added EXPLAIN_REJECTION_MODE handler
+  - Supports --format text|json flags
+- Modified `spiral.sh`:
+  - Added variable declarations for EXPLAIN_REJECTION_MODE, EXPLAIN_REJECTION_STORY_ID, EXPLAIN_REJECTION_FORMAT
+  - Added --explain-rejection argument parser with --json flag support
+- Created `tests/test_phase_s_rejection_tracking.py`:
+  - 8 comprehensive tests covering all acceptance criteria
+  - Tests: prd.json updates, jsonl logging, empty rejections, text/json formatting, remediation hints, reason normalization
+  - All tests pass
+
+### Patterns discovered
+- Rejection reasons are normalized to match acceptance criteria categories
+- Remediation hints are context-specific based on rejection category (constitution → review forbidden phrases, acceptance_criteria → add measurable criteria)
+- _rejectionLog is a list that accumulates rejections over time (same story can be rejected multiple times)
+- Track rejections runs in Phase S after validation, updating both prd.json and telemetry logs
+
+### Gotchas
+- Must use proper type hints for mypy strict mode: type guard on json.load() return value
+- Pre-existing mypy errors in reachability_verifier.py, routing/ucb1_select.py, ui/spiral_dashboard.py not caused by this story
+- Unused imports removed to satisfy ruff F401 linting rules
+
+### Files touched
+- lib/cli_explain_rejection.py (new, 142 lines)
+- lib/track_rejections.py (new, 165 lines)
+- lib/phases/phase_s_story_validate.sh (modified, +13 lines)
+- lib/cli_subcommands.sh (modified, +14 lines)
+- spiral.sh (modified, +44 lines)
+- tests/test_phase_s_rejection_tracking.py (new, 196 lines)
+- prd.json (modified, marked US-1283 passes: true)
+
+### Quality gates passed
+- ✓ All 8 pytest tests pass (100%)
+- ✓ mypy --strict on lib/cli_explain_rejection.py and lib/track_rejections.py (no issues)
+- ✓ ruff check passed (no unused imports or lint issues)
+- ✓ Shell linting on modified .sh files passed (shellcheck)
+- ✓ Git commits successful with full acceptance criteria tracking
+- ✓ All acceptance criteria met:
+  - [x] _rejectionLog with { timestamp, reason, details } added to rejected stories in prd.json
+  - [x] Rejection reasons include: constitution_mismatch, goal_misaligned, duplicate_detected, acceptance_criteria_incomplete
+  - [x] `spiral explain-rejection US-123` command displays human-readable summary with remediation hints
+  - [x] All rejections logged to .spiral/rejections.jsonl for telemetry
