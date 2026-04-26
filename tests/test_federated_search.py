@@ -57,7 +57,7 @@ def _write_prd(directory: str, filename: str, data: dict) -> str:  # type: ignor
 def test_search_finds_stories_in_main_and_subprojects() -> None:
     """Required test: search returns matches from main prd.json and prd.include."""
     with tempfile.TemporaryDirectory() as tmp:
-        sub_path = _write_prd(tmp, "sub.json", _SUB_PRD)
+        _write_prd(tmp, "sub.json", _SUB_PRD)
         main_data = dict(_MAIN_PRD)
         main_data["prd.include"] = ["sub.json"]
         main_path = _write_prd(tmp, "prd.json", main_data)
@@ -87,7 +87,7 @@ def test_search_results_sorted_by_score_descending() -> None:
 def test_search_project_filter() -> None:
     """--project filter returns only stories from specified sub-project."""
     with tempfile.TemporaryDirectory() as tmp:
-        sub_path = _write_prd(tmp, "sub.json", _SUB_PRD)
+        _write_prd(tmp, "sub.json", _SUB_PRD)
         main_data = dict(_MAIN_PRD)
         main_data["prd.include"] = ["sub.json"]
         main_path = _write_prd(tmp, "prd.json", main_data)

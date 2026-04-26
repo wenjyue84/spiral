@@ -1464,3 +1464,32 @@ Here is the technical brief for the user story:
 *   Ensure the modal's content area can scroll if the failure logs are long.
 *   For the grid, confirm if an existing component library (e.g., shadcn/ui, MUI) is in use or if a simple table is preferred.
 
+## Iteration 2 - Mon, Apr 27, 2026  6:31:36 AM
+Completed: spiral-ui: Tests tab React component with story grid and detail modal (ID: US-1309) in 10m
+
+
+
+## Iteration [N] - Story: CLI: Add `spiral search <query>` command for federated story discovery (US-1286)
+
+### What was implemented
+- `lib/federated_search.py` and `lib/cli/search_stories.py` were already implemented in a prior attempt
+- `tests/test_federated_search.py` (10 tests) also existed and all passed
+- Fixed 2 ruff F841 unused-variable warnings in test file (removed `sub_path = ` assignments)
+- CLI wiring (`spiral search`) already present in `spiral.sh` + `lib/cli_subcommands.sh`
+
+### Patterns discovered
+- Check ruff F841 when writing `_write_prd(...)` test helpers — the return value is often unused
+- `lib/cli/` holds CLI driver modules; `lib/federated_search.py` holds core logic
+
+### Gotchas
+- When a prior partial attempt left both implementation AND test files, the real work is running the tests and fixing lint
+
+### Files touched
+- tests/test_federated_search.py (2-line fix: removed unused sub_path assignments)
+- prd.json (marked US-1286 passes: true)
+
+### Quality gates passed
+- ✓ All 10 pytest tests pass (100%)
+- ✓ mypy --strict on lib/federated_search.py + lib/cli/search_stories.py (no issues)
+- ✓ ruff check + format passed (clean)
+- ✓ Required test: test_search_finds_stories_in_main_and_subprojects PASSED
