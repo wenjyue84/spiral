@@ -339,3 +339,18 @@ if [[ "$SKILLS_MODE" -eq 1 ]]; then
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/skills_cli.py" "${_SKILLS_ARGS[@]}"
   exit $?
 fi
+
+# ── metrics export-timeseries: export time-series JSON from results.tsv + spiral_events.jsonl
+METRICS_MODE="${METRICS_MODE:-0}"
+METRICS_SUBCOMMAND="${METRICS_SUBCOMMAND:-}"
+METRICS_OUTPUT="${METRICS_OUTPUT:-}"
+if [[ "$METRICS_MODE" -eq 1 ]] && [[ "$METRICS_SUBCOMMAND" == "export-timeseries" ]]; then
+  if [[ -z "$METRICS_OUTPUT" ]]; then
+    echo "[spiral] ERROR: Usage: spiral metrics export-timeseries <output.json>" >&2
+    exit 1
+  fi
+  _RESULTS_TSV="${RESULTS_TSV:-$REPO_ROOT/results.tsv}"
+  _SPIRAL_EVENTS="${REPO_ROOT}/spiral_events.jsonl"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/metrics_export.py" "$_RESULTS_TSV" "$_SPIRAL_EVENTS" "$METRICS_OUTPUT"
+  exit $?
+fi

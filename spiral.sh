@@ -163,6 +163,9 @@ SEARCH_MIN_SCORE=30                          # minimum fuzzy score (0-100)
 SKILLS_MODE=0                                # 1 = run skills subcommand and exit (skills)
 SKILLS_SUBCOMMAND=""                         # list | install
 SKILLS_URL=""                                # URL for skills install
+METRICS_MODE=0                               # 1 = run metrics subcommand and exit (metrics)
+METRICS_SUBCOMMAND=""                        # export-timeseries
+METRICS_OUTPUT=""                            # output file path for metrics
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -464,6 +467,16 @@ while [[ $# -gt 0 ]]; do
         shift 2
       fi
       ;;
+    metrics)
+      METRICS_MODE=1
+      METRICS_SUBCOMMAND="${2:-}"
+      if [[ "$METRICS_SUBCOMMAND" == "export-timeseries" ]]; then
+        METRICS_OUTPUT="${3:-}"
+        shift 3
+      else
+        shift 2
+      fi
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -548,6 +561,7 @@ while [[ $# -gt 0 ]]; do
       echo "    --format table|json|csv    Output format (default: table)"
       echo "    --project NAME             Filter results to a specific sub-project"
       echo "    --min-score N              Minimum match score 0-100 (default: 30)"
+      echo "  metrics export-timeseries <output.json>  Export time-series metrics (token burn, throughput) to JSON"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --continuous               Never stop — loop back to Phase A after all stories pass"
