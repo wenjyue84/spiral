@@ -136,7 +136,6 @@ def find_similar_attempts(
                 "outcome": status,
                 "duration": duration,
                 "cost": "",  # cost not stored in results.tsv currently
-                "failure_message": failure_msg,
             }
         )
     return results
