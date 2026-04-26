@@ -419,3 +419,67 @@ compare_error_signatures() {
     echo "different"
   fi
 }
+
+# enrich_results_with_hints <failure_type> [results_tsv]
+# Enriches results.tsv with recovery hints indexed by failure type.
+# Adds "hint" column to header if not present, and updates the latest row
+# for the current story with a recovery hint generated from the failure type.
+#
+# Args:
+#   failure_type: one of 8 categories (missing_dependency, syntax_error, ...)
+#   results_tsv: path to results.tsv (default: results.tsv)
+#
+# Returns: 0 on success, 1 if TSV not found or error_hints.py unavailable
+enrich_results_with_hints() {
+  local failure_type="${1:-other}"
+  local results_tsv="${2:-results.tsv}"
+  local story_id="${3:-}"
+  local error_hints_script
+  error_hints_script="$(dirname "${BASH_SOURCE[0]}")/../../lib/error_hints.py"
+
+  if [[ ! -f "$error_hints_script" || ! -f "$results_tsv" || -z "$story_id" ]]; then
+    return 1
+  fi
+
+  # Generate hint using error_hints.py
+  local hint_text
+  hint_text=$(uv run python -c "
+from lib.error_hints import hint_text
+print(hint_text('$failure_type'))
+" 2>/dev/null) || return 1
+
+  if [[ -z "$hint_text" ]]; then
+    return 1
+  fi
+
+  # Check if hint column exists in header
+  local header
+  header=$(head -1 "$results_tsv")
+  if [[ "$header" != *$'\t'"hint"* ]]; then
+    # Add hint column to header
+    echo "$header"$'\t'"hint" >"${results_tsv}.tmp"
+    # Add hint column to all existing rows (empty for now)
+    tail -n +2 "$results_tsv" | while IFS= read -r line; do
+      echo "$line"$'\t'""
+    done >>"${results_tsv}.tmp"
+    mv "${results_tsv}.tmp" "$results_tsv"
+  fi
+
+  # Update the last row for story_id with the hint (using awk)
+  local temp_file
+  temp_file="${results_tsv}.enriched"
+  awk -v story_id="$story_id" -v hint_val="$hint_text" -v OFS='\t' '
+    NR == 1 { print; next }  # Header row
+    $4 == story_id && NR == ARGIND {  # Last matching row (trick: check if this is last file record)
+      gsub(/\t$/, "", $0)  # Remove trailing tab if present
+      if (NF < 29) {  # Hint column should be 29th (0-indexed: 28)
+        for (i = NF + 1; i < 29; i++) $i = ""
+      }
+      $29 = hint_val
+    }
+    { print }
+  ' "$results_tsv" >"$temp_file" && mv "$temp_file" "$results_tsv"
+
+  echo "[Phase I / hints] Added recovery hint for $story_id (failure_type=$failure_type)" >&2
+  return 0
+}
