@@ -6258,3 +6258,24 @@
 {"ts": "2026-04-26T23:11:54.287570+00:00", "type": "route_story_assigned", "story_id": "US-1311", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-04-26T23:11:54.287964+00:00", "type": "route_story_assigned", "story_id": "US-1312", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-04-26T23:11:54.288395+00:00", "type": "route_story_assigned", "story_id": "US-1313", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"timestamp": "2026-04-26T23:45:01.608733+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "CLI: Add `spiral validate-federation` to validate multi-repo prd.include consistency", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-04-26T23:45:01.609448+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "spiral-ui: Add Workers tab with backend API endpoints and live log streaming", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-04-26T23:45:01.609848+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "CLI: Add `spiral explain <story-id>` to display story context and origin", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"ts": "2026-04-26T23:47:35.159856+00:00", "type": "route_story_assigned", "story_id": "US-1291", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.160316+00:00", "type": "route_story_assigned", "story_id": "US-1293", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.160773+00:00", "type": "route_story_assigned", "story_id": "US-1294", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.161203+00:00", "type": "route_story_assigned", "story_id": "US-1295", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.161568+00:00", "type": "route_story_assigned", "story_id": "US-1296", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.161922+00:00", "type": "route_story_assigned", "story_id": "US-1297", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.162276+00:00", "type": "route_story_assigned", "story_id": "US-1298", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.162632+00:00", "type": "route_story_assigned", "story_id": "US-1299", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.162988+00:00", "type": "route_story_assigned", "story_id": "US-1300", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.163346+00:00", "type": "route_story_assigned", "story_id": "US-1302", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.163697+00:00", "type": "route_story_assigned", "story_id": "US-1303", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.164024+00:00", "type": "route_story_assigned", "story_id": "US-1307", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.164354+00:00", "type": "route_story_assigned", "story_id": "US-1310", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.164703+00:00", "type": "route_story_assigned", "story_id": "US-1311", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.165053+00:00", "type": "route_story_assigned", "story_id": "US-1312", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.165401+00:00", "type": "route_story_assigned", "story_id": "US-1313", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.165745+00:00", "type": "route_story_assigned", "story_id": "US-1314", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T23:47:35.166072+00:00", "type": "route_story_assigned", "story_id": "US-1315", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
