@@ -1722,3 +1722,38 @@ Here is a technical brief for the Claude agent based on the user story provided.
 *   **File Paths:** Ensure paths within the tarball are relative to the project root to prevent extraction errors.
 *   **Missing Files:** The `save` operation should handle cases where one or more of the target files do not exist.
 
+## Iteration 2 - Mon, Apr 27, 2026  7:23:11 AM
+Completed: CLI: `spiral snapshot save` and `snapshot restore` commands (ID: US-1289) in 2m
+
+
+## Pre-analysis for US-1290 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude Code agent.
+
+---
+
+**Project:** Spiral CLI (Note: This is a Python/Shell CLI tool, not a Frappe application).
+
+**Objective:** Implement a `spiral snapshot list` command to display metadata for all snapshots found in the `.spiral/` directory.
+
+**1. Python Implementation (`lib/snapshot.py`):**
+- Create a new method `list()` within the `SnapshotManager` class.
+- This method will scan the `.spiral/` directory for snapshot archives (e.g., `.tar.gz`).
+- For each archive, it must collect metadata: file size, creation timestamp, and story count.
+- To get the story count, it must read the `prd.json` file from within each archive *without* performing a full extraction. The `tarfile` module can be used to stream a single file's contents.
+- The method should return a list of dictionaries containing the collected metadata.
+
+**2. Shell/CLI Implementation (`lib/cli_subcommands.sh`):**
+- Create a new shell function `snapshot_list_handler`.
+- This function will be triggered by the `spiral snapshot list` command.
+- It must handle a `--json` flag.
+- If `--json` is provided, it should execute the Python `SnapshotManager.list()` method and output the resulting JSON directly.
+- If no flag is present, it should parse the Python output and format it into a user-friendly ASCII table using `printf`.
+
+**3. Edge Cases & Gotchas:**
+- Handle corrupted archives or snapshots missing a `prd.json` file gracefully.
+- Ensure file sizes are converted to a human-readable format (e.g., KB, MB).
+- The command should output an empty table/JSON array if no snapshots are found, not an error.
+
+**4. Testing:**
+- New unit tests should be added to `tests/test_snapshot.py` to validate both the ASCII and JSON output formats.
+

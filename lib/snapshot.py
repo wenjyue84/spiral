@@ -149,6 +149,80 @@ class SnapshotManager:
 
         return checkpoint_info
 
+    def list(self, out_dir: str = ".spiral") -> list[dict[str, Any]]:
+        """List all snapshots in the given directory with metadata.
+
+        Scans the output directory for snapshot archives and returns metadata
+        including timestamp, file size (human-readable), story count from prd.json,
+        and creation time.
+
+        Args:
+            out_dir: Directory containing snapshots (defaults to .spiral)
+
+        Returns:
+            List of dicts with keys: timestamp, size, size_human, story_count, creation_time
+        """
+        out_path = Path(out_dir)
+        snapshots = []
+
+        if not out_path.exists():
+            return []
+
+        for snapshot_path in sorted(out_path.glob("snapshot-*.tar.gz")):
+            try:
+                # Extract timestamp from filename
+                timestamp = snapshot_path.name.replace("snapshot-", "").replace(".tar.gz", "")
+
+                # Get file size
+                size_bytes = snapshot_path.stat().st_size
+                size_human = self._human_readable_size(size_bytes)
+
+                # Get creation time from file
+                creation_time = datetime.fromtimestamp(snapshot_path.stat().st_mtime, tz=timezone.utc).isoformat()
+
+                # Extract story count from prd.json inside archive
+                story_count = 0
+                try:
+                    with tarfile.open(snapshot_path, "r:gz") as tar:
+                        # Try to read prd.json from tarball
+                        try:
+                            prd_member = tar.getmember("prd.json")
+                            f = tar.extractfile(prd_member)
+                            if f:
+                                prd_data = json.loads(f.read().decode("utf-8"))
+                                story_count = len(prd_data.get("userStories", []))
+                        except (KeyError, OSError, json.JSONDecodeError):
+                            # Archive doesn't have prd.json or it's malformed
+                            story_count = 0
+                except (tarfile.TarError, OSError):
+                    # Can't read archive, skip
+                    continue
+
+                snapshots.append(
+                    {
+                        "timestamp": timestamp,
+                        "size": size_bytes,
+                        "size_human": size_human,
+                        "story_count": story_count,
+                        "creation_time": creation_time,
+                    }
+                )
+            except Exception:
+                # Skip corrupted snapshots
+                continue
+
+        return snapshots
+
+    @staticmethod
+    def _human_readable_size(size_bytes: int) -> str:
+        """Convert bytes to human-readable format."""
+        size_float = float(size_bytes)
+        for unit in ("B", "KB", "MB", "GB"):
+            if size_float < 1024:
+                return f"{size_float:.1f} {unit}"
+            size_float /= 1024
+        return f"{size_float:.1f} TB"
+
 
 def main() -> None:
     """CLI entry point for snapshot operations."""

@@ -355,10 +355,59 @@ if [[ "$METRICS_MODE" -eq 1 ]] && [[ "$METRICS_SUBCOMMAND" == "export-timeseries
   exit $?
 fi
 
-# ── snapshot save/restore: create and restore project state snapshots ────────
+# ── snapshot_list_handler: format and display snapshot list output ────────────────────
+snapshot_list_handler() {
+  local out_dir="$1"
+  local json_output=()
+
+  # Call Python to get JSON snapshot list
+  local json_data
+  json_data=$("$SPIRAL_PYTHON" -c "
+import sys
+import json
+sys.path.insert(0, '$SPIRAL_HOME')
+from lib.snapshot import SnapshotManager
+
+manager = SnapshotManager(project_root='$REPO_ROOT')
+snapshots = manager.list(out_dir='$out_dir')
+print(json.dumps(snapshots, indent=2))
+" 2>&1)
+
+  if [[ $? -ne 0 ]]; then
+    echo "[spiral] ERROR: Failed to list snapshots: $json_data" >&2
+    exit 1
+  fi
+
+  # Check if --json flag was set
+  if [[ "${SNAPSHOT_JSON:-0}" -eq 1 ]]; then
+    # Output raw JSON
+    echo "$json_data"
+  else
+    # Format as ASCII table
+    local snapshot_count
+    snapshot_count=$(echo "$json_data" | "$JQ" 'length')
+
+    if [[ "$snapshot_count" -eq 0 ]]; then
+      echo "No snapshots found in $out_dir"
+      exit 0
+    fi
+
+    # Print header
+    printf "%-35s %-12s %-12s %-26s\n" "Timestamp" "Size" "Stories" "Created"
+    printf "%-35s %-12s %-12s %-26s\n" "$(printf '%0.s-' {1..35})" "$(printf '%0.s-' {1..12})" "$(printf '%0.s-' {1..12})" "$(printf '%0.s-' {1..26})"
+
+    # Print snapshot rows
+    echo "$json_data" | "$JQ" -r '.[] | [.timestamp, .size_human, .story_count, .creation_time] | @tsv' | while IFS=$'\t' read -r timestamp size stories created; do
+      printf "%-35s %-12s %-12s %-26s\n" "$timestamp" "$size" "$stories" "$created"
+    done
+  fi
+}
+
+# ── snapshot save/restore/list: create, restore, and list project state snapshots ────────
 SNAPSHOT_MODE="${SNAPSHOT_MODE:-0}"
 SNAPSHOT_SUBCOMMAND="${SNAPSHOT_SUBCOMMAND:-}"
 SNAPSHOT_TIMESTAMP="${SNAPSHOT_TIMESTAMP:-}"
+SNAPSHOT_JSON="${SNAPSHOT_JSON:-0}"
 if [[ "$SNAPSHOT_MODE" -eq 1 ]]; then
   _SNAPSHOT_OUT_DIR="${SCRATCH_DIR}"
   if [[ "$SNAPSHOT_SUBCOMMAND" == "save" ]]; then
@@ -370,6 +419,9 @@ if [[ "$SNAPSHOT_MODE" -eq 1 ]]; then
       exit 1
     fi
     "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/snapshot.py" restore "$SNAPSHOT_TIMESTAMP" --out-dir "$_SNAPSHOT_OUT_DIR" --project-root "$REPO_ROOT"
+    exit $?
+  elif [[ "$SNAPSHOT_SUBCOMMAND" == "list" ]]; then
+    snapshot_list_handler "$_SNAPSHOT_OUT_DIR"
     exit $?
   fi
 fi

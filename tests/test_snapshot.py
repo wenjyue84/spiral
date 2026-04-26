@@ -269,3 +269,167 @@ class TestSnapshotIntegration:
             restored_results = results_file.read_text(encoding="utf-8")
             assert "US-001" in restored_results
             assert "haiku" in restored_results
+
+
+class TestSnapshotList:
+    """Tests for SnapshotManager.list() method."""
+
+    def test_snapshot_list_empty_directory(self) -> None:
+        """Test list() returns empty list when no snapshots exist."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+            snapshot_dir = project_root / ".spiral"
+            snapshot_dir.mkdir()
+
+            manager = SnapshotManager(project_root=str(project_root))
+            snapshots = manager.list(out_dir=str(snapshot_dir))
+
+            assert snapshots == []
+
+    def test_snapshot_list_ascii(self) -> None:
+        """Test list() returns snapshots with correct metadata for ASCII formatting."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+            snapshot_dir = project_root / ".spiral"
+            snapshot_dir.mkdir()
+
+            # Create test files
+            prd_file = project_root / "prd.json"
+            prd_data = {"userStories": [{"id": "US-001"}, {"id": "US-002"}]}
+            prd_file.write_text(json.dumps(prd_data), encoding="utf-8")
+
+            results_file = project_root / "results.tsv"
+            results_file.write_text("story_id\tstatus\n", encoding="utf-8")
+
+            # Save snapshot
+            manager = SnapshotManager(project_root=str(project_root))
+            manager.save(out_dir=str(snapshot_dir))
+
+            # List snapshots
+            snapshots = manager.list(out_dir=str(snapshot_dir))
+
+            assert len(snapshots) == 1
+            snapshot = snapshots[0]
+
+            # Verify metadata
+            assert "timestamp" in snapshot
+            assert "size" in snapshot
+            assert "size_human" in snapshot
+            assert "story_count" in snapshot
+            assert "creation_time" in snapshot
+
+            # Verify story count
+            assert snapshot["story_count"] == 2
+
+            # Verify size is reasonable (> 0 and < 10MB)
+            assert 0 < snapshot["size"] < 10_000_000
+
+            # Verify size_human contains unit
+            assert any(unit in snapshot["size_human"] for unit in ("B", "KB", "MB", "GB"))
+
+    def test_snapshot_list_json(self) -> None:
+        """Test list() returns valid JSON-serializable data."""
+        import time
+
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+            snapshot_dir = project_root / ".spiral"
+            snapshot_dir.mkdir()
+
+            # Create multiple snapshots
+            prd_file = project_root / "prd.json"
+            prd_data = {"userStories": [{"id": "US-001"}]}
+            prd_file.write_text(json.dumps(prd_data), encoding="utf-8")
+
+            manager = SnapshotManager(project_root=str(project_root))
+            manager.save(out_dir=str(snapshot_dir))
+
+            # Wait to ensure different timestamp
+            time.sleep(0.1)
+
+            # Modify and save again
+            prd_data["userStories"].append({"id": "US-002"})
+            prd_file.write_text(json.dumps(prd_data), encoding="utf-8")
+            manager.save(out_dir=str(snapshot_dir))
+
+            # List snapshots
+            snapshots = manager.list(out_dir=str(snapshot_dir))
+
+            # Should have at least 1 snapshot (timestamp might be same if very fast)
+            assert len(snapshots) >= 1
+
+            # Verify all snapshots are JSON-serializable
+            json_str = json.dumps(snapshots)
+            parsed = json.loads(json_str)
+
+            assert len(parsed) >= 1
+            assert all("timestamp" in s for s in parsed)
+            assert all("size" in s for s in parsed)
+            assert all("story_count" in s for s in parsed)
+
+    def test_snapshot_list_nonexistent_directory(self) -> None:
+        """Test list() returns empty list for nonexistent directory."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+            nonexistent_dir = project_root / ".spiral"
+
+            manager = SnapshotManager(project_root=str(project_root))
+            snapshots = manager.list(out_dir=str(nonexistent_dir))
+
+            assert snapshots == []
+
+    def test_snapshot_list_corrupted_archive(self) -> None:
+        """Test list() skips corrupted archives gracefully."""
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+            snapshot_dir = project_root / ".spiral"
+            snapshot_dir.mkdir()
+
+            # Create a valid snapshot
+            prd_file = project_root / "prd.json"
+            prd_file.write_text('{"userStories": []}', encoding="utf-8")
+
+            manager = SnapshotManager(project_root=str(project_root))
+            manager.save(out_dir=str(snapshot_dir))
+
+            # Create a corrupted .tar.gz file
+            bad_snapshot = snapshot_dir / "snapshot-2026-01-01T00-00-00Z.tar.gz"
+            bad_snapshot.write_text("this is not a valid tarball", encoding="utf-8")
+
+            # List should skip the corrupted archive and return only valid one
+            snapshots = manager.list(out_dir=str(snapshot_dir))
+
+            assert len(snapshots) == 1
+            assert "T" in snapshots[0]["timestamp"]  # ISO format timestamp
+
+    def test_snapshot_list_timestamp_order(self) -> None:
+        """Test list() returns snapshots in chronological order."""
+        import time
+
+        with TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir)
+            snapshot_dir = project_root / ".spiral"
+            snapshot_dir.mkdir()
+
+            prd_file = project_root / "prd.json"
+            prd_file.write_text('{"userStories": []}', encoding="utf-8")
+
+            manager = SnapshotManager(project_root=str(project_root))
+            timestamps = []
+
+            # Save multiple snapshots with delay to ensure different timestamps
+            for i in range(2):
+                path = manager.save(out_dir=str(snapshot_dir))
+                timestamps.append(Path(path).name.replace("snapshot-", "").replace(".tar.gz", ""))
+                if i < 1:  # Don't sleep after the last save
+                    time.sleep(1.1)  # Sleep > 1 second to ensure different timestamps
+
+            # List snapshots
+            snapshots = manager.list(out_dir=str(snapshot_dir))
+
+            assert len(snapshots) >= 1
+
+            # Verify timestamps are in order (if multiple snapshots)
+            if len(snapshots) > 1:
+                for i in range(len(snapshots) - 1):
+                    assert snapshots[i]["timestamp"] <= snapshots[i + 1]["timestamp"]
