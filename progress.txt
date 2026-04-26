@@ -973,3 +973,43 @@ Here is the technical brief for implementing the `spiral lint` command, based on
 *   Ensure the linter can reliably locate the `prd.schema.json` file, likely relative to the project root.
 *   Strict adherence to exit codes (0 for success, 1 for failure) is critical for CI integration.
 
+## Iteration [N] - Story: Phase X: Build lib/dependency_resolver.py with NLP-based story blocker inference and DAG cycle detection (US-1301)
+
+### What was implemented
+- Created `lib/dependency_resolver.py` with NLP-based story dependency inference:
+  - `extract_story_ids()`: case-insensitive extraction of story IDs (US-NNN, UT-NNN) from text
+  - `infer_dependencies()`: NLP keyword matching on story titles/descriptions for 'requires', 'depends on', 'blocked by', 'after', 'must complete', 'prerequisite', 'wait'
+  - `compute_dag_metrics()`: topological sort to compute depth_in_dag, blocked_by relationships, blocker_count, and critical flags
+  - `cmd_resolve()`: main CLI entry point that outputs .spiral/dependencies.json with full metrics
+- Created `tests/test_dependency_resolver.py` with 22 comprehensive tests:
+  - Story ID extraction (US format, mixed formats, deduplication)
+  - Keyword matching for all 7 dependency keywords
+  - DAG metric computation (depth, blocked_by field, blocker counts, critical flag)
+  - Cycle detection (simple two-way, three-way circular)
+  - Edge cases (missing description, no self-references, case insensitivity, non-existent stories)
+- Integrated into spiral.sh after Phase S with output to .spiral/dependencies.json
+- Output format: {story_id, depends_on: [ids], blocked_by: [ids], critical: bool, depth_in_dag: int, blocker_count: int}
+
+### Patterns discovered
+- Case-insensitive regex matching needed for ID extraction when text is lowercased for keyword matching
+- Topological sort via iterative resolution: repeatedly remove stories with no pending dependencies
+- Blocker count (reverse dependency) derived from blocked_by set, used for criticality threshold
+- NLP keyword matching finds ~18% of stories (14/77 inferred dependencies in real prd.json)
+
+### Gotchas
+- Type checking: story_ids set from set comprehension is typed as Any|None; use cast() to declare set[str]
+- dict.get() with set default required careful type annotations in mypy strict mode
+- Pre-existing mypy errors in reachability_verifier, ucb1_select, spiral_dashboard (not from this story)
+
+### Files touched
+- lib/dependency_resolver.py (new, 230 lines)
+- tests/test_dependency_resolver.py (new, 340 lines)
+- spiral.sh (modified, +10 lines to invoke after Phase S)
+
+### Quality gates passed
+- ✓ All 22 pytest tests pass (TestExtractStoryIds, TestInferDependencies, TestComputeDagMetrics, TestCyclicDependencies, TestEdgeCases)
+- ✓ mypy --strict on lib/dependency_resolver.py (no issues)
+- ✓ ruff check and format passed
+- ✓ Integration into spiral.sh verified (resolves 14 deps from 77 stories)
+- ✓ Git commits successful with acceptance criteria tracking
+
