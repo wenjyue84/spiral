@@ -1029,7 +1029,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "seed",
-      "model": "sonnet"
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-1263",
@@ -1071,28 +1072,6 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "_source": "seed",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1265",
-      "title": "Plugin manifest enriched with agentskills.io-style metadata + 'spiral skills' subcommand",
-      "priority": "low",
-      "description": "Extend plugin.toml schema with name, version, description, inputs, outputs, tags. Add 'spiral skills list' (enumerate local plugins) and 'spiral skills install <url>' (fetch+verify+extract a plugin tarball into plugins/). Deferred; implement only after US-1263 lands so there is a second plugin to round-trip.",
-      "acceptanceCriteria": [
-        "Every plugin.toml in plugins/ gains the new metadata block (backward compatible)",
-        "'spiral skills list' round-trips metadata from notify-slack and notify-whatsapp",
-        "'spiral skills install' rejects unsigned / schema-invalid plugins",
-        "Schema documented in plugins/README.md"
-      ],
-      "technicalNotes": [
-        "uv run pytest tests/test_skills_cli.py -v"
-      ],
-      "dependencies": [
-        "US-1263"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
       "_source": "seed",
       "model": "sonnet"
     },
@@ -1359,49 +1338,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1278",
-      "title": "CLI: spiral cost-breakdown command with per-phase token and dollar analysis",
-      "priority": "medium",
-      "description": "Add CLI command to analyze and report token spend and cost per phase, per model, and per story type, with JSON/CSV export and historical baseline comparison. Provides cost transparency and helps identify expensive phases.",
-      "acceptanceCriteria": [
-        "`spiral cost-breakdown` outputs table with columns: Phase | Stories | Tokens | Cost | Avg Model | % of Total",
-        "`spiral cost-breakdown --output json` exports full breakdown indexed by phase and story ID",
-        "`spiral cost-breakdown --compare <baseline.tsv>` shows delta vs historical baseline with ↑↓ indicators"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/cost_analyzer.py (implement parse_results_tsv, breakdown_by_phase, format_table functions)",
-        "File to edit: spiral.sh (register cost-breakdown subcommand in CLI parser around line 1500)",
-        "Test command: uv run pytest tests/test_cost_analyzer.py::test_cost_breakdown_format -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1279",
-      "title": "[Performance Test] Config API load/persist latency benchmark (US-1214)",
-      "priority": "medium",
-      "description": "Write a performance benchmark test for the config load, validate, and persist operations in lib/spiral_ui_config.py and the POST /api/config endpoint from US-1214. Captures a baseline and asserts response time stays within 20% of it.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_us_1214_perf.py -k 'config_load_latency' -v exits 0 and prints measured p95 latency in ms",
-        "uv run pytest tests/test_us_1214_perf.py -k 'api_config_post_latency' -v exits 0 and fails if median response time exceeds 200 ms",
-        "uv run pytest tests/test_us_1214_perf.py -v exits non-zero if lib/spiral_ui_config.py does not exist"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_us_1214_perf.py (create; use timeit or time.perf_counter around spiral_ui_config.load_config() calls)",
-        "File to edit: lib/spiral_ui_config.py (import only — do not modify; confirm function signatures first)",
-        "Test command: uv run pytest tests/test_us_1214_perf.py -v -s",
-        "Use pytest-benchmark if available (uv run pytest --co -q to check); otherwise use time.perf_counter with 100 iterations and assert mean < 0.2s"
-      ],
-      "dependencies": [
-        "US-1214"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1280",
       "title": "CLI: spiral doctor - Environment Health Check with Auto-Remediation Suggestions",
       "priority": "high",
@@ -1421,26 +1357,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet"
-    },
-    {
-      "id": "US-1281",
-      "title": "Phase R: create research_quality_checker.py with scoring and replay logic",
-      "priority": "medium",
-      "description": "Create lib/research_quality_checker.py implementing compute_quality_score(research_result, story_title) returning a 0-1 float based on citation count, source diversity, and TF-IDF relevance, and should_replay(score, attempt_count) returning bool. Write unit tests covering score calculation and replay gate.",
-      "acceptanceCriteria": [
-        "`uv run pytest tests/test_phase_r_quality.py::test_compute_quality_score -v` passes and asserts score is in [0.0, 1.0]",
-        "`uv run pytest tests/test_phase_r_quality.py::test_should_replay_below_threshold -v` passes and returns True when score < 0.7 and attempt < 3",
-        "`uv run pytest tests/test_phase_r_quality.py::test_should_not_replay_at_max_attempts -v` passes and returns False when attempt_count >= 3"
-      ],
-      "technicalNotes": [
-        "File to create: lib/research_quality_checker.py (compute_quality_score, should_replay; use sklearn TfidfVectorizer or simple cosine sim)",
-        "File to create: tests/test_phase_r_quality.py (test_compute_quality_score, test_should_replay_below_threshold, test_should_not_replay_at_max_attempts)",
-        "Test command: uv run pytest tests/test_phase_r_quality.py -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
     },
     {
       "id": "US-1282",
@@ -1468,26 +1384,27 @@
       "_scopeCreep": true
     },
     {
-      "id": "US-1283",
-      "title": "Phase S: Track story rejection reasons and add `spiral explain-rejection <id>` CLI command",
-      "priority": "medium",
-      "description": "Enhance Phase S validation to capture structured rejection reasons when stories fail constitution or dedup checks. Add a CLI command to query why a story was rejected, improving debuggability for large PRD backlogs.",
+      "id": "US-1284",
+      "title": "Add MockClaudeAPI fixture for isolated phase behavior testing",
+      "priority": "high",
+      "description": "Create a mock Claude CLI fixture that intercepts claude CLI calls when CLAUDE_CLI_MOCK=true is set. Enables testing SPIRAL phases with predefined responses without hitting the real API. Supports success, timeout, and malformed JSON scenarios.",
       "acceptanceCriteria": [
-        "When Phase S rejects a story, store rejection reason in prd.json under story._rejectionLog: [{ timestamp, reason, details }]",
-        "Rejection reasons include: 'constitution_mismatch', 'goal_misaligned', 'duplicate_detected', 'acceptance_criteria_incomplete'",
-        "CLI command `spiral explain-rejection US-123` displays human-readable rejection summary with remediation hints",
-        "All rejections also logged to .spiral/rejections.jsonl for telemetry (one JSON per line)"
+        "CLAUDE_CLI_MOCK=true uv run pytest tests/test_phase_a_integration.py::test_phase_a_with_mock_responses -v exits 0",
+        "CLAUDE_CLI_MOCK=true uv run pytest tests/test_phase_a_integration.py::test_phase_a_timeout_simulation -v exits 0",
+        "CLAUDE_CLI_MOCK=true uv run pytest tests/test_phase_a_integration.py::test_phase_a_malformed_json -v exits 0",
+        "uv run python -c \"from tests.fixtures.mock_claude import MockClaudeAPI, mock_claude_env; print('ok')\" exits 0"
       ],
       "technicalNotes": [
-        "File to edit: lib/spiral/story_validate.py (add track_rejection_reason function)",
-        "File to create: lib/cli_explain_rejection.py (main_explain_rejection function that queries prd.json)",
-        "File to edit: lib/phases/phase_s.sh (call track_rejection_reason before skipping story)",
-        "Test command: uv run pytest tests/test_phase_s_rejection_tracking.py::test_rejection_logged -v"
+        "File to create: tests/fixtures/mock_claude.py (MockClaudeAPI class and mock_claude_env context manager that patches subprocess.run to return fixture data)",
+        "File to create: tests/fixtures/sample_responses.json (dict keyed by scenario name: 'success', 'timeout', 'malformed_json')",
+        "File to create: tests/test_phase_a_integration.py (three test functions covering each scenario)",
+        "Test command: CLAUDE_CLI_MOCK=true uv run pytest tests/test_phase_a_integration.py -v --tb=short"
       ],
       "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-26T17:36:20Z"
     }
   ]
 }

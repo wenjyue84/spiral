@@ -1,0 +1,5 @@
+{
+  "success": "{\"stories\": [{\"id\": \"US-100\", \"title\": \"Test Story\", \"description\": \"Mock story from Phase A\", \"priority\": \"high\", \"acceptanceCriteria\": [\"Test AC 1\"]}]}",
+  "timeout": "",
+  "malformed_json": "{invalid json response"
+}
