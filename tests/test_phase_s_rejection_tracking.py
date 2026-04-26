@@ -69,11 +69,7 @@ def test_track_rejections_writes_jsonl() -> None:
         tmpdir_path = Path(tmpdir)
 
         # Create prd.json
-        prd = {
-            "userStories": [
-                {"id": "US-101", "title": "Story 1", "description": "desc"}
-            ]
-        }
+        prd = {"userStories": [{"id": "US-101", "title": "Story 1", "description": "desc"}]}
         prd_file = tmpdir_path / "prd.json"
         prd_file.write_text(json.dumps(prd), encoding="utf-8")
 
@@ -113,11 +109,7 @@ def test_track_rejections_no_rejections() -> None:
         tmpdir_path = Path(tmpdir)
 
         # Create prd.json
-        prd = {
-            "userStories": [
-                {"id": "US-102", "title": "Story 2", "description": "desc"}
-            ]
-        }
+        prd = {"userStories": [{"id": "US-102", "title": "Story 2", "description": "desc"}]}
         prd_file = tmpdir_path / "prd.json"
         prd_file.write_text(json.dumps(prd), encoding="utf-8")
 
