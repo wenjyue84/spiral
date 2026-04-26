@@ -1422,8 +1422,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-26T20:40:07Z"
     },
     {
       "id": "US-1282",
@@ -1700,7 +1701,8 @@
       "last_attempted": "2026-04-26T20:26:29Z",
       "_phaseI": {
         "diagnosisBlock": "### Current State\n- US-1301 requires building `lib/dependency_resolver.py` with NLP-based keyword matching to infer story dependencies\n- spiralsh currently has Phase X (context build) but it focuses on repo maps, not dependency inference\n- Existing `lib/tools/infer_dependencies.py` uses file-touch overlap (Jaccard), not NLP keyword matching\n- No `lib/dependency_resolver.py` or `tests/test_dependency_resolver.py` exist yet\n\n### Problem Identified\nNeed to implement NLP-based story dependency inference that:\n1. Scans prd.json story titles and descriptions for keywords: 'requires', 'depends on', 'blocked by', 'after', 'must complete'\n2. Builds a dependency graph and validates it's a DAG (no cycles)\n3. Outputs `.spiral/dependencies.json` with structure: {story_id, depends_on, blocked_by, critical, depth_in_dag, blocker_count}\n4. Integrates into spiral.sh after Phase S\n\n### Planned Changes\n- Create `lib/dependency_resolver.py` with `infer_dependencies()`, `detect_cycles()`, and main function\n- Create `tests/test_dependency_resolver.py` with cycle detection and keyword matching tests\n- Update `spiral.sh` to invoke `lib/dependency_resolver.py` after Phase S and store results in `.spiral/dependencies.json`\n\n<plan>\n{\n  \"files_to_create\": [\"lib/dependency_resolver.py\", \"tests/test_dependency_resolver.py\"],\n  \"files_to_modify\": [\"spiral.sh\"],\n  \"functions_to_add\": [\"infer_dependencies\", \"detect_cycles\", \"cmd_resolver\"],\n  \"estimated_loc\": 250\n}\n</plan>\n\nNow I'll implement the solution:"
-      }
+      },
+      "_passedCommit": "dc1ff4e6e1bc9d679d248d09f5ff81b2efef57ae"
     }
   ]
 }
