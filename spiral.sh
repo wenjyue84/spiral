@@ -1389,6 +1389,16 @@ print(len(completed))
   log_spiral_event "phase_end" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER,\"model\":\"$SPIRAL_VALIDATION_MODEL\""
   run_phase_enrichment
 
+  # ── Phase S+: NLP-based dependency resolution (US-1301) ──
+  # Infer story dependencies from NLP keyword matching and output to .spiral/dependencies.json
+  echo ""
+  echo "  [S+] Running NLP-based dependency inference..."
+  _DEPS_OUTPUT="$SPIRAL_HOME/.spiral/dependencies.json"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/dependency_resolver.py" \
+    --prd "$PRD_FILE" \
+    --output "$_DEPS_OUTPUT" || true
+  [[ -f "$_DEPS_OUTPUT" ]] && echo "  [S+] Dependency resolution complete → $_DEPS_OUTPUT" || true
+
   run_phase_merge || continue
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"model\":\"$SPIRAL_MERGE_MODEL\""
 
