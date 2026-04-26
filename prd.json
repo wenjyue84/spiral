@@ -1179,8 +1179,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-26T19:15:54Z"
     },
     {
       "id": "US-1271",
@@ -1510,7 +1511,8 @@
       "last_attempted": "2026-04-26T19:07:00Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nLooking at the codebase, I found:\n- An existing `lib/phases/research_cache.py` that caches research results by \"topic\"\n- Phase R research is already implemented in `lib/phases/phase_r_research.sh` which uses the topic cache\n- The story asks for a NEW file `lib/phase_r_cache.py` that caches by \"query\" (query string hash)\n- No `--clear-research-cache` flag exists in spiral.sh yet\n\nThe distinction: The existing research_cache.py caches by research topic (focus area), while the story wants query-level caching (for Gemini API query strings).\n\n## Problem Identified\n\nUS-1292 requires implementing a query-level caching layer that:\n1. Uses query string hash as cache key (not topic)\n2. Validates 24-hour TTL before returning cached results\n3. Stores results with explicit timestamp_created and timestamp_expires fields\n4. Is configurable via SPIRAL_RESEARCH_CACHE_TTL_HOURS environment variable\n5. Includes a --clear-research-cache flag to flush the cache\n\n## Planned Changes\n\n**Files to create:**\n- `lib/phase_r_cache.py` — Query-level caching module with `get_cached_research()` and `cache_research()` functions\n\n**Files to modify:**\n- `spiral.sh` — Add --clear-research-cache flag handler\n- `tests/test_phase_r_cache.py` — Add the test specified in acceptance criteria (test_cache_hit_returns_results_within_ttl)\n\n<plan>\n{\n  \"files_to_create\": [\"lib/phase_r_cache.py\"],\n  \"files_to_modify\": [\"spiral.sh\", \"tests/test_phase_r_cache.py\"],\n  \"functions_to_add\": [\"get_cached_research\", \"cache_research\", \"clear_cache\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow let me implement this:\nNow I need to add tests. Let me update the test file to include the specific test mentioned in the acceptance criteria:\n## Summary"
-      }
+      },
+      "_passedCommit": "07166b0c9c507061cb05924053588bdd1d3f71e7"
     }
   ]
 }
