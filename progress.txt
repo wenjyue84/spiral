@@ -814,3 +814,57 @@ This task involves creating a pytest fixture to mock `subprocess.run` for `claud
 ## Iteration 1 - Mon, Apr 27, 2026  1:44:39 AM
 Completed: Add MockClaudeAPI fixture for isolated phase behavior testing (ID: US-1284) in 6m
 
+## Iteration 2 - Mon, Apr 27, 2026  1:50:00 AM
+Completed: WhatsApp notification plugin (plugins/notify-whatsapp/) for iteration and story reports (ID: US-1263) in 4m
+
+## Iteration N - Story: E2E Test: SettingsTab displays, edits, and saves runtime config (US-1266)
+
+### What was implemented
+- Created `playwright.config.ts` at project root with configuration:
+  - testDir: ./tests/web (matches .e2e.ts test files)
+  - baseURL: http://localhost:5299 (spiral-ui dev server)
+  - webServer auto-launch via npm run dev in spiral-ui/
+  - Chrome browser with headless mode support
+- Created `tests/web/SettingsTab.e2e.ts` with comprehensive E2E test:
+  - Navigates to /{projectName}/settings route
+  - Waits for SettingsTab to load (checks for spiral.config.sh heading)
+  - Asserts all three config fields visible with correct values:
+    - SPIRAL_MAX_PENDING (number input field)
+    - SPIRAL_MODEL_ROUTING (select field with options)
+    - SPIRAL_VALIDATE_CMD (text input field)
+  - Edits SPIRAL_MAX_PENDING value by incrementing it
+  - Clicks Save Config button
+  - Asserts success toast appears with "Saved!" message
+  - Verifies toast has emerald-600 (green) styling
+- Installed @playwright/test at project root level
+- Test is grep-able with pattern `us_1215` (dependency story)
+
+### Patterns discovered
+- Playwright E2E tests use XPath queries to navigate DOM structure
+- SettingsTab component renders config fields in HTML table with field name in div.font-mono.text-blue-700
+- Input/select elements found in same table row using ancestor::tr[1] XPath
+- Success messages use span elements with text-emerald-600 class for green styling
+- Playwright webServer auto-starts dev server and waits for specified URL
+
+### Gotchas
+- @playwright/test needs to be installed at project root (not just in spiral-ui)
+- Test files must match testMatch pattern (*.e2e.ts) to be discovered
+- Playwright browsers need separate installation via `npx playwright install`
+- XPath selectors require ancestor:: to navigate from specific element to parent row
+- baseURL in playwright.config must match the dev server port (5299 for Vite React)
+
+### Files touched
+- playwright.config.ts (new, 26 lines)
+- tests/web/SettingsTab.e2e.ts (new, 62 lines)
+- package.json (modified, @playwright/test added)
+
+### Quality gates passed
+- ✓ Test discovered correctly: `npx playwright test --list` shows the test
+- ✓ Test grep-able: `npx playwright test --grep us_1215` finds the test
+- ✓ Test passes in headless mode: `npx playwright test --grep us_1215` exits 0
+- ✓ Acceptance criteria met:
+  - [x] npx playwright test --grep us_1215 exits 0 in headless mode
+  - [x] Test asserts all three config fields render with current values
+  - [x] Test submits config change and asserts success toast visible in DOM
+  - [x] Test duration: 6.5 seconds
+
