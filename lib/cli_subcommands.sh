@@ -322,3 +322,20 @@ if [[ "$QUERY_MODE" -eq 1 ]] && [[ "$QUERY_SUBCOMMAND" == "stories" ]]; then
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_query.py" "${_QUERY_ARGS[@]}"
   exit $?
 fi
+
+# ── skills: list or install plugins ─────────────────────────────────────────
+SKILLS_MODE="${SKILLS_MODE:-0}"
+SKILLS_SUBCOMMAND="${SKILLS_SUBCOMMAND:-list}"
+SKILLS_URL="${SKILLS_URL:-}"
+if [[ "$SKILLS_MODE" -eq 1 ]]; then
+  _SKILLS_ARGS=("$SKILLS_SUBCOMMAND")
+  if [[ "$SKILLS_SUBCOMMAND" == "install" ]]; then
+    if [[ -z "$SKILLS_URL" ]]; then
+      echo "[spiral] ERROR: Usage: spiral skills install <url>" >&2
+      exit 1
+    fi
+    _SKILLS_ARGS+=("$SKILLS_URL")
+  fi
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/skills_cli.py" "${_SKILLS_ARGS[@]}"
+  exit $?
+fi

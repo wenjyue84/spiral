@@ -1,15 +1,13 @@
 [plugin]
 name = "notify-slack"
 version = "1.0.0"
+description = "Sends story lifecycle notifications to Slack via Incoming Webhooks"
 hooks = ["post-story", "run-completion"]
 allowed_env = ["SPIRAL_SLACK_WEBHOOK_URL"]
+tags = ["notification", "slack", "webhook"]
+inputs = ["story_id", "story_title", "passes", "iteration"]
+outputs = ["slack_message_ts"]
 
-# Description: Sends story lifecycle notifications to Slack
-#
-# Supported hooks:
-#  - post-story: Notifies when a story is complete (passes or fails)
-#  - run-completion: Notifies with summary when SPIRAL run finishes
-#
 # Configuration:
 #  - Set SPIRAL_SLACK_WEBHOOK_URL env var to your Slack webhook endpoint
 #  - Set SPIRAL_SLACK_EVENTS (optional) to filter events: e.g., "failed,completed"

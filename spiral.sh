@@ -160,6 +160,9 @@ SEARCH_QUERY=""                              # search query string
 SEARCH_FORMAT="table"                        # output format: table|json|csv
 SEARCH_PROJECT=""                            # optional sub-project filter
 SEARCH_MIN_SCORE=30                          # minimum fuzzy score (0-100)
+SKILLS_MODE=0                                # 1 = run skills subcommand and exit (skills)
+SKILLS_SUBCOMMAND=""                         # list | install
+SKILLS_URL=""                                # URL for skills install
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -450,6 +453,16 @@ while [[ $# -gt 0 ]]; do
           *) break ;;
         esac
       done
+      ;;
+    skills)
+      SKILLS_MODE=1
+      SKILLS_SUBCOMMAND="${2:-list}"
+      if [[ "$SKILLS_SUBCOMMAND" == "install" ]]; then
+        SKILLS_URL="${3:-}"
+        shift 3
+      else
+        shift 2
+      fi
       ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
