@@ -5836,3 +5836,21 @@
 {"ts": "2026-04-26T17:29:49.897887+00:00", "type": "route_story_assigned", "story_id": "US-1279", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-04-26T17:29:49.898271+00:00", "type": "route_story_assigned", "story_id": "US-1281", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-04-26T17:29:49.898685+00:00", "type": "route_story_assigned", "story_id": "US-1283", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-04-26T17:30:23.881691+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-702\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"timestamp": "2026-04-26T17:33:57.732886+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "spiral-ui: Story Dependency Graph Visualization Tab with Federation Links", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-04-26T17:33:57.734149+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "spiral-ui: Keyboard Shortcuts Panel and Global Tab Navigation Hotkeys", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"ts": "2026-04-26T17:36:13.816450+00:00", "type": "route_story_assigned", "story_id": "US-1263", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.817198+00:00", "type": "route_story_assigned", "story_id": "US-1265", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.817696+00:00", "type": "route_story_assigned", "story_id": "US-1266", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.818139+00:00", "type": "route_story_assigned", "story_id": "US-1267", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.818541+00:00", "type": "route_story_assigned", "story_id": "US-1270", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.818986+00:00", "type": "route_story_assigned", "story_id": "US-1271", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.819382+00:00", "type": "route_story_assigned", "story_id": "US-1272", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.819786+00:00", "type": "route_story_assigned", "story_id": "US-1273", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.820186+00:00", "type": "route_story_assigned", "story_id": "US-1276", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.820569+00:00", "type": "route_story_assigned", "story_id": "US-1277", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.820960+00:00", "type": "route_story_assigned", "story_id": "US-1278", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.821350+00:00", "type": "route_story_assigned", "story_id": "US-1279", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.821738+00:00", "type": "route_story_assigned", "story_id": "US-1281", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.822119+00:00", "type": "route_story_assigned", "story_id": "US-1283", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-04-26T17:36:13.822730+00:00", "type": "route_story_assigned", "story_id": "US-1284", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}

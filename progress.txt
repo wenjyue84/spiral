@@ -697,3 +697,78 @@ Completed: Trajectory export: results.tsv + worker logs to JSONL for LLM fine-tu
 ### Gotchas
 - Pre-existing mypy errors in other files; not caused by this story
 - Must use encoding='utf-8' for all file opens on Windows
+
+## Pre-analysis for US-1284 (Gemini 2.5 Pro)
+**Project:** SPIRAL
+**User Story:** US-1284: Add MockClaudeAPI fixture for isolated phase behavior testing
+
+**Technical Brief for Claude Code Agent:**
+
+This task involves creating a pytest fixture to mock `subprocess.run` for `claude` CLI calls, enabling isolated testing of SPIRAL's core logic without live API calls. No Frappe DocTypes are involved.
+
+**Files to Create:**
+
+*   **`tests/fixtures/mock_claude.py`**: The main fixture module.
+*   **`tests/fixtures/sample_responses.json`**: Stores predefined JSON responses for the mock.
+*   **`tests/test_phase_a_integration.py`**: New integration tests utilizing the mock.
+
+**Implementation Plan:**
+
+1.  **`sample_responses.json`**: Create a JSON file with keys like `success`, `malformed_json`, etc., containing sample string outputs.
+
+2.  **`mock_claude.py`**:
+    *   Implement a context manager, e.g., `@contextmanager def mock_claude_env()`.
+    *   Inside the manager, use `unittest.mock.patch('subprocess.run', new=mocked_run)` to intercept CLI calls.
+    *   The `mocked_run` function should:
+        *   Only activate if the environment variable `CLAUDE_CLI_MOCK` is `"true"`.
+        *   Read another env var (e.g., `CLAUDE_MOCK_SCENARIO`) to determine which response to use ('success', 'timeout', etc.).
+        *   For 'timeout', it should `raise subprocess.TimeoutExpired`.
+        *   Otherwise, return a `subprocess.CompletedProcess` instance with `stdout` loaded from `sample_responses.json`.
+
+3.  **`test_phase_a_integration.py`**:
+    *   Add three `pytest` tests for success, timeout, and malformed JSON scenarios.
+    *   Use the `mock_claude_env` context manager to wrap the code that executes the SPIRAL phase.
+    *   Set the `CLAUDE_MOCK_SCENARIO` environment variable within each test to trigger the desired mock behavior.
+
+**Gotchas:**
+
+*   Ensure the patch target for `subprocess.run` is correct. Start with `'subprocess.run'`.
+*   The mock must return a `subprocess.CompletedProcess` object, not just raw stdout string.
+*   The context manager must properly handle setup and teardown of the patch and environment variables to avoid test contamination.
+
+## Iteration [N] - Story: Add MockClaudeAPI fixture for isolated phase behavior testing (US-1284)
+
+### What was implemented
+- Created `tests/fixtures/mock_claude.py` with MockClaudeAPI class and mock_claude_env context manager
+- MockClaudeAPI patches subprocess.run to intercept Claude CLI calls when CLAUDE_CLI_MOCK=true
+- mock_claude_env reads CLAUDE_MOCK_SCENARIO env var to determine response: 'success', 'timeout', or 'malformed_json'
+- Created `tests/fixtures/sample_responses.json` with fixture responses for all three scenarios
+- Created `tests/test_phase_a_integration.py` with four pytest tests:
+  - test_phase_a_with_mock_responses: verifies successful response parsing
+  - test_phase_a_timeout_simulation: verifies TimeoutExpired handling
+  - test_phase_a_malformed_json: verifies malformed JSON scenario
+  - test_mock_claude_api_import: verifies imports work correctly
+
+### Patterns discovered
+- Mock fixtures use unittest.mock.patch with side_effect parameter for flexible subprocess interception
+- Context managers with try/finally properly restore environment state before/after mock
+- Fixture response data loaded once at MockClaudeAPI init from JSON file
+- Type hints use Generator[Type, None, None] for context manager return types
+
+### Gotchas
+- mypy strict mode requires CompletedProcess[str] generic parameter, not bare CompletedProcess
+- Pre-commit ruff check runs on all-files including external deps (.venv, env_test) which have unrelated linting errors
+- Unused imports from top-level module cause F401; use local imports in test functions when only needed there
+
+### Files touched
+- tests/fixtures/__init__.py (new, 1 line)
+- tests/fixtures/mock_claude.py (new, 85 lines)
+- tests/fixtures/sample_responses.json (new, 5 lines)
+- tests/test_phase_a_integration.py (new, 97 lines)
+- prd.json (marked US-1284 passes: true)
+
+### Quality gates passed
+- ✓ All four pytest tests pass (with CLAUDE_CLI_MOCK=true)
+- ✓ mypy --strict validation on test_phase_a_integration.py
+- ✓ ruff lint/check on both Python files (no errors)
+- ✓ Git commit successful with acceptance criteria tracking

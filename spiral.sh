@@ -330,11 +330,26 @@ while [[ $# -gt 0 ]]; do
       # Parse optional query flags (consume until next -- flag or end)
       while [[ $# -gt 0 ]] && [[ "$1" != --* || "$1" == --status || "$1" == --complexity || "$1" == --project || "$1" == --by-project || "$1" == --format ]]; do
         case $1 in
-          --status)    QUERY_STATUS="$2";    shift 2 ;;
-          --complexity) QUERY_COMPLEXITY="$2"; shift 2 ;;
-          --project)   QUERY_PROJECT="$2";   shift 2 ;;
-          --by-project) QUERY_BY_PROJECT=1;  shift ;;
-          --format)    QUERY_FORMAT="$2";    shift 2 ;;
+          --status)
+            QUERY_STATUS="$2"
+            shift 2
+            ;;
+          --complexity)
+            QUERY_COMPLEXITY="$2"
+            shift 2
+            ;;
+          --project)
+            QUERY_PROJECT="$2"
+            shift 2
+            ;;
+          --by-project)
+            QUERY_BY_PROJECT=1
+            shift
+            ;;
+          --format)
+            QUERY_FORMAT="$2"
+            shift 2
+            ;;
           *) break ;;
         esac
       done
@@ -345,9 +360,18 @@ while [[ $# -gt 0 ]]; do
       shift 2
       while [[ $# -gt 0 ]] && [[ "$1" == --markdown || "$1" == --json || "$1" == --format ]]; do
         case $1 in
-          --markdown) EXPLAIN_FORMAT="markdown"; shift ;;
-          --json)     EXPLAIN_FORMAT="json";     shift ;;
-          --format)   EXPLAIN_FORMAT="${2:-text}"; shift 2 ;;
+          --markdown)
+            EXPLAIN_FORMAT="markdown"
+            shift
+            ;;
+          --json)
+            EXPLAIN_FORMAT="json"
+            shift
+            ;;
+          --format)
+            EXPLAIN_FORMAT="${2:-text}"
+            shift 2
+            ;;
           *) break ;;
         esac
       done

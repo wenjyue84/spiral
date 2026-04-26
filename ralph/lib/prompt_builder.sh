@@ -229,10 +229,10 @@ $_LP_FILTERED"
       _LL_STORY_TMP=$(mktemp -p "${SPIRAL_SCRATCH_DIR:-.spiral}" _ll_story_XXXXXX.json 2>/dev/null || echo "${SPIRAL_SCRATCH_DIR:-.spiral}/_ll_story_$$.json")
       printf '%s' "${STORY_JSON}" >"$_LL_STORY_TMP"
       if "${SPIRAL_PYTHON:-python3}" "$SPIRAL_HOME/lib/write_ralph_lessons.py" \
-            --story-json "@${_LL_STORY_TMP}" \
-            --lessons "$_LL_LESSONS_PATH" \
-            --output "$_LL_SIDECAR" \
-            --top-k 3 2>/dev/null; then
+        --story-json "@${_LL_STORY_TMP}" \
+        --lessons "$_LL_LESSONS_PATH" \
+        --output "$_LL_SIDECAR" \
+        --top-k 3 2>/dev/null; then
         _LL_CONTENT=$(cat "$_LL_SIDECAR" 2>/dev/null || true)
         if [[ -n "$_LL_CONTENT" ]]; then
           RALPH_USER_PROMPT="$RALPH_USER_PROMPT

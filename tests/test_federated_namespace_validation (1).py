@@ -4,8 +4,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 # Add lib to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
