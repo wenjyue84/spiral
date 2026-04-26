@@ -1,3 +1,69 @@
+## Iteration [N] - Story: spiral-ui: Tests tab React component with story grid and detail modal (US-1309)
+
+### What was implemented
+- Created `spiral-ui/src/hooks/useTestResults.ts` - Custom React hook that:
+  - Fetches test results from GET /api/tests/summary endpoint
+  - Returns data, loading, and error state
+  - Handles fetch errors gracefully
+  - Exports TestSummary interface for type safety
+- Created `spiral-ui/src/tabs/TestsTab.tsx` - Main component displaying:
+  - Table with columns: Story ID, Test Status, Test Count, File-Touch OK, Coverage %
+  - Click-to-open modal interaction on story rows
+  - Loading, error, and empty states with clear messaging
+  - Visual indicators for file_touch_ok status (checkmark/X)
+  - Color-coded coverage badges
+- Created `spiral-ui/src/components/TestDetailModal.tsx` - Modal component with:
+  - Display of selected story's full test details
+  - Keyboard close (Escape) and background click to close
+  - Test status, count, file-touch status, coverage % in grid layout
+  - Raw JSON data view for debugging
+- Created `spiral-ui/src/tabs/TestsTab.test.tsx` - Comprehensive test suite with 8 tests:
+  - Renders table with correct column headers
+  - Displays test results in table rows
+  - Opens modal when story row is clicked
+  - Handles loading state correctly
+  - Handles error state and displays error message
+  - Handles empty results with informative message
+  - Renders checkmark for file_touch_ok = true
+  - Renders X for file_touch_ok = false
+- Set up testing infrastructure:
+  - Created `vitest.config.ts` with jsdom environment
+  - Added test script to package.json
+  - Added testing dependencies: vitest, @testing-library/react, @testing-library/user-event, @testing-library/jest-dom, jsdom
+
+### Patterns discovered
+- React Testing Library mocking uses vi.mock() and vi.mocked() for hook testing
+- Modal components use createPortal for proper z-index layering
+- Custom hooks follow pattern of returning { data, loading, error } object
+- Table rows use hover:bg-blue-50 for interactive feedback
+- Color-coded badges use tailwind utilities for visual hierarchy (e.g., bg-emerald-100 text-emerald-700)
+
+### Gotchas
+- @testing-library/dom is required as peer dependency for @testing-library/react
+- vitest requires jsdom environment to be explicitly specified in config
+- Need @testing-library/jest-dom/vitest import instead of @testing-library/jest-dom for custom matchers
+- npm install requires --legacy-peer-deps due to vite version conflicts with @tailwindcss/vite
+- TestDetailModal uses useEffect for keyboard handler, ensuring proper cleanup
+
+### Files touched
+- spiral-ui/src/tabs/TestsTab.tsx (new, 77 lines)
+- spiral-ui/src/hooks/useTestResults.ts (new, 36 lines)
+- spiral-ui/src/components/TestDetailModal.tsx (new, 71 lines)
+- spiral-ui/src/tabs/TestsTab.test.tsx (new, 162 lines)
+- spiral-ui/vitest.config.ts (new, 18 lines)
+- spiral-ui/package.json (modified, +2 lines for test script and 4 new dependencies)
+- prd.json (modified, marked US-1309 passes: true)
+
+### Quality gates passed
+- ✓ All 8 vitest tests pass (npm run test -- src/tabs/TestsTab.test.tsx)
+- ✓ TypeScript compilation (npx tsc --noEmit --skipLibCheck) passes
+- ✓ No eslint errors in new files (pre-existing errors in other files unrelated)
+- ✓ Git commits successful with full acceptance criteria tracking
+- ✓ All three acceptance criteria met:
+  - [x] Tests tab renders table with columns: Story ID, Test Status, Test Count, File-Touch OK, Coverage %
+  - [x] Clicking story row opens TestDetailModal showing test details
+  - [x] npm run test -- src/tabs/TestsTab.test.tsx exits 0 with all assertions passing
+
 ## Iteration [N] - Story: spiral-ui: Backend GET /api/tests/summary endpoint (US-1308)
 
 ### What was implemented
