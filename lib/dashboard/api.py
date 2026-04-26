@@ -12,6 +12,7 @@ Exposes:
 - GET /api/dashboard/throughput — Stories completed per hour (US-1254)
 - GET /api/config — Read runtime config from .spiral/ui-config.json (US-1214)
 - POST /api/config — Write runtime config to .spiral/ui-config.json (US-1214)
+- GET /api/history/search — FTS5 search over prior story attempts (US-1259)
 - WebSocket /ws/cost — Real-time cost delta streaming endpoint
 - WebSocket /ws/timeline — Real-time phase transition events
 - WebSocket /ws/overview — Real-time cross-project overview updates
@@ -30,6 +31,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from ..analyze_results import parse_research_cache
+from ..history_search import find_similar_attempts
 from ..research_source_scorer import extract_sources
 from ..spiral.dashboard.aggregator import aggregate_overview
 from .alerts_broadcaster import get_alerts_manager
@@ -1039,6 +1041,28 @@ async def throughput_endpoint() -> dict[str, Any]:
     except Exception as e:
         logger.error(f"[/api/dashboard/throughput] Error aggregating throughput: {e}")
         return {"hourly_throughput": [], "total_hours": 0, "error": str(e)}
+
+
+@app.get("/api/history/search")
+async def history_search(q: str = "", k: int = 5) -> dict[str, Any]:
+    """Search prior story attempt history using FTS5.
+
+    Requires auth when SPIRAL_DASHBOARD_API_KEY is set (enforced by _APIKeyMiddleware).
+    Returns sanitised result list — never raw SQLite rows or file-system paths.
+    """
+    if not q.strip():
+        return {"results": [], "query": q}
+    hits = find_similar_attempts(q, k=k)
+    safe: list[dict[str, Any]] = [
+        {
+            "story_id": h.get("story_id", ""),
+            "model": h.get("model", ""),
+            "outcome": h.get("outcome", ""),
+            "duration": h.get("duration", ""),
+        }
+        for h in hits
+    ]
+    return {"results": safe, "query": q}
 
 
 _CONFIG_PATH = Path(".spiral/ui-config.json")
