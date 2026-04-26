@@ -1246,7 +1246,8 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1273",
@@ -1265,7 +1266,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1738,6 +1739,29 @@
         "US-1218"
       ],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1296",
+      "title": "[Regression Test] Meta-Harness: Success-Pattern Library appends on zero-retry pass",
+      "priority": "medium",
+      "description": "Write a regression test that guards the success-pattern extraction logic from US-1225. The test must verify that after a story completes with 0 retries, its characteristics are appended to .spiral/_success_patterns.jsonl, and that Phase A candidate scoring reads this file. Breaking either side must cause the test to fail.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_success_patterns.py -v exits 0 with at least one test collected",
+        "Test asserts that calling the extraction function with a zero-retry story result appends one JSON line to _success_patterns.jsonl containing keys: file_count, ac_count, keywords",
+        "Test asserts that the Phase A scoring function returns a higher score for a candidate matching a stored pattern than for one with no match"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_success_patterns.py (create)",
+        "File to edit: lib/phases/phase_l.sh or equivalent Python module (read to locate the extraction logic introduced by US-1225)",
+        "Test command: uv run pytest tests/test_success_patterns.py -v --tb=short",
+        "Use tmp_path fixture to write _success_patterns.jsonl to a temporary directory; patch the path constant before calling the extraction function"
+      ],
+      "dependencies": [
+        "US-1225"
+      ],
+      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     }
