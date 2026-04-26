@@ -15,6 +15,12 @@ if [[ "$MIGRATE_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── --clear-research-cache: flush Phase R query-level cache and exit ────────────
+if [[ "$CLEAR_RESEARCH_CACHE" -eq 1 ]]; then
+  "$SPIRAL_PYTHON" -c "from lib.phase_r_cache import clear_cache; count = clear_cache(); print(f'Cleared {count} cache files from .spiral/research-cache/')"
+  exit $?
+fi
+
 # ── --archive-done: archive completed stories and exit ───────────────────────
 if [[ "$ARCHIVE_MODE" -eq 1 ]]; then
   _ARCHIVE_ARGS=("--prd" "$PRD_FILE")

@@ -127,6 +127,7 @@ UNDO_STORY_ID=""                             # "" = normal mode; "US-XXX" = repl
 BENCHMARK_STORY_ID=""                        # "" = normal mode; "US-XXX" = benchmark that story (--benchmark)
 BENCHMARK_MODELS=""                          # comma-separated model names for --models (e.g., "claude-opus-4-6,claude-sonnet-4-6")
 RESET_CHECKPOINT=0                           # 1 = remove _checkpoint.json and start fresh (--reset)
+CLEAR_RESEARCH_CACHE=0                       # 1 = flush .spiral/research-cache/ and exit (--clear-research-cache, US-1292)
 MIGRATE_MODE=0                               # 1 = run prd.json schema migration and exit (--migrate)
 ARCHIVE_MODE=0                               # 1 = archive completed stories and exit (--archive-done)
 CHANGELOG_MODE=0                             # 1 = generate CHANGELOG.md via git-cliff and exit
@@ -279,6 +280,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --reset)
       RESET_CHECKPOINT=1
+      shift
+      ;;
+    --clear-research-cache)
+      CLEAR_RESEARCH_CACHE=1
       shift
       ;;
     --migrate)
@@ -458,6 +463,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --rollback STORY_ID        Revert a passed story's git commit and reset its prd.json status"
       echo "  --undo STORY_ID            Replay undo log in reverse, restoring worktree to pre-attempt state"
       echo "  --reset                    Remove checkpoint and start fresh from iteration 1"
+      echo "  --clear-research-cache     Flush .spiral/research-cache/ before iteration and exit"
       echo "  --migrate                  Migrate prd.json to current schema version and exit"
       echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
       echo "  --changelog                Generate CHANGELOG.md via git-cliff and exit"

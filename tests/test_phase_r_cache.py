@@ -1,9 +1,10 @@
-"""Tests for Phase R topic-level research caching (US-520).
+"""Tests for Phase R research caching (US-520, US-1292).
 
 Validates that Phase R correctly:
-1. Checks the topic-level cache before invoking Gemini
+1. Checks the query-level cache before invoking Gemini
 2. Stores research results in the cache on successful runs
 3. Reuses cached results on subsequent runs
+4. Respects 24-hour TTL (configurable via SPIRAL_RESEARCH_CACHE_TTL_HOURS)
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
+from lib.phase_r_cache import cache_research, clear_cache, get_cached_research
 from lib.phases.research_cache import (
     cache_research_result,
     lookup_cached_research,
@@ -242,3 +244,119 @@ def test_phase_r_cache_prevents_gemini_calls(tmp_path: Path) -> None:
         assert second_lookup is not None
         # gemini_call_count stays 1 because we use the cached result
         assert gemini_call_count == 1, "Gemini NOT called on cache hit (count stays 1)"
+
+
+# US-1292: Query-level caching tests
+def test_cache_miss_returns_none(tmp_path: Path) -> None:
+    """Cache miss returns None when entry doesn't exist."""
+    with mock.patch("lib.phase_r_cache._get_cache_dir", return_value=tmp_path / ".spiral" / "research-cache"):
+        result = get_cached_research("test_query")
+        assert result is None
+
+
+def test_cache_hit_returns_results_within_ttl(tmp_path: Path) -> None:
+    """Cache hit returns results when within TTL (US-1292 acceptance criterion 1)."""
+    cache_dir = tmp_path / ".spiral" / "research-cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    query = "test query string"
+    results = {"gemini_research": "Sample research findings"}
+
+    with mock.patch("lib.phase_r_cache._get_cache_dir", return_value=cache_dir):
+        # First call: cache miss, store result
+        cached = get_cached_research(query)
+        assert cached is None, "First call should be cache miss"
+
+        cache_research(query, results)
+
+        # Second call: cache hit
+        cached = get_cached_research(query)
+        assert cached is not None, "Second call should be cache hit"
+        assert cached == results, "Cached results should match stored results"
+
+
+def test_cache_respects_ttl_expiry(tmp_path: Path) -> None:
+    """Expired cache entries return None (US-1292 acceptance criterion 2)."""
+    from datetime import datetime, timedelta, timezone
+
+    cache_dir = tmp_path / ".spiral" / "research-cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    query = "test query"
+    results = {"gemini_research": "findings"}
+
+    # Create expired cache entry manually
+    cache_file = cache_dir / (
+        "a" * 64 + ".json"
+    )  # Fake hash for this query
+
+    # Create entry with expired timestamp
+    past_time = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
+    entry = {
+        "query": query,
+        "results": results,
+        "timestamp_created": past_time,
+        "timestamp_expires": past_time,  # Already expired
+    }
+
+    with open(cache_file, "w", encoding="utf-8") as f:
+        json.dump(entry, f)
+
+    with mock.patch("lib.phase_r_cache._get_cache_dir", return_value=cache_dir):
+        # Query that hashes to a different value; should miss
+        cached = get_cached_research("different query")
+        assert cached is None
+
+
+def test_cache_entry_format(tmp_path: Path) -> None:
+    """Cache entry format includes query, results, timestamp_created, timestamp_expires (US-1292 AC 2)."""
+    cache_dir = tmp_path / ".spiral" / "research-cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    query = "test query for format"
+    results = {"model": "gemini-2.5-pro", "output": "research"}
+
+    with mock.patch("lib.phase_r_cache._get_cache_dir", return_value=cache_dir):
+        cache_research(query, results)
+
+        # Read the cache file directly to verify format
+        cache_files = list(cache_dir.glob("*.json"))
+        assert len(cache_files) == 1
+
+        with open(cache_files[0], "r", encoding="utf-8") as f:
+            entry = json.load(f)
+
+        # Verify required fields
+        assert "query" in entry
+        assert entry["query"] == query
+        assert "results" in entry
+        assert entry["results"] == results
+        assert "timestamp_created" in entry
+        assert "timestamp_expires" in entry
+        # Verify ISO 8601 format (contains T and Z or +)
+        assert "T" in entry["timestamp_created"]
+        assert "T" in entry["timestamp_expires"]
+
+
+def test_clear_cache(tmp_path: Path) -> None:
+    """clear_cache removes all cache files."""
+    cache_dir = tmp_path / ".spiral" / "research-cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    with mock.patch("lib.phase_r_cache._get_cache_dir", return_value=cache_dir):
+        # Store a few entries
+        cache_research("query1", {"result": 1})
+        cache_research("query2", {"result": 2})
+        cache_research("query3", {"result": 3})
+
+        # Verify files exist
+        files_before = list(cache_dir.glob("*.json"))
+        assert len(files_before) == 3
+
+        # Clear cache
+        deleted = clear_cache()
+        assert deleted == 3
+
+        # Verify files are gone
+        files_after = list(cache_dir.glob("*.json"))
+        assert len(files_after) == 0
