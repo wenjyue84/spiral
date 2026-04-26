@@ -369,6 +369,95 @@ except Exception as e:
   }
 });
 
+// Tests summary endpoint (US-1308)
+// Parses spiral_events.jsonl, aggregates verification events by story_id
+interface TestEvent {
+  event_type: string;
+  timestamp: string;
+  story_id: string;
+  test_status?: string;
+  test_count?: number;
+  file_touch_ok?: boolean;
+  coverage_pct?: number;
+  [key: string]: any;
+}
+
+interface TestSummary {
+  story_id: string;
+  test_status?: string;
+  test_count: number;
+  file_touch_ok: boolean;
+  coverage_pct: number;
+}
+
+app.get('/api/tests/summary', (req, res) => {
+  const eventsFile = join(resolve('.'), 'spiral_events.jsonl');
+
+  try {
+    if (!existsSync(eventsFile)) {
+      return res.json([]);
+    }
+
+    const content = readFileSync(eventsFile, 'utf-8');
+    const lines = content.trim().split('\n').filter(line => line.length > 0);
+
+    // Group verification events by story_id
+    const summaryMap = new Map<string, TestSummary>();
+
+    for (const line of lines) {
+      try {
+        const event = JSON.parse(line) as TestEvent;
+
+        // Only process verification events
+        if (event.event_type !== 'verification') {
+          continue;
+        }
+
+        const storyId = event.story_id || 'unknown';
+
+        // Initialize or update summary for this story
+        if (!summaryMap.has(storyId)) {
+          summaryMap.set(storyId, {
+            story_id: storyId,
+            test_status: event.test_status,
+            test_count: event.test_count || 0,
+            file_touch_ok: event.file_touch_ok !== false,
+            coverage_pct: event.coverage_pct || 0
+          });
+        } else {
+          // Update existing summary with latest event data
+          const existing = summaryMap.get(storyId)!;
+          if (event.test_status) {
+            existing.test_status = event.test_status;
+          }
+          if (event.test_count !== undefined) {
+            existing.test_count = Math.max(existing.test_count, event.test_count);
+          }
+          if (event.file_touch_ok !== undefined) {
+            existing.file_touch_ok = existing.file_touch_ok && event.file_touch_ok;
+          }
+          if (event.coverage_pct !== undefined) {
+            existing.coverage_pct = Math.max(existing.coverage_pct, event.coverage_pct);
+          }
+        }
+      } catch (e) {
+        // Skip malformed JSON lines
+        console.warn('[tests/summary] Skipping malformed event:', line);
+      }
+    }
+
+    // Convert map to array and sort by story_id
+    const summary = Array.from(summaryMap.values()).sort((a, b) =>
+      a.story_id.localeCompare(b.story_id)
+    );
+
+    res.json(summary);
+  } catch (e) {
+    console.error('[tests/summary] Error reading events:', e);
+    res.status(500).json({ error: 'Failed to read test events' });
+  }
+});
+
 // Start server
 server.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] SPIRAL WebSocket server listening on port ${PORT}`);
