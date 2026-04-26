@@ -1587,3 +1587,100 @@ Here is a technical brief for the Claude agent based on the user story provided.
 *   **File Paths:** Ensure paths within the tarball are relative to the project root to prevent extraction errors.
 *   **Missing Files:** The `save` operation should handle cases where one or more of the target files do not exist.
 
+
+## Pre-analysis for US-1289 (Gemini 2.5 Pro)
+Here is a technical brief for the Claude agent based on the user story provided.
+
+---
+
+**Project:** Spiral CLI
+**Objective:** Implement `spiral snapshot save` and `spiral snapshot restore` commands to create and restore snapshots of the project's state. This is a Python/Shell CLI task, not a Frappe app task.
+
+**1. Files to Modify:**
+*   **Create:** `lib/snapshot.py` – Will contain the core snapshotting logic.
+*   **Edit:** `lib/cli_subcommands.sh` – To wire the new commands into the main CLI.
+*   **Test:** `tests/test_snapshot.py` – New tests for `save` and `restore` are required.
+
+**2. Involved DocTypes/Hooks:**
+*   This is not a Frappe application; no DocTypes are involved.
+*   The `lib/cli_subcommands.sh` script serves as the command router, hooking subcommands to handler functions.
+
+**3. Recommended Implementation Approach:**
+*   **`lib/snapshot.py`**:
+    *   Create a `SnapshotManager` class.
+    *   `save()` method: Use Python's `tarfile` module to create a gzipped tarball named `.spiral/snapshot-<ISO8601>.tar.gz`. Add `prd.json`, `results.tsv`, `.spiral/checkpoint.json`, and `retry-counts.json` to the archive.
+    *   `restore(timestamp)` method: Find the snapshot tarball matching the given timestamp, extract its contents, and overwrite the existing files.
+    *   Add a main execution block (`if __name__ == "__main__"`) to parse command-line arguments (`save`, `restore`) using `sys.argv` and call the corresponding methods.
+*   **`lib/cli_subcommands.sh`**:
+    *   Add two new functions: `snapshot_save_handler` and `snapshot_restore_handler`.
+    *   These handlers will call the Python script: `python lib/snapshot.py save` and `python lib/snapshot.py restore $2` respectively.
+    *   Add `snapshot)` and `snapshot-restore)` cases to the main command-routing logic to invoke these handlers.
+
+**4. Edge Cases & Gotchas:**
+*   **Destructive Restore:** The `restore` operation overwrites local files (`prd.json`, etc.), which is the intended behavior but is inherently destructive.
+*   **Timestamp Matching:** The `restore` command must gracefully handle cases where no snapshot file matches the provided timestamp.
+*   **File Paths:** Ensure paths within the tarball are relative to the project root to prevent extraction errors.
+*   **Missing Files:** The `save` operation should handle cases where one or more of the target files do not exist.
+
+## Iteration [N] - Story: CLI: `spiral snapshot save` and `snapshot restore` commands (US-1289)
+
+### What was implemented
+- SnapshotManager class in lib/snapshot.py with:
+  - `save(out_dir='.spiral')` method: Creates .spiral/snapshot-<ISO8601>.tar.gz containing:
+    - prd.json
+    - results.tsv
+    - .spiral/checkpoint.json
+    - retry-counts.json
+  - `restore(timestamp, out_dir='.spiral')` method: Extracts matching snapshot and overwrites current state
+  - Both methods handle missing files gracefully (save requires at least one file, restore shows available snapshots if not found)
+  - Timestamp normalization: handles both ISO8601 format (2026-04-27T12:34:56Z) and dash-separated (2026-04-27T12-34-56Z)
+- CLI integration via python main entry point (argparse-based)
+- Shell integration in lib/cli_subcommands.sh (already wired):
+  - SNAPSHOT_MODE flag routing with SNAPSHOT_SUBCOMMAND (save/restore)
+  - Proper error handling and user messages
+  - Uses REPO_ROOT and SCRATCH_DIR from spiral.sh context
+
+### Tests implemented (all 12 passing)
+- TestSnapshotSave: 6 tests
+  - test_snapshot_save_creates_tarball: Validates .tar.gz file creation
+  - test_snapshot_save_contains_files: Validates tarball contents
+  - test_snapshot_save_timestamp_in_filename: Validates ISO8601 timestamp format
+  - test_snapshot_save_missing_files: Handles optional missing files gracefully
+  - test_snapshot_save_no_files_raises_error: Raises error when no files exist
+  - test_snapshot_save_missing_output_dir_raises_error: Raises error for missing output directory
+- TestSnapshotRestore: 5 tests
+  - test_snapshot_restore_overwrites_prd: Verifies file overwriting works correctly
+  - test_snapshot_restore_checkpoint_info: Returns checkpoint data from restored state
+  - test_snapshot_restore_timestamp_not_found: Shows available snapshots in error message
+  - test_snapshot_restore_with_colon_timestamp: Handles ISO8601 format normalization
+  - test_snapshot_restore_empty_checkpoint: Gracefully handles missing checkpoint
+- TestSnapshotIntegration: 1 test
+  - test_snapshot_roundtrip: Full save→modify→restore cycle validation
+
+### Quality checks passed
+- ✓ All 12 pytest tests pass (100%)
+- ✓ mypy --strict on lib/snapshot.py (no issues)
+- ✓ ruff format and lint (no snapshot.py issues)
+- ✓ Shell integration already in place in cli_subcommands.sh
+- ✓ Acceptance criteria met:
+  - [x] `spiral snapshot save` creates .spiral/snapshot-<ISO8601>.tar.gz
+  - [x] `spiral snapshot restore <timestamp>` extracts and overwrites state
+  - [x] Tests pass: test_snapshot_save_creates_tarball and test_snapshot_restore_overwrites_prd
+
+### Patterns discovered
+- Python tarfile module + UTC timezone handles cross-platform snapshot creation cleanly
+- ISO8601 timestamp conversion (colons to dashes) enables safe filename handling on all OSs
+- tarfile.open(..., filter='data') provides security isolation (ignores metadata/permissions)
+- Checkpoint info extraction from restored archive enables resume context display
+
+### Gotchas
+- tarfile on Windows requires care with path separators (pathlib Path objects handle this)
+- ISO8601 with colons (:) invalid in Windows filenames, so dashes used in snapshot-* naming
+- pre-commit hooks show pre-existing errors in other files (main.py, e2e tests) unrelated to this story
+
+### Files touched
+- lib/snapshot.py (created, 197 lines) — SnapshotManager class + CLI main()
+- tests/test_snapshot.py (created, 272 lines) — 12 comprehensive tests
+- lib/cli_subcommands.sh (already integrated, lines 358-375) — SNAPSHOT_MODE routing
+- prd.json (modified, marked US-1289 passes: true)
+
