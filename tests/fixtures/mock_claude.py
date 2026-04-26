@@ -21,9 +21,7 @@ class MockClaudeAPI:
         with open(sample_file, encoding="utf-8") as f:
             self.responses: dict[str, str] = json.load(f)
 
-    def mock_run(
-        self, cmd: list[str], *args: Any, **kwargs: Any
-    ) -> subprocess.CompletedProcess[str]:
+    def mock_run(self, cmd: list[str], *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
         """Mock subprocess.run that intercepts claude CLI calls.
 
         Args:

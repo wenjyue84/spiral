@@ -86,9 +86,7 @@ def test_empty_acceptance_criteria(workspace: dict[str, str], monkeypatch: pytes
     Only a warning is logged; the story passes through to accepted.
     """
     story = _load_fixture_story("FIXTURE-EAC-001")
-    assert story.get("acceptanceCriteria") == [], (
-        "Fixture story FIXTURE-EAC-001 must have empty acceptanceCriteria"
-    )
+    assert story.get("acceptanceCriteria") == [], "Fixture story FIXTURE-EAC-001 must have empty acceptanceCriteria"
 
     _write_json(workspace["prd"], {"goals": ["Improve SPIRAL reliability"], "userStories": []})
     _write_json(workspace["research"], {"stories": [story]})

@@ -286,9 +286,7 @@ def test_cache_respects_ttl_expiry(tmp_path: Path) -> None:
     results = {"gemini_research": "findings"}
 
     # Create expired cache entry manually
-    cache_file = cache_dir / (
-        "a" * 64 + ".json"
-    )  # Fake hash for this query
+    cache_file = cache_dir / ("a" * 64 + ".json")  # Fake hash for this query
 
     # Create entry with expired timestamp
     past_time = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
