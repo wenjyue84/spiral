@@ -4050,6 +4050,24 @@ def main():
         help="Shorthand: create archive at FILE (same as 'create --output FILE')",
     )
 
+    # ── lint subcommand (US-1270) ─────────────────────────────────────────────
+    lint_parser = subparsers.add_parser(
+        "lint",
+        help="Validate prd.json schema and spiral.config.sh variable references (US-1270)",
+    )
+    lint_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    lint_parser.add_argument(
+        "--config",
+        default="spiral.config.sh",
+        metavar="FILE",
+        help="Path to spiral.config.sh (default: spiral.config.sh)",
+    )
+
     # ── lint-prd subcommand (US-639) ─────────────────────────────────────────
     lint_prd_parser = subparsers.add_parser(
         "lint-prd",
@@ -4621,6 +4639,8 @@ def main():
         cmd_validate_federated_order(args)
     elif args.command == "archive-checkpoint":
         cmd_archive_checkpoint(args)
+    elif args.command == "lint":
+        cmd_lint(args)
     elif args.command == "lint-prd":
         cmd_lint_prd(args)
     elif args.command == "predict-story-complexity":
@@ -4919,6 +4939,22 @@ def cmd_validate_federated_order(args: argparse.Namespace) -> None:
     print(json.dumps(result, indent=2))
     if violations:
         sys.exit(1)
+
+
+def cmd_lint(args: argparse.Namespace) -> None:
+    """Validate prd.json schema and spiral.config.sh variable references (US-1270).
+
+    Usage: spiral lint [--prd FILE] [--config FILE]
+    Exit 0 on success (no output), exit 1 on failure with error messages to stderr.
+    """
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from cli_lint import lint  # type: ignore[import-untyped]
+
+    prd_file = getattr(args, "prd", "prd.json")
+    config_file = getattr(args, "config", "spiral.config.sh")
+
+    exit_code = lint(prd_file, config_file)
+    sys.exit(exit_code)
 
 
 def cmd_lint_prd(args: argparse.Namespace) -> None:
