@@ -783,7 +783,8 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet"
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-1247",
@@ -805,7 +806,7 @@
         "US-1226"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1353,6 +1354,49 @@
         "US-1215"
       ],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1278",
+      "title": "CLI: spiral cost-breakdown command with per-phase token and dollar analysis",
+      "priority": "medium",
+      "description": "Add CLI command to analyze and report token spend and cost per phase, per model, and per story type, with JSON/CSV export and historical baseline comparison. Provides cost transparency and helps identify expensive phases.",
+      "acceptanceCriteria": [
+        "`spiral cost-breakdown` outputs table with columns: Phase | Stories | Tokens | Cost | Avg Model | % of Total",
+        "`spiral cost-breakdown --output json` exports full breakdown indexed by phase and story ID",
+        "`spiral cost-breakdown --compare <baseline.tsv>` shows delta vs historical baseline with ↑↓ indicators"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cost_analyzer.py (implement parse_results_tsv, breakdown_by_phase, format_table functions)",
+        "File to edit: spiral.sh (register cost-breakdown subcommand in CLI parser around line 1500)",
+        "Test command: uv run pytest tests/test_cost_analyzer.py::test_cost_breakdown_format -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1279",
+      "title": "[Performance Test] Config API load/persist latency benchmark (US-1214)",
+      "priority": "medium",
+      "description": "Write a performance benchmark test for the config load, validate, and persist operations in lib/spiral_ui_config.py and the POST /api/config endpoint from US-1214. Captures a baseline and asserts response time stays within 20% of it.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_us_1214_perf.py -k 'config_load_latency' -v exits 0 and prints measured p95 latency in ms",
+        "uv run pytest tests/test_us_1214_perf.py -k 'api_config_post_latency' -v exits 0 and fails if median response time exceeds 200 ms",
+        "uv run pytest tests/test_us_1214_perf.py -v exits non-zero if lib/spiral_ui_config.py does not exist"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us_1214_perf.py (create; use timeit or time.perf_counter around spiral_ui_config.load_config() calls)",
+        "File to edit: lib/spiral_ui_config.py (import only — do not modify; confirm function signatures first)",
+        "Test command: uv run pytest tests/test_us_1214_perf.py -v -s",
+        "Use pytest-benchmark if available (uv run pytest --co -q to check); otherwise use time.perf_counter with 100 iterations and assert mean < 0.2s"
+      ],
+      "dependencies": [
+        "US-1214"
+      ],
+      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     }
