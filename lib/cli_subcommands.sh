@@ -354,3 +354,22 @@ if [[ "$METRICS_MODE" -eq 1 ]] && [[ "$METRICS_SUBCOMMAND" == "export-timeseries
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/metrics_export.py" "$_RESULTS_TSV" "$_SPIRAL_EVENTS" "$METRICS_OUTPUT"
   exit $?
 fi
+
+# ── snapshot save/restore: create and restore project state snapshots ────────
+SNAPSHOT_MODE="${SNAPSHOT_MODE:-0}"
+SNAPSHOT_SUBCOMMAND="${SNAPSHOT_SUBCOMMAND:-}"
+SNAPSHOT_TIMESTAMP="${SNAPSHOT_TIMESTAMP:-}"
+if [[ "$SNAPSHOT_MODE" -eq 1 ]]; then
+  _SNAPSHOT_OUT_DIR="${SCRATCH_DIR}"
+  if [[ "$SNAPSHOT_SUBCOMMAND" == "save" ]]; then
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/snapshot.py" save --out-dir "$_SNAPSHOT_OUT_DIR" --project-root "$REPO_ROOT"
+    exit $?
+  elif [[ "$SNAPSHOT_SUBCOMMAND" == "restore" ]]; then
+    if [[ -z "$SNAPSHOT_TIMESTAMP" ]]; then
+      echo "[spiral] ERROR: Usage: spiral snapshot restore <timestamp>" >&2
+      exit 1
+    fi
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/snapshot.py" restore "$SNAPSHOT_TIMESTAMP" --out-dir "$_SNAPSHOT_OUT_DIR" --project-root "$REPO_ROOT"
+    exit $?
+  fi
+fi

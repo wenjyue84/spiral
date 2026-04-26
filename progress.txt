@@ -1549,3 +1549,41 @@ Completed: CLI: Add `spiral search <query>` command for federated story discover
   - [x] Timestamps from spiral_events.jsonl Phase G completion; tokens from results.tsv duration_sec
   - [x] Minimum 10 records validation (rejects if fewer)
 
+## Iteration 1 - Mon, Apr 27, 2026  7:00:44 AM
+Completed: CLI: Add spiral metrics export-timeseries to export token burn and story throughput as time series JSON (ID: US-1288) in 11m
+
+
+## Pre-analysis for US-1289 (Gemini 2.5 Pro)
+Here is a technical brief for the Claude agent based on the user story provided.
+
+---
+
+**Project:** Spiral CLI
+**Objective:** Implement `spiral snapshot save` and `spiral snapshot restore` commands to create and restore snapshots of the project's state. This is a Python/Shell CLI task, not a Frappe app task.
+
+**1. Files to Modify:**
+*   **Create:** `lib/snapshot.py` – Will contain the core snapshotting logic.
+*   **Edit:** `lib/cli_subcommands.sh` – To wire the new commands into the main CLI.
+*   **Test:** `tests/test_snapshot.py` – New tests for `save` and `restore` are required.
+
+**2. Involved DocTypes/Hooks:**
+*   This is not a Frappe application; no DocTypes are involved.
+*   The `lib/cli_subcommands.sh` script serves as the command router, hooking subcommands to handler functions.
+
+**3. Recommended Implementation Approach:**
+*   **`lib/snapshot.py`**:
+    *   Create a `SnapshotManager` class.
+    *   `save()` method: Use Python's `tarfile` module to create a gzipped tarball named `.spiral/snapshot-<ISO8601>.tar.gz`. Add `prd.json`, `results.tsv`, `.spiral/checkpoint.json`, and `retry-counts.json` to the archive.
+    *   `restore(timestamp)` method: Find the snapshot tarball matching the given timestamp, extract its contents, and overwrite the existing files.
+    *   Add a main execution block (`if __name__ == "__main__"`) to parse command-line arguments (`save`, `restore`) using `sys.argv` and call the corresponding methods.
+*   **`lib/cli_subcommands.sh`**:
+    *   Add two new functions: `snapshot_save_handler` and `snapshot_restore_handler`.
+    *   These handlers will call the Python script: `python lib/snapshot.py save` and `python lib/snapshot.py restore $2` respectively.
+    *   Add `snapshot)` and `snapshot-restore)` cases to the main command-routing logic to invoke these handlers.
+
+**4. Edge Cases & Gotchas:**
+*   **Destructive Restore:** The `restore` operation overwrites local files (`prd.json`, etc.), which is the intended behavior but is inherently destructive.
+*   **Timestamp Matching:** The `restore` command must gracefully handle cases where no snapshot file matches the provided timestamp.
+*   **File Paths:** Ensure paths within the tarball are relative to the project root to prevent extraction errors.
+*   **Missing Files:** The `save` operation should handle cases where one or more of the target files do not exist.
+

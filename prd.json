@@ -1595,11 +1595,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-26T22:47:14Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Results from previous iterations are logged in `results.tsv` (columns: timestamp, spiral_iter, story_id, status, duration_sec, model, etc.)\n- Event timeline is in `spiral_events.jsonl` (event logs with timestamps, event types, and metadata)\n- Budget analyzer in `lib/budget_analyzer.py` has patterns for parsing results.tsv and calculating tokens from duration_sec\n- CLI subcommands are defined in `lib/cli_subcommands.sh` with consistent pattern: check mode flag, call Python module, exit\n\n## Problem Identified\nUS-1288 requires a new CLI command `spiral metrics export-timeseries <output.json>` that:\n- Parses results.tsv and spiral_events.jsonl\n- Aggregates data by iteration: iteration, timestamp, cumulative_tokens, stories_passed_delta, avg_model_tier, total_cost\n- Outputs JSON array with min 10 data points (rejects if < 10 records)\n- Timestamp from Phase G completion events in spiral_events.jsonl\n- Tokens calculated from duration_sec like budget_analyzer.py does\n\n## Planned Changes\n- Create `lib/metrics_export.py` with:\n  - `parse_results_tsv()` - read results.tsv and structure by iteration\n  - `parse_spiral_events()` - extract Phase G event timestamps \n  - `aggregate_timeseries()` - aggregate data by iteration with cumulative tokens, passed count, avg tier, cost\n  - `export_timeseries()` - main entry point that calls above functions and writes JSON\n- Modify `lib/cli_subcommands.sh` to add handler for `METRICS_EXPORT_TIMESERIES_MODE` around line 150\n- Create `tests/test_metrics_export.py` with tests for each function\n\n<plan>\n{\n  \"files_to_create\": [\n    \"lib/metrics_export.py\",\n    \"tests/test_metrics_export.py\"\n  ],\n  \"files_to_modify\": [\n    \"lib/cli_subcommands.sh\"\n  ],\n  \"functions_to_add\": [\n    \"parse_results_tsv\",\n    \"parse_spiral_events\", \n    \"aggregate_timeseries\",\n    \"export_timeseries\"\n  ],\n  \"estimated_loc\": 200\n}\n</plan>\n\nNow let me implement. First, I'll check an existing metrics/export module for patterns:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1289",
@@ -1814,6 +1810,49 @@
       "model": "haiku"
     },
     {
+      "id": "US-1299",
+      "title": "Phase E: Hint recommender from story attempt history",
+      "priority": "medium",
+      "description": "Create lib/hint_recommender.py that reads results.tsv and returns decomposition, model, and retry hints for a story before Phase I runs. Integrate into the Phase E handler so hints are appended to prd.json story._hints before implementation begins.",
+      "acceptanceCriteria": [
+        "suggest_hints_from_history() returns dict with keys decomposition_suggested, recommended_model, recommended_retries (verified by: uv run pytest tests/test_hint_recommender.py::test_suggest_hints_schema -v)",
+        "When haiku pass rate < 50% for the story's complexity band, recommended_model is 'sonnet' (verified by: uv run pytest tests/test_hint_recommender.py::test_low_haiku_pass_rate_escalates_model -v)",
+        "Phase E handler writes returned hints into story._hints array in prd.json before Phase I (verified by: uv run pytest tests/test_hint_recommender.py::test_hints_persisted_to_prd -v)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/hint_recommender.py (analyze_story_cohort, suggest_hints_from_history)",
+        "File to edit: lib/phases.py (Phase E handler — call suggest_hints_from_history and patch story._hints)",
+        "File to create: tests/test_hint_recommender.py with fixture results_tsv containing >=10 sample attempts across haiku/sonnet",
+        "Test command: uv run pytest tests/test_hint_recommender.py -v",
+        "Read results.tsv with csv.DictReader; group by complexity band using collections.defaultdict"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1300",
+      "title": "CLI: spiral batch <operation> --stories-file for multi-story operations",
+      "priority": "medium",
+      "description": "Enable batch operations on multiple stories (mark-done, retrigger, update-metadata) by reading story IDs from a file. Improves CLI ergonomics for managing groups of stories without manual iteration.",
+      "acceptanceCriteria": [
+        "spiral batch mark-done --stories-file completed.txt marks all stories in file as done in prd.json and adds timestamps",
+        "spiral batch retrigger --stories-file failed.txt resets retry counts and re-queues stories for Phase I",
+        "Batch operations log results with counts: '3 stories marked done, 1 skipped (not pending)'",
+        "File format: one story ID per line (US-123, UT-456, etc.)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/batch_operations.py with parse_story_file() and execute_batch_operation() functions",
+        "File to edit: lib/cli_subcommands.sh to add batch subcommand handler",
+        "Test command: uv run pytest tests/test_batch_operations.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1301",
       "title": "Phase X: Build lib/dependency_resolver.py with NLP-based story blocker inference and DAG cycle detection",
       "priority": "high",
@@ -1831,6 +1870,50 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1302",
+      "title": "CLI: spiral cost-estimate <num-iterations> with historical accuracy bounds",
+      "priority": "medium",
+      "description": "New CLI subcommand that predicts total cost and token burn for N iterations using historical data from results.tsv, with confidence intervals based on per-model variance.",
+      "acceptanceCriteria": [
+        "spiral cost-estimate 5 reads results.tsv and computes avg tokens/story per model and per complexity band",
+        "Outputs: 'Estimated cost for 5 iterations: $X.XX (68% confidence: $L.LL - $H.HH) based on 47 historical attempts'",
+        "Includes breakdown by model (haiku 60%, sonnet 30%, opus 10%) and notes escalation impact on cost"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_subcommands.sh (add 'cost-estimate' handler)",
+        "Create lib/cost_estimator.py with compute_historical_stats() and predict_cost_for_n_iterations() using numpy for variance",
+        "Test command: uv run pytest tests/test_cost_estimator.py::test_cost_estimate_with_variance -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1303",
+      "title": "[Regression Test] CLI trace-dependencies: verify full dep chain output",
+      "priority": "medium",
+      "description": "Write a regression test for the spiral trace-dependencies CLI command introduced in US-1209. The test invokes the command against a fixture prd.json containing a known multi-level dependency chain and asserts that all story IDs, file paths, and cross-project boundary markers appear in the output.",
+      "acceptanceCriteria": [
+        "Test invokes the CLI with a fixture prd.json and captures stdout; assert all expected story IDs appear in output",
+        "Test asserts circular-dependency detection triggers a non-zero exit code when a cycle is present in the fixture",
+        "uv run pytest tests/ -k us_1209 -v exits with code 0 and both assertions pass"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_regression_us1209.py (new file — regression tests for trace-dependencies CLI)",
+        "File to edit: tests/fixtures/dep_chain_prd.json (new fixture — multi-level deps including cross-project boundary)",
+        "Test command: uv run pytest tests/ -k us_1209 -v",
+        "Use subprocess.run(['python', 'main.py', 'trace-dependencies', 'US-001'], capture_output=True) to invoke CLI",
+        "Circular-dependency fixture should have US-001 depend on US-002, US-002 depend on US-001"
+      ],
+      "dependencies": [
+        "US-1209"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -1904,6 +1987,28 @@
       "model": "haiku"
     },
     {
+      "id": "US-1307",
+      "title": "Deduplication Confidence Scorer: suggest and merge similar stories",
+      "priority": "medium",
+      "description": "Add lib/dedup_confidence.py with TF-IDF similarity scoring over prd.json stories, and wire two new CLI subcommands: spiral dedup-suggestions (show top duplicate pairs) and spiral merge <id1> <id2> (combine stories and mark originals superseded). Seed stories are excluded from dedup candidates.",
+      "acceptanceCriteria": [
+        "`spiral dedup-suggestions` prints at least one pair with confidence ≥0.75 when obvious duplicates exist in prd.json: `uv run pytest tests/test_dedup_confidence.py::test_high_confidence_detection -v`",
+        "`spiral merge US-X US-Y` writes a new story with combined acceptanceCriteria and sets superseded_by on both originals: `uv run pytest tests/test_dedup_confidence.py::test_merge_sets_superseded_by -v`",
+        "Seed stories (source == 'seed') never appear as dedup candidates: `uv run pytest tests/test_dedup_confidence.py::test_seed_excluded -v`"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dedup_confidence.py (find_duplicates(prd_data) → List[Tuple[str,str,float]] sorted by score desc, merge_stories(id1, id2, prd_data) → dict)",
+        "File to edit: lib/cli_subcommands.sh (add dedup-suggestions and merge command handlers near existing subcommand dispatch)",
+        "File to create: tests/test_dedup_confidence.py",
+        "Test command: uv run pytest tests/test_dedup_confidence.py -v",
+        "Use sklearn TfidfVectorizer on title + description concatenation; cosine_similarity threshold 0.75"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1308",
       "title": "spiral-ui: Backend GET /api/tests/summary endpoint from spiral_events.jsonl",
       "priority": "high",
@@ -1942,6 +2047,76 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1310",
+      "title": "Add prd.include schema field and circular-include detection to merge_stories.py",
+      "priority": "medium",
+      "description": "Extend prd.schema.json with an optional prd.include array of file paths. Update lib/merge_stories.py to load each included sub-project PRD, prefix story IDs with the sub-project namespace (e.g., web:US-100), and raise an error on circular includes or missing files. This is the implementation half of US-1212.",
+      "acceptanceCriteria": [
+        "uv run python lib/prd_schema.py prd.json exits 0 when prd.include contains a valid sub-project path",
+        "python -c \"from lib.merge_stories import load_with_includes; load_with_includes('tests/fixtures/subproject_web_prd.json')\" prints namespaced story IDs like web:US-100",
+        "Circular include (A includes B includes A) raises MergeError with message containing 'circular'",
+        "uv run pytest tests/test_federated_prd.py -k include_schema -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: prd.schema.json (add prd.include: array of strings, optional)",
+        "File to edit: lib/merge_stories.py (add load_with_includes() that recurses include list, prefixes IDs, detects cycles via visited-set)",
+        "Test command: uv run pytest tests/test_federated_prd.py -k include_schema -v",
+        "Cycle detection: pass a frozenset of already-visited paths; raise MergeError if current path is in set"
+      ],
+      "dependencies": [
+        "US-1212"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1311",
+      "title": "Performance test: POST /api/config endpoint responds within 200ms baseline",
+      "priority": "medium",
+      "description": "Write a pytest performance benchmark in tests/test_spiral_ui_config_perf.py that calls POST /api/config via httpx against a locally started spiral-ui backend, measures p99 response time over 50 iterations, and fails if it exceeds 200ms. Establishes a repeatable baseline for the config endpoint introduced in US-1214.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v exits 0 when server is running",
+        "Test records p50 and p99 latency and asserts p99 < 200ms",
+        "Test fails if POST /api/config returns a non-200 HTTP status"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_ui_config_perf.py (new — test_config_post_latency_us_1214)",
+        "File to edit: lib/spiral_ui_config.py (reference — load/validate/persist config; must exist before this test runs)",
+        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v",
+        "Use httpx.Client for sync requests; spin up the backend with subprocess in a session-scoped fixture or assume it is already running on localhost:5299",
+        "Measure wall-clock time with time.perf_counter() around each POST call; collect into list; assert statistics.quantiles(times, n=100)[98] < 0.2"
+      ],
+      "dependencies": [
+        "US-1214"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1312",
+      "title": "spiral-ui: Add Tests tab UI with history table and pass-rate chart",
+      "priority": "medium",
+      "description": "Create a TestsTab React component that fetches /api/tests/history, renders a filterable table (date, test file, status, coverage %), a trend line chart of pass rate over time, and an expandable row showing full pytest output. Register the tab in Dashboard.tsx.",
+      "acceptanceCriteria": [
+        "Tests tab renders table with Date, Test File, Status, Coverage % columns populated from API: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'renders table' -v`",
+        "Date range preset buttons (7d, 30d) filter visible rows and re-render trend chart: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'date filter' -v`",
+        "Clicking a table row expands to show pytest output text: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'row expand' -v`"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/TestsTab.tsx (React component, TanStack Query for /api/tests/history, recharts LineChart for trend)",
+        "File to create: spiral-ui/src/hooks/useTestHistory.ts (TanStack Query hook wrapping GET /api/tests/history)",
+        "File to edit: spiral-ui/src/App.tsx or Dashboard.tsx (register TestsTab in tab list)",
+        "File to create: tests/e2e/tests-tab.spec.ts (Playwright E2E)",
+        "Test command: npx playwright test tests/e2e/tests-tab.spec.ts -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     }
   ]
