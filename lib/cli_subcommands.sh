@@ -355,6 +355,21 @@ if [[ "$METRICS_MODE" -eq 1 ]] && [[ "$METRICS_SUBCOMMAND" == "export-timeseries
   exit $?
 fi
 
+# ── cost-analysis: analyze token costs and spend from results.tsv ────────────────────
+COST_ANALYSIS_MODE="${COST_ANALYSIS_MODE:-0}"
+COST_ANALYSIS_DETAILED="${COST_ANALYSIS_DETAILED:-0}"
+COST_ANALYSIS_JSON="${COST_ANALYSIS_JSON:-0}"
+COST_ANALYSIS_COMPARE_ITERATION="${COST_ANALYSIS_COMPARE_ITERATION:-}"
+if [[ "$COST_ANALYSIS_MODE" -eq 1 ]]; then
+  _RESULTS_TSV="${RESULTS_TSV:-$REPO_ROOT/results.tsv}"
+  _CA_ARGS=("--results" "$_RESULTS_TSV")
+  [[ "$COST_ANALYSIS_DETAILED" -eq 1 ]] && _CA_ARGS+=("--detailed")
+  [[ "$COST_ANALYSIS_JSON" -eq 1 ]] && _CA_ARGS+=("--json")
+  [[ -n "$COST_ANALYSIS_COMPARE_ITERATION" ]] && _CA_ARGS+=("--compare-iteration" "$COST_ANALYSIS_COMPARE_ITERATION")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_analysis.py" "${_CA_ARGS[@]}"
+  exit $?
+fi
+
 # ── snapshot_list_handler: format and display snapshot list output ────────────────────
 snapshot_list_handler() {
   local out_dir="$1"

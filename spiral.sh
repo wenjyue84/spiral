@@ -166,6 +166,10 @@ SKILLS_URL=""                                # URL for skills install
 METRICS_MODE=0                               # 1 = run metrics subcommand and exit (metrics)
 METRICS_SUBCOMMAND=""                        # export-timeseries
 METRICS_OUTPUT=""                            # output file path for metrics
+COST_ANALYSIS_MODE=0                         # 1 = run cost-analysis subcommand and exit
+COST_ANALYSIS_DETAILED=0                     # 1 = show per-story breakdown (--detailed)
+COST_ANALYSIS_JSON=0                         # 1 = output as JSON (--json)
+COST_ANALYSIS_COMPARE_ITERATION=""           # iteration to compare with (--compare-iteration N)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -477,6 +481,28 @@ while [[ $# -gt 0 ]]; do
         shift 2
       fi
       ;;
+    cost-analysis)
+      COST_ANALYSIS_MODE=1
+      shift
+      # Parse optional cost-analysis flags
+      while [[ $# -gt 0 ]] && [[ "$1" != --* || "$1" == --detailed || "$1" == --json || "$1" == --compare-iteration ]]; do
+        case $1 in
+          --detailed)
+            COST_ANALYSIS_DETAILED=1
+            shift
+            ;;
+          --json)
+            COST_ANALYSIS_JSON=1
+            shift
+            ;;
+          --compare-iteration)
+            COST_ANALYSIS_COMPARE_ITERATION="$2"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -562,6 +588,10 @@ while [[ $# -gt 0 ]]; do
       echo "    --project NAME             Filter results to a specific sub-project"
       echo "    --min-score N              Minimum match score 0-100 (default: 30)"
       echo "  metrics export-timeseries <output.json>  Export time-series metrics (token burn, throughput) to JSON"
+      echo "  cost-analysis              Analyze token costs and spend from results.tsv"
+      echo "    --detailed                 Show per-story breakdown (top 20 by cost)"
+      echo "    --json                     Output as JSON"
+      echo "    --compare-iteration N      Compare current iteration to iteration N with delta"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --continuous               Never stop — loop back to Phase A after all stories pass"

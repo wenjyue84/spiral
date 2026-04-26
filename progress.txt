@@ -1757,3 +1757,6 @@ Here is the technical brief for the Claude Code agent.
 **4. Testing:**
 - New unit tests should be added to `tests/test_snapshot.py` to validate both the ASCII and JSON output formats.
 
+## Iteration 3 - Mon, Apr 27, 2026  7:36:32 AM
+Completed: CLI: `spiral snapshot list` command with ASCII table and --json flag (ID: US-1290) in 12m
+
