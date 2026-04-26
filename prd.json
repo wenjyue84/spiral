@@ -1963,6 +1963,29 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1306",
+      "title": "[Security Test] history_search: DB access control and data-leak guards (US-1259)",
+      "priority": "high",
+      "description": "Write security tests verifying that .spiral/history.db and the find_similar_attempts() function introduced in US-1259 do not expose sensitive execution data (API keys, tokens, passwords) through query results or error messages.",
+      "acceptanceCriteria": [
+        "find_similar_attempts() results contain no secret/token/password fields: `uv run pytest tests/test_history_security.py::test_no_sensitive_fields_in_results -v`",
+        "Querying a non-existent DB raises a handled error with no raw path leak: `uv run pytest tests/test_history_security.py::test_missing_db_safe_error -v`",
+        "Returned attempt records include only (story_id, model, outcome, duration, cost) keys: `uv run pytest tests/test_history_security.py::test_result_schema -v`"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_history_security.py (test_no_sensitive_fields_in_results, test_missing_db_safe_error, test_result_schema)",
+        "File to read: lib/history_search.py (find_similar_attempts) — inspect return schema before writing assertions",
+        "Test command: uv run pytest tests/test_history_security.py -v"
+      ],
+      "dependencies": [
+        "US-1259"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-27T12:00:00Z"
     }
   ]
 }
