@@ -1379,7 +1379,8 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1279",
@@ -1401,7 +1402,7 @@
         "US-1214"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1826,6 +1827,27 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1300",
+      "title": "CLI: spiral batch <operation> --stories-file for multi-story operations",
+      "priority": "medium",
+      "description": "Enable batch operations on multiple stories (mark-done, retrigger, update-metadata) by reading story IDs from a file. Improves CLI ergonomics for managing groups of stories without manual iteration.",
+      "acceptanceCriteria": [
+        "spiral batch mark-done --stories-file completed.txt marks all stories in file as done in prd.json and adds timestamps",
+        "spiral batch retrigger --stories-file failed.txt resets retry counts and re-queues stories for Phase I",
+        "Batch operations log results with counts: '3 stories marked done, 1 skipped (not pending)'",
+        "File format: one story ID per line (US-123, UT-456, etc.)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/batch_operations.py with parse_story_file() and execute_batch_operation() functions",
+        "File to edit: lib/cli_subcommands.sh to add batch subcommand handler",
+        "Test command: uv run pytest tests/test_batch_operations.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     }
