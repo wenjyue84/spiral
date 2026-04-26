@@ -1333,7 +1333,7 @@
         "US-1212"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1764,6 +1764,26 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1297",
+      "title": "CLI: Add spiral export-progress command to bundle PRD, results, and metrics as snapshot",
+      "priority": "medium",
+      "description": "Add a CLI subcommand `spiral export-progress [--format json|zip]` that bundles the current spiral state (prd.json, results.tsv, learning.md, loop_quality.jsonl, metadata) into a single JSON or ZIP file for stakeholder sharing or iteration archiving.",
+      "acceptanceCriteria": [
+        "Command `spiral export-progress` outputs JSON with schema: { prd, results, learning, loopQuality, metadata: { iteration, timestamp, passCount, failCount, totalCost, checksum } }",
+        "Command `spiral export-progress --format zip` creates ZIP archive containing prd.json, results.tsv, learning.md, retry-counts.json, and README.md explaining contents",
+        "Exported file includes sha256 checksum in metadata to detect corruption; filename is timestamped (e.g., spiral-export-2026-04-14T18:30:00Z.json)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/export_progress.py (new), lib/snapshot_schema.py (new for JSON schema validation), lib/cli_subcommands.sh (add export-progress handler)",
+        "Test command: uv run pytest tests/test_export_progress.py::test_export_json -v; uv run pytest tests/test_export_progress.py::test_export_zip -v",
+        "Read from: prd.json, results.tsv, learning.md, .spiral/loop_quality.jsonl, retry-counts.json; compute metadata from file contents and iteration state"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }
