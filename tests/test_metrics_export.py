@@ -223,7 +223,7 @@ class TestParseSpiralEvents:
             events_content = (
                 '{"event_type": "phase_complete", "phase_letter": "G", '
                 '"iteration": 1, "timestamp": "2026-04-01T00:30:00Z"}\n'
-                'not valid json\n'
+                "not valid json\n"
                 '{"event_type": "phase_complete", "phase_letter": "G", '
                 '"iteration": 2, "timestamp": "2026-04-01T01:30:00Z"}\n'
             )
@@ -345,12 +345,8 @@ class TestExportTimeseries:
             output_path = tmpdir_path / "output.json"
 
             # Create minimal TSV with only 5 records
-            tsv_content = (
-                "timestamp\tspiral_iter\tstory_id\tstatus\tduration_sec\tmodel\n"
-                + "\n".join(
-                    f"2026-04-01T{i:02d}:00:00Z\t1\tUS-{100 + i}\tpass\t100\thaniku"
-                    for i in range(5)
-                )
+            tsv_content = "timestamp\tspiral_iter\tstory_id\tstatus\tduration_sec\tmodel\n" + "\n".join(
+                f"2026-04-01T{i:02d}:00:00Z\t1\tUS-{100 + i}\tpass\t100\thaniku" for i in range(5)
             )
             tsv_path.write_text(tsv_content)
             events_path.write_text("")
@@ -367,13 +363,9 @@ class TestExportTimeseries:
             output_path = tmpdir_path / "output.json"
 
             # Create TSV with 10+ records
-            tsv_lines = [
-                "timestamp\tspiral_iter\tstory_id\tstatus\tduration_sec\tmodel"
-            ]
+            tsv_lines = ["timestamp\tspiral_iter\tstory_id\tstatus\tduration_sec\tmodel"]
             for i in range(12):
-                tsv_lines.append(
-                    f"2026-04-01T{i:02d}:00:00Z\t{(i // 6) + 1}\tUS-{100 + i}\tpass\t100\thaniku"
-                )
+                tsv_lines.append(f"2026-04-01T{i:02d}:00:00Z\t{(i // 6) + 1}\tUS-{100 + i}\tpass\t100\thaniku")
             tsv_path.write_text("\n".join(tsv_lines))
 
             # Create events with Phase G completions
@@ -417,13 +409,9 @@ def test_export_timeseries_cli_usage() -> None:
         output_path = tmpdir_path / "output.json"
 
         # Create valid test data (10+ records)
-        tsv_lines = [
-            "timestamp\tspiral_iter\tstory_id\tstatus\tduration_sec\tmodel"
-        ]
+        tsv_lines = ["timestamp\tspiral_iter\tstory_id\tstatus\tduration_sec\tmodel"]
         for i in range(15):
-            tsv_lines.append(
-                f"2026-04-01T{i:02d}:00:00Z\t{(i // 8) + 1}\tUS-{100 + i}\tpass\t100\tsonnet"
-            )
+            tsv_lines.append(f"2026-04-01T{i:02d}:00:00Z\t{(i // 8) + 1}\tUS-{100 + i}\tpass\t100\tsonnet")
         tsv_path.write_text("\n".join(tsv_lines))
         events_path.write_text("")
 

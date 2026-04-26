@@ -116,10 +116,7 @@ def parse_spiral_events(
                     continue
 
                 # Look for phase_complete events with phase_letter == "G"
-                if (
-                    event.get("event_type") == "phase_complete"
-                    and event.get("phase_letter") == "G"
-                ):
+                if event.get("event_type") == "phase_complete" and event.get("phase_letter") == "G":
                     try:
                         iter_num = int(event.get("iteration", 0))
                         timestamp = event.get("timestamp", "")
@@ -223,9 +220,7 @@ def export_timeseries(results_tsv: Path, spiral_events: Path, output_file: Path)
     # Check minimum record count
     total_records = sum(len(rows) for rows in by_iteration.values())
     if total_records < 10:
-        raise ValueError(
-            f"Insufficient data: only {total_records} story records found (minimum 10 required)"
-        )
+        raise ValueError(f"Insufficient data: only {total_records} story records found (minimum 10 required)")
 
     iter_timestamps = parse_spiral_events(spiral_events)
     timeseries = aggregate_timeseries(by_iteration, iter_timestamps)
