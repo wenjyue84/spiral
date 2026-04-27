@@ -402,3 +402,76 @@ def test_persistence(tmp_path: Path) -> None:
     stats = cache2.stats()
     assert "hit_count" in stats
     assert "miss_count" in stats
+
+
+# ── Tests for US-1317: Phase R cache integration with telemetry ────────────
+
+
+def test_phase_r_cache_hit_skips_api(tmp_path: Path) -> None:
+    """AC1: Phase R skips Gemini API call when cache returns a hit."""
+    from unittest.mock import MagicMock
+
+    from lib.phases.phase_r import PhaseRCache
+
+    cache_path = str(tmp_path / "research_cache.json")
+
+    # Create cache and pre-populate with a result
+    cache = PhaseRCache(cache_path=cache_path)
+    cached_result = {"research": "pre-fetched content"}
+    cache.cache.put("gemini-research-topic", cached_result)
+
+    # Mock fetch function (simulates Gemini API)
+    fetch_mock = MagicMock(return_value={"research": "new content from API"})
+
+    # Call get_or_fetch with cache hit
+    result = cache.get_or_fetch("gemini-research-topic", fetch_mock)
+
+    # Verify: result is from cache, fetch function not called
+    assert result == cached_result
+    fetch_mock.assert_not_called()
+
+
+def test_telemetry_written(tmp_path: Path) -> None:
+    """AC2: After Phase R run, .spiral/research_telemetry.jsonl contains valid JSON line."""
+    import json
+
+    from lib.phases.phase_r import PhaseRCache
+
+    cache_path = str(tmp_path / "research_cache.json")
+    telemetry_path = str(tmp_path / "research_telemetry.jsonl")
+
+    # Create cache and simulate hits/misses
+    cache = PhaseRCache(cache_path=cache_path, telemetry_path=telemetry_path)
+
+    # Simulate: 3 cache misses, store results
+    for i in range(3):
+        cache.cache.get(f"query-{i}")  # Miss
+        cache.cache.put(f"query-{i}", {"result": f"data-{i}"})
+
+    # Simulate: 2 cache hits
+    cache.cache.get("query-0")  # Hit
+    cache.cache.get("query-1")  # Hit
+
+    # Write telemetry
+    cache.append_telemetry()
+
+    # Verify telemetry file exists and contains valid JSON
+    assert Path(telemetry_path).exists()
+
+    with open(telemetry_path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    assert len(lines) == 1
+
+    # Parse JSON and verify required fields
+    telemetry = json.loads(lines[0])
+    assert "ts" in telemetry
+    assert "hit_count" in telemetry
+    assert "miss_count" in telemetry
+    assert "api_calls_saved" in telemetry
+    assert "time_saved_seconds" in telemetry
+
+    # Verify values are correct
+    assert telemetry["hit_count"] == 2
+    assert telemetry["miss_count"] == 3
+    assert telemetry["api_calls_saved"] == 2
+    assert isinstance(telemetry["time_saved_seconds"], (int, float))
