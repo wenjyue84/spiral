@@ -1836,7 +1836,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-27T03:36:44Z"
+      "last_attempted": "2026-04-27T03:36:44Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nPhase E (enrichment) currently has two steps: similar solutions injection and optional Claude-based enrichment. Results.tsv contains historical story attempt data with columns: story_id, status, model, duration_sec, etc.\n\n## Problem Identified\nNo hint recommender exists to analyze historical performance and provide decomposition/model/retry suggestions before Phase I implementation begins. This means Ralph doesn't benefit from patterns learned from past story failures.\n\n## Planned Changes\n- Create `lib/hint_recommender.py` with `analyze_story_cohort()` and `suggest_hints_from_history()` functions\n- Update `lib/phases/phase_e_enrich.sh` to call hint recommender and patch story._hints before Phase I\n- Create `tests/test_hint_recommender.py` with 3 test cases covering schema, model escalation, and prd.json persistence\n\n<plan>\n{\n  \"files_to_create\": [\"lib/hint_recommender.py\", \"tests/test_hint_recommender.py\"],\n  \"files_to_modify\": [\"lib/phases/phase_e_enrich.sh\"],\n  \"functions_to_add\": [\"analyze_story_cohort\", \"suggest_hints_from_history\"],\n  \"estimated_loc\": 200\n}\n</plan>\n\nNow I'll implement the solution:\nPerfect! I have successfully implemented story **US-1299: Phase E: Hint recommender from story attempt history**. Here's a summary of what was completed:\n\n## Implementation Summary"
+      }
     },
     {
       "id": "US-1300",

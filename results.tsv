@@ -155,5 +155,6 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-27T00:28:11Z	25	1	US-1293	spiral-ui: Add /api/tests/latest and /api/tests/rerun backend endpoints	keep	768	sonnet	0	50727e3ef5da2e1a8406a02a8bec0e0844a52cb1	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-27T01:15:28Z	26	1	US-1294	spiral-ui: Add Tests tab frontend component with SSE re-run streaming	keep	850	haiku	0	32be2db518ca72ee5c4372ffd48bc0f8ae934b5d	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-27T01:46:09Z	27	1	US-1295	[E2E Test] spiral-ui ActivityLogTable: filter by status and open detail modal	reject	485	haiku	1		69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
-2026-04-27T02:41:00Z	29	1	US-1296	[Regression Test] Meta-Harness: Success-Pattern Library appends on zero-retry pass	keep	785	haiku	0	8a52c4a8c0dc5ffdeb32a0e094451c90678a2679	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-04-27T03:04:47Z	30	1	US-1321	[Security Test] history_search: no sensitive data exposed in FTS5 query results	keep	563	haiku	0	57a8a5c2cf3805cc877dbda59661b1594cdd59a1	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-27T02:41:00Z	29	1	US-1296	[Regression Test] Meta-Harness: Success-Pattern Library appends on zero-retry pass	keep	785	haiku	0	8a52c4a8c0dc5ffdeb32a0e094451c90678a2679	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-27T03:04:47Z	30	1	US-1321	[Security Test] history_search: no sensitive data exposed in FTS5 query results	keep	563	haiku	0	57a8a5c2cf3805cc877dbda59661b1594cdd59a1	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-27T03:36:41Z	31	1	US-1298	spiral-ui frontend: ThroughputMetrics widget on Dashboard with auto-refresh	keep	762	haiku	0	8ff508883aa205ce33fd00dd3f661f705445b262	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0

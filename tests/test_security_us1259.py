@@ -176,9 +176,7 @@ class TestFindSimilarAttemptsSecurity:
 
             expected_keys = {"story_id", "model", "outcome", "duration", "cost"}
             for result in results:
-                assert set(result.keys()) == expected_keys, (
-                    f"Expected only {expected_keys}, got {set(result.keys())}"
-                )
+                assert set(result.keys()) == expected_keys, f"Expected only {expected_keys}, got {set(result.keys())}"
 
     def test_malformed_query_no_unhandled_exception(self) -> None:
         """Malformed queries raise ValueError or return empty, not unhandled sqlite3 exception."""
