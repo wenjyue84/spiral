@@ -1035,3 +1035,39 @@ Completed: Worker Heartbeat and Stall Detection: Auto-Restart Failed Workers (ID
 
 ## Iteration 2 - Mon, Apr 27, 2026  4:18:36 PM
 Completed: Regression Test: worker crash respawn completes pending stories (US-1211b) (ID: US-1318) in 4m
+
+## Iteration - Story: US-1319 - Regression Test: prd.include merges stories with namespace prefixes
+
+### What was implemented
+- Created `tests/fixtures/base_prd.json` fixture with prd.include directive
+  - Includes subproject_web_prd.json as a federated sub-project
+  - Defines 1 story in the main PRD (US-1) and 2 stories in the subproject (US-100, US-101)
+- Added `test_include_merges_with_prefix()` to `tests/test_federated_prd.py`
+  - Calls load_with_includes() on base_prd.json
+  - Validates merged stories contain namespace-prefixed IDs
+  - Asserts subproject stories have 'subproject_web:' prefix
+  - Tests that namespace prefixing logic is applied correctly
+
+### Patterns discovered
+- Namespace detection from include paths: "subproject_web_prd.json" → "subproject_web" prefix
+- The load_with_includes() function automatically detects namespace from filename
+- Include path processing differs from root file processing in namespace extraction
+- Regression tests for federated PRD functionality validate core merge logic
+
+### Acceptance criteria met
+- [x] Test passes: `pytest tests/test_federated_prd.py::test_include_merges_with_prefix -v` exits 0
+- [x] Merged story list contains 3 stories (1 base + 2 included)
+- [x] Stories with IDs prefixed 'subproject_web:' matching those in subproject_web_prd.json
+- [x] Test validates namespace-prefix logic (fails if logic is removed)
+
+### Test results
+- test_include_merges_with_prefix: ✅ PASSED
+- All 9 tests in test_federated_prd.py pass
+- ruff formatted code: all checks clean
+- All acceptance criteria verified
+
+### Verified end-to-end
+- `uv run pytest tests/test_federated_prd.py::test_include_merges_with_prefix -v` passes
+- Full test suite `pytest tests/test_federated_prd.py -v` passes all 9 tests
+- prd.json marked US-1319 as passes: true
+- Git commit created with proper message
