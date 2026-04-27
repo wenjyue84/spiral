@@ -453,3 +453,17 @@ if [[ "$EXPORT_PROGRESS_MODE" -eq 1 ]]; then
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/export_progress.py" "${_EP_ARGS[@]}"
   exit $?
 fi
+
+# ── batch: execute batch operations on multiple stories (mark-done, retrigger) ─
+BATCH_MODE="${BATCH_MODE:-0}"
+BATCH_OPERATION="${BATCH_OPERATION:-}"
+BATCH_STORIES_FILE="${BATCH_STORIES_FILE:-}"
+if [[ "$BATCH_MODE" -eq 1 ]]; then
+  if [[ -z "$BATCH_OPERATION" ]] || [[ -z "$BATCH_STORIES_FILE" ]]; then
+    echo "Error: batch requires <operation> and --stories-file <file>" >&2
+    exit 1
+  fi
+  _BATCH_ARGS=("$BATCH_OPERATION" "--stories-file" "$BATCH_STORIES_FILE" "--project-root" "$REPO_ROOT")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/batch_operations.py" "${_BATCH_ARGS[@]}"
+  exit $?
+fi

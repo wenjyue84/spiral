@@ -10,8 +10,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from hint_recommender import (
     analyze_story_cohort,
     enrich_stories_with_hints,
-    load_prd,
-    load_results_tsv,
     suggest_hints_from_history,
 )
 
@@ -90,9 +88,7 @@ class TestSuggestHintsSchema:
 class TestLowHaikuPassRateEscalatesModel:
     """Test model escalation when haiku pass rate is low."""
 
-    def test_low_haiku_pass_rate_escalates_model(
-        self, tmp_path: Path
-    ) -> None:
+    def test_low_haiku_pass_rate_escalates_model(self, tmp_path: Path) -> None:
         """Test that recommended_model is 'sonnet' when haiku pass rate < 50%."""
         # Create results.tsv with 3 haiku failures and 1 success (25% pass rate)
         results = [
@@ -150,9 +146,7 @@ class TestLowHaikuPassRateEscalatesModel:
 class TestHintsPersistToPrd:
     """Test that hints are persisted to prd.json structure."""
 
-    def test_hints_persisted_to_prd(
-        self, tmp_path: Path
-    ) -> None:
+    def test_hints_persisted_to_prd(self, tmp_path: Path) -> None:
         """Test that enrich_stories_with_hints adds _hints to stories."""
         results = [
             {
@@ -191,9 +185,7 @@ class TestHintsPersistToPrd:
 class TestAnalizeStoryCohort:
     """Test cohort analysis by complexity band and model."""
 
-    def test_analyze_story_cohort(
-        self, tmp_path: Path
-    ) -> None:
+    def test_analyze_story_cohort(self, tmp_path: Path) -> None:
         """Test that analyze_story_cohort groups by complexity and calculates pass rate."""
         results = [
             {
@@ -245,9 +237,7 @@ class TestAnalizeStoryCohort:
 class TestDecompositionSuggestion:
     """Test decomposition suggestion logic."""
 
-    def test_decomposition_from_many_files(
-        self, tmp_path: Path
-    ) -> None:
+    def test_decomposition_from_many_files(self, tmp_path: Path) -> None:
         """Test that stories with >5 files suggest decomposition."""
         results: list[dict[str, str]] = []
 
@@ -261,13 +251,9 @@ class TestDecompositionSuggestion:
 
         hints = suggest_hints_from_history(story, results)
 
-        assert hints["decomposition_suggested"] is True or isinstance(
-            hints["decomposition_suggested"], str
-        )
+        assert hints["decomposition_suggested"] is True or isinstance(hints["decomposition_suggested"], str)
 
-    def test_decomposition_from_previous_failures(
-        self, tmp_path: Path
-    ) -> None:
+    def test_decomposition_from_previous_failures(self, tmp_path: Path) -> None:
         """Test that stories with retry_num >= 2 suggest decomposition."""
         results = [
             {

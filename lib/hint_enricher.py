@@ -86,9 +86,7 @@ def enrich_with_hints(
 
 def main() -> int:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Enrich stories with hints from attempt history (Phase E step 1.5)"
-    )
+    parser = argparse.ArgumentParser(description="Enrich stories with hints from attempt history (Phase E step 1.5)")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
     parser.add_argument("--results", required=True, help="Path to results.tsv")
     parser.add_argument("--enriched-in", required=True, help="Path to input enriched stories")

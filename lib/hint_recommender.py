@@ -53,9 +53,7 @@ def load_results_tsv(path: str) -> list[dict[str, str]]:
         return []
 
 
-def analyze_story_cohort(
-    results: list[dict[str, str]], complexity: str
-) -> dict[str, dict[str, Any]]:
+def analyze_story_cohort(results: list[dict[str, str]], complexity: str) -> dict[str, dict[str, Any]]:
     """
     Analyze pass rates by model for a given complexity band.
 
@@ -95,9 +93,7 @@ def analyze_story_cohort(
     return dict(stats)
 
 
-def suggest_hints_from_history(
-    story: dict[str, Any], results: list[dict[str, str]]
-) -> dict[str, Any]:
+def suggest_hints_from_history(story: dict[str, Any], results: list[dict[str, str]]) -> dict[str, Any]:
     """
     Suggest hints for a story based on historical attempt data.
 
@@ -154,9 +150,7 @@ def suggest_hints_from_history(
     return hints
 
 
-def enrich_stories_with_hints(
-    stories: list[dict[str, Any]], results: list[dict[str, str]]
-) -> list[dict[str, Any]]:
+def enrich_stories_with_hints(stories: list[dict[str, Any]], results: list[dict[str, str]]) -> list[dict[str, Any]]:
     """
     Enrich a list of stories with hints from attempt history.
 
@@ -179,14 +173,10 @@ def enrich_stories_with_hints(
 
 def main() -> int:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Analyze story attempt history and recommend hints for implementation"
-    )
+    parser = argparse.ArgumentParser(description="Analyze story attempt history and recommend hints for implementation")
     parser.add_argument("--results", required=True, help="Path to results.tsv")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
-    parser.add_argument(
-        "--story-id", help="Optional: specific story ID to get hints for (for testing)"
-    )
+    parser.add_argument("--story-id", help="Optional: specific story ID to get hints for (for testing)")
     parser.add_argument("--dry-run", action="store_true", help="Print results without writing")
 
     args = parser.parse_args()
