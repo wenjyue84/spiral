@@ -1,10 +1,7 @@
 """Tests for spiral-ui /api/tests/latest and /api/tests/rerun endpoints (US-1294)."""
 
-import json
 import tempfile
 from pathlib import Path
-
-import pytest
 
 
 class TestTestsLatestEndpoint:
@@ -14,13 +11,7 @@ class TestTestsLatestEndpoint:
         """Endpoint returns JSON array of test results."""
         # Test structure: test should have id, name, status, duration, file
         test_data = [
-            {
-                "id": "test-1",
-                "name": "example.test.ts",
-                "status": "passed",
-                "duration": 1.23,
-                "file": "results.tsv:1"
-            }
+            {"id": "test-1", "name": "example.test.ts", "status": "passed", "duration": 1.23, "file": "results.tsv:1"}
         ]
         assert isinstance(test_data, list)
         assert all("id" in t and "name" in t and "status" in t for t in test_data)
@@ -28,7 +19,7 @@ class TestTestsLatestEndpoint:
     def test_parses_results_tsv(self) -> None:
         """Endpoint parses results.tsv and extracts test results."""
         # Create a temporary results.tsv file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.tsv', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False) as f:
             f.write("story_id\tstatus\tduration_sec\tother\n")
             f.write("US-1234\tpassed\t1\textra\n")
             f.write("US-1235\tfailed\t2\textra\n")
@@ -36,7 +27,7 @@ class TestTestsLatestEndpoint:
 
         try:
             # Parse the TSV file
-            with open(tsv_path, encoding='utf-8') as f:
+            with open(tsv_path, encoding="utf-8") as f:
                 lines = f.readlines()
 
             assert len(lines) == 3
@@ -55,24 +46,12 @@ class TestTestsLatestEndpoint:
         """Test results have valid status values: passed, failed, error, unknown."""
         statuses = ["passed", "failed", "error", "unknown"]
         for status in statuses:
-            test = {
-                "id": "test-1",
-                "name": "test.ts",
-                "status": status,
-                "duration": 1.0,
-                "file": "test.ts:1"
-            }
+            test = {"id": "test-1", "name": "test.ts", "status": status, "duration": 1.0, "file": "test.ts:1"}
             assert test["status"] in statuses
 
     def test_duration_is_numeric(self) -> None:
         """Duration field should be numeric (in seconds)."""
-        test = {
-            "id": "test-1",
-            "name": "test.ts",
-            "status": "passed",
-            "duration": 1.23,
-            "file": "test.ts:1"
-        }
+        test = {"id": "test-1", "name": "test.ts", "status": "passed", "duration": 1.23, "file": "test.ts:1"}
         assert isinstance(test["duration"], (int, float))
         assert test["duration"] >= 0
 
@@ -82,28 +61,16 @@ class TestTestsRerunEndpoint:
 
     def test_sse_response_headers(self) -> None:
         """SSE endpoint returns correct response headers."""
-        headers = {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive'
-        }
-        assert headers['Content-Type'] == 'text/event-stream'
-        assert headers['Cache-Control'] == 'no-cache'
-        assert headers['Connection'] == 'keep-alive'
+        headers = {"Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive"}
+        assert headers["Content-Type"] == "text/event-stream"
+        assert headers["Cache-Control"] == "no-cache"
+        assert headers["Connection"] == "keep-alive"
 
     def test_sse_message_format(self) -> None:
         """SSE messages have correct format (JSON with type and content)."""
         messages = [
-            {
-                "type": "log",
-                "content": "Running test...",
-                "timestamp": "2026-04-27T12:00:00Z"
-            },
-            {
-                "type": "complete",
-                "status": "passed",
-                "duration": 1.23
-            }
+            {"type": "log", "content": "Running test...", "timestamp": "2026-04-27T12:00:00Z"},
+            {"type": "complete", "status": "passed", "duration": 1.23},
         ]
 
         for msg in messages:
@@ -120,7 +87,7 @@ class TestTestsRerunEndpoint:
         stream = [
             {"type": "log", "content": "msg1"},
             {"type": "log", "content": "msg2"},
-            {"type": "complete", "status": "passed"}
+            {"type": "complete", "status": "passed"},
         ]
         assert stream[-1]["type"] == "complete"
 

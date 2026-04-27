@@ -86,4 +86,3 @@ This technical brief is for a **React/Playwright E2E test**, not a Frappe/Python
 *   Use stable, test-specific selectors like `data-testid` to avoid flaky tests.
 *   Leverage Playwright's auto-waiting locators to handle asynchronous UI updates after filtering or opening the modal.
 *   The final command `npx playwright test spiral-ui/tests/e2e/activity-log.spec.ts` must exit with code 0.
-
