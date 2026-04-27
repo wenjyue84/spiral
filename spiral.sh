@@ -173,6 +173,9 @@ COST_ANALYSIS_COMPARE_ITERATION=""           # iteration to compare with (--comp
 EXPORT_PROGRESS_MODE=0                       # 1 = export PRD+results snapshot and exit (export-progress)
 EXPORT_PROGRESS_FORMAT="json"                # json|zip output format
 EXPORT_PROGRESS_OUTPUT=""                    # output file path (default: timestamped)
+BATCH_MODE=0                                 # 1 = execute batch operation and exit (batch)
+BATCH_OPERATION=""                           # mark-done or retrigger
+BATCH_STORIES_FILE=""                        # path to file with story IDs
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -517,6 +520,20 @@ while [[ $# -gt 0 ]]; do
             ;;
           --output)
             EXPORT_PROGRESS_OUTPUT="${2:-}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
+    batch)
+      BATCH_MODE=1
+      BATCH_OPERATION="${2:-}"
+      shift 2
+      while [[ $# -gt 0 ]] && [[ "$1" == --stories-file ]]; do
+        case $1 in
+          --stories-file)
+            BATCH_STORIES_FILE="${2:-}"
             shift 2
             ;;
           *) break ;;

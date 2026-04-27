@@ -12,7 +12,6 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 
 def validate_story_id(story_id: str) -> bool:
@@ -178,8 +177,7 @@ def run_batch(
 if __name__ == "__main__":
     if len(sys.argv) < 4:
         print(
-            "Usage: batch_operations.py <operation> --stories-file <file> "
-            "--project-root <root>",
+            "Usage: batch_operations.py <operation> --stories-file <file> --project-root <root>",
             file=sys.stderr,
         )
         sys.exit(1)
