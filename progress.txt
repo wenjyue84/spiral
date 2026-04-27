@@ -260,3 +260,32 @@ Completed: Phase E: Hint recommender from story attempt history (ID: US-1299) in
 - [x] Authenticated POST /api/config with valid payload returns 200 (not 401/403)
 ## Iteration 1 - Mon, Apr 27, 2026 12:03:15 PM
 Completed: [Security Test] Config API: verify auth enforcement on POST /api/config (ID: US-1325) in 2m
+
+## Iteration 1 - Mon, Apr 27, 2026 12:10:00 PM
+Completed: [Security Test] Settings Tab: verify config endpoints reject unauthenticated callers (ID: US-1326) in 7m
+
+### What was implemented
+- Updated tests/test_security_us1215.py to mirror structure of test_security_us1214.py
+- 6 tests for GET /api/config and POST /api/config endpoints
+  - test_post_config_no_auth_returns_401_or_403: verifies POST rejects unauthenticated requests
+  - test_get_config_no_auth_returns_401_or_403: verifies GET rejects unauthenticated requests
+  - test_post_config_error_response_contains_no_secrets: verifies error responses don't leak sensitive keywords
+  - test_get_config_error_response_contains_no_secrets: verifies error responses don't leak sensitive keywords
+  - test_post_config_valid_key_allowed: verifies authenticated POST with valid key succeeds
+  - test_get_config_valid_key_allowed: verifies authenticated GET with valid key succeeds
+
+### Patterns discovered
+- Security test naming convention: test_security_us<feature-id>.py
+- Reusing TestClient fixture from FastAPI for in-process endpoint testing
+- Sensitive keyword list: password, secret, token, api_key, anthropic, private_key
+- X-API-Key header authentication for dashboard API endpoints
+
+### Acceptance criteria met
+- [x] GET /api/config without credentials returns 401 or 403
+- [x] POST /api/config without credentials returns 401 or 403  
+- [x] Error response bodies contain no 'token', 'password', or 'secret' keywords
+
+### Test results
+All 6 tests passing (100%)
+Commit: ddf9a5ba (test security: US-1326)
+
