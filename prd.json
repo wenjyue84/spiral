@@ -2250,8 +2250,9 @@
         "US-1211"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-27T08:13:51Z"
     },
     {
       "id": "US-1319",
@@ -2598,7 +2599,8 @@
       "last_attempted": "2026-04-27T08:04:01Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe SPIRAL system already has `lib/worker_heartbeat.sh` that writes heartbeat files from workers. However, the Python-based heartbeat monitoring module and the stall detection/handling logic don't exist yet. The story requires creating a `HeartbeatSender` class for workers to emit heartbeats to a JSON log, and a `HeartbeatMonitor` class that detects stalls and handles them via defer or reassign strategies.\n\n## Problem Identified\nUS-1342 requires implementing periodic heartbeat monitoring with stall detection and auto-recovery for Ralph workers. Currently there's no Python module to:\n1. Send heartbeats from workers to a JSON log\n2. Monitor heartbeats in the parent process\n3. Detect stalled workers (no heartbeat for 60s)\n4. Log crashes and handle via strategy (defer or reassign)\n\n## Planned Changes\n- Create `lib/worker_heartbeat_monitor.py` with `HeartbeatSender`, `HeartbeatMonitor` classes, and helper functions\n- Create `tests/test_worker_heartbeat.py` with stall detection and redirect tests\n- Edit `lib/run_parallel_ralph.sh` to spawn heartbeat sender and monitor processes\n\n<plan>\n{\n  \"files_to_create\": [\n    \"lib/worker_heartbeat_monitor.py\",\n    \"tests/test_worker_heartbeat.py\"\n  ],\n  \"files_to_modify\": [\n    \"lib/run_parallel_ralph.sh\"\n  ],\n  \"functions_to_add\": [\n    \"HeartbeatSender.emit\",\n    \"HeartbeatMonitor.check_all\",\n    \"_terminate_worker\",\n    \"test_stall_detection_and_redirect\"\n  ],\n  \"estimated_loc\": 220\n}\n</plan>\n\nNow let me implement the solution:\nNow let me edit lib/run_parallel_ralph.sh to integrate heartbeat monitoring. First, let me find where workers are launched:\nNow let me edit lib/run_parallel_ralph.sh to add heartbeat monitoring in the worker loop:\nLet me update the heartbeat_monitor.py to have a proper CLI interface:\nNow let me run the tests to verify the implementation:\nGreat! All tests pass. Now let me verify the acceptance criteria from the story:\nNow let me run quality checks before committing:\nPerfect! My code passes strict type checking. Now let me run the full test suite to ensure everything still works:\nExcellent! All tests pass. Now let me commit the changes:\nNow let me update prd.json to mark the story as complete:\nPerfect! Let me verify one final time that all acceptance criteria are met:\nPerfect! All acceptance criteria verified. Let me create a summary:\n\n## Summary"
-      }
+      },
+      "_passedCommit": "3486e954da7d432f0a811e582f69a4067b6437c4"
     }
   ]
 }

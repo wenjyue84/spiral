@@ -163,7 +163,7 @@ class TestSpiralE2EIntegration:
         assert rows[1][1] == "sonnet", f"Row 1 model should be sonnet, got {rows[1][1]}"
         assert rows[1][2] == "pass", f"Row 1 status should be pass, got {rows[1][2]}"
 
-    def test_us1211_worker_crash_respawn(self, tmp_path: Path) -> None:  # noqa: ARG002
+    def test_worker_crash_recovery_us1211(self, tmp_path: Path) -> None:  # noqa: ARG002
         """Regression test for US-1211: worker crash detection and respawn.
 
         Acceptance Criteria:
