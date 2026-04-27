@@ -1654,8 +1654,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-26T23:54:52Z"
     },
     {
       "id": "US-1292",
@@ -2006,7 +2007,8 @@
       "last_attempted": "2026-04-26T23:47:41Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n- **retry.sh** has failure categorization logic that classifies failures into 8 types (missing_dependency, syntax_error, type_error, test_assertion, timeout, oom, context_overflow, other)\n- **failure_categorizer.py** already categorizes failures from stderr\n- **results.tsv** exists with 19 columns but NO \"hint\" column yet\n- **get_error_hints()** in retry.sh exists but returns simple text strings, not structured hints with actions\n\n## Problem Identified\nThe story requires enriching error messages with recovery hints indexed by failure type. Currently:\n1. Failure types are detected but hints are generic text strings\n2. Hints are not stored in results.tsv for later retrieval by spiral-ui\n3. Hints don't include actionable recovery steps (e.g., \"View decomposition\", \"Increase budget\")\n\n## Planned Changes\n1. Create `lib/error_hints.py` with `FailureHintMapper` class mapping 8 failure types → structured hints (suggestion + action)\n2. Create `tests/test_error_hints.py` validating 8+ failure pattern→hint mappings with regex\n3. Update `lib/impl/retry.sh` to invoke error_hints.py and append hint column to results.tsv\n\n<plan>\n{\n  \"files_to_create\": [\"lib/error_hints.py\", \"tests/test_error_hints.py\"],\n  \"files_to_modify\": [\"lib/impl/retry.sh\"],\n  \"functions_to_add\": [\"FailureHintMapper\", \"generate_hint\"],\n  \"estimated_loc\": 200\n}\n</plan>\n\nNow I'll implement the three components:\nNow I'll update retry.sh to integrate error_hints.py. Based on the story_lifecycle.sh structure, I need to add a function that enriches results.tsv with hints:\nNow let me run the tests to verify everything works:\nI have two test failures due to pattern matching issues. Let me fix the patterns in error_hints.py:\nExcellent! All 21 tests pass. Now let me run quality checks:\nThe pre-commit checks pass for my new files (ruff lint/format passed). The mypy errors are pre-existing in other files. Let me now check the git status and commit:\n## Summary"
-      }
+      },
+      "_passedCommit": "dd890ae215b657d82026081e25bad75df902485b"
     }
   ]
 }
