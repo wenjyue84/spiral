@@ -1656,7 +1656,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-26T23:54:52Z"
+      "last_attempted": "2026-04-26T23:54:52Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe story US-1291 for `spiral cost-analysis` command is mostly implemented but **missing phase cost breakdown**. The story requires showing \"cost per phase (A/R/T/S/E/M/X/G/I/V/C/L)\" with a `compute_phase_costs()` function, but this is not present in cost_analysis.py.\n\n## Problem Identified\n- Current implementation shows costs by model and iteration ✓\n- Acceptance criterion #1 requires cost breakdown **by phase** (A/R/T/S/E/M/X/G/I/V/C/L) ✗\n- Phase information exists in `.spiral/spiral_events.jsonl` but isn't being parsed\n- Missing `compute_phase_costs()` function mentioned in technical notes\n\n## Planned Changes\n1. Update `lib/cost_analysis.py` to:\n   - Add `parse_spiral_events()` to extract phase timings\n   - Add `compute_phase_costs()` function\n   - Update text/JSON output to include phase breakdown\n2. Add tests for phase cost computation\n3. Update spiral.sh phase timing storage to enable cost tracking\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"lib/cost_analysis.py\", \"tests/test_cost_analysis.py\"],\n  \"functions_to_add\": [\"parse_spiral_events\", \"compute_phase_costs\"],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me implement the phase cost tracking:\nPerfect! I have successfully completed story **US-1291**. Here's a summary of the implementation:\n\n## Summary"
+      }
     },
     {
       "id": "US-1292",

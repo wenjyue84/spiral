@@ -147,6 +147,7 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-26T22:31:36Z	21	2	US-1309	spiral-ui: Tests tab React component with story grid and detail modal	keep	650	haiku	0	0b79901fd1e826d8790d05ff193a9f1311ae99b9	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-26T22:38:00Z	21	3	US-1286	CLI: Add `spiral search <query>` command for federated story discovery across main and sub-projects	keep	243	sonnet	0	3054ba83d8bdf8a16b5fa2fd78eac9f0bff215aa	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-26T23:00:44Z	22	1	US-1288	CLI: Add spiral metrics export-timeseries to export token burn and story throughput as time series JSON	keep	672	haiku	0	12f03f493dd3d16a4148e2bbbcf6c6f8e74396f3	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
-2026-04-26T23:18:02Z	23	1	US-1289	CLI: `spiral snapshot save` and `snapshot restore` commands	reject	360	haiku	1		69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-04-26T23:23:11Z	23	2	US-1289	CLI: `spiral snapshot save` and `snapshot restore` commands	keep	160	sonnet	1	0925e61f10f85a163ad9b5372b35584ffece5365	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-04-26T23:36:32Z	23	3	US-1290	CLI: `spiral snapshot list` command with ASCII table and --json flag	keep	778	haiku	0	c8eba7330faa0a649fe46eb754d0e065eac63660	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-26T23:18:02Z	23	1	US-1289	CLI: `spiral snapshot save` and `snapshot restore` commands	reject	360	haiku	1		69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-26T23:23:11Z	23	2	US-1289	CLI: `spiral snapshot save` and `snapshot restore` commands	keep	160	sonnet	1	0925e61f10f85a163ad9b5372b35584ffece5365	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-26T23:36:32Z	23	3	US-1290	CLI: `spiral snapshot list` command with ASCII table and --json flag	keep	778	haiku	0	c8eba7330faa0a649fe46eb754d0e065eac63660	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-26T23:54:50Z	24	1	US-1315	Phase I: Enrich error messages with recovery hints indexed by failure type	keep	401	haiku	0	dd890ae215b657d82026081e25bad75df902485b	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
