@@ -214,3 +214,20 @@ All 6 tests passing (100%)
 Commit: f2154789 (code implementation) + 04dd73a3 (mark as passed)
 ## Iteration 2 - Mon, Apr 27, 2026 11:47:37 AM
 Completed: Phase E: Hint recommender from story attempt history (ID: US-1299) in 10m
+
+## Iteration N - Story: US-1325 - [Security Test] Config API: verify auth enforcement on POST /api/config
+
+### What was implemented
+- tests/test_security_us1214.py already existed and was complete
+- 6 tests all pass: auth enforcement (401/403), no secret leakage in errors, and authenticated access returns 200
+- No code changes required; story only needed marking as passed
+
+### Patterns discovered
+- lib/dashboard/api.py uses FastAPI with X-API-Key header (SPIRAL_DASHBOARD_API_KEY env var)
+- TestClient from fastapi.testclient used for in-process testing (no real HTTP server needed)
+- monkeypatch.setenv used to inject the API key for auth tests
+
+### Acceptance criteria met
+- [x] POST /api/config without credentials returns HTTP 401 or 403
+- [x] Error response body contains no token, password, or secret key values
+- [x] Authenticated POST /api/config with valid payload returns 200 (not 401/403)
