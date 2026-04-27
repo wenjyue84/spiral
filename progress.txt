@@ -282,10 +282,61 @@ Completed: [Security Test] Settings Tab: verify config endpoints reject unauthen
 
 ### Acceptance criteria met
 - [x] GET /api/config without credentials returns 401 or 403
-- [x] POST /api/config without credentials returns 401 or 403  
+- [x] POST /api/config without credentials returns 401 or 403
 - [x] Error response bodies contain no 'token', 'password', or 'secret' keywords
 
 ### Test results
 All 6 tests passing (100%)
 Commit: ddf9a5ba (test security: US-1326)
 
+## Iteration 1 - Mon, Apr 27, 2026 12:34:05 PM
+Completed: [Security Test] Settings Tab: verify config endpoints reject unauthenticated callers (ID: US-1326) in 5m
+
+## Iteration 33 - Story: US-1302 - CLI: spiral cost-estimate with historical accuracy bounds
+
+### What was implemented
+- Created `lib/cost_estimator.py` with two main functions:
+  - `compute_historical_stats()`: Analyzes results.tsv to compute per-model and per-complexity statistics
+  - `predict_cost_for_n_iterations()`: Projects cost for N iterations with 68% confidence intervals
+- Added CLI command parsing to `spiral.sh`:
+  - New variables: COST_ESTIMATE_MODE, COST_ESTIMATE_ITERATIONS
+  - New case statement: `cost-estimate <num-iterations>`
+- Added handler to `lib/cli_subcommands.sh` to invoke cost_estimator.py
+- Created comprehensive test suite with 10 test cases
+
+### Features
+- Computes variance-based confidence bounds (mean ± 1 std dev = 68% CI)
+- Per-model breakdown showing cost distribution across haiku/sonnet/opus
+- Escalation impact analysis (notes when opus is used and its cost contribution)
+- Outputs both human-readable format and JSON for programmatic use
+- Handles missing/empty results.tsv gracefully
+
+### Example usage
+```bash
+$ bash spiral.sh cost-estimate 5
+Estimated cost for 5 iterations: $0.73 (68% confidence: $0.26 - $1.20) based on 162 historical attempts
+
+Breakdown by model:
+  haiku: 71.0% of stories, $0.077529/story = $0.52 total
+  opus: 3.1% of stories, $1.275360/story = $0.02 total
+  sonnet: 25.9% of stories, $0.199360/story = $0.19 total
+
+Note: Escalation to Opus detected (3.1% of stories) — 0.02 USD from model tier alone
+```
+
+### Test results
+- All 10 tests passing
+- mypy strict mode: no issues
+- shellcheck: no issues
+- Test coverage includes: empty files, missing files, variance bounds, model breakdown, JSON serialization
+
+### Acceptance criteria met
+- [x] Reads results.tsv and computes per-model/complexity statistics
+- [x] Outputs cost estimate with 68% confidence bounds
+- [x] Includes model breakdown with percentages
+- [x] Notes escalation impact on cost
+
+### Patterns discovered
+- CLI subcommands in spiral.sh follow pattern: declare vars → add case statement → add handler in cli_subcommands.sh
+- Cost calculations reuse existing PRICING constants and token estimation patterns
+- Pre-execution path handling via sys.path.insert() needed for standalone script execution
