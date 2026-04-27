@@ -170,6 +170,9 @@ COST_ANALYSIS_MODE=0                         # 1 = run cost-analysis subcommand 
 COST_ANALYSIS_DETAILED=0                     # 1 = show per-story breakdown (--detailed)
 COST_ANALYSIS_JSON=0                         # 1 = output as JSON (--json)
 COST_ANALYSIS_COMPARE_ITERATION=""           # iteration to compare with (--compare-iteration N)
+EXPORT_PROGRESS_MODE=0                       # 1 = export PRD+results snapshot and exit (export-progress)
+EXPORT_PROGRESS_FORMAT="json"               # json|zip output format
+EXPORT_PROGRESS_OUTPUT=""                   # output file path (default: timestamped)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -503,6 +506,23 @@ while [[ $# -gt 0 ]]; do
         esac
       done
       ;;
+    export-progress)
+      EXPORT_PROGRESS_MODE=1
+      shift
+      while [[ $# -gt 0 ]]; do
+        case $1 in
+          --format)
+            EXPORT_PROGRESS_FORMAT="${2:-json}"
+            shift 2
+            ;;
+          --output)
+            EXPORT_PROGRESS_OUTPUT="${2:-}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -592,6 +612,9 @@ while [[ $# -gt 0 ]]; do
       echo "    --detailed                 Show per-story breakdown (top 20 by cost)"
       echo "    --json                     Output as JSON"
       echo "    --compare-iteration N      Compare current iteration to iteration N with delta"
+      echo "  export-progress            Bundle PRD, results, and metrics as a shareable snapshot"
+      echo "    --format json|zip          Output format (default: json)"
+      echo "    --output PATH              Output file path (default: spiral-export-<timestamp>.<ext>)"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --continuous               Never stop — loop back to Phase A after all stories pass"

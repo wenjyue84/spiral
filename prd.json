@@ -1785,8 +1785,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-04-27T03:04:51Z"
     },
     {
       "id": "US-1298",
@@ -2323,7 +2324,8 @@
       "model": "haiku",
       "_phaseI": {
         "diagnosisBlock": "### Current State\n- Story US-1321 requires security tests for `find_similar_attempts()` function in `lib/history_search.py`\n- Acceptance criteria: (1) no 'token', 'api_key', or 'password' fields in results, (2) malformed queries handled safely without raising unhandled sqlite3 exceptions, (3) all tests pass\n- File `tests/test_security_us1259.py` exists but contains FastAPI endpoint tests, not direct function tests\n- The `lib/history_search.py` already has proper input sanitization and error handling\n\n### Problem Identified\nThe story requires tests specifically for `find_similar_attempts()` function behavior regarding sensitive data exposure and malformed query handling. The existing tests focus on FastAPI endpoint security, not the underlying function behavior. I need to add direct unit tests for the function.\n\n### Planned Changes\n- Add a new test class `TestFindSimilarAttemptsSecurity` to `tests/test_security_us1259.py` that tests:\n  1. No sensitive fields in returned dicts (token, api_key, password)\n  2. Malformed queries are handled gracefully (no unhandled exceptions)\n  3. Query sanitization prevents FTS parse errors\n  4. Sensitive data in results.tsv (like tokens) is not exposed in search results\n- Verify all tests pass with `uv run pytest tests/test_security_us1259.py -v`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_security_us1259.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 80\n}\n</plan>\n**Story US-1321 Complete** ✅\n\nI've successfully implemented security tests for the `find_similar_attempts()` function in `lib/history_search.py`. Here's what was done:\n\n### Implementation Summary"
-      }
+      },
+      "_passedCommit": "57a8a5c2cf3805cc877dbda59661b1594cdd59a1"
     }
   ]
 }

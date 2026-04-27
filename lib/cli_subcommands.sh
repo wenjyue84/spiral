@@ -440,3 +440,16 @@ if [[ "$SNAPSHOT_MODE" -eq 1 ]]; then
     exit $?
   fi
 fi
+
+# ── export-progress: bundle PRD, results, and metrics as a shareable snapshot ─
+EXPORT_PROGRESS_MODE="${EXPORT_PROGRESS_MODE:-0}"
+EXPORT_PROGRESS_FORMAT="${EXPORT_PROGRESS_FORMAT:-json}"
+EXPORT_PROGRESS_OUTPUT="${EXPORT_PROGRESS_OUTPUT:-}"
+if [[ "$EXPORT_PROGRESS_MODE" -eq 1 ]]; then
+  _EP_ARGS=("--format" "$EXPORT_PROGRESS_FORMAT" "--project-root" "$REPO_ROOT")
+  [[ -n "$EXPORT_PROGRESS_OUTPUT" ]] && _EP_ARGS+=("--output" "$EXPORT_PROGRESS_OUTPUT")
+  _EP_ITER="${SPIRAL_ITERATION:-0}"
+  _EP_ARGS+=("--iteration" "$_EP_ITER")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/export_progress.py" "${_EP_ARGS[@]}"
+  exit $?
+fi

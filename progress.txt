@@ -89,3 +89,29 @@ This technical brief is for a **React/Playwright E2E test**, not a Frappe/Python
 ## Iteration 1 - Mon, Apr 27, 2026 10:41:00 AM
 Completed: [Regression Test] Meta-Harness: Success-Pattern Library appends on zero-retry pass (ID: US-1296) in 13m
 
+## Iteration 1 - Mon, Apr 27, 2026 11:04:47 AM
+Completed: [Security Test] history_search: no sensitive data exposed in FTS5 query results (ID: US-1321) in 9m
+
+
+## Iteration 29 - Story: US-1297 - CLI: Add spiral export-progress command
+
+### What was implemented
+- Created `lib/export_progress.py` with `export_json()` and `export_zip()` functions
+- JSON export bundles prd.json, results.tsv, learning.md, loop_quality.jsonl with schema: { prd, results, learning, loopQuality, metadata }
+- ZIP export bundles prd.json, results.tsv, learning.md, retry-counts.json, README.md
+- Metadata includes: iteration, timestamp, passCount, failCount, totalCost, sha256 checksum
+- Timestamped filenames: spiral-export-<ISO8601>.json / .zip
+- Added `EXPORT_PROGRESS_MODE` var + `export-progress` case in `spiral.sh` (vars, arg parsing, help text)
+- Added handler in `lib/cli_subcommands.sh` after SNAPSHOT_MODE block
+- Created `tests/test_export_progress.py` with 4 tests (all passing)
+
+### Patterns discovered
+- cli_subcommands.sh: vars default at top of each block (`VAR="${VAR:-0}"`), then check mode, then call Python
+- spiral.sh: declare mode vars in the global block (lines ~120-175), parse in `case $1 in` block
+- Help text: echo each option with consistent indentation (2 spaces + subcommand, 4 spaces + flags)
+- Missing optional source files (learning.md, loop_quality.jsonl) handled gracefully — return empty string/list
+
+### Acceptance criteria met
+- [x] JSON schema: { prd, results, learning, loopQuality, metadata: { iteration, timestamp, passCount, failCount, totalCost, checksum } }
+- [x] ZIP archive with prd.json, results.tsv, learning.md, retry-counts.json, README.md
+- [x] sha256 checksum in metadata; timestamped filename
