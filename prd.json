@@ -2170,7 +2170,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-27T06:18:20Z"
+      "last_attempted": "2026-04-27T06:18:20Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- Phase G exists in `lib/observability/auto_release.py` with `generate_api_docs()` and `embed_git_frontmatter_in_docs()` functions\n- Test file `tests/test_phase_g_api_docs.py` already exists but tests the observability version\n- pdoc 16.0.0 is installed\n- docs/ directory exists\n\n## Problem Identified\nStory US-1314 requires creating a standalone **lib/api_docs_generator.py** that:\n1. Can be invoked via CLI: `uv run python lib/api_docs_generator.py lib/ --output docs/api/`\n2. Generates HTML API documentation from lib/ modules using pdoc\n3. Produces an index.html with cross-module navigation links\n4. Excludes test files\n\n## Planned Changes\n1. Create **lib/api_docs_generator.py** (~120 lines)\n   - CLI argument parsing for source_dir and --output\n   - Use pdoc.render() to generate HTML docs\n   - Create index.html with module links\n   \n2. Create **tests/test_api_docs_generator.py** (~80 lines)\n   - Test CLI invocation\n   - Test HTML output structure\n   - Test cross-module links in index.html\n   - Test command success/failure cases\n\n<plan>\n{\n  \"files_to_create\": [\"lib/api_docs_generator.py\", \"tests/test_api_docs_generator.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"main\", \"generate_api_docs\", \"create_index_html\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow let me implement:\nLet me fix the tests by properly mocking the module imports:\nPerfect! All 18 tests pass. Now let me run quality checks:\nPerfect! Story **US-1314** has been successfully implemented. Here's the summary:\n\n## ✅ Implementation Complete: US-1314"
+      }
     },
     {
       "id": "US-1315",
