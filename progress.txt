@@ -919,3 +919,21 @@ story_id, prompt, decomposition_strategy, response, tokens_used, success, error_
 ## Iteration 2 - Mon, Apr 27, 2026  2:59:07 PM
 Completed: Trajectory Export: Generate JSONL training data from story execution traces (ID: US-1324) in 7m
 
+
+## Iteration N - US-1335: [Security Test] history_search.py: validate FTS5 query sanitization and path safety
+
+### What was implemented
+- Created `tests/test_us_1259_security.py` with 3 security tests:
+  - `test_sql_injection_returns_empty_list`: SQL injection payload `"'; DROP TABLE--"` returns `[]`
+  - `test_history_db_created_at_spiral_relative_path`: DB created at `.spiral/history.db` (relative)
+  - `test_result_keys_are_subset_of_expected`: Result dicts only contain allowed keys
+
+### Patterns discovered
+- `history_search.py` already uses parameterized sqlite3 queries and sanitizes FTS special chars
+- `monkeypatch.chdir(tmp_path)` is the correct way to test default relative path creation
+- Import path: `sys.path.insert(0, "../lib")` then `from history_search import ...`
+
+### Acceptance criteria met
+- [x] AC1: SQL injection payload returns [] without exception
+- [x] AC2: history.db created at .spiral/history.db (relative path, monkeypatch.chdir)
+- [x] AC3: Return keys are subset of {story_id, model, outcome, duration, cost}
