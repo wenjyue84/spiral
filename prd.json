@@ -2297,6 +2297,30 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1321",
+      "title": "[Security Test] history_search: no sensitive data exposed in FTS5 query results",
+      "priority": "high",
+      "description": "Write security tests for lib/history_search.py introduced by US-1259. Verify that find_similar_attempts() never returns raw API tokens or secrets stored in results.tsv, and that the SQLite DB file has appropriate permissions.",
+      "acceptanceCriteria": [
+        "find_similar_attempts() return values contain no field named 'token', 'api_key', or 'password'",
+        "Calling find_similar_attempts() with a malformed query string raises ValueError, not an unhandled sqlite3 exception",
+        "uv run pytest tests/test_security_us1259.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us1259.py (new file — create security test module)",
+        "File to edit: lib/history_search.py (find_similar_attempts function — add input sanitisation if missing)",
+        "Test command: uv run pytest tests/test_security_us1259.py -v",
+        "Seed a temp .spiral/history.db with fixture rows that include a fake 'sk-test-token' value; assert it does not appear in query results",
+        "Use pytest tmp_path fixture to isolate the test DB from the real .spiral/ directory"
+      ],
+      "dependencies": [
+        "US-1259"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
     }
   ]
 }
