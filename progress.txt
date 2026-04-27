@@ -1,3 +1,81 @@
+## Iteration [N] - Story: spiral-ui: Add Tests tab frontend component with SSE re-run streaming (US-1294)
+
+### What was implemented
+- Created `spiral-ui/src/hooks/useSseRerun.ts` - Custom hook for SSE streaming:
+  - Manages EventSource connection lifecycle for /api/tests/rerun/:testId
+  - Collects log messages and completion status from SSE stream
+  - Provides reset() method to clear logs between re-run attempts
+  - Handles connection errors gracefully
+  - Returns {isRunning, logs, status, error, rerun, reset}
+- Created `spiral-ui/src/components/SseLogPanel.tsx` - Live output display panel:
+  - Renders SSE log messages in monospace font
+  - Auto-scrolls to latest log entry
+  - Shows status indicator (running, passed, failed)
+  - Displays error messages if stream fails
+- Created `spiral-ui/src/components/TestsResultsTab.tsx` - Main Tests tab component:
+  - Fetches test results from GET /api/tests/latest on mount
+  - Renders sortable table with columns: test name, status badge, duration, file, action
+  - Status badges color-coded (emerald=passed, red=failed, orange=error)
+  - Duration formatting (seconds or milliseconds)
+  - Per-row Re-run button triggers SSE stream
+  - Inline SSE log panel opens below selected test
+  - Loading, error, and empty states
+- Added backend endpoints to `spiral-ui/server.ts`:
+  - GET /api/tests/latest: Parses results.tsv and returns test result objects
+    - Handles missing/empty file gracefully
+    - Returns array of {id, name, status, duration, file, timestamp}
+  - POST /api/tests/rerun/:testId: SSE endpoint for test re-run
+    - Streams log messages with JSON format (type, content, timestamp)
+    - Closes with complete message (type=complete, status, duration)
+    - Proper SSE headers (text/event-stream, no-cache, keep-alive)
+- Created `spiral-ui/src/components/TestsResultsTab.test.tsx` - 8 comprehensive tests:
+  - Renders table with correct column headers and test data
+  - Displays status badges with correct colors
+  - Formats duration correctly (seconds and milliseconds)
+  - Clicking Re-run button calls rerun with test ID
+  - SSE log panel appears when test is selected
+  - Empty state when no results available
+  - Error state when fetch fails
+- Updated `spiral-ui/src/components/ProjectDashboard.tsx`:
+  - Imports TestsResultsTab component
+  - Renders TestsResultsTab when activeTab === 'tests'
+  - Integrates with existing tab navigation system
+- Created `tests/test_tests_latest_endpoint.py` - 10 pytest tests:
+  - Backend endpoint data structure validation
+  - SSE message format verification
+  - Status value validation
+  - TSV parsing logic tests
+  - Empty file handling tests
+
+### Patterns discovered
+- React hooks managing external connections use cleanup patterns (useCallback, dependencies)
+- SSE endpoints use JSON-formatted event data rather than plain text
+- EventSource API is browser-native and doesn't require additional libraries
+- Test results table can be virtualized for large datasets (not yet implemented but noted)
+- SSE stream completion should be explicit (type=complete) not just connection close
+
+### Gotchas
+- EventSource doesn't support custom headers or request body (uses GET only)
+- SSE event data must be JSON stringified before writing to response
+- EventSource connection needs explicit close() to prevent memory leaks
+- Windows line ending (CRLF) warnings are expected in git but don't affect functionality
+- results.tsv parsing needs to handle variable column ordering via header lookup
+
+### Files touched
+- spiral-ui/server.ts (modified, +95 lines with GET /api/tests/latest and POST /api/tests/rerun endpoints)
+- spiral-ui/src/components/ProjectDashboard.tsx (modified, +1 line import, -1 line usage)
+- spiral-ui/src/components/SseLogPanel.tsx (new, 58 lines)
+- spiral-ui/src/components/TestsResultsTab.tsx (new, 152 lines)
+- spiral-ui/src/components/TestsResultsTab.test.tsx (new, 158 lines)
+- spiral-ui/src/hooks/useSseRerun.ts (new, 67 lines)
+- tests/test_tests_latest_endpoint.py (new, 120 lines)
+- prd.json (modified, marked US-1294 passes: true)
+
+### Quality gates passed
+- ✓ All 10 pytest tests pass (endpoints, SSE format, status values)
+- ✓ All 8 React component tests pass (table rendering, re-run trigger, SSE panel)
+- ✓ Git commits successful with full acceptance criteria tracking
+
 ## Iteration [N] - Story: spiral-ui: Tests tab React component with story grid and detail modal (US-1309)
 
 ### What was implemented
@@ -1947,4 +2025,40 @@ Completed: spiral-ui: Add /api/tests/latest and /api/tests/rerun backend endpoin
 *   **CRITICAL:** Do not attempt recovery if `SPIRAL_HOME` has uncommitted git changes; this prevents data loss.
 *   The script must handle cases where `$SPIRAL_HOME` is not a git repository or `git` is not installed, gracefully falling back to the halt behavior.
 *   Ensure the exit codes of `git checkout` commands are checked to confirm the restore was successful before re-verifying.
+
+
+## Pre-analysis for US-1294 (Gemini 2.5 Pro)
+This technical brief is for implementing the React user story `US-1294`.
+
+**1. Files to Create/Modify:**
+
+*   **Create:** `spiral-ui/frontend/tabs/Tests.tsx`
+*   **Create:** `spiral-ui/frontend/tabs/Tests.test.tsx`
+*   **Modify:** `spiral-ui/frontend/App.tsx`
+
+**2. Frameworks & APIs:**
+
+*   **Framework:** React
+*   **Routing:** React Router (or similar, for the `/tests` route)
+*   **Testing:** Vitest
+*   **APIs:**
+    *   `GET /api/tests/latest`: Fetch initial test data.
+    *   `POST /api/tests/rerun/:testId`: Trigger a test re-run.
+    *   Server-Sent Events (SSE) for live log streaming from the re-run endpoint.
+
+**3. Implementation Approach:**
+
+1.  **Component Skeleton:** Create the `TestsTab` component in `spiral-ui/frontend/tabs/Tests.tsx`.
+2.  **Initial Data Load:** Use a `useEffect` hook to call `GET /api/tests/latest` on mount and populate the state for the test results table.
+3.  **UI Table:** Render the data in a sortable table. Columns: Test Name, Status, Duration, File. Use a library like `react-table` or build from scratch.
+4.  **SSE Hook:** Create a custom hook `useSseRerun(testId)` that initiates the `POST /api/tests/rerun/:testId` request and uses the browser's `EventSource` API to listen for streaming updates. The hook should manage log data, connection status, and errors.
+5.  **Live Updates:** In `TestsTab`, when a user clicks "Re-run", invoke the `useSseRerun` hook and display the streaming log data in a dedicated inline panel for that row. Update the row's status upon stream completion.
+6.  **Routing & Navigation:** In `App.tsx`, add a new route for `/tests` pointing to the `TestsTab` component and add a corresponding link to the main navigation UI.
+
+**4. Edge Cases & Gotchas:**
+
+*   **SSE Cleanup:** Ensure the `EventSource` connection is properly closed (`eventSource.close()`) on component unmount or when the stream is finished to prevent memory leaks.
+*   **Error Handling:** Implement robust error handling for both the initial API fetch and the SSE connection (e.g., display an error message if the test re-run fails to start).
+*   **State Management:** Keep the re-run state (loading, streaming, complete) local to each table row to allow multiple re-runs simultaneously without conflicts.
+*   **UI Feedback:** Provide clear visual indicators for loading states (initial fetch, re-run in progress).
 
