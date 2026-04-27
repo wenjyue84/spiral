@@ -801,3 +801,44 @@ Here is a technical brief for implementing user story US-1313.
 - mypy strict mode: no errors
 - Pre-commit hooks: pass (ruff auto-fixed 2 minor issues)
 - Tests are properly isolated and don't require external dependencies
+## Iteration 1 - Mon, Apr 27, 2026  2:18:17 PM
+Completed: Regression tests: model escalation haiku→sonnet and worker crash respawn (ID: US-1313) in 9m
+## Iteration 1 - Mon, Apr 27, 2026 14:45 PM
+Completed: Phase G: Generate HTML API documentation from lib/ modules using pdoc (ID: US-1314) in 15m
+
+### What was implemented
+- Created `lib/api_docs_generator.py` (~240 lines)
+  - CLI tool with argparse for source_dir and --output arguments
+  - collect_modules() function to find .py files (excludes tests, private modules, __init__.py)
+  - create_index_html() function to generate navigable HTML index with cross-module links
+  - generate_api_docs() function using pdoc.render() to create HTML for each module
+  - Proper error handling and user-friendly output messages
+
+- Created `tests/test_api_docs_generator.py` (~320 lines)
+  - 18 comprehensive tests covering all acceptance criteria
+  - Tests for module collection with various filters
+  - Tests for index.html generation with proper structure
+  - Tests for API docs generation with mocked pdoc
+  - Full acceptance criteria tests (AC1: excluding tests, AC2: cross-module links, AC3: CLI command)
+
+### CLI Interface
+- Usage: `uv run python lib/api_docs_generator.py lib/ --output docs/api/`
+- Creates docs/api/ directory with index.html and module-specific HTML files
+- Index.html provides navigation links to all generated module documentation
+
+### Patterns discovered
+- pdoc.render() returns HTML string for module documentation
+- HTML output should be written to separate files per module
+- Index generation with CSS styling improves UX with gradient backgrounds and card layout
+
+### Quality checks
+- ✅ All 18 pytest tests pass
+- ✅ mypy --strict: no type errors
+- ✅ ruff check: no linting issues
+- ✅ ruff format: properly formatted code
+
+### Acceptance criteria met
+- [x] AC1: lib/api_docs_generator.py generates HTML docs for all .py files in lib/ (excluding tests)
+- [x] AC2: Produces index.html with cross-module navigation links
+- [x] AC3: Command `uv run python lib/api_docs_generator.py lib/ --output docs/api/` runs without errors
+

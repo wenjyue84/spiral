@@ -166,5 +166,6 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-27T05:09:00Z	34	2	US-1303	[Regression Test] CLI trace-dependencies: verify full dep chain output	keep	171	sonnet	1	da8d9cfec13a19b3b17530ab078918ac3438fa1b	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-27T05:21:34Z	34	3	US-1307	Deduplication Confidence Scorer: suggest and merge similar stories	keep	728	haiku	0	0e895351ec369c9c08389689a73d633e203eb175	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-27T05:37:39Z	35	1	US-1310	Add prd.include schema field and circular-include detection to merge_stories.py	keep	433	haiku	0	0c00cc416344988e5556dfe511dbd936966ba601	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
-2026-04-27T05:48:28Z	35	2	US-1311	Performance test: POST /api/config endpoint responds within 200ms baseline	keep	552	haiku	0	17bae74e71c9decd46220517daa5f857b8bd9fbf	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-04-27T05:58:53Z	35	3	US-1312	spiral-ui: Add Tests tab UI with history table and pass-rate chart	keep	591	haiku	0	0bf1dc7d4ddee50fb557b9f1bdcb18de703a0ebc	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-27T05:48:28Z	35	2	US-1311	Performance test: POST /api/config endpoint responds within 200ms baseline	keep	552	haiku	0	17bae74e71c9decd46220517daa5f857b8bd9fbf	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-27T05:58:53Z	35	3	US-1312	spiral-ui: Add Tests tab UI with history table and pass-rate chart	keep	591	haiku	0	0bf1dc7d4ddee50fb557b9f1bdcb18de703a0ebc	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-27T06:18:17Z	36	1	US-1313	Regression tests: model escalation haiku→sonnet and worker crash respawn	keep	571	haiku	0	f4c9e86c7b9fe19d173468e04ea4bcb8f0091aec	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
