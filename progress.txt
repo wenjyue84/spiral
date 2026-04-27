@@ -1855,3 +1855,64 @@ This is a technical brief for implementing a Flask-based API, not a Frappe appli
 *   **Error Handling:** The `/latest` endpoint should gracefully handle cases where the `test-results` directory is empty or a JSON file is malformed.
 *   **SSE Format:** Ensure the streaming response strictly adheres to the SSE format (e.g., `data: your_message\n\n`).
 
+
+## Pre-analysis for US-1293 (Gemini 2.5 Pro)
+This is a technical brief for implementing a Flask-based API, not a Frappe application as initially mentioned. The plan is based on the provided user story JSON.
+
+**Project:** Spiral UI Backend API
+
+**Objective:** Create two Flask API endpoints to view the latest test results and trigger a re-run of a specific test.
+
+**1. Python Files to Modify:**
+*   **Create:** `spiral-ui/backend/routes/tests.py` (Will contain the core logic for both endpoints within a Flask Blueprint).
+*   **Edit:** `spiral-ui/backend/app.py` (To import and register the new `tests` Blueprint).
+*   **Create:** `tests/test_spiral_ui_tests_api.py` (To write unit tests for the new endpoints).
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This implementation uses the Flask framework.
+
+**3. Recommended Implementation Approach:**
+*   In `tests.py`, create a new Flask `Blueprint`.
+*   **`GET /api/tests/latest` endpoint:**
+    *   This function should scan the `.spiral/test-results/` directory.
+    *   It must identify and read the most recent `pytest --json-report` output file.
+    *   Parse the JSON to extract and format the required fields for the response.
+*   **`POST /api/tests/rerun/:testId` endpoint:**
+    *   This function should return a streaming response (`Content-Type: text/event-stream`).
+    *   Use the `subprocess` module to execute `uv run pytest <testId>`.
+    *   Read the `stdout` of the subprocess line-by-line and yield each line as a Server-Sent Event (SSE).
+    *   Conclude the stream with a final event indicating the pass/fail status.
+
+**4. Edge Cases & Gotchas:**
+*   **Security:** The `:testId` parameter will be used in a shell command. It **must** be sanitized to prevent command injection vulnerabilities.
+*   **Error Handling:** The `/latest` endpoint should gracefully handle cases where the `test-results` directory is empty or a JSON file is malformed.
+*   **SSE Format:** Ensure the streaming response strictly adheres to the SSE format (e.g., `data: your_message\n\n`).
+
+
+## Iteration 3 - Story: spiral-ui: Add /api/tests/latest and /api/tests/rerun backend endpoints (US-1293)
+
+### What was implemented
+- Created `lib/dashboard/routes/__init__.py` (package init)
+- Created `lib/dashboard/routes/tests.py` with:
+  - `parse_test_results(test_results_dir)` — scans `.spiral/test-results/*.json` for pytest --json-report output, returns list of {test_id, test_name, file, status, duration_ms, error_message}
+  - `stream_rerun(test_id)` — sanitizes test_id (regex whitelist), runs pytest as subprocess, yields SSE-formatted strings, exits with final status event
+- Added two FastAPI endpoints to `lib/dashboard/api.py`:
+  - `GET /api/tests/latest` → calls parse_test_results()
+  - `POST /api/tests/rerun/{test_id:path}` → StreamingResponse over stream_rerun()
+- Created `tests/test_spiral_ui_tests_api.py` — 12 tests covering schema validation, error handling, SSE format, and security
+
+### Patterns discovered
+- Story PRD said "Flask Blueprint" but codebase uses FastAPI — adapted to FastAPI pattern in lib/dashboard/
+- pytest collects functions named `test*` from test files — route handlers must NOT be named `test_*` or `tests_*` to avoid fixture-lookup errors
+- `{test_id:path}` in FastAPI route captures slashes in the path parameter (needed for pytest node IDs like `tests/foo.py::bar`)
+- ruff auto-formats f-strings: single-quoted dict keys inside f-strings get reformatted
+
+### Gotchas
+- FastAPI route handler params named `test_id` conflict with pytest fixture lookup — renamed to `run_id` in the test app
+- Windows paths in pytest node IDs use backslashes; test normalizes to forward slashes for the sanitization regex
+
+### Quality gates passed
+- ✓ All 12 pytest tests pass (100%)
+- ✓ mypy --strict on lib/dashboard/routes/tests.py and lib/dashboard/api.py (no issues)
+- ✓ ruff check + ruff format (clean)
+- ✓ prd.json marked passes: true for US-1293

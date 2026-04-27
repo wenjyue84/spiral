@@ -28,7 +28,7 @@ from typing import Any, Optional
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from ..analyze_results import parse_research_cache
 from ..history_search import find_similar_attempts
@@ -36,6 +36,7 @@ from ..research_source_scorer import extract_sources
 from ..spiral.dashboard.aggregator import aggregate_overview
 from .alerts_broadcaster import get_alerts_manager
 from .cost_broadcaster import get_manager
+from .routes.tests import parse_test_results, stream_rerun
 from .story_broadcaster import get_story_updates_manager
 from .throughput import aggregate as aggregate_throughput
 from .timeline import get_timeline_manager, parse_timeline
@@ -1100,6 +1101,27 @@ async def post_config(payload: dict[str, Any]) -> dict[str, str]:
     with open(_CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(existing, f, indent=2)
     return {"status": "ok"}
+
+
+@app.get("/api/tests/latest")
+async def tests_latest() -> list[dict[str, Any]]:
+    """Return parsed test results from the most recent pytest --json-report file.
+
+    Scans .spiral/test-results/*.json and returns the latest report's tests
+    as a JSON array with fields: test_id, test_name, file, status,
+    duration_ms, error_message.
+    """
+    return parse_test_results()
+
+
+@app.post("/api/tests/rerun/{test_id:path}")
+async def tests_rerun(test_id: str) -> StreamingResponse:
+    """Re-run a specific pytest test and stream output as SSE events.
+
+    The final event is: data: {"type": "status", "result": "pass"|"fail"}
+    test_id must be a valid pytest node ID (e.g. tests/test_foo.py::test_bar).
+    """
+    return StreamingResponse(stream_rerun(test_id), media_type="text/event-stream")
 
 
 # Export for use in tests and main application
