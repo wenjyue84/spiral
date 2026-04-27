@@ -2073,12 +2073,7 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-27T05:29:59Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe story US-1310 involves implementing federated PRD support with `prd.include` field and circular-include detection. I've found:\n\n1. **prd.schema.json** - Already has the `prd.include` field defined at lines 62-74\n2. **lib/prd/merge_stories.py** - Already has the `load_with_includes()` function implemented at lines 311-374\n3. **tests/test_federated_prd.py** - Has comprehensive tests for the feature\n4. **tests/fixtures/subproject_web_prd.json** - Test fixture exists\n\n## Problem Identified\n\nThe implementation appears to be already complete. Let me verify the current state by running the acceptance criteria tests to confirm everything is working.\n\n## Planned Changes\n\nRun the acceptance criteria commands to verify the implementation is complete:\n1. Schema validation test\n2. Load with includes test \n3. Circular detection test\n4. Full pytest test suite\nNow I understand the issue. The test `test_load_with_includes_simple_subproject` is failing because the function needs to auto-detect the namespace from the filename. The fixture `subproject_web_prd.json` should have its story IDs prefixed with `web:` even when loaded directly.\n\nLet me fix the `load_with_includes` function:\nPerfect! All tests pass. Now let me run the full quality checks:\nExcellent! All acceptance criteria are met. Let me commit the changes:\nPerfect! I've successfully implemented story **US-1310**. Here's a summary:\n\n## Implementation Summary"
-      },
-      "_passedCommit": "0c00cc416344988e5556dfe511dbd936966ba601"
+      "model": "haiku"
     },
     {
       "id": "US-1311",
@@ -2102,12 +2097,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-27T05:37:42Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- POST /api/config endpoint already exists in lib/dashboard/api.py (lines 1086-1103)\n- FastAPI TestClient is the established pattern in this codebase for endpoint testing\n- Performance tests measure latency using time.perf_counter() and statistics.quantiles()\n- Dependencies: FastAPI, pytest, statistics (stdlib)\n\n## Problem Identified\nNeed to write a performance benchmark test that:\n1. Calls POST /api/config endpoint 50 times\n2. Measures wall-clock latency and calculates p50 and p99 percentiles\n3. Asserts p99 latency < 200ms (0.2 seconds)\n4. Asserts all requests return HTTP 200\n5. Test discoverable via: `pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v`\n\n## Planned Changes\n- Create tests/test_spiral_ui_config_perf.py with:\n  - FastAPI TestClient fixture for dashboard API\n  - Temporary .spiral directory fixture\n  - Test function: test_config_post_latency_us_1214\n  - Measure 50 POST requests to /api/config\n  - Calculate and assert p99 < 200ms\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_spiral_ui_config_perf.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_config_post_latency_us_1214\"],\n  \"estimated_loc\": 80\n}\n</plan>\n\nNow I'll implement the test:\nPerfect! The test passes. Let me now run quality checks:\nThe test is failing because the p99 latency exceeds 200ms under xdist parallelization. Let me run it without parallelization:\nPerfect! Story US-1311 is now complete. Let me verify the final state:\nExcellent! **US-1311 is complete.** \n\n## Summary"
-      },
-      "_passedCommit": "17bae74e71c9decd46220517daa5f857b8bd9fbf"
+      "model": "haiku"
     },
     {
       "id": "US-1312",
@@ -2129,11 +2119,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-27T05:48:31Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe spiral-ui project has a TestsResultsTab component that displays the latest test results from `/api/tests/latest`. The ProjectDashboard component includes a \"tests\" tab (line 272 of ProjectDashboard.tsx) that currently renders TestsResultsTab. The story requires replacing or enhancing this with a new Tests tab that:\n- Fetches from `/api/tests/history` endpoint\n- Shows a table with Date, Test File, Status, Coverage % columns\n- Renders a trend line chart for pass-rate over time\n- Provides date range filter buttons (7d, 30d)\n- Supports expandable rows showing pytest output\n\nThe frontend uses React 18+, TanStack Query, and recharts. Other tabs import from `./dashboard/` folder.\n\n## Problem Identified\n\nThe Tests tab needs to be enhanced to show test history with filtering and analytics, not just the latest test results. The current TestsResultsTab only shows latest results; it lacks:\n- Historical data table with date filtering\n- Pass-rate trend visualization\n- Date range preset buttons\n- Expandable rows for pytest output details\n\n## Planned Changes\n\n1. **Create `spiral-ui/src/hooks/useTestHistory.ts`** — TanStack Query hook to fetch from `/api/tests/history`\n2. **Create `spiral-ui/src/components/TestsTab.tsx`** — Enhanced Tests tab component with:\n   - Filterable table (Date, Test File, Status, Coverage %)\n   - Date range buttons (7d, 30d, all)\n   - Trend line chart using recharts\n   - Expandable rows for pytest output\n3. **Edit `spiral-ui/src/components/ProjectDashboard.tsx`** — Replace TestsResultsTab with TestsTab (line 272)\n4. **Create `tests/e2e/tests-tab.spec.ts`** — Playwright E2E tests for:\n   - Table rendering with correct columns\n   - Date range filtering\n   - Row expansion\n\n<plan>\n{\n  \"files_to_create\": [\n    \"spiral-ui/src/hooks/useTestHistory.ts\",\n    \"spiral-ui/src/components/TestsTab.tsx\",\n    \"tests/e2e/tests-tab.spec.ts\"\n  ],\n  \"files_to_modify\": [\n    \"spiral-ui/src/components/ProjectDashboard.tsx\"\n  ],\n  \"functions_to_add\": [\n    \"useTestHistory (custom hook)\",\n    \"TestsTab (React component)\",\n    \"Playwright test suites\"\n  ],\n  \"estimated_loc\": 280\n}\n</plan>\n\nNow I'll implement the frontend components:\nLet me verify the implementation by checking the project structure and running basic validation:\nNow let me create a backend API endpoint for `/api/tests/history` since the frontend is expecting it. Let me check the existing API structure:\nLet me verify the implementation syntax by checking if the components are properly formatted:\nNow let me add the backend API endpoint for `/api/tests/history` to ensure the E2E tests can work correctly without mocking:\nPerfect! I've successfully implemented **US-1312: spiral-ui: Add Tests tab UI with history table and pass-rate chart**.\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1313",
@@ -2338,6 +2324,72 @@
       "model": "haiku"
     },
     {
+      "id": "US-1322",
+      "title": "[Regression Test] e2e SPIRAL loop: phase order and final prd.json state",
+      "priority": "medium",
+      "description": "Write a regression test for the full SPIRAL phase loop introduced by US-1210. Uses monkeypatched subprocess.run to mock Claude CLI so no real API calls are made. Validates that phases execute in the correct order and prd.json reflects expected final state.",
+      "acceptanceCriteria": [
+        "Test confirms phases A→R→T→S→E→M→X→G→I→V→C execute in order (assert call sequence on mock)",
+        "After the mocked loop, at least one story in prd.json has status 'done' or 'pass'",
+        "uv run pytest tests/test_spiral_e2e_integration.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_e2e_integration.py (new file — create e2e regression test)",
+        "File to edit: tests/conftest.py (add shared mock_claude_cli fixture if not present)",
+        "File to edit: tests/fixtures/mock_claude_api.py (stub subprocess.run responses per phase)",
+        "Test command: uv run pytest tests/test_spiral_e2e_integration.py -v",
+        "Use monkeypatch.setattr('subprocess.run', mock_fn) where mock_fn returns a CompletedProcess with phase-appropriate stdout",
+        "Copy a minimal seed prd.json (1 story, status pending) into tmp_path before running the loop"
+      ],
+      "dependencies": [
+        "US-1210"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1323",
+      "title": "spiral-ui: Add Tests Coverage Tab with file-level heatmap visualization",
+      "priority": "medium",
+      "description": "Add new dashboard tab displaying test coverage metrics from recent SPIRAL stories. Heatmap visualization shows coverage % per file, highlights untested modules, helps developers prioritize testing effort.",
+      "acceptanceCriteria": [
+        "Tab renders coverage data from .spiral/coverage.json (generated by pytest --cov run after Phase V)",
+        "Heatmap shows files color-coded by coverage: red <50%, yellow 50-80%, green >80%",
+        "Clicking a file shows covered/uncovered lines, diffs from latest story that touched that file"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/coverage_analyzer.py (add generate_coverage_matrix function that parses coverage.json and computes per-file metrics)",
+        "File to edit: spiral-ui/src/components/TestsCoverageTab.tsx (React component with Recharts heatmap visualization)",
+        "Test command: uv run pytest tests/test_coverage_analyzer.py::test_coverage_matrix_generation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1324",
+      "title": "Trajectory Export: Generate JSONL training data from story execution traces",
+      "priority": "low",
+      "description": "Add lib/trajectory_exporter.py to export story execution traces (prompts, inputs, outputs, success/failure, token counts) as JSONL format for RL fine-tuning custom Claude instances on SPIRAL patterns.",
+      "acceptanceCriteria": [
+        "New command `spiral export-trajectory [--output file.jsonl] [--filter model=sonnet]` generates JSONL from results.tsv and worker logs",
+        "Each JSONL record contains: story_id, prompt, decomposition_strategy, response, tokens_used, success, error_type, model_tier, retry_count",
+        "Output file gzipped and stored at .spiral/trajectory/export-YYYY-MM-DD-HHMMSS.jsonl.gz",
+        "JSONL records validated against JSON Schema with 100% field presence for complete stories"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/trajectory_exporter.py (implement TrajectoryExporter class with to_jsonl(filter_dict) method parsing results.tsv and worker logs)",
+        "File to edit: lib/cli_subcommands.sh (register export-trajectory subcommand routing to Python module)",
+        "Test command: uv run pytest tests/test_trajectory_exporter.py::test_trajectory_jsonl_schema_validation -v && zcat .spiral/trajectory/*.jsonl.gz | jq . > /dev/null"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
       "id": "US-1325",
       "title": "[Security Test] Config API: verify auth enforcement on POST /api/config",
       "priority": "high",
@@ -2379,6 +2431,109 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1327",
+      "title": "Create lib/federation_graph.py with DAG builder and cycle detector",
+      "priority": "medium",
+      "description": "Implement lib/federation_graph.py providing build_dag(root_prd_path) and detect_cycles(). build_dag resolves prd.include paths recursively and returns a dict adjacency graph; detect_cycles returns (has_cycle: bool, cycle_nodes: list[str]). This is the core library used by the validation test suite.",
+      "acceptanceCriteria": [
+        "build_dag('tests/fixtures/multi-project-prd/project-a/prd.json') returns a non-empty dict with all reachable project paths as keys",
+        "detect_cycles on a graph containing A→B→C→A returns (True, list containing all three node paths)",
+        "detect_cycles on a linear A→B→C graph returns (False, [])"
+      ],
+      "technicalNotes": [
+        "File to create: lib/federation_graph.py (build_dag, detect_cycles, _resolve_includes helper)",
+        "File to create: tests/fixtures/multi-project-prd/project-a/prd.json, project-b/prd.json, project-c/prd.json — minimal JSON with prd.include fields to form a cycle",
+        "Test command: uv run pytest tests/test_federation_graph.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1328",
+      "title": "Add federation validation test suite: include resolution and story ID uniqueness",
+      "priority": "medium",
+      "description": "Write tests/test_federation_validation.py covering prd.include path resolution and global story ID uniqueness checks across a multi-project topology. Relies on lib/federation_graph.py and the fixtures created alongside it.",
+      "acceptanceCriteria": [
+        "test_all_includes_resolve passes when all prd.include paths in the fixture topology point to existing files (assert no FileNotFoundError from build_dag)",
+        "test_circular_dependency_detection fails fast and reports all three node paths when project-a includes project-b which includes project-c which includes project-a",
+        "test_story_id_uniqueness detects a duplicate US-001 defined in both project-a and project-b and reports both file locations"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_federation_validation.py — import build_dag, detect_cycles from lib.federation_graph",
+        "File to reference: lib/federation_graph.py (build_dag, detect_cycles) — must exist before this story runs",
+        "Test command: uv run pytest tests/test_federation_validation.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1329",
+      "title": "Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming",
+      "priority": "medium",
+      "description": "Implement timeout_scope_reducer(story_id, story_obj) in lib/timeout_handler.py. It strips acceptance criteria tagged with @optional from the story dict and delegates to lib/impl/scope_reducer.py. Returns the reduced story dict ready for retry.",
+      "acceptanceCriteria": [
+        "timeout_scope_reducer called with a story containing two @optional ACs returns a story dict with those ACs removed and non-optional ACs intact",
+        "timeout_scope_reducer called with a story containing zero @optional ACs returns the story unchanged",
+        "Reduced story dict passes Phase S JSON schema validation (uv run python lib/prd_schema.py on the output)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/timeout_handler.py (timeout_scope_reducer(story_id, story_obj) → dict)",
+        "File to create: lib/impl/scope_reducer.py (strip_optional_ac(story_obj) → dict, detects '@optional' prefix in AC strings)",
+        "Test command: uv run pytest tests/test_timeout_handler.py::test_scope_reducer_strips_optional_ac -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1330",
+      "title": "Wire timeout_scope_reducer into lib/impl/retry.sh before decompose_story()",
+      "priority": "medium",
+      "description": "Modify select_retry_strategy() in lib/impl/retry.sh to call timeout_scope_reducer (via uv run python) when failure type is 'timeout' and the story has @optional ACs. Only fall through to decompose_story() when no optional ACs remain or scope reduction itself times out.",
+      "acceptanceCriteria": [
+        "select_retry_strategy timeout branch invokes lib/timeout_handler.py and writes reduced story JSON to a temp file before calling decompose_story",
+        "Integration test with a fixture story containing @optional AC verifies that the retry path calls scope_reducer output, not the original story (assert reduced file written to disk)",
+        "When the story has no @optional ACs, select_retry_strategy falls through to decompose_story without invoking timeout_handler"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/retry.sh (select_retry_strategy — timeout branch, ~line where 'timeout' case is handled)",
+        "File to create: tests/fixtures/sample-stories-with-optional-ac.json — one story with two @optional ACs",
+        "Test command: uv run pytest tests/test_timeout_handler.py::test_timeout_triggers_scope_reduction_not_decompose -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1331",
+      "title": "[Performance Test] spiral-ui config API response time benchmark",
+      "priority": "medium",
+      "description": "Write a pytest performance benchmark for the POST /api/config endpoint backed by lib/spiral_ui_config.py. Measures p95 response time over 50 calls and fails the test if it regresses more than 20% from a recorded baseline of 50ms.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v` exits 0",
+        "Test makes 50 POST /api/config requests via httpx or requests to a locally-started test server and asserts p95 latency < 60ms",
+        "Test asserts that lib/spiral_ui_config.py load_config() returns a dict containing keys SPIRAL_MAX_PENDING, SPIRAL_MODEL_ROUTING, and SPIRAL_VALIDATE_CMD"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_ui_config_perf.py (create new — add test_us_1214_config_load_perf and test_us_1214_config_keys)",
+        "File to edit: lib/spiral_ui_config.py (import load_config to assert key presence without HTTP overhead)",
+        "Use time.perf_counter() around repeated load_config() calls if HTTP server setup is complex; assert mean < 50ms",
+        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v"
+      ],
+      "dependencies": [
+        "US-1214"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "haiku"
     }
   ]
