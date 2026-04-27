@@ -174,3 +174,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-27T07:16:29Z	38	1	US-1335	[Security Test] history_search.py: validate FTS5 query sanitization and path safety	keep	188	sonnet	1	5bd7516d53f126ee0fd3c7b54cf516aaae44995f	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-27T07:29:09Z	38	2	US-1338	lib: Create phase_s duplicate_detector with embedding cache	keep	731	haiku	0	351bc4ea7fca3103a0fb87bc90ddb6aeb198796e	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-27T07:51:40Z	39	1	US-1339	lib: Wire duplicate_detector into phase_s.sh before merge_stories	keep	829	sonnet	0	9da791e249069704e093472758c3d42703fb2656	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-27T08:13:49Z	40	1	US-1342	Worker Heartbeat and Stall Detection: Auto-Restart Failed Workers	keep	563	haiku	0	3486e954da7d432f0a811e582f69a4067b6437c4	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
