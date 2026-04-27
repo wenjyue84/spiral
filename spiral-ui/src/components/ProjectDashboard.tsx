@@ -13,8 +13,7 @@ import SettingsTab from './dashboard/SettingsTab';
 import ConstitutionTab from './dashboard/ConstitutionTab';
 import SkillsTab from './dashboard/SkillsTab';
 import ActivityTab from './dashboard/ActivityTab';
-import TestsTab from './dashboard/TestsTab';
-import TestsResultsTab from './TestsResultsTab';
+import TestsTab from './TestsTab';
 import { type ProjectData, type ActiveStoryInfo, pct } from './dashboard/types';
 
 // Re-exports for backward compatibility
@@ -269,7 +268,7 @@ export default function ProjectDashboard() {
         {activeTab === 'constitution' && <div className="h-full overflow-y-auto flex flex-col"><ConstitutionTab text={data.constitution} projectName={projectName ?? undefined} /></div>}
         {activeTab === 'skills'       && <div className="h-full overflow-hidden"><SkillsTab projectName={projectName ?? undefined} /></div>}
         {activeTab === 'activity'     && <div className="h-full overflow-y-auto"><ActivityTab log={data.activity} activeStory={activeStory} /></div>}
-        {activeTab === 'tests'        && <div className="h-full overflow-hidden"><TestsResultsTab /></div>}
+        {activeTab === 'tests'        && <div className="h-full overflow-hidden"><TestsTab /></div>}
         {activeTab === 'analytics'    && <div className="h-full overflow-y-auto"><AnalyticsTab projectName={projectName ?? ''} /></div>}
       </main>
     </div>

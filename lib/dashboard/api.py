@@ -1114,6 +1114,18 @@ async def tests_latest() -> list[dict[str, Any]]:
     return parse_test_results()
 
 
+@app.get("/api/tests/history")
+async def tests_history(days: int | None = None) -> dict[str, Any]:
+    """Return historical test results with optional date filtering.
+
+    Returns a dict with 'entries' array containing test history.
+    Each entry has: id, date, testFile, status, coverage, output.
+    """
+    # For now, return empty history (endpoint exists for frontend compatibility)
+    # In production, this would query historical test results from .spiral/test-results/
+    return {"entries": []}
+
+
 @app.post("/api/tests/rerun/{test_id:path}")
 async def tests_rerun(test_id: str) -> StreamingResponse:
     """Re-run a specific pytest test and stream output as SSE events.
