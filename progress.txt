@@ -842,3 +842,44 @@ Completed: Phase G: Generate HTML API documentation from lib/ modules using pdoc
 - [x] AC2: Produces index.html with cross-module navigation links
 - [x] AC3: Command `uv run python lib/api_docs_generator.py lib/ --output docs/api/` runs without errors
 
+## Iteration 2 - Mon, Apr 27, 2026  2:29:17 PM
+Completed: Phase G: Generate HTML API documentation from lib/ modules using pdoc (ID: US-1314) in 10m
+
+
+## Iteration 1 - Mon, Apr 27, 2026 12:47:00 PM
+Completed: Phase R cache: Create ResearchCache module with TTL and stats (ID: US-1316) in 10m
+
+### What was implemented
+- Created simple `ResearchCache` class in lib/research_cache.py with:
+  - `get(key)` → returns None on miss, cached value on hit
+  - `put(key, value)` → stores value with timestamp
+  - `prune()` → removes entries older than 24 hours
+  - `stats()` → returns dict with hit_count and miss_count
+  - Automatic prune on initialization
+  - File-backed persistence to .spiral/research_cache.json
+
+- Added four acceptance criterion tests to tests/test_research_cache.py:
+  - `test_get_miss_and_hit`: Verify cache returns None on miss, stored value on hit
+  - `test_ttl_expiry`: Verify 24h TTL is enforced by prune()
+  - `test_stats_accuracy`: Verify hit_count and miss_count accuracy
+  - `test_persistence`: Verify cache survives JSON serialization and re-instantiation
+
+### Patterns discovered
+- ResearchCache provides simple stats-based caching interface
+- Semantic research caching (lib/research/research_cache.py) is separate and more sophisticated
+- lib/research_cache.py acts as main entry point with backward compatibility stub
+
+### Acceptance criteria met
+- [x] test_get_miss_and_hit passes: cache.get() returns None on miss, value on hit
+- [x] test_ttl_expiry passes: cache.prune() removes entries >24h old
+- [x] test_stats_accuracy passes: cache.stats() returns accurate hit/miss counts
+- [x] test_persistence passes: cache survives JSON serialization and re-instantiation
+
+### Quality checks
+- ✅ All 17 tests pass (13 existing + 4 new)
+- ✅ mypy --strict: no type errors
+- ✅ ruff check: no linting issues
+- ✅ No regressions to existing functionality
+
+### Verified end-to-end
+- `uv run pytest tests/test_research_cache.py -v` passes all 17 tests

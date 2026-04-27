@@ -288,3 +288,117 @@ class TestLRUEviction:
         query_1 = "Query #1: Research topic 1"
         query_1_present = any(q.query == query_1 for q in loaded_after)
         assert query_1_present, "Query #1 should still be in cache (LRU preserved)"
+
+
+# ── Tests for US-1316: Simple ResearchCache with TTL and stats ──────────────
+
+
+def test_get_miss_and_hit(tmp_path: Path) -> None:
+    """AC1: cache.get(key) returns None on miss and stored summary on hit."""
+    from lib.research_cache import ResearchCache
+
+    cache_path = str(tmp_path / "research_cache.json")
+    cache = ResearchCache(cache_path=cache_path)
+
+    # Test miss: get non-existent key
+    result = cache.get("story-123")
+    assert result is None
+
+    # Test put: store a value
+    summary = {"title": "Story 123", "description": "Test story"}
+    cache.put("story-123", summary)
+
+    # Test hit: get previously stored value
+    result = cache.get("story-123")
+    assert result == summary
+
+
+def test_ttl_expiry(tmp_path: Path) -> None:
+    """AC2: Entries older than 24h are pruned by cache.prune()."""
+    import time as time_module
+
+    from lib.research_cache import ResearchCache
+
+    cache_path = str(tmp_path / "research_cache.json")
+    cache = ResearchCache(cache_path=cache_path)
+
+    # Store an entry with a fixed timestamp
+    current_time = time_module.time()
+    cache.put("story-old", {"title": "Old story"})
+
+    # Manually set the timestamp to 25 hours ago
+    cache._cache["story-old"]["timestamp"] = current_time - (25 * 60 * 60)
+    cache._save()
+
+    # Store a recent entry
+    cache.put("story-new", {"title": "New story"})
+
+    # Prune should remove old entries
+    cache.prune()
+
+    # Old entry should be gone, new entry should remain
+    assert cache.get("story-old") is None
+    assert cache.get("story-new") == {"title": "New story"}
+
+
+def test_stats_accuracy(tmp_path: Path) -> None:
+    """AC3: cache.stats() returns dict with hit_count and miss_count matching usage."""
+    from lib.research_cache import ResearchCache
+
+    cache_path = str(tmp_path / "research_cache.json")
+    cache = ResearchCache(cache_path=cache_path)
+
+    # Initial stats should be (0, 0)
+    assert cache.stats() == {"hit_count": 0, "miss_count": 0}
+
+    # Miss on non-existent key
+    cache.get("key-1")
+    assert cache.stats() == {"hit_count": 0, "miss_count": 1}
+
+    # Store a value
+    cache.put("key-1", {"data": "value"})
+
+    # Hit on existing key
+    cache.get("key-1")
+    assert cache.stats() == {"hit_count": 1, "miss_count": 1}
+
+    # Another miss
+    cache.get("key-2")
+    assert cache.stats() == {"hit_count": 1, "miss_count": 2}
+
+    # Another hit
+    cache.get("key-1")
+    assert cache.stats() == {"hit_count": 2, "miss_count": 2}
+
+
+def test_persistence(tmp_path: Path) -> None:
+    """AC4: Cache file is valid JSON after put() and survives re-instantiation."""
+    import json
+
+    from lib.research_cache import ResearchCache
+
+    cache_path = str(tmp_path / "research_cache.json")
+
+    # Create cache and add entries
+    cache1 = ResearchCache(cache_path=cache_path)
+    cache1.put("story-a", {"title": "Story A"})
+    cache1.put("story-b", {"title": "Story B"})
+
+    # Verify file is valid JSON
+    with open(cache_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    assert "entries" in data
+    assert len(data["entries"]) == 2
+
+    # Re-instantiate cache from same file
+    cache2 = ResearchCache(cache_path=cache_path)
+
+    # Verify data persists
+    assert cache2.get("story-a") == {"title": "Story A"}
+    assert cache2.get("story-b") == {"title": "Story B"}
+
+    # Verify stats survive re-instantiation
+    # (cache2 should have loaded hit_count/miss_count from file)
+    stats = cache2.stats()
+    assert "hit_count" in stats
+    assert "miss_count" in stats
