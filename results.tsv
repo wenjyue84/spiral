@@ -159,3 +159,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-27T03:04:47Z	30	1	US-1321	[Security Test] history_search: no sensitive data exposed in FTS5 query results	keep	563	haiku	0	57a8a5c2cf3805cc877dbda59661b1594cdd59a1	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-27T03:36:41Z	31	1	US-1298	spiral-ui frontend: ThroughputMetrics widget on Dashboard with auto-refresh	keep	762	haiku	0	8ff508883aa205ce33fd00dd3f661f705445b262	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-27T03:47:37Z	31	2	US-1299	Phase E: Hint recommender from story attempt history	keep	606	haiku	0	853bcb9fa4e8c4baf7c3514d61397e93f31dbd06	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-27T04:03:14Z	32	1	US-1325	[Security Test] Config API: verify auth enforcement on POST /api/config	keep	178	sonnet	0	bd81c01820e465aadcfbf19c87f7106c665a0560	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
