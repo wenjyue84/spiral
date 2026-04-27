@@ -58,6 +58,19 @@
       "items": {
         "$ref": "#/$defs/userStory"
       }
+    },
+    "prd": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional array of file paths to sub-project PRD files to include and merge"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true,

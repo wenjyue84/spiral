@@ -303,6 +303,77 @@ def _load_raw(path: str) -> dict[str, Any]:
         return json.load(f)
 
 
+class MergeError(Exception):
+    """Raised when merge or include processing fails."""
+    pass
+
+
+def load_with_includes(
+    prd_path: str, visited: frozenset[str] | None = None, namespace: str = ""
+) -> dict[str, Any]:
+    """Load a PRD file and recursively include sub-project PRDs with namespacing.
+
+    Recursively loads each file listed in prd.include array, prefixes story IDs
+    with namespace (e.g., "web:US-100"), and detects circular includes via visited-set.
+
+    Args:
+        prd_path: Path to PRD file to load
+        visited: frozenset of already-visited paths (for cycle detection)
+        namespace: ID prefix for this PRD's stories (e.g., "web")
+
+    Returns:
+        Merged PRD dict with all stories (including namespaced ones from includes)
+
+    Raises:
+        MergeError: If circular include detected or file missing
+    """
+    if visited is None:
+        visited = frozenset()
+
+    # Resolve to absolute path for cycle detection
+    abs_path = os.path.abspath(prd_path)
+
+    # Check for circular include
+    if abs_path in visited:
+        raise MergeError(f"circular include detected: {prd_path} (already in chain: {visited})")
+
+    # Load the PRD file
+    if not os.path.isfile(abs_path):
+        raise MergeError(f"include file not found: {prd_path}")
+
+    prd = _load_raw(abs_path)
+    new_visited = visited | {abs_path}
+
+    # Process each story in this PRD to add namespace prefix
+    stories = prd.get("userStories", [])
+    if namespace:
+        for story in stories:
+            if "id" in story:
+                story["id"] = f"{namespace}:{story['id']}"
+
+    # Recursively load includes from this PRD
+    includes = prd.get("prd", {}).get("include", [])
+    for include_path in includes:
+        # Resolve include path relative to the current PRD's directory
+        base_dir = os.path.dirname(abs_path)
+        resolved_include = os.path.join(base_dir, include_path)
+
+        # Extract namespace from include path (e.g., "web_prd.json" → "web")
+        include_name = os.path.splitext(os.path.basename(include_path))[0]
+        # Remove common suffixes like _prd to get namespace
+        include_ns = include_name.replace("_prd", "").replace("-prd", "")
+
+        # Recursively load with namespace
+        included_prd = load_with_includes(resolved_include, new_visited, include_ns)
+
+        # Merge stories from included PRD
+        included_stories = included_prd.get("userStories", [])
+        stories.extend(included_stories)
+
+    # Return merged PRD
+    return {"userStories": stories}
+
+
 def load_fallback_counter(scratch_dir: str = ".spiral") -> int:
     """Load consecutive all-rejected iteration counter from .spiral/_merge_reject_streak.json.
 

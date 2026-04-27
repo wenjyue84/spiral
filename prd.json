@@ -1916,18 +1916,7 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-27T05:05:33Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe `tests/test_regression_us1209.py` file already contains all 4 regression tests including the two added for US-1303 (`test_trace_dependencies_plain_text_output` and `test_trace_dependencies_circular_exit_code`). The fixture `tests/fixtures/trace_deps_fixture.json` also exists with the correct multi-level dependency chain and circular dependency setup.\n\n## Problem Identified\nThe previous attempt (attempt 1) implemented the correct code but was rejected by the SPIRAL orchestrator's diagnosis block gate — it made file edits without first outputting the required `## Current State / ## Problem Identified / ## Planned Changes` block. No actual code changes are needed.\n\n## Planned Changes\n- No file edits needed — tests already pass\n- Mark US-1303 as `passes: true` in `prd.json`\n- Append learning entry to `progress.txt`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\", \"progress.txt\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 10\n}\n</plan>\nUS-1303 is complete. All 4 regression tests pass (`uv run pytest tests/ -k us_1209 -v` → 4 passed), story marked `passes: true`. The previous attempt had the correct implementation but was rejected by the diagnosis block gate — this attempt outputs the required block first."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 683,
-        "tokensAfterMasking": 683,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_passedCommit": "da8d9cfec13a19b3b17530ab078918ac3438fa1b"
+      "model": "haiku"
     },
     {
       "id": "US-1304",
@@ -2019,11 +2008,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-04-27T05:09:03Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\n- US-1307 requires deduplication confidence scoring using TF-IDF similarity\n- Needs two new CLI commands: `spiral dedup-suggestions` and `spiral merge <id1> <id2>`\n- Pattern: declare MODE vars in spiral.sh, parse args in case statement, implement handler in cli_subcommands.sh\n- Example: `cost-estimate` command shows the pattern for positional arguments\n\n## Problem Identified\n\nNeed to implement:\n1. Core deduplication logic (TF-IDF similarity scoring, story merging)\n2. Tests covering acceptance criteria\n3. CLI subcommand integration for both dedup-suggestions and merge operations\n\n## Planned Changes\n\n- Create `lib/dedup_confidence.py` with `find_duplicates()` and `merge_stories()` functions\n- Create `tests/test_dedup_confidence.py` with tests for both acceptance criteria\n- Modify `spiral.sh` to add dedup-suggestions and merge command parsing\n- Modify `lib/cli_subcommands.sh` to add command handlers\n\n<plan>\n{\n  \"files_to_create\": [\"lib/dedup_confidence.py\", \"tests/test_dedup_confidence.py\"],\n  \"files_to_modify\": [\"spiral.sh\", \"lib/cli_subcommands.sh\"],\n  \"functions_to_add\": [\"find_duplicates\", \"merge_stories\"],\n  \"estimated_loc\": 220\n}\n</plan>\n\nNow let me implement the solution:\nPerfect! **US-1307** has been successfully implemented. Here's a summary:\n\n## Implementation Complete ✓"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1308",
@@ -2269,6 +2254,52 @@
       "model": "haiku"
     },
     {
+      "id": "US-1319",
+      "title": "Regression Test: prd.include merges stories with namespace prefixes (US-1212a)",
+      "priority": "medium",
+      "description": "Add tests/test_federated_prd.py with a test that loads a prd.json containing a prd.include pointing to tests/fixtures/subproject_web_prd.json, calls the Phase M merge logic, and asserts included stories appear in the merged output with 'web:' namespace prefixes. Guards the merge path of US-1212.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_federated_prd.py::test_include_merges_with_prefix -v` exits 0",
+        "Merged story list contains stories with IDs prefixed 'web:' matching those in subproject_web_prd.json",
+        "Test fails when namespace-prefix logic is removed from merge_stories.py"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_federated_prd.py (test_include_merges_with_prefix)",
+        "File to edit: tests/fixtures/subproject_web_prd.json (create fixture with 2-3 sample stories)",
+        "File to edit: lib/merge_stories.py (import and call merge function under test)",
+        "Test command: uv run pytest tests/test_federated_prd.py::test_include_merges_with_prefix -v",
+        "Call merge_stories.load_with_includes('tests/fixtures/base_prd.json') and assert result['stories'][*]['id'] starts with 'web:'"
+      ],
+      "dependencies": [
+        "US-1212"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1320",
+      "title": "CLI: Add `spiral cost-estimate` with model escalation breakdown and budget projection",
+      "priority": "medium",
+      "description": "Implement `spiral cost-estimate [--iterations N] [--workers M]` command to forecast total cost before running, showing per-story token estimates, model selection rationale, and grand total accounting for parallelization.",
+      "acceptanceCriteria": [
+        "Command outputs table: story_id | complexity | tokens_h/s/o | cost_haiku | escalation_prob | model_pick | total_cost, sorted by descending cost",
+        "Grand total = sum over (ceil(stories / workers)) iterations; includes 20% contingency buffer",
+        "--format json|csv outputs machine-readable estimates; --dry-run shows command without API calls",
+        "Test with fixture prd.json (50 stories) shows cost within 15% of actual results.tsv"
+      ],
+      "technicalNotes": [
+        "Create: lib/cost_estimator.py with estimate_story_tokens(complexity) using historical token/complexity ratio from results.tsv",
+        "Create: lib/cli_commands/cost_estimate.py with table formatting and output modes",
+        "Update: lib/cli_subcommands.sh to wire 'cost-estimate' subcommand to cost_estimate.py",
+        "Test: uv run pytest tests/test_cost_estimator.py::test_budget_with_parallelization -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1321",
       "title": "[Security Test] history_search: no sensitive data exposed in FTS5 query results",
       "priority": "high",
@@ -2291,6 +2322,72 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku"
+    },
+    {
+      "id": "US-1322",
+      "title": "[Regression Test] e2e SPIRAL loop: phase order and final prd.json state",
+      "priority": "medium",
+      "description": "Write a regression test for the full SPIRAL phase loop introduced by US-1210. Uses monkeypatched subprocess.run to mock Claude CLI so no real API calls are made. Validates that phases execute in the correct order and prd.json reflects expected final state.",
+      "acceptanceCriteria": [
+        "Test confirms phases A→R→T→S→E→M→X→G→I→V→C execute in order (assert call sequence on mock)",
+        "After the mocked loop, at least one story in prd.json has status 'done' or 'pass'",
+        "uv run pytest tests/test_spiral_e2e_integration.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_e2e_integration.py (new file — create e2e regression test)",
+        "File to edit: tests/conftest.py (add shared mock_claude_cli fixture if not present)",
+        "File to edit: tests/fixtures/mock_claude_api.py (stub subprocess.run responses per phase)",
+        "Test command: uv run pytest tests/test_spiral_e2e_integration.py -v",
+        "Use monkeypatch.setattr('subprocess.run', mock_fn) where mock_fn returns a CompletedProcess with phase-appropriate stdout",
+        "Copy a minimal seed prd.json (1 story, status pending) into tmp_path before running the loop"
+      ],
+      "dependencies": [
+        "US-1210"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1323",
+      "title": "spiral-ui: Add Tests Coverage Tab with file-level heatmap visualization",
+      "priority": "medium",
+      "description": "Add new dashboard tab displaying test coverage metrics from recent SPIRAL stories. Heatmap visualization shows coverage % per file, highlights untested modules, helps developers prioritize testing effort.",
+      "acceptanceCriteria": [
+        "Tab renders coverage data from .spiral/coverage.json (generated by pytest --cov run after Phase V)",
+        "Heatmap shows files color-coded by coverage: red <50%, yellow 50-80%, green >80%",
+        "Clicking a file shows covered/uncovered lines, diffs from latest story that touched that file"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/coverage_analyzer.py (add generate_coverage_matrix function that parses coverage.json and computes per-file metrics)",
+        "File to edit: spiral-ui/src/components/TestsCoverageTab.tsx (React component with Recharts heatmap visualization)",
+        "Test command: uv run pytest tests/test_coverage_analyzer.py::test_coverage_matrix_generation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1324",
+      "title": "Trajectory Export: Generate JSONL training data from story execution traces",
+      "priority": "low",
+      "description": "Add lib/trajectory_exporter.py to export story execution traces (prompts, inputs, outputs, success/failure, token counts) as JSONL format for RL fine-tuning custom Claude instances on SPIRAL patterns.",
+      "acceptanceCriteria": [
+        "New command `spiral export-trajectory [--output file.jsonl] [--filter model=sonnet]` generates JSONL from results.tsv and worker logs",
+        "Each JSONL record contains: story_id, prompt, decomposition_strategy, response, tokens_used, success, error_type, model_tier, retry_count",
+        "Output file gzipped and stored at .spiral/trajectory/export-YYYY-MM-DD-HHMMSS.jsonl.gz",
+        "JSONL records validated against JSON Schema with 100% field presence for complete stories"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/trajectory_exporter.py (implement TrajectoryExporter class with to_jsonl(filter_dict) method parsing results.tsv and worker logs)",
+        "File to edit: lib/cli_subcommands.sh (register export-trajectory subcommand routing to Python module)",
+        "Test command: uv run pytest tests/test_trajectory_exporter.py::test_trajectory_jsonl_schema_validation -v && zcat .spiral/trajectory/*.jsonl.gz | jq . > /dev/null"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-1325",
@@ -2335,6 +2432,66 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku"
+    },
+    {
+      "id": "US-1327",
+      "title": "Create lib/federation_graph.py with DAG builder and cycle detector",
+      "priority": "medium",
+      "description": "Implement lib/federation_graph.py providing build_dag(root_prd_path) and detect_cycles(). build_dag resolves prd.include paths recursively and returns a dict adjacency graph; detect_cycles returns (has_cycle: bool, cycle_nodes: list[str]). This is the core library used by the validation test suite.",
+      "acceptanceCriteria": [
+        "build_dag('tests/fixtures/multi-project-prd/project-a/prd.json') returns a non-empty dict with all reachable project paths as keys",
+        "detect_cycles on a graph containing A→B→C→A returns (True, list containing all three node paths)",
+        "detect_cycles on a linear A→B→C graph returns (False, [])"
+      ],
+      "technicalNotes": [
+        "File to create: lib/federation_graph.py (build_dag, detect_cycles, _resolve_includes helper)",
+        "File to create: tests/fixtures/multi-project-prd/project-a/prd.json, project-b/prd.json, project-c/prd.json — minimal JSON with prd.include fields to form a cycle",
+        "Test command: uv run pytest tests/test_federation_graph.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1328",
+      "title": "Add federation validation test suite: include resolution and story ID uniqueness",
+      "priority": "medium",
+      "description": "Write tests/test_federation_validation.py covering prd.include path resolution and global story ID uniqueness checks across a multi-project topology. Relies on lib/federation_graph.py and the fixtures created alongside it.",
+      "acceptanceCriteria": [
+        "test_all_includes_resolve passes when all prd.include paths in the fixture topology point to existing files (assert no FileNotFoundError from build_dag)",
+        "test_circular_dependency_detection fails fast and reports all three node paths when project-a includes project-b which includes project-c which includes project-a",
+        "test_story_id_uniqueness detects a duplicate US-001 defined in both project-a and project-b and reports both file locations"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_federation_validation.py — import build_dag, detect_cycles from lib.federation_graph",
+        "File to reference: lib/federation_graph.py (build_dag, detect_cycles) — must exist before this story runs",
+        "Test command: uv run pytest tests/test_federation_validation.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1329",
+      "title": "Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming",
+      "priority": "medium",
+      "description": "Implement timeout_scope_reducer(story_id, story_obj) in lib/timeout_handler.py. It strips acceptance criteria tagged with @optional from the story dict and delegates to lib/impl/scope_reducer.py. Returns the reduced story dict ready for retry.",
+      "acceptanceCriteria": [
+        "timeout_scope_reducer called with a story containing two @optional ACs returns a story dict with those ACs removed and non-optional ACs intact",
+        "timeout_scope_reducer called with a story containing zero @optional ACs returns the story unchanged",
+        "Reduced story dict passes Phase S JSON schema validation (uv run python lib/prd_schema.py on the output)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/timeout_handler.py (timeout_scope_reducer(story_id, story_obj) → dict)",
+        "File to create: lib/impl/scope_reducer.py (strip_optional_ac(story_obj) → dict, detects '@optional' prefix in AC strings)",
+        "Test command: uv run pytest tests/test_timeout_handler.py::test_scope_reducer_strips_optional_ac -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }

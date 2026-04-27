@@ -537,3 +537,36 @@ Based on the user story JSON, the request pertains to the Spiral project, not a 
 - ruff lint and format: all checks pass
 - Full test suite: 10/10 tests passing
 
+## Iteration 3 - Mon, Apr 27, 2026  1:21:34 PM
+Completed: Deduplication Confidence Scorer: suggest and merge similar stories (ID: US-1307) in 12m
+
+
+## Pre-analysis for US-1310 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1310.
+
+**Project:** Spiral (Note: This is not a Frappe project).
+**Objective:** Implement a federated PRD system using an `include` field in `prd.json`.
+
+**1. Files to Modify:**
+- `prd.schema.json`: Add an optional `include` field, defined as an array of strings.
+- `lib/merge_stories.py`: Implement the primary logic in a new `load_with_includes` function.
+- `tests/test_federated_prd.py`: Add new test cases to validate the schema, namespacing, and error handling.
+
+**2. Frappe DocTypes / Hooks:**
+- None. The user story and codebase are unrelated to the Frappe framework.
+
+**3. Implementation Approach:**
+- In `lib/merge_stories.py`, the `load_with_includes(prd_path, visited_paths=frozenset())` function should recursively load PRDs.
+- For each file in the `include` array, it will:
+    - Perform a circular dependency check using the `visited_paths` set. Raise a `MergeError` if a cycle is detected.
+    - Recursively call itself, passing the updated `visited_paths`.
+    - Derive a namespace from the included filename (e.g., "web" from `web_prd.json`).
+    - Prefix the `id` of each story from the included file with the namespace (e.g., `web:US-100`).
+    - Merge the namespaced stories from the sub-project into the parent's story list.
+
+**4. Edge Cases & Gotchas:**
+- **Circular Includes:** A PRD that includes itself indirectly (A->B->A) must be caught and error-handled.
+- **File Paths:** Included paths are relative to the location of the file containing them, not the root.
+- **Error Handling:** The system must raise a `FileNotFoundError` or a custom error for missing include files.
+- **Namespace Logic:** The logic for deriving a namespace from a filename needs to be consistent.
+

@@ -164,3 +164,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-27T04:43:49Z	33	2	US-1302	CLI: spiral cost-estimate <num-iterations> with historical accuracy bounds	keep	550	haiku	0	503c4363c43f23f566e17fd24979d84bfdaf56b4	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-27T05:05:30Z	34	1	US-1303	[Regression Test] CLI trace-dependencies: verify full dep chain output	reject	592	haiku	1		69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-04-27T05:09:00Z	34	2	US-1303	[Regression Test] CLI trace-dependencies: verify full dep chain output	keep	171	sonnet	1	da8d9cfec13a19b3b17530ab078918ac3438fa1b	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-04-27T05:21:34Z	34	3	US-1307	Deduplication Confidence Scorer: suggest and merge similar stories	keep	728	haiku	0	0e895351ec369c9c08389689a73d633e203eb175	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				

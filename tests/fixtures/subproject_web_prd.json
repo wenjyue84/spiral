@@ -1,0 +1,31 @@
+{
+  "productName": "Web Subproject",
+  "branchName": "main",
+  "schemaVersion": 1,
+  "userStories": [
+    {
+      "id": "US-100",
+      "title": "Implement web dashboard",
+      "priority": "high",
+      "acceptanceCriteria": [
+        "Dashboard displays user metrics",
+        "Dashboard is responsive on mobile"
+      ],
+      "passes": false,
+      "dependencies": [],
+      "description": "Build the main web dashboard component"
+    },
+    {
+      "id": "US-101",
+      "title": "Add authentication to web",
+      "priority": "critical",
+      "acceptanceCriteria": [
+        "Users can log in with OAuth",
+        "Session persists on refresh"
+      ],
+      "passes": false,
+      "dependencies": ["US-100"],
+      "description": "Implement OAuth-based authentication for the web app"
+    }
+  ]
+}
