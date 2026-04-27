@@ -1698,11 +1698,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-04-27T00:13:34Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe project has `lib/dashboard/api.py` (FastAPI backend), no `spiral-ui/backend/` directory, and no `/api/tests/latest` or `/api/tests/rerun/` endpoints. The `.spiral/test-results/` directory doesn't exist yet.\n\n## Problem Identified\nStory US-1293 requires two new endpoints for the Tests tab in the SPIRAL UI: GET `/api/tests/latest` to return parsed pytest JSON report results, and POST `/api/tests/rerun/{testId}` to stream SSE events when re-running a specific test.\n\n## Planned Changes\n- Create `lib/dashboard/routes/__init__.py` (package init)\n- Create `lib/dashboard/routes/tests.py` with `parse_test_results()` and `stream_rerun()` functions\n- Modify `lib/dashboard/api.py` to add the two endpoints\n- Create `tests/test_spiral_ui_tests_api.py` with tests for both endpoints\n\n<plan>\n{\n  \"files_to_create\": [\"lib/dashboard/routes/__init__.py\", \"lib/dashboard/routes/tests.py\", \"tests/test_spiral_ui_tests_api.py\"],\n  \"files_to_modify\": [\"lib/dashboard/api.py\"],\n  \"functions_to_add\": [\"parse_test_results\", \"stream_rerun\", \"tests_latest\", \"tests_rerun\", \"test_tests_latest_endpoint\", \"test_tests_rerun_streams_sse\"],\n  \"estimated_loc\": 160\n}\n</plan>\nNow add the two endpoints to `lib/dashboard/api.py`:\nNow create the test file:\nThe route functions are being picked up by pytest. I need to rename them to avoid the `test*` prefix:\nAll 12 tests pass. Now run mypy and ruff on the new files:\nAll checks pass. Now mark the story as complete and commit:\nStory US-1293 is complete. Here's what was implemented:\n\n**New files:**\n- `lib/dashboard/routes/__init__.py` — package init\n- `lib/dashboard/routes/tests.py` — `parse_test_results()` (parses `.spiral/test-results/*.json`) and `stream_rerun()` (SSE-streaming pytest subprocess with injection prevention)\n- `tests/test_spiral_ui_tests_api.py` — 12 tests, all passing\n\n**Modified:**\n- `lib/dashboard/api.py` — added `GET /api/tests/latest` and `POST /api/tests/rerun/{test_id:path}` endpoints\n\n**Key decisions:**\n- Used FastAPI (existing pattern) instead of Flask as specified in the PRD — the codebase has no Flask\n- `{test_id:path}` path param captures slashes for pytest node IDs like `tests/foo.py::test_bar`\n- Route handlers in the test file renamed from `test_*` to `_*` to avoid pytest fixture collision"
-      }
+      "model": "sonnet"
     },
     {
       "id": "US-1294",
@@ -1991,6 +1987,28 @@
       "model": "haiku"
     },
     {
+      "id": "US-1307",
+      "title": "Deduplication Confidence Scorer: suggest and merge similar stories",
+      "priority": "medium",
+      "description": "Add lib/dedup_confidence.py with TF-IDF similarity scoring over prd.json stories, and wire two new CLI subcommands: spiral dedup-suggestions (show top duplicate pairs) and spiral merge <id1> <id2> (combine stories and mark originals superseded). Seed stories are excluded from dedup candidates.",
+      "acceptanceCriteria": [
+        "`spiral dedup-suggestions` prints at least one pair with confidence ≥0.75 when obvious duplicates exist in prd.json: `uv run pytest tests/test_dedup_confidence.py::test_high_confidence_detection -v`",
+        "`spiral merge US-X US-Y` writes a new story with combined acceptanceCriteria and sets superseded_by on both originals: `uv run pytest tests/test_dedup_confidence.py::test_merge_sets_superseded_by -v`",
+        "Seed stories (source == 'seed') never appear as dedup candidates: `uv run pytest tests/test_dedup_confidence.py::test_seed_excluded -v`"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dedup_confidence.py (find_duplicates(prd_data) → List[Tuple[str,str,float]] sorted by score desc, merge_stories(id1, id2, prd_data) → dict)",
+        "File to edit: lib/cli_subcommands.sh (add dedup-suggestions and merge command handlers near existing subcommand dispatch)",
+        "File to create: tests/test_dedup_confidence.py",
+        "Test command: uv run pytest tests/test_dedup_confidence.py -v",
+        "Use sklearn TfidfVectorizer on title + description concatenation; cosine_similarity threshold 0.75"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1308",
       "title": "spiral-ui: Backend GET /api/tests/summary endpoint from spiral_events.jsonl",
       "priority": "high",
@@ -2032,6 +2050,121 @@
       "model": "haiku"
     },
     {
+      "id": "US-1310",
+      "title": "Add prd.include schema field and circular-include detection to merge_stories.py",
+      "priority": "medium",
+      "description": "Extend prd.schema.json with an optional prd.include array of file paths. Update lib/merge_stories.py to load each included sub-project PRD, prefix story IDs with the sub-project namespace (e.g., web:US-100), and raise an error on circular includes or missing files. This is the implementation half of US-1212.",
+      "acceptanceCriteria": [
+        "uv run python lib/prd_schema.py prd.json exits 0 when prd.include contains a valid sub-project path",
+        "python -c \"from lib.merge_stories import load_with_includes; load_with_includes('tests/fixtures/subproject_web_prd.json')\" prints namespaced story IDs like web:US-100",
+        "Circular include (A includes B includes A) raises MergeError with message containing 'circular'",
+        "uv run pytest tests/test_federated_prd.py -k include_schema -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: prd.schema.json (add prd.include: array of strings, optional)",
+        "File to edit: lib/merge_stories.py (add load_with_includes() that recurses include list, prefixes IDs, detects cycles via visited-set)",
+        "Test command: uv run pytest tests/test_federated_prd.py -k include_schema -v",
+        "Cycle detection: pass a frozenset of already-visited paths; raise MergeError if current path is in set"
+      ],
+      "dependencies": [
+        "US-1212"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1311",
+      "title": "Performance test: POST /api/config endpoint responds within 200ms baseline",
+      "priority": "medium",
+      "description": "Write a pytest performance benchmark in tests/test_spiral_ui_config_perf.py that calls POST /api/config via httpx against a locally started spiral-ui backend, measures p99 response time over 50 iterations, and fails if it exceeds 200ms. Establishes a repeatable baseline for the config endpoint introduced in US-1214.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v exits 0 when server is running",
+        "Test records p50 and p99 latency and asserts p99 < 200ms",
+        "Test fails if POST /api/config returns a non-200 HTTP status"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_ui_config_perf.py (new — test_config_post_latency_us_1214)",
+        "File to edit: lib/spiral_ui_config.py (reference — load/validate/persist config; must exist before this test runs)",
+        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v",
+        "Use httpx.Client for sync requests; spin up the backend with subprocess in a session-scoped fixture or assume it is already running on localhost:5299",
+        "Measure wall-clock time with time.perf_counter() around each POST call; collect into list; assert statistics.quantiles(times, n=100)[98] < 0.2"
+      ],
+      "dependencies": [
+        "US-1214"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1312",
+      "title": "spiral-ui: Add Tests tab UI with history table and pass-rate chart",
+      "priority": "medium",
+      "description": "Create a TestsTab React component that fetches /api/tests/history, renders a filterable table (date, test file, status, coverage %), a trend line chart of pass rate over time, and an expandable row showing full pytest output. Register the tab in Dashboard.tsx.",
+      "acceptanceCriteria": [
+        "Tests tab renders table with Date, Test File, Status, Coverage % columns populated from API: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'renders table' -v`",
+        "Date range preset buttons (7d, 30d) filter visible rows and re-render trend chart: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'date filter' -v`",
+        "Clicking a table row expands to show pytest output text: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'row expand' -v`"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/TestsTab.tsx (React component, TanStack Query for /api/tests/history, recharts LineChart for trend)",
+        "File to create: spiral-ui/src/hooks/useTestHistory.ts (TanStack Query hook wrapping GET /api/tests/history)",
+        "File to edit: spiral-ui/src/App.tsx or Dashboard.tsx (register TestsTab in tab list)",
+        "File to create: tests/e2e/tests-tab.spec.ts (Playwright E2E)",
+        "Test command: npx playwright test tests/e2e/tests-tab.spec.ts -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1313",
+      "title": "Regression tests: model escalation haiku→sonnet and worker crash respawn",
+      "priority": "medium",
+      "description": "Extend tests/test_spiral_e2e_integration.py with two tests for US-1211 behaviors: (1) test_us1211_model_escalation mocks a story failure and asserts results.tsv records haiku on attempt 1 then sonnet on attempt 2; (2) test_us1211_worker_crash_respawn simulates a worker process crash and asserts the main loop respawns it and all pending stories complete.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_spiral_e2e_integration.py -k us1211 -v exits 0 (both tests pass)",
+        "test_us1211_model_escalation: results.tsv contains two rows for same story_id with models haiku then sonnet",
+        "test_us1211_worker_crash_respawn: all seeded pending stories reach status 'done' despite simulated crash",
+        "Tests fail if escalation logic or respawn logic is monkey-patched out"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_e2e_integration.py (test_us1211_model_escalation, test_us1211_worker_crash_respawn)",
+        "File to edit: tests/fixtures/mock_claude_api.py (add fail-then-succeed response sequence builder)",
+        "Test command: uv run pytest tests/test_spiral_e2e_integration.py -k us1211 -v",
+        "For crash simulation: mock the worker process object's poll() to return non-zero on first check, then normal on retry",
+        "results.tsv is written by lib/impl/retry.sh — read it with csv.reader in the test assertion"
+      ],
+      "dependencies": [
+        "US-1211"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1314",
+      "title": "Phase G: Generate HTML API documentation from lib/ modules using pdoc",
+      "priority": "medium",
+      "description": "After story implementations in Phase I, automatically generate HTML API reference documentation for all lib/ Python modules using pdoc. Documentation is committed to docs/api/ and indexed from README for easy navigation.",
+      "acceptanceCriteria": [
+        "lib/api_docs_generator.py generates HTML docs for all .py files in lib/ (excluding tests) with module docstrings and function signatures extracted",
+        "Phase G (after Phase I implementation) invokes api_docs_generator, commits docs/api/index.html with commit message 'docs: auto-generated API docs'",
+        "Command `uv run python lib/api_docs_generator.py lib/ --output docs/api/` runs without errors and produces navigable HTML index with cross-module links"
+      ],
+      "technicalNotes": [
+        "File to create: lib/api_docs_generator.py (pdoc wrapper using pdoc.render(), ~120 lines)",
+        "File to modify: spiral.sh Phase G section to invoke generator and commit (add ~10 lines)",
+        "Test command: uv run pytest tests/test_api_docs_generator.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1315",
       "title": "Phase I: Enrich error messages with recovery hints indexed by failure type",
       "priority": "high",
@@ -2054,28 +2187,45 @@
     },
     {
       "id": "US-1316",
-      "title": "Phase C: Auto-recover from core-file integrity failure instead of halting SPIRAL",
-      "description": "When the post-iteration core-file integrity check (spiral.sh:1614-1627) detects a modified $SPIRAL_HOME file, currently SPIRAL halts with fatal E500 and forces the operator to manually choose skip-integrity / reset-Spiral-lib / leave-stopped. This breaks long autonomous runs on third-party projects whenever a hook or Ralph worktree touches SPIRAL_HOME. Replace the hard halt with an auto-recovery path: (1) log the changed files, (2) attempt git restore of each modified file from $SPIRAL_HOME (git -C $SPIRAL_HOME checkout HEAD -- <file>), (3) re-verify hashes after restore, (4) only halt if restore fails or git is dirty. Continue the loop on success. Preserves safety while keeping SPIRAL running.",
+      "title": "Phase R cache: Create ResearchCache module with TTL and stats",
+      "priority": "medium",
+      "description": "Create lib/research_cache.py implementing a file-backed JSON cache for Phase R research queries. Cache is keyed by story type, supports 24h TTL, prunes expired entries on startup, and exposes a stats() method returning hit/miss counts.",
       "acceptanceCriteria": [
-        "spiral.sh integrity-check block (~lines 1614-1627) replaced with auto-recovery: log → git restore → re-verify → continue",
-        "When restore succeeds: print [integrity] Auto-recovered N files: <list> and resume Phase C loop without halt",
-        "When SPIRAL_HOME has uncommitted changes (cannot safely restore): fall back to current halt behavior with a clearer message",
-        "Add SPIRAL_INTEGRITY_AUTO_RECOVER config (default true) so users can opt back into strict halting via spiral.config.sh",
-        "New bats test in tests/test_integrity_recovery.bats: simulate core-file modification, run one iteration, assert auto-recovery message and exit code 0",
-        "Update CLAUDE.md to document the new auto-recovery behavior and config flag"
+        "cache.get(key) returns None on miss and the stored summary on hit: `uv run pytest tests/test_research_cache.py::test_get_miss_and_hit -v`",
+        "Entries older than 24h are pruned by cache.prune(): `uv run pytest tests/test_research_cache.py::test_ttl_expiry -v`",
+        "cache.stats() returns dict with hit_count and miss_count matching actual usage: `uv run pytest tests/test_research_cache.py::test_stats_accuracy -v`",
+        "Cache file is valid JSON after put() and survives a re-instantiation: `uv run pytest tests/test_research_cache.py::test_persistence -v`"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/research_cache.py (new file — class ResearchCache with get, put, prune, stats methods; store as .spiral/research_cache.json)",
+        "File to edit: tests/test_research_cache.py (new file — unit tests for all ResearchCache methods)",
+        "Test command: uv run pytest tests/test_research_cache.py -v",
+        "Use tmp_path pytest fixture for .spiral/ directory; freeze time with freezegun or monkeypatch time.time() to test TTL"
       ],
       "dependencies": [],
-      "estimatedComplexity": "medium",
-      "model": "sonnet",
-      "priority": "high",
+      "estimatedComplexity": "small",
       "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1317",
+      "title": "Phase R cache: Integrate ResearchCache into phase_r.py with telemetry logging",
+      "priority": "medium",
+      "description": "Update lib/phases/phase_r.py to call ResearchCache.get() before invoking the Gemini API and ResearchCache.put() after. Append a telemetry row to .spiral/research_telemetry.jsonl per Phase R run containing hit_count, miss_count, api_calls_saved, and time_saved_seconds.",
+      "acceptanceCriteria": [
+        "Phase R skips Gemini API call when cache returns a hit (mock Gemini, assert not called): `uv run pytest tests/test_research_cache.py::test_phase_r_cache_hit_skips_api -v`",
+        "After a Phase R run, .spiral/research_telemetry.jsonl contains a valid JSON line with hit_count and api_calls_saved: `uv run pytest tests/test_research_cache.py::test_telemetry_written -v`"
+      ],
       "technicalNotes": [
-        "Root cause: running spiral skill on a non-self-referential project, an unintended hook or Ralph subprocess wrote to $SPIRAL_HOME/lib/*",
-        "Halting the whole loop is too brittle — operators want forward progress",
-        "Use git -C $SPIRAL_HOME status --porcelain to detect uncommitted changes before restore",
-        "Hash check after restore must succeed to declare recovery; otherwise fall through to halt",
-        "Keep the warning highly visible (banner) even on success so audit log records every recovery event"
-      ]
+        "File to edit: lib/phases/phase_r.py (import ResearchCache; wrap Gemini call with cache.get/put; append telemetry line after phase completes)",
+        "File to edit: tests/test_research_cache.py (add integration tests for phase_r cache flow)",
+        "Test command: uv run pytest tests/test_research_cache.py::test_phase_r_cache_hit_skips_api tests/test_research_cache.py::test_telemetry_written -v",
+        "Telemetry line format: {\"ts\": <iso>, \"hit_count\": N, \"miss_count\": N, \"api_calls_saved\": N, \"time_saved_seconds\": F}"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }

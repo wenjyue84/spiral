@@ -178,3 +178,4 @@ To profile a slow SPIRAL Python phase without modifying source code:
 - `lib/spiral-core/src/merge.rs` uses `truncate_title()` for UTF-8-safe string truncation (fixed 2026-04-11)
 - `lib/cli_subcommands.sh` uses `${VAR:-default}` for all optional variables under `set -u`
 - `.spiral/ui-phase-config.json` controls which phases are enabled/disabled in the UI — `"R": true` must be set for story discovery
+- Core-file integrity auto-recovery (US-1316): when a core file is modified during an iteration on a non-self-referential project, SPIRAL auto-restores it via `git -C $SPIRAL_HOME checkout HEAD -- <file>` instead of halting. Controlled by `SPIRAL_INTEGRITY_AUTO_RECOVER` (default `true`). Set to `false` to revert to strict halt behavior. Recovery is skipped (falls back to halt) if `SPIRAL_HOME` has uncommitted git changes or is not a git repo.

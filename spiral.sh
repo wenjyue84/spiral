@@ -1613,17 +1613,66 @@ PYEOF
   # SKIP when SPIRAL_PROJECT_ROOT == SPIRAL_HOME (self-referential: SPIRAL developing itself)
   if [[ -f "$_CORE_HASH_FILE" && "$REPO_ROOT" != "$SPIRAL_HOME" ]]; then
     if ! sha256sum -c "$_CORE_HASH_FILE" >/dev/null 2>&1; then
-      echo ""
-      echo "  ╔══════════════════════════════════════════════════════╗"
-      echo "  ║  CRITICAL: Core files modified during iteration $SPIRAL_ITER  ║"
-      echo "  ║  Halting SPIRAL to prevent cascading damage.        ║"
-      echo "  ╚══════════════════════════════════════════════════════╝"
-      echo ""
-      echo "  Changed files:"
-      sha256sum -c "$_CORE_HASH_FILE" 2>&1 | grep -i "FAILED" || true
-      echo ""
-      echo "  Run 'git diff' to inspect and 'git checkout -- <file>' to restore."
-      spiral_exit E500 "Core file integrity check failed"
+      _CHANGED_FILES=$(sha256sum -c "$_CORE_HASH_FILE" 2>&1 | grep -i ": FAILED$" | sed 's/: FAILED$//' || true)
+      _CHANGED_COUNT=$(echo "$_CHANGED_FILES" | grep -c '.' 2>/dev/null || echo 0)
+
+      if [[ "${SPIRAL_INTEGRITY_AUTO_RECOVER:-true}" == "true" ]]; then
+        echo ""
+        echo "  ╔══════════════════════════════════════════════════════╗"
+        echo "  ║  [integrity] Core files modified — auto-recovering  ║"
+        echo "  ╚══════════════════════════════════════════════════════╝"
+        echo ""
+        echo "  Changed files:"
+        echo "$_CHANGED_FILES"
+        echo ""
+        # Pre-flight: abort if SPIRAL_HOME has staged (index) changes — those represent
+        # deliberate work that git checkout HEAD -- <file> could overwrite. Unstaged
+        # working-tree modifications are expected (they are the corrupted files we restore).
+        _GIT_STAGED=$(git -C "$SPIRAL_HOME" diff --cached --name-only 2>/dev/null || true)
+        if [[ -n "$_GIT_STAGED" ]] || ! git -C "$SPIRAL_HOME" rev-parse --git-dir >/dev/null 2>&1; then
+          echo "  [integrity] Cannot auto-recover: SPIRAL_HOME has staged git changes or is not a git repo."
+          echo "  [integrity] Resolve manually: git -C \"$SPIRAL_HOME\" status"
+          spiral_exit E500 "Core file integrity check failed (staged git changes — cannot auto-restore)"
+        fi
+        # Restore each changed file from HEAD
+        _RESTORE_FAILED=0
+        while IFS= read -r _cf; do
+          [[ -z "$_cf" ]] && continue
+          _rel="${_cf#"${SPIRAL_HOME}/"}"
+          if ! git -C "$SPIRAL_HOME" checkout HEAD -- "$_rel" 2>/dev/null; then
+            echo "  [integrity] Failed to restore: $_rel"
+            _RESTORE_FAILED=1
+          fi
+        done <<<"$_CHANGED_FILES"
+        if [[ "$_RESTORE_FAILED" -eq 1 ]]; then
+          spiral_exit E500 "Core file integrity check failed (git restore failed)"
+        fi
+        # Re-verify after restore
+        if sha256sum -c "$_CORE_HASH_FILE" >/dev/null 2>&1; then
+          echo "  ╔══════════════════════════════════════════════════════╗"
+          echo "  ║  [integrity] Auto-recovered — resuming SPIRAL loop  ║"
+          echo "  ╚══════════════════════════════════════════════════════╝"
+          echo ""
+          echo "  [integrity] Auto-recovered ${_CHANGED_COUNT} files: $(echo "$_CHANGED_FILES" | tr '\n' ' ')"
+        else
+          echo "  [integrity] Re-verify failed after restore — halting."
+          spiral_exit E500 "Core file integrity check failed (re-verify after restore failed)"
+        fi
+      else
+        # SPIRAL_INTEGRITY_AUTO_RECOVER=false: strict halt (opt-in legacy behavior)
+        echo ""
+        echo "  ╔══════════════════════════════════════════════════════╗"
+        echo "  ║  CRITICAL: Core files modified during iteration $SPIRAL_ITER  ║"
+        echo "  ║  Halting SPIRAL to prevent cascading damage.        ║"
+        echo "  ╚══════════════════════════════════════════════════════╝"
+        echo ""
+        echo "  Changed files:"
+        echo "$_CHANGED_FILES"
+        echo ""
+        echo "  Run 'git -C \"$SPIRAL_HOME\" checkout HEAD -- <file>' to restore."
+        echo "  Set SPIRAL_INTEGRITY_AUTO_RECOVER=true to enable auto-recovery."
+        spiral_exit E500 "Core file integrity check failed"
+      fi
     fi
   elif [[ -f "$_CORE_HASH_FILE" ]]; then
     echo "  [integrity] Skipped (self-referential project — SPIRAL developing itself)"

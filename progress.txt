@@ -1916,3 +1916,35 @@ This is a technical brief for implementing a Flask-based API, not a Frappe appli
 - ✓ mypy --strict on lib/dashboard/routes/tests.py and lib/dashboard/api.py (no issues)
 - ✓ ruff check + ruff format (clean)
 - ✓ prd.json marked passes: true for US-1293
+## Iteration 1 - Mon, Apr 27, 2026  8:28:12 AM
+Completed: spiral-ui: Add /api/tests/latest and /api/tests/rerun backend endpoints (ID: US-1293) in 12m
+
+
+## Pre-analysis for US-1316 (Gemini 2.5 Pro)
+### Technical Brief: US-1316 Auto-Recovery
+
+**Objective:** Implement an auto-recovery mechanism in `spiral.sh` to handle core-file integrity failures by restoring modified files using git, instead of halting.
+
+**1. Files to Modify:**
+*   `spiral.sh`: Implement the main auto-recovery logic within the `integrity-check` function.
+*   `spiral.config.sh`: Add the new `SPIRAL_INTEGRITY_AUTO_RECOVER` configuration flag (default: `true`).
+*   `tests/test_integrity_recovery.bats`: A new BATS test file to validate the recovery process.
+*   `CLAUDE.md`: Document the new feature and configuration flag.
+
+**2. Involved Components:**
+*   **Bash Scripting:** The logic resides entirely within the `spiral.sh` shell script.
+*   **Git:** Core component for checking repository status (`git status --porcelain`) and restoring files (`git checkout HEAD -- <file>`).
+*   **BATS:** The testing framework for the new verification test.
+
+**3. Implementation Approach:**
+1.  In `spiral.sh`, modify the integrity check block (~line 1614).
+2.  Check if `SPIRAL_INTEGRITY_AUTO_RECOVER` is `true`.
+3.  **Pre-flight Check:** Run `git -C $SPIRAL_HOME status --porcelain`. If it's not empty, abort recovery and halt, warning about uncommitted changes.
+4.  **Recover:** If the repo is clean, log the modified files and attempt to restore each using `git -C $SPIRAL_HOME checkout HEAD -- <file>`.
+5.  **Re-verify:** After the restore attempt, re-run the hash verification. If successful, log the recovered files and continue the loop. If not, halt.
+
+**4. Edge Cases & Gotchas:**
+*   **CRITICAL:** Do not attempt recovery if `SPIRAL_HOME` has uncommitted git changes; this prevents data loss.
+*   The script must handle cases where `$SPIRAL_HOME` is not a git repository or `git` is not installed, gracefully falling back to the halt behavior.
+*   Ensure the exit codes of `git checkout` commands are checked to confirm the restore was successful before re-verifying.
+

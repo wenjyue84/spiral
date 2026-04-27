@@ -146,9 +146,9 @@ run_phase_s() {
 
     # ── US-1283: Track rejection reasons in prd.json and .spiral/rejections.jsonl ──
     if [[ -f "$SCRATCH_DIR/_story_rejected.json" ]] && [[ "$_S_REJECTED" -gt 0 ]]; then
-      local rejections_jsonl="$scratch_dir/rejections.jsonl"
-      "$spiral_python" "$spiral_home/lib/track_rejections.py" \
-        --prd "$prd_file" \
+      local rejections_jsonl="$SCRATCH_DIR/rejections.jsonl"
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/track_rejections.py" \
+        --prd "$PRD_FILE" \
         --rejected "$SCRATCH_DIR/_story_rejected.json" \
         --rejections-jsonl "$rejections_jsonl" || true
     fi

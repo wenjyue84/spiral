@@ -146,6 +146,12 @@ SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently
 # SPIRAL_CODEQL_BLOCKING="false"             # true = block on HIGH/CRITICAL
 # SPIRAL_CODEQL_KEEP_DB="false"              # true = keep DB for debugging
 
+# ── Core file integrity auto-recovery (US-1316) ──────────────────────────────
+# When true (default), SPIRAL auto-restores modified core files via git instead of
+# halting. Only aborts if SPIRAL_HOME has uncommitted git changes or restore fails.
+# Set to false to revert to strict halt-on-modification behavior.
+SPIRAL_INTEGRITY_AUTO_RECOVER="${SPIRAL_INTEGRITY_AUTO_RECOVER:-true}"
+
 # ── Dead Feature Detector (US-1006) ──────────────────────────────────────────
 # Phase V scan to find newly added functions/classes that are never imported or
 # called from the codebase. Prevents "code exists but doesn't work" implementations.
