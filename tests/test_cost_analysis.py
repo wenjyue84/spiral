@@ -3,19 +3,19 @@
 test_cost_analysis.py — Tests for the cost_analysis module.
 """
 
-import json
+import os
+import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
-import sys
-import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from lib.cost_analysis import (
     compute_iteration_costs,
     compute_model_costs,
+    compute_phase_costs,
     compute_story_costs,
     parse_results_tsv,
 )
@@ -257,3 +257,40 @@ def test_parse_results_tsv_missing_file():
     path = Path("/nonexistent/results.tsv")
     rows = parse_results_tsv(path)
     assert rows == []
+
+
+def test_compute_phase_costs():
+    """Test computing costs by phase."""
+    rows = [
+        {
+            "story_id": "US-100",
+            "model": "haiku",
+            "duration_sec": 100.0,
+            "tokens": 2000,
+            "cost_usd": 0.001,
+            "spiral_iter": 1,
+            "retry_num": 0,
+            "status": "keep",
+            "title": "Test",
+        },
+        {
+            "story_id": "US-101",
+            "model": "sonnet",
+            "duration_sec": 100.0,
+            "tokens": 2000,
+            "cost_usd": 0.005,
+            "spiral_iter": 1,
+            "retry_num": 0,
+            "status": "keep",
+            "title": "Test",
+        },
+    ]
+
+    phase_costs = compute_phase_costs(rows)
+    # Should have all phases
+    assert len(phase_costs) == 12
+    assert all(phase in phase_costs for phase in ["A", "R", "T", "S", "E", "M", "X", "G", "I", "V", "C", "L"])
+    # Costs should be positive and sum to total
+    assert all(cost > 0 for cost in phase_costs.values())
+    total = sum(phase_costs.values())
+    assert total == pytest.approx(0.006, abs=0.0001)

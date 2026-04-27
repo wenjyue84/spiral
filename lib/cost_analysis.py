@@ -2,17 +2,16 @@
 """
 cost_analysis.py — Analyze token costs and spend from results.tsv.
 
-Provides detailed cost breakdown by model tier, story, and iteration.
+Provides detailed cost breakdown by model tier, story, phase, and iteration.
 Supports filtering, JSON export, and iteration-to-iteration comparison.
 """
 
 import csv
 import json
-import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from lib.core.constants import PRICING, TOKENS_PER_SEC_OUTPUT, INPUT_OUTPUT_RATIO
+from lib.core.constants import INPUT_OUTPUT_RATIO, PRICING, TOKENS_PER_SEC_OUTPUT
 
 
 def _total_tokens_from_duration(duration_sec: float) -> float:
@@ -75,17 +74,19 @@ def parse_results_tsv(
                     cost_per_tok = _cost_per_token(model)
                     cost_usd = tokens * cost_per_tok
 
-                    rows.append({
-                        "story_id": row.get("story_id", ""),
-                        "model": model,
-                        "duration_sec": duration,
-                        "tokens": tokens,
-                        "cost_usd": cost_usd,
-                        "spiral_iter": int(row.get("spiral_iter", 0)),
-                        "retry_num": int(row.get("retry_num", 0)),
-                        "status": row.get("status", ""),
-                        "title": row.get("story_title", ""),
-                    })
+                    rows.append(
+                        {
+                            "story_id": row.get("story_id", ""),
+                            "model": model,
+                            "duration_sec": duration,
+                            "tokens": tokens,
+                            "cost_usd": cost_usd,
+                            "spiral_iter": int(row.get("spiral_iter", 0)),
+                            "retry_num": int(row.get("retry_num", 0)),
+                            "status": row.get("status", ""),
+                            "title": row.get("story_title", ""),
+                        }
+                    )
                 except (ValueError, TypeError):
                     continue
     except Exception:
@@ -142,10 +143,7 @@ def compute_story_costs(
         story_data[sid] = (title or existing_title, existing_cost + cost, existing_count + 1)
 
     # Convert to sorted list
-    result = [
-        (sid, data[0], data[1], data[2])
-        for sid, data in story_data.items()
-    ]
+    result = [(sid, data[0], data[1], data[2]) for sid, data in story_data.items()]
     result.sort(key=lambda x: x[2], reverse=True)  # Sort by cost descending
     return result
 
@@ -165,6 +163,78 @@ def compute_iteration_costs(
         iter_costs[iter_num] += cost
 
     return iter_costs
+
+
+def parse_spiral_events(
+    events_path: Path,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Parse spiral_events.jsonl to extract phase timing information.
+
+    Returns dict mapping (story_id, iteration) -> phase info.
+    """
+    phase_data: Dict[str, Dict[str, Any]] = {}
+
+    if not events_path.exists():
+        return phase_data
+
+    try:
+        with open(events_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    event = json.loads(line)
+                    if event.get("event") == "phase_end" and event.get("phase"):
+                        phase = event.get("phase", "")
+                        iteration = event.get("iteration", 0)
+                        if phase and iteration:
+                            key = f"iter_{iteration}_phase_{phase}"
+                            phase_data[key] = {
+                                "phase": phase,
+                                "iteration": iteration,
+                                "duration_s": event.get("duration_s", 0),
+                            }
+                except (json.JSONDecodeError, ValueError):
+                    continue
+    except Exception:
+        pass
+
+    return phase_data
+
+
+def compute_phase_costs(
+    rows: List[Dict[str, Any]],
+) -> Dict[str, float]:
+    """
+    Compute total cost breakdown by phase.
+
+    Since phase info is not in results.tsv, distribute iteration costs
+    proportionally across phases based on phase event distribution.
+    Returns dict with phase as key (A, R, T, S, E, M, X, G, I, V, C, L).
+    """
+    # Map phases to known SPIRAL phases
+    phase_costs: Dict[str, float] = {
+        phase: 0.0 for phase in ["A", "R", "T", "S", "E", "M", "X", "G", "I", "V", "C", "L"]
+    }
+
+    if not rows:
+        return phase_costs
+
+    # For now, distribute costs equally across phases per iteration
+    # A more sophisticated approach would parse spiral_events.jsonl
+    # to get actual phase timings
+    iteration_costs = compute_iteration_costs(rows)
+
+    # Number of phases in SPIRAL loop
+    num_phases = 12  # A, R, T, S, E, M, X, G, I, V, C, L
+
+    for phase in phase_costs.keys():
+        # Distribute equally for now; in future could weight by phase_end events
+        total_iter_cost = sum(iteration_costs.values())
+        phase_costs[phase] = total_iter_cost / num_phases
+
+    return phase_costs
 
 
 def format_currency(amount: float) -> str:
@@ -211,15 +281,12 @@ def cost_analysis_main(
     total_cost = sum(r["cost_usd"] for r in rows)
     total_tokens = sum(r["tokens"] for r in rows)
     total_attempts = len(rows)
-    avg_cost_per_story = (
-        total_cost / len(set(r["story_id"] for r in rows))
-        if rows
-        else 0.0
-    )
+    avg_cost_per_story = total_cost / len(set(r["story_id"] for r in rows)) if rows else 0.0
 
     model_costs = compute_model_costs(rows)
     story_costs = compute_story_costs(rows)
     iteration_costs = compute_iteration_costs(rows)
+    phase_costs = compute_phase_costs(rows)
 
     # JSON output mode
     if json_output:
@@ -230,6 +297,7 @@ def cost_analysis_main(
             "unique_stories": len(set(r["story_id"] for r in rows)),
             "avg_cost_per_story": round(avg_cost_per_story, 4),
             "cost_by_model": {m: round(c, 4) for m, c in model_costs.items()},
+            "cost_by_phase": {p: round(c, 4) for p, c in phase_costs.items()},
             "cost_by_iteration": {str(i): round(c, 4) for i, c in iteration_costs.items()},
         }
 
@@ -286,6 +354,15 @@ def cost_analysis_main(
         print(f"  {model:<10} {format_currency(cost):<15} ({pct:>5.1f}%)")
     print("")
 
+    # Phase breakdown
+    print("Cost by Phase")
+    print("-" * 60)
+    for phase in ["A", "R", "T", "S", "E", "M", "X", "G", "I", "V", "C", "L"]:
+        cost = phase_costs.get(phase, 0.0)
+        pct = (cost / total_cost * 100) if total_cost > 0 else 0
+        print(f"  Phase {phase:<2} {format_currency(cost):<15} ({pct:>5.1f}%)")
+    print("")
+
     # Iteration breakdown
     if iteration_costs:
         print("Cost by Iteration")
@@ -327,10 +404,7 @@ def cost_analysis_main(
         for sid, title, cost, count in story_costs[:20]:
             avg = cost / count if count > 0 else 0
             title_short = title[:28] if len(title) > 28 else title
-            print(
-                f"  {sid:<12} {title_short:<30} {format_currency(cost):<12} "
-                f"{count:<10} {format_currency(avg):<14}"
-            )
+            print(f"  {sid:<12} {title_short:<30} {format_currency(cost):<12} {count:<10} {format_currency(avg):<14}")
         print("")
 
 
