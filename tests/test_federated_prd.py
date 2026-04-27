@@ -4,7 +4,6 @@ import json
 import os
 import sys
 import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -26,9 +25,7 @@ def test_schema_accepts_prd_include_field():
         "productName": "Test",
         "branchName": "main",
         "userStories": [],
-        "prd": {
-            "include": ["subproject_a.json", "subproject_b.json"]
-        }
+        "prd": {"include": ["subproject_a.json", "subproject_b.json"]},
     }
     errors = validate_prd(prd)
     assert len(errors) == 0, f"Schema validation failed: {errors}"
@@ -74,17 +71,33 @@ def test_load_with_includes_circular_detection():
         prd_a = {
             "productName": "ProjectA",
             "branchName": "main",
-            "userStories": [{"id": "US-1", "title": "Feature A", "priority": "high",
-                            "acceptanceCriteria": [], "passes": False, "dependencies": []}],
-            "prd": {"include": ["prd_b.json"]}
+            "userStories": [
+                {
+                    "id": "US-1",
+                    "title": "Feature A",
+                    "priority": "high",
+                    "acceptanceCriteria": [],
+                    "passes": False,
+                    "dependencies": [],
+                }
+            ],
+            "prd": {"include": ["prd_b.json"]},
         }
 
         prd_b = {
             "productName": "ProjectB",
             "branchName": "main",
-            "userStories": [{"id": "US-1", "title": "Feature B", "priority": "high",
-                            "acceptanceCriteria": [], "passes": False, "dependencies": []}],
-            "prd": {"include": ["prd_a.json"]}  # Circular: includes A
+            "userStories": [
+                {
+                    "id": "US-1",
+                    "title": "Feature B",
+                    "priority": "high",
+                    "acceptanceCriteria": [],
+                    "passes": False,
+                    "dependencies": [],
+                }
+            ],
+            "prd": {"include": ["prd_a.json"]},  # Circular: includes A
         }
 
         with open(prd_a_path, "w", encoding="utf-8") as f:
@@ -109,7 +122,7 @@ def test_load_with_includes_missing_file():
             "productName": "Test",
             "branchName": "main",
             "userStories": [],
-            "prd": {"include": ["nonexistent_subproject.json"]}
+            "prd": {"include": ["nonexistent_subproject.json"]},
         }
 
         with open(prd_path, "w", encoding="utf-8") as f:
@@ -134,19 +147,31 @@ def test_load_with_includes_namespacing():
             "productName": "API",
             "branchName": "main",
             "userStories": [
-                {"id": "US-50", "title": "API Auth", "priority": "high",
-                 "acceptanceCriteria": [], "passes": False, "dependencies": []}
-            ]
+                {
+                    "id": "US-50",
+                    "title": "API Auth",
+                    "priority": "high",
+                    "acceptanceCriteria": [],
+                    "passes": False,
+                    "dependencies": [],
+                }
+            ],
         }
 
         main_prd = {
             "productName": "Main",
             "branchName": "main",
             "userStories": [
-                {"id": "US-1", "title": "Main Feature", "priority": "high",
-                 "acceptanceCriteria": [], "passes": False, "dependencies": []}
+                {
+                    "id": "US-1",
+                    "title": "Main Feature",
+                    "priority": "high",
+                    "acceptanceCriteria": [],
+                    "passes": False,
+                    "dependencies": [],
+                }
             ],
-            "prd": {"include": ["api_prd.json"]}
+            "prd": {"include": ["api_prd.json"]},
         }
 
         with open(sub_prd_path, "w", encoding="utf-8") as f:
@@ -173,10 +198,16 @@ def test_load_with_includes_empty_include_array():
         "branchName": "main",
         "schemaVersion": 1,
         "userStories": [
-            {"id": "US-001", "title": "Test", "priority": "high",
-             "acceptanceCriteria": ["Test criterion"], "passes": False, "dependencies": []}
+            {
+                "id": "US-001",
+                "title": "Test",
+                "priority": "high",
+                "acceptanceCriteria": ["Test criterion"],
+                "passes": False,
+                "dependencies": [],
+            }
         ],
-        "prd": {"include": []}
+        "prd": {"include": []},
     }
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -202,9 +233,15 @@ def test_load_with_includes_no_prd_object():
         "productName": "Test",
         "branchName": "main",
         "userStories": [
-            {"id": "US-1", "title": "Test", "priority": "high",
-             "acceptanceCriteria": [], "passes": False, "dependencies": []}
-        ]
+            {
+                "id": "US-1",
+                "title": "Test",
+                "priority": "high",
+                "acceptanceCriteria": [],
+                "passes": False,
+                "dependencies": [],
+            }
+        ],
     }
 
     with tempfile.TemporaryDirectory() as tmpdir:

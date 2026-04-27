@@ -250,9 +250,7 @@ def predict_cost_for_n_iterations(
             f"{round(breakdown['opus']['total_cost'], 2)} USD from model tier alone"
         )
     elif "sonnet" in breakdown and breakdown["sonnet"]["pct"] > 50:
-        escalation_note = (
-            "Sonnet dominant (>50% of stories) — consider evaluating haiku for simpler tasks"
-        )
+        escalation_note = "Sonnet dominant (>50% of stories) — consider evaluating haiku for simpler tasks"
 
     return {
         "estimated_cost": round(estimated_total, 2),
