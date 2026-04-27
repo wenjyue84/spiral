@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 import pytest
-
 from phase_s.duplicate_detector import find_duplicates
-from phase_s.embedding_cache import compute_title_hash, load_cache, save_cache
+from phase_s.embedding_cache import load_cache
 
 
 @pytest.fixture
@@ -99,7 +97,9 @@ def test_cache_reuse(test_stories, tmp_path):
     with open(cache_path, "r", encoding="utf-8") as f:
         final_cache_lines = len([line for line in f if line.strip()])
 
-    assert final_cache_lines == initial_cache_lines, f"Cache grew on second call: {initial_cache_lines} -> {final_cache_lines}"
+    assert final_cache_lines == initial_cache_lines, (
+        f"Cache grew on second call: {initial_cache_lines} -> {final_cache_lines}"
+    )
 
     # Results should be identical
     assert len(duplicates_1) == len(duplicates_2), "Duplicate count changed between calls"
@@ -136,7 +136,7 @@ def test_cache_format(test_stories, tmp_path):
     for title_hash, embedding in cache.items():
         assert isinstance(embedding, list), f"Embedding for {title_hash} is not a list"
         assert len(embedding) > 0, f"Embedding for {title_hash} is empty"
-        assert all(isinstance(val, float) for val in embedding), f"Embedding contains non-float values"
+        assert all(isinstance(val, float) for val in embedding), "Embedding contains non-float values"
 
 
 def test_empty_stories(tmp_path):

@@ -12,7 +12,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from typing import Any
 
 
 def compute_title_hash(title: str) -> str:

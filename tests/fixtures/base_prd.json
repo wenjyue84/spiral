@@ -1,0 +1,21 @@
+{
+  "productName": "Main Project",
+  "branchName": "main",
+  "schemaVersion": 1,
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Core platform setup",
+      "priority": "critical",
+      "acceptanceCriteria": [
+        "Infrastructure provisioned",
+        "CI/CD pipeline configured"
+      ],
+      "passes": false,
+      "dependencies": []
+    }
+  ],
+  "prd": {
+    "include": ["subproject_web_prd.json"]
+  }
+}

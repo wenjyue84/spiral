@@ -12,7 +12,6 @@ Usage:
 
 from __future__ import annotations
 
-import difflib
 import os
 from typing import Any
 
@@ -133,9 +132,7 @@ if __name__ == "__main__":
     import json
     import sys
 
-    parser = argparse.ArgumentParser(
-        description="Detect duplicate stories in a validated stories JSON file."
-    )
+    parser = argparse.ArgumentParser(description="Detect duplicate stories in a validated stories JSON file.")
     parser.add_argument("stories_file", help="Path to JSON file with {stories: [...]} format")
     parser.add_argument(
         "--threshold",

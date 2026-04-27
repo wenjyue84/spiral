@@ -254,3 +254,31 @@ def test_load_with_includes_no_prd_object():
         stories = result.get("userStories", [])
         assert len(stories) == 1
         assert stories[0]["id"] == "US-1"
+
+
+@pytest.mark.include_schema
+def test_include_merges_with_prefix():
+    """Regression test: prd.include merges stories with namespace prefixes (US-1212a)."""
+    # Load base_prd.json which includes subproject_web_prd.json
+    fixture_path = os.path.join(os.path.dirname(__file__), "fixtures", "base_prd.json")
+
+    # Call load_with_includes to process the include directive
+    result = load_with_includes(fixture_path)
+
+    # Verify merged output contains stories with namespace prefixes
+    stories = result.get("userStories", [])
+    assert len(stories) == 3  # 1 from base + 2 from subproject
+
+    story_ids = {s["id"] for s in stories}
+
+    # Verify base story is present without prefix
+    assert "US-1" in story_ids, "Base PRD story should be in merged output"
+
+    # Verify subproject stories have namespace prefix
+    # Include path namespace extraction produces 'subproject_web' from 'subproject_web_prd.json'
+    assert "subproject_web:US-100" in story_ids, "Subproject story US-100 should have namespace prefix"
+    assert "subproject_web:US-101" in story_ids, "Subproject story US-101 should have namespace prefix"
+
+    # Verify namespace prefixing is correctly applied
+    prefixed_stories = [s for s in stories if ":" in s["id"]]
+    assert len(prefixed_stories) == 2, "Exactly 2 stories should have namespace prefix"
