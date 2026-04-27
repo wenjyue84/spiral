@@ -2232,7 +2232,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-04-27T03:59:25Z"
+      "last_attempted": "2026-04-27T03:59:25Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n`tests/test_security_us1214.py` already exists and contains 6 passing tests covering all acceptance criteria for US-1325.\n\n## Problem Identified\nStory marked `passes: false` but the implementation already exists and passes. Need to mark it complete.\n\n## Planned Changes\n- Mark `US-1325.passes = true` in `prd.json`\n- Append to `progress.txt`\nDone. US-1325 was already fully implemented — `tests/test_security_us1214.py` existed with all 6 tests passing:\n\n- `test_post_config_no_auth_returns_401_or_403` — unauthenticated POST rejected\n- `test_post_config_error_response_contains_no_secrets` — no token/password/secret in error body\n- `test_post_config_valid_key_allowed` — authenticated POST succeeds (smoke check)\n- Plus GET variants for completeness\n\nMarked `passes: true` in prd.json and committed."
+      }
     }
   ]
 }
