@@ -471,3 +471,69 @@ This brief outlines the implementation for a regression test, ignoring the initi
 
 ### Gotchas
 - When a story's tests already exist and pass, only prd.json and progress.txt need updating
+## Iteration 2 - Mon, Apr 27, 2026  1:09:00 PM
+Completed: [Regression Test] CLI trace-dependencies: verify full dep chain output (ID: US-1303) in 2m
+
+
+## Pre-analysis for US-1307 (Gemini 2.5 Pro)
+Based on the user story JSON, the request pertains to the Spiral project, not a Frappe application. Here is the technical brief for the agent:
+
+**Project:** Spiral (Internal Tooling)
+**Objective:** Implement story deduplication and merging functionality.
+
+**1. Files to Modify:**
+*   **Create:** `lib/dedup_confidence.py` for the core scoring and merging logic.
+*   **Create:** `tests/test_dedup_confidence.py` for unit tests.
+*   **Edit:** `lib/cli_subcommands.sh` to add the new `dedup-suggestions` and `merge` CLI commands.
+
+**2. Involved Components (Not Frappe DocTypes):**
+*   **Data Source:** `prd.json`. This file will be read for finding duplicates and written to when merging stories.
+*   **CLI Interface:** The main entry point `spiral.sh` which dispatches to `lib/cli_subcommands.sh`.
+
+**3. Implementation Approach:**
+*   In `lib/dedup_confidence.py`, implement `find_duplicates()` using `sklearn.feature_extraction.text.TfidfVectorizer` and `sklearn.metrics.pairwise.cosine_similarity` on the `title` and `description` of stories from `prd.json`.
+*   The `find_duplicates` function must filter out "seed" stories and stories already superseded.
+*   Implement a `merge_stories(id1, id2)` function that creates a new story, combines the `acceptanceCriteria`, and updates the `superseded_by` field in the original stories.
+*   In `lib/cli_subcommands.sh`, wire the new functions to `spiral dedup-suggestions` and `spiral merge <id1> <id2>` subcommands. The merge command should overwrite `prd.json` with the updated data.
+
+**4. Edge Cases & Gotchas:**
+*   The `merge` operation modifies `prd.json`. Ensure the file write is atomic to prevent data corruption.
+*   Decide on a strategy for merging other fields (e.g., `title`, `priority`). A simple approach is to inherit them from the first story ID provided.
+*   Ensure the new merged story ID is unique.
+
+
+## Iteration N - Story: US-1307 - Deduplication Confidence Scorer: suggest and merge similar stories
+
+### What was implemented
+- Created `lib/dedup_confidence.py` with TF-IDF similarity scoring (sklearn.feature_extraction.text.TfidfVectorizer)
+  - `find_duplicates(prd_data, threshold=0.75)`: finds duplicate story pairs using cosine similarity
+  - `merge_stories(id1, id2, prd_data)`: merges two stories, combines acceptanceCriteria, marks originals as superseded
+  - Excludes seed stories, passed stories, and superseded stories from dedup candidates
+- Created `tests/test_dedup_confidence.py` with 10 comprehensive test cases
+  - test_high_confidence_detection: verifies duplicates with confidence ≥0.75 are detected
+  - test_seed_excluded: confirms seed stories never appear in candidates
+  - test_passed_stories_excluded: confirms passed stories are excluded
+  - test_merge_sets_superseded_by: verifies merge creates new story and marks originals superseded
+  - Additional tests for edge cases (empty PRD, single story, invalid IDs, dependencies)
+- Added CLI command integration to spiral.sh and lib/cli_subcommands.sh
+  - `spiral dedup-suggestions`: invokes find_duplicates, outputs pairs with scores
+  - `spiral merge <id1> <id2>`: invokes merge_stories, updates prd.json atomically
+  - Variables: DEDUP_MODE, DEDUP_MERGE_MODE, DEDUP_MERGE_ID1, DEDUP_MERGE_ID2
+
+### Patterns discovered
+- TF-IDF vectorizer with stop_words="english" captures semantic similarity effectively
+- CLI subcommand pattern: positional args parsed in spiral.sh case statement, handlers in cli_subcommands.sh
+- Merged stories inherit _source='dedup-merge' and _merged_from=[id1, id2] fields for traceability
+- Merged story ID format: <prefix>-1307-merged-<sequence> to avoid collisions
+
+### Acceptance criteria met
+- [x] `spiral dedup-suggestions` prints pairs with confidence ≥0.75 (tested with test_high_confidence_detection)
+- [x] `spiral merge US-X US-Y` creates merged story with combined acceptanceCriteria and marks originals superseded
+- [x] Seed stories (source == 'seed') never appear as dedup candidates (tested with test_seed_excluded)
+- [x] All 10 pytest tests pass with 100% success rate
+
+### Quality checks
+- mypy strict mode: no issues
+- ruff lint and format: all checks pass
+- Full test suite: 10/10 tests passing
+

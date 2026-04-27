@@ -178,6 +178,10 @@ BATCH_OPERATION=""                           # mark-done or retrigger
 BATCH_STORIES_FILE=""                        # path to file with story IDs
 COST_ESTIMATE_MODE=0                         # 1 = estimate cost for N iterations and exit (cost-estimate)
 COST_ESTIMATE_ITERATIONS=""                  # number of iterations to estimate cost for
+DEDUP_MODE=0                                 # 1 = find duplicate stories and exit (dedup-suggestions)
+DEDUP_MERGE_MODE=0                           # 1 = merge two stories and exit (merge)
+DEDUP_MERGE_ID1=""                           # first story ID to merge
+DEDUP_MERGE_ID2=""                           # second story ID to merge
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -546,6 +550,16 @@ while [[ $# -gt 0 ]]; do
       COST_ESTIMATE_MODE=1
       COST_ESTIMATE_ITERATIONS="${2:-}"
       shift 2
+      ;;
+    dedup-suggestions)
+      DEDUP_MODE=1
+      shift
+      ;;
+    merge)
+      DEDUP_MERGE_MODE=1
+      DEDUP_MERGE_ID1="${2:-}"
+      DEDUP_MERGE_ID2="${3:-}"
+      shift 3
       ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case

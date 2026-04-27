@@ -1926,7 +1926,8 @@
         "tokensAfterMasking": 683,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "_passedCommit": "da8d9cfec13a19b3b17530ab078918ac3438fa1b"
     },
     {
       "id": "US-1304",
@@ -2017,8 +2018,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-27T05:09:03Z"
     },
     {
       "id": "US-1308",

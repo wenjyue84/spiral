@@ -480,3 +480,23 @@ if [[ "$COST_ESTIMATE_MODE" -eq 1 ]]; then
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_estimator.py" "$COST_ESTIMATE_ITERATIONS" "$_RESULTS_TSV"
   exit $?
 fi
+
+# ── dedup-suggestions: find duplicate stories using TF-IDF similarity ─────────
+DEDUP_MODE="${DEDUP_MODE:-0}"
+if [[ "$DEDUP_MODE" -eq 1 ]]; then
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/dedup_confidence.py" find_duplicates "$PRD_FILE"
+  exit $?
+fi
+
+# ── merge: merge two stories and mark originals as superseded ────────────────
+DEDUP_MERGE_MODE="${DEDUP_MERGE_MODE:-0}"
+DEDUP_MERGE_ID1="${DEDUP_MERGE_ID1:-}"
+DEDUP_MERGE_ID2="${DEDUP_MERGE_ID2:-}"
+if [[ "$DEDUP_MERGE_MODE" -eq 1 ]]; then
+  if [[ -z "$DEDUP_MERGE_ID1" ]] || [[ -z "$DEDUP_MERGE_ID2" ]]; then
+    echo "Error: merge requires <id1> <id2>" >&2
+    exit 1
+  fi
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/dedup_confidence.py" merge "$PRD_FILE" "$DEDUP_MERGE_ID1" "$DEDUP_MERGE_ID2"
+  exit $?
+fi
