@@ -305,21 +305,22 @@ def _load_raw(path: str) -> dict[str, Any]:
 
 class MergeError(Exception):
     """Raised when merge or include processing fails."""
+
     pass
 
 
-def load_with_includes(
-    prd_path: str, visited: frozenset[str] | None = None, namespace: str = ""
-) -> dict[str, Any]:
+def load_with_includes(prd_path: str, visited: frozenset[str] | None = None, namespace: str = "") -> dict[str, Any]:
     """Load a PRD file and recursively include sub-project PRDs with namespacing.
 
     Recursively loads each file listed in prd.include array, prefixes story IDs
     with namespace (e.g., "web:US-100"), and detects circular includes via visited-set.
 
+    Auto-detects namespace from filename if not provided (e.g., subproject_web_prd.json → "web").
+
     Args:
         prd_path: Path to PRD file to load
         visited: frozenset of already-visited paths (for cycle detection)
-        namespace: ID prefix for this PRD's stories (e.g., "web")
+        namespace: ID prefix for this PRD's stories (e.g., "web"). Auto-detected from filename if not provided.
 
     Returns:
         Merged PRD dict with all stories (including namespaced ones from includes)
@@ -343,6 +344,18 @@ def load_with_includes(
 
     prd = _load_raw(abs_path)
     new_visited = visited | {abs_path}
+
+    # Auto-detect namespace from filename if not provided
+    # (e.g., subproject_web_prd.json or subproject_web.json → "web")
+    if not namespace:
+        filename = os.path.basename(abs_path)
+        filename_no_ext = os.path.splitext(filename)[0]
+        # Match "subproject_<name>" or "subproject_<name>_prd" pattern
+        if filename_no_ext.startswith("subproject_"):
+            # Extract the part after "subproject_"
+            name_part = filename_no_ext[len("subproject_") :]
+            # Remove "_prd" or "-prd" suffix if present
+            namespace = name_part.replace("_prd", "").replace("-prd", "")
 
     # Process each story in this PRD to add namespace prefix
     stories = prd.get("userStories", [])
