@@ -2145,7 +2145,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-27T06:07:52Z"
+      "last_attempted": "2026-04-27T06:07:52Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nI need to implement regression tests for US-1211 (model escalation and worker crash recovery) in story US-1313. The story requires two new tests in `tests/test_spiral_e2e_integration.py`:\n1. `test_us1211_model_escalation` - verify haiku→sonnet escalation in results.tsv\n2. `test_us1211_worker_crash_respawn` - verify worker respawn behavior\n\nThe codebase has:\n- Model escalation ladder: haiku → sonnet → opus (in lib/impl/retry.py)\n- Retry infrastructure in lib/impl/retry.sh\n- E2E test fixtures in tests/conftest.py (mock_ralph_env, mock_prd_fixture)\n- Existing test structure in tests/test_spiral_e2e_integration.py\n\n## Problem Identified\n\nUS-1211 (model escalation and worker crash recovery) was already implemented and passed, but regression tests were never added. These tests ensure that:\n1. Model escalation haiku→sonnet is recorded in results.tsv on story failure\n2. Worker process crashes trigger respawn and stories still complete\n\n## Planned Changes\n\n- **tests/test_spiral_e2e_integration.py**: Add two test methods\n  - `test_us1211_model_escalation()` - Create a mock ralph scenario where first call (haiku) fails and returns a failed result row, second call (sonnet) succeeds. Verify both rows in results.tsv.\n  - `test_us1211_worker_crash_respawn()` - Mock a worker process that returns non-zero on first poll(), then succeeds on second. Verify stories complete despite crash.\n- Extend mock_ralph_env or create new fixtures to support fail-then-succeed patterns and worker crash simulation\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/test_spiral_e2e_integration.py\",\n    \"tests/conftest.py\"\n  ],\n  \"functions_to_add\": [\n    \"test_us1211_model_escalation\",\n    \"test_us1211_worker_crash_respawn\",\n    \"mock_ralph_env_with_escalation\",\n    \"mock_ralph_env_with_crash\"\n  ],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me implement the tests:\n## Summary"
+      }
     },
     {
       "id": "US-1314",
