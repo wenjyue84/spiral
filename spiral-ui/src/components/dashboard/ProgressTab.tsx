@@ -5,8 +5,9 @@ import type { Story, TokenBurnEntry, CachePhaseEntry, ProjectData, ActiveStoryIn
 import { pct } from './types';
 import ActiveStoryBanner from './ActiveStoryBanner';
 import RecentlyCompletedFeed from './RecentlyCompletedFeed';
+import ThroughputMetrics from '../ThroughputMetrics';
 
-export default function ProgressTab({ data, projectName, onRefresh, activeStory }: { data: ProjectData; projectName: string; onRefresh: () => void; activeStory: ActiveStoryInfo | null }) {
+export default function ProgressTab({ data, projectName, onRefresh, activeStory, isRunning }: { data: ProjectData; projectName: string; onRefresh: () => void; activeStory: ActiveStoryInfo | null; isRunning: boolean }) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,6 +116,9 @@ export default function ProgressTab({ data, projectName, onRefresh, activeStory 
           />
         </div>
       </div>
+
+      {/* ThroughputMetrics widget (US-1298) */}
+      <ThroughputMetrics isRunning={isRunning} />
 
       {/* Recently Completed feed (US-314) */}
       <div>

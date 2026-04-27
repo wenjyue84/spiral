@@ -1807,8 +1807,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-27T03:23:04Z"
     },
     {
       "id": "US-1299",
@@ -2146,26 +2147,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1314",
-      "title": "Phase G: Generate HTML API documentation from lib/ modules using pdoc",
-      "priority": "medium",
-      "description": "After story implementations in Phase I, automatically generate HTML API reference documentation for all lib/ Python modules using pdoc. Documentation is committed to docs/api/ and indexed from README for easy navigation.",
-      "acceptanceCriteria": [
-        "lib/api_docs_generator.py generates HTML docs for all .py files in lib/ (excluding tests) with module docstrings and function signatures extracted",
-        "Phase G (after Phase I implementation) invokes api_docs_generator, commits docs/api/index.html with commit message 'docs: auto-generated API docs'",
-        "Command `uv run python lib/api_docs_generator.py lib/ --output docs/api/` runs without errors and produces navigable HTML index with cross-module links"
-      ],
-      "technicalNotes": [
-        "File to create: lib/api_docs_generator.py (pdoc wrapper using pdoc.render(), ~120 lines)",
-        "File to modify: spiral.sh Phase G section to invoke generator and commit (add ~10 lines)",
-        "Test command: uv run pytest tests/test_api_docs_generator.py -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1315",
       "title": "Phase I: Enrich error messages with recovery hints indexed by failure type",
       "priority": "high",
@@ -2184,118 +2165,6 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1316",
-      "title": "Phase R cache: Create ResearchCache module with TTL and stats",
-      "priority": "medium",
-      "description": "Create lib/research_cache.py implementing a file-backed JSON cache for Phase R research queries. Cache is keyed by story type, supports 24h TTL, prunes expired entries on startup, and exposes a stats() method returning hit/miss counts.",
-      "acceptanceCriteria": [
-        "cache.get(key) returns None on miss and the stored summary on hit: `uv run pytest tests/test_research_cache.py::test_get_miss_and_hit -v`",
-        "Entries older than 24h are pruned by cache.prune(): `uv run pytest tests/test_research_cache.py::test_ttl_expiry -v`",
-        "cache.stats() returns dict with hit_count and miss_count matching actual usage: `uv run pytest tests/test_research_cache.py::test_stats_accuracy -v`",
-        "Cache file is valid JSON after put() and survives a re-instantiation: `uv run pytest tests/test_research_cache.py::test_persistence -v`"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/research_cache.py (new file — class ResearchCache with get, put, prune, stats methods; store as .spiral/research_cache.json)",
-        "File to edit: tests/test_research_cache.py (new file — unit tests for all ResearchCache methods)",
-        "Test command: uv run pytest tests/test_research_cache.py -v",
-        "Use tmp_path pytest fixture for .spiral/ directory; freeze time with freezegun or monkeypatch time.time() to test TTL"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1317",
-      "title": "Phase R cache: Integrate ResearchCache into phase_r.py with telemetry logging",
-      "priority": "medium",
-      "description": "Update lib/phases/phase_r.py to call ResearchCache.get() before invoking the Gemini API and ResearchCache.put() after. Append a telemetry row to .spiral/research_telemetry.jsonl per Phase R run containing hit_count, miss_count, api_calls_saved, and time_saved_seconds.",
-      "acceptanceCriteria": [
-        "Phase R skips Gemini API call when cache returns a hit (mock Gemini, assert not called): `uv run pytest tests/test_research_cache.py::test_phase_r_cache_hit_skips_api -v`",
-        "After a Phase R run, .spiral/research_telemetry.jsonl contains a valid JSON line with hit_count and api_calls_saved: `uv run pytest tests/test_research_cache.py::test_telemetry_written -v`"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/phases/phase_r.py (import ResearchCache; wrap Gemini call with cache.get/put; append telemetry line after phase completes)",
-        "File to edit: tests/test_research_cache.py (add integration tests for phase_r cache flow)",
-        "Test command: uv run pytest tests/test_research_cache.py::test_phase_r_cache_hit_skips_api tests/test_research_cache.py::test_telemetry_written -v",
-        "Telemetry line format: {\"ts\": <iso>, \"hit_count\": N, \"miss_count\": N, \"api_calls_saved\": N, \"time_saved_seconds\": F}"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1318",
-      "title": "Regression Test: worker crash respawn completes pending stories (US-1211b)",
-      "priority": "medium",
-      "description": "Add a test to tests/test_spiral_e2e_integration.py that simulates a worker process crash mid-run and asserts the main loop detects the crash, respawns the worker, and all pending stories are eventually completed. Guards the crash-recovery branch of US-1211.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_spiral_e2e_integration.py::test_worker_crash_recovery_us1211 -v` exits 0",
-        "Test asserts all stories in the mocked PRD slice reach status 'done' after crash+respawn",
-        "Test fails when crash-detection or respawn logic is removed (stories remain 'pending')"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_spiral_e2e_integration.py (test_worker_crash_recovery_us1211)",
-        "File to edit: tests/fixtures/mock_claude_api.py (add crash-signal mock for worker subprocess)",
-        "Test command: uv run pytest tests/test_spiral_e2e_integration.py::test_worker_crash_recovery_us1211 -v",
-        "Simulate crash by having mock subprocess.run raise subprocess.TimeoutExpired on the first worker invocation",
-        "Assert prd.json story statuses after loop: all should be 'done'"
-      ],
-      "dependencies": [
-        "US-1211"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1319",
-      "title": "Regression Test: prd.include merges stories with namespace prefixes (US-1212a)",
-      "priority": "medium",
-      "description": "Add tests/test_federated_prd.py with a test that loads a prd.json containing a prd.include pointing to tests/fixtures/subproject_web_prd.json, calls the Phase M merge logic, and asserts included stories appear in the merged output with 'web:' namespace prefixes. Guards the merge path of US-1212.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_federated_prd.py::test_include_merges_with_prefix -v` exits 0",
-        "Merged story list contains stories with IDs prefixed 'web:' matching those in subproject_web_prd.json",
-        "Test fails when namespace-prefix logic is removed from merge_stories.py"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_federated_prd.py (test_include_merges_with_prefix)",
-        "File to edit: tests/fixtures/subproject_web_prd.json (create fixture with 2-3 sample stories)",
-        "File to edit: lib/merge_stories.py (import and call merge function under test)",
-        "Test command: uv run pytest tests/test_federated_prd.py::test_include_merges_with_prefix -v",
-        "Call merge_stories.load_with_includes('tests/fixtures/base_prd.json') and assert result['stories'][*]['id'] starts with 'web:'"
-      ],
-      "dependencies": [
-        "US-1212"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1320",
-      "title": "CLI: Add `spiral cost-estimate` with model escalation breakdown and budget projection",
-      "priority": "medium",
-      "description": "Implement `spiral cost-estimate [--iterations N] [--workers M]` command to forecast total cost before running, showing per-story token estimates, model selection rationale, and grand total accounting for parallelization.",
-      "acceptanceCriteria": [
-        "Command outputs table: story_id | complexity | tokens_h/s/o | cost_haiku | escalation_prob | model_pick | total_cost, sorted by descending cost",
-        "Grand total = sum over (ceil(stories / workers)) iterations; includes 20% contingency buffer",
-        "--format json|csv outputs machine-readable estimates; --dry-run shows command without API calls",
-        "Test with fixture prd.json (50 stories) shows cost within 15% of actual results.tsv"
-      ],
-      "technicalNotes": [
-        "Create: lib/cost_estimator.py with estimate_story_tokens(complexity) using historical token/complexity ratio from results.tsv",
-        "Create: lib/cli_commands/cost_estimate.py with table formatting and output modes",
-        "Update: lib/cli_subcommands.sh to wire 'cost-estimate' subcommand to cost_estimate.py",
-        "Test: uv run pytest tests/test_cost_estimator.py::test_budget_with_parallelization -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
       "model": "haiku"
     },
     {
