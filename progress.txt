@@ -1819,3 +1819,39 @@ Completed: CLI: `spiral snapshot list` command with ASCII table and --json flag 
 
 ## Iteration 1 - Mon, Apr 27, 2026  7:54:50 AM
 Completed: Phase I: Enrich error messages with recovery hints indexed by failure type (ID: US-1315) in 6m
+## Iteration 2 - Mon, Apr 27, 2026  8:03:23 AM
+Completed: CLI: Add `spiral cost-analysis` for detailed cost breakdown by phase, model, and story (ID: US-1291) in 8m
+
+
+## Pre-analysis for US-1293 (Gemini 2.5 Pro)
+This is a technical brief for implementing a Flask-based API, not a Frappe application as initially mentioned. The plan is based on the provided user story JSON.
+
+**Project:** Spiral UI Backend API
+
+**Objective:** Create two Flask API endpoints to view the latest test results and trigger a re-run of a specific test.
+
+**1. Python Files to Modify:**
+*   **Create:** `spiral-ui/backend/routes/tests.py` (Will contain the core logic for both endpoints within a Flask Blueprint).
+*   **Edit:** `spiral-ui/backend/app.py` (To import and register the new `tests` Blueprint).
+*   **Create:** `tests/test_spiral_ui_tests_api.py` (To write unit tests for the new endpoints).
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This implementation uses the Flask framework.
+
+**3. Recommended Implementation Approach:**
+*   In `tests.py`, create a new Flask `Blueprint`.
+*   **`GET /api/tests/latest` endpoint:**
+    *   This function should scan the `.spiral/test-results/` directory.
+    *   It must identify and read the most recent `pytest --json-report` output file.
+    *   Parse the JSON to extract and format the required fields for the response.
+*   **`POST /api/tests/rerun/:testId` endpoint:**
+    *   This function should return a streaming response (`Content-Type: text/event-stream`).
+    *   Use the `subprocess` module to execute `uv run pytest <testId>`.
+    *   Read the `stdout` of the subprocess line-by-line and yield each line as a Server-Sent Event (SSE).
+    *   Conclude the stream with a final event indicating the pass/fail status.
+
+**4. Edge Cases & Gotchas:**
+*   **Security:** The `:testId` parameter will be used in a shell command. It **must** be sanitized to prevent command injection vulnerabilities.
+*   **Error Handling:** The `/latest` endpoint should gracefully handle cases where the `test-results` directory is empty or a JSON file is malformed.
+*   **SSE Format:** Ensure the streaming response strictly adheres to the SSE format (e.g., `data: your_message\n\n`).
+

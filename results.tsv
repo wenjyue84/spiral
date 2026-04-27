@@ -151,3 +151,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-26T23:23:11Z	23	2	US-1289	CLI: `spiral snapshot save` and `snapshot restore` commands	keep	160	sonnet	1	0925e61f10f85a163ad9b5372b35584ffece5365	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-26T23:36:32Z	23	3	US-1290	CLI: `spiral snapshot list` command with ASCII table and --json flag	keep	778	haiku	0	c8eba7330faa0a649fe46eb754d0e065eac63660	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-26T23:54:50Z	24	1	US-1315	Phase I: Enrich error messages with recovery hints indexed by failure type	keep	401	haiku	0	dd890ae215b657d82026081e25bad75df902485b	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-04-27T00:03:22Z	24	2	US-1291	CLI: Add `spiral cost-analysis` for detailed cost breakdown by phase, model, and story	keep	486	haiku	0	552d5258081cec93e5457a94f588c019ed9c76df	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
