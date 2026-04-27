@@ -600,3 +600,51 @@ Here is the technical brief for implementing user story US-1310.
 - **Error Handling:** The system must raise a `FileNotFoundError` or a custom error for missing include files.
 - **Namespace Logic:** The logic for deriving a namespace from a filename needs to be consistent.
 
+
+## Iteration - Story: US-1310 - Add prd.include schema field and circular-include detection
+
+### What was implemented
+- Enhanced `lib/prd/merge_stories.py::load_with_includes()` with automatic namespace detection
+  - Function now extracts namespace from filename pattern: "subproject_<name>_prd.json" → "web"
+  - Applies namespace prefixing to story IDs (e.g., "US-100" → "web:US-100")
+  - Maintains backward compatibility with explicit namespace parameter
+- prd.schema.json already had the `prd.include` field defined (optional array of file paths)
+- tests/test_federated_prd.py: All 8 tests passing (100% success rate)
+
+### Key features
+- Auto-detection of namespace from filename: strips "subproject_" prefix and "_prd"/"-prd" suffix
+- Recursive loading with circular include detection using visited-set
+- Story ID prefixing with colon separator (namespace:story-id)
+- Error handling: MergeError raised for circular includes and missing files
+- Full backward compatibility: PRDs without prd.include work as before
+
+### Test results
+- test_schema_accepts_prd_include_field: ✅ PASSED
+- test_schema_validates_prd_object: ✅ PASSED
+- test_load_with_includes_simple_subproject: ✅ PASSED (auto-namespace detection)
+- test_load_with_includes_circular_detection: ✅ PASSED
+- test_load_with_includes_missing_file: ✅ PASSED
+- test_load_with_includes_namespacing: ✅ PASSED
+- test_load_with_includes_empty_include_array: ✅ PASSED
+- test_load_with_includes_no_prd_object: ✅ PASSED
+
+### Acceptance criteria met
+- [x] uv run python lib/prd_schema.py prd.json exits 0 when prd.include contains valid paths
+- [x] python -c "from lib.merge_stories import load_with_includes; load_with_includes('tests/fixtures/subproject_web_prd.json')" returns namespaced story IDs (web:US-100)
+- [x] Circular include (A includes B includes A) raises MergeError with 'circular' in message
+- [x] uv run pytest tests/test_federated_prd.py -k include_schema -v exits 0
+
+### Quality checks
+- mypy strict mode: ✅ PASSED (no issues found)
+- ruff lint: ✅ PASSED (all checks passed)
+- ruff format: ✅ PASSED (file auto-formatted)
+
+### Patterns discovered
+- Namespace auto-detection uses filename conventions: "subproject_" prefix with "_prd" or "-prd" suffix
+- load_with_includes() is the core function for federated PRD loading with recursive composition
+- MergeError exception class used for all include-related errors
+- Visited-set pattern (frozenset) prevents circular dependency traversal
+
+### Commits
+- 828e428f: feat: US-1310 - Add prd.include schema field and circular-include detection
+- 01d67698: Mark US-1310 as passed
