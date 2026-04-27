@@ -44,9 +44,7 @@ def test_sql_injection_returns_empty_list(tmp_path: Path) -> None:
     assert result == []
 
 
-def test_history_db_created_at_spiral_relative_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_history_db_created_at_spiral_relative_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """AC2: history.db is created at .spiral/history.db (relative to CWD)."""
     monkeypatch.chdir(tmp_path)
     tsv = str(tmp_path / "results.tsv")

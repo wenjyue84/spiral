@@ -1,6 +1,5 @@
 """Tests for lib/phase_profiler.py"""
 
-import json
 import tempfile
 from pathlib import Path
 

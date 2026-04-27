@@ -94,11 +94,7 @@ class ResearchCache:
         """Remove entries older than 24 hours."""
         now = time.time()
         ttl_seconds = 24 * 60 * 60
-        expired_keys = [
-            k
-            for k, v in self._cache.items()
-            if now - v.get("timestamp", 0) > ttl_seconds
-        ]
+        expired_keys = [k for k, v in self._cache.items() if now - v.get("timestamp", 0) > ttl_seconds]
         for k in expired_keys:
             del self._cache[k]
         if expired_keys:

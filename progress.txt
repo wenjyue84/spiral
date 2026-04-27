@@ -937,3 +937,38 @@ Completed: Trajectory Export: Generate JSONL training data from story execution 
 - [x] AC1: SQL injection payload returns [] without exception
 - [x] AC2: history.db created at .spiral/history.db (relative path, monkeypatch.chdir)
 - [x] AC3: Return keys are subset of {story_id, model, outcome, duration, cost}
+## Iteration 1 - Mon, Apr 27, 2026  3:16:29 PM
+Completed: [Security Test] history_search.py: validate FTS5 query sanitization and path safety (ID: US-1335) in 3m
+
+
+## Pre-analysis for US-1338 (Gemini 2.5 Pro)
+Here is the technical brief for implementing US-1338.
+
+**Subject: Technical Brief for US-1338: Story Duplicate Detection**
+
+**1. Context & Objective:**
+This task is a pure Python library implementation within the Spiral project. It is **not** related to the Frappe framework. The goal is to create a `find_duplicates` function that identifies semantically similar user stories using sentence-transformer embeddings, with results cached to disk to prevent re-computation.
+
+**2. Files to Create:**
+*   `lib/phase_s/embedding_cache.py`: Manages loading/saving the embedding vector cache.
+*   `lib/phase_s/duplicate_detector.py`: Contains the primary `find_duplicates` logic.
+*   `tests/test_duplicate_detector.py`: Pytest file to validate the functionality.
+
+**3. Implementation Approach:**
+*   **`embedding_cache.py`**: Implement `load_cache` to read `.spiral/embedding_cache.jsonl` and `save_cache` to write to it. The cache should map a story title's hash to its embedding vector.
+*   **`duplicate_detector.py`**: The `find_duplicates(stories)` function should:
+    a. Load the cache.
+    b. For each story, get its embedding from the cache or generate it using `sentence_transformers` (`all-MiniLM-L6-v2` model), then update the cache.
+    c. Use `itertools.combinations` and `util.cos_sim` to calculate cosine similarity for all story pairs.
+    d. Return a list of tuples `(story_a, story_b, similarity_score)` for pairs with a score > 0.80.
+    e. Persist the updated cache before returning.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the `.spiral/` directory is created if it doesn't exist before writing the cache file.
+*   Handle an empty or small story list gracefully (fewer than 2 stories).
+*   The use of `difflib` mentioned in notes should be considered a fallback if sentence-transformers fails, not the primary method.
+
+**5. Testing:**
+*   Use a pytest fixture with 5 stories, including 2 clear near-duplicates.
+*   Assert that the function correctly identifies the duplicate pair.
+*   Verify caching by mocking the `encode` method and asserting it's not called on a second run with the same stories.

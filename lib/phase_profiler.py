@@ -11,7 +11,6 @@ Reads .spiral/_phase_timings.jsonl (JSON Lines format) and produces:
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 
 def parse_timings(jsonl_path: str) -> list[dict]:

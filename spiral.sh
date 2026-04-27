@@ -1128,7 +1128,7 @@ log_phase_timing() {
   local now_ms current_record
 
   # Get current timestamp in milliseconds
-  now_ms=$(date +%s%3N 2>/dev/null || echo "$(( $(date +%s) * 1000 ))")
+  now_ms=$(date +%s%3N 2>/dev/null || echo "$(($(date +%s) * 1000))")
 
   if [[ "$action" == "start" ]]; then
     # Record start time; end_ms will be filled on "end" call
