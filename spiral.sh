@@ -182,6 +182,9 @@ DEDUP_MODE=0                                 # 1 = find duplicate stories and ex
 DEDUP_MERGE_MODE=0                           # 1 = merge two stories and exit (merge)
 DEDUP_MERGE_ID1=""                           # first story ID to merge
 DEDUP_MERGE_ID2=""                           # second story ID to merge
+EXPORT_TRAJECTORY_MODE=0                     # 1 = export JSONL training data and exit (export-trajectory)
+EXPORT_TRAJECTORY_OUTPUT=""                  # output .jsonl.gz path (default: timestamped)
+EXPORT_TRAJECTORY_FILTER=""                  # filter as key=value (e.g. model=sonnet)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -561,6 +564,23 @@ while [[ $# -gt 0 ]]; do
       DEDUP_MERGE_ID2="${3:-}"
       shift 3
       ;;
+    export-trajectory)
+      EXPORT_TRAJECTORY_MODE=1
+      shift
+      while [[ $# -gt 0 ]]; do
+        case $1 in
+          --output)
+            EXPORT_TRAJECTORY_OUTPUT="${2:-}"
+            shift 2
+            ;;
+          --filter)
+            EXPORT_TRAJECTORY_FILTER="${2:-}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -653,6 +673,9 @@ while [[ $# -gt 0 ]]; do
       echo "  export-progress            Bundle PRD, results, and metrics as a shareable snapshot"
       echo "    --format json|zip          Output format (default: json)"
       echo "    --output PATH              Output file path (default: spiral-export-<timestamp>.<ext>)"
+      echo "  export-trajectory          Export story execution traces as JSONL training data"
+      echo "    --output PATH              Output .jsonl.gz path (default: .spiral/trajectory/export-<ts>.jsonl.gz)"
+      echo "    --filter key=value         Filter records (e.g. model=sonnet)"
       echo "  batch <op> --stories-file F  Execute batch operation on multiple stories (mark-done, retrigger)"
       echo "    <op>                       Operation: mark-done or retrigger"
       echo "    --stories-file FILE        File path with story IDs (one per line)"

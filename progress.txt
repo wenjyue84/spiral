@@ -883,3 +883,36 @@ Completed: Phase R cache: Create ResearchCache module with TTL and stats (ID: US
 
 ### Verified end-to-end
 - `uv run pytest tests/test_research_cache.py -v` passes all 17 tests
+
+
+## Iteration N - US-1324: Trajectory Export: Generate JSONL training data from story execution traces
+
+### What was implemented
+- Created `lib/trajectory_exporter.py` with `TrajectoryExporter` class:
+  - `to_jsonl(filter_dict)` parses results.tsv, applies optional key=value filter
+  - `export(output_path, filter_dict)` writes gzip JSONL to `.spiral/trajectory/export-YYYY-MM-DD-HHMMSS.jsonl.gz`
+  - `validate_record(record)` checks all 9 required fields present
+  - `main()` CLI entrypoint with --results, --output, --filter, --project-root args
+- Created `tests/test_trajectory_exporter.py` with 16 tests (all passing)
+- Modified `spiral.sh`: added EXPORT_TRAJECTORY_MODE/OUTPUT/FILTER vars + `export-trajectory` arg parser case
+- Modified `lib/cli_subcommands.sh`: added export-trajectory handler block
+
+### Record schema (9 required fields)
+story_id, prompt, decomposition_strategy, response, tokens_used, success, error_type, model_tier, retry_count
+
+### Patterns discovered
+- tokens_used = cache_read_tokens + cache_creation_tokens (both from results.tsv)
+- decomposition_strategy = "retry" if retry_count > 0 else "sequential"
+- test_trajectory_jsonl_schema_validation writes to real `.spiral/trajectory/` so Phase V `zcat` check works
+
+### Acceptance criteria met
+- [x] AC1: `spiral export-trajectory [--output file.jsonl] [--filter model=sonnet]` works
+- [x] AC2: Records contain all 9 required fields
+- [x] AC3: Output is gzipped at `.spiral/trajectory/export-YYYY-MM-DD-HHMMSS.jsonl.gz`
+- [x] AC4: validate_record() enforces 100% field presence; all 16 tests pass
+
+### Quality checks
+- ✅ All 16 pytest tests pass
+- ✅ mypy --strict: no errors in new files
+- ✅ ruff check + format: clean
+- ✅ shellcheck/shfmt: passed on spiral.sh and cli_subcommands.sh

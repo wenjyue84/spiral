@@ -481,6 +481,19 @@ if [[ "$COST_ESTIMATE_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── export-trajectory: export story execution traces as JSONL training data ────
+EXPORT_TRAJECTORY_MODE="${EXPORT_TRAJECTORY_MODE:-0}"
+EXPORT_TRAJECTORY_OUTPUT="${EXPORT_TRAJECTORY_OUTPUT:-}"
+EXPORT_TRAJECTORY_FILTER="${EXPORT_TRAJECTORY_FILTER:-}"
+if [[ "$EXPORT_TRAJECTORY_MODE" -eq 1 ]]; then
+  _RESULTS_TSV="${RESULTS_TSV:-$REPO_ROOT/results.tsv}"
+  _ET_ARGS=("--results" "$_RESULTS_TSV" "--project-root" "$REPO_ROOT")
+  [[ -n "$EXPORT_TRAJECTORY_OUTPUT" ]] && _ET_ARGS+=("--output" "$EXPORT_TRAJECTORY_OUTPUT")
+  [[ -n "$EXPORT_TRAJECTORY_FILTER" ]] && _ET_ARGS+=("--filter" "$EXPORT_TRAJECTORY_FILTER")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/trajectory_exporter.py" "${_ET_ARGS[@]}"
+  exit $?
+fi
+
 # ── dedup-suggestions: find duplicate stories using TF-IDF similarity ─────────
 DEDUP_MODE="${DEDUP_MODE:-0}"
 if [[ "$DEDUP_MODE" -eq 1 ]]; then
