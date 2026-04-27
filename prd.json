@@ -1741,8 +1741,9 @@
         "US-1218"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-27T01:38:02Z"
     },
     {
       "id": "US-1296",
@@ -2074,97 +2075,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1311",
-      "title": "Performance test: POST /api/config endpoint responds within 200ms baseline",
-      "priority": "medium",
-      "description": "Write a pytest performance benchmark in tests/test_spiral_ui_config_perf.py that calls POST /api/config via httpx against a locally started spiral-ui backend, measures p99 response time over 50 iterations, and fails if it exceeds 200ms. Establishes a repeatable baseline for the config endpoint introduced in US-1214.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v exits 0 when server is running",
-        "Test records p50 and p99 latency and asserts p99 < 200ms",
-        "Test fails if POST /api/config returns a non-200 HTTP status"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_spiral_ui_config_perf.py (new — test_config_post_latency_us_1214)",
-        "File to edit: lib/spiral_ui_config.py (reference — load/validate/persist config; must exist before this test runs)",
-        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v",
-        "Use httpx.Client for sync requests; spin up the backend with subprocess in a session-scoped fixture or assume it is already running on localhost:5299",
-        "Measure wall-clock time with time.perf_counter() around each POST call; collect into list; assert statistics.quantiles(times, n=100)[98] < 0.2"
-      ],
-      "dependencies": [
-        "US-1214"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1312",
-      "title": "spiral-ui: Add Tests tab UI with history table and pass-rate chart",
-      "priority": "medium",
-      "description": "Create a TestsTab React component that fetches /api/tests/history, renders a filterable table (date, test file, status, coverage %), a trend line chart of pass rate over time, and an expandable row showing full pytest output. Register the tab in Dashboard.tsx.",
-      "acceptanceCriteria": [
-        "Tests tab renders table with Date, Test File, Status, Coverage % columns populated from API: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'renders table' -v`",
-        "Date range preset buttons (7d, 30d) filter visible rows and re-render trend chart: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'date filter' -v`",
-        "Clicking a table row expands to show pytest output text: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'row expand' -v`"
-      ],
-      "technicalNotes": [
-        "File to create: spiral-ui/src/components/TestsTab.tsx (React component, TanStack Query for /api/tests/history, recharts LineChart for trend)",
-        "File to create: spiral-ui/src/hooks/useTestHistory.ts (TanStack Query hook wrapping GET /api/tests/history)",
-        "File to edit: spiral-ui/src/App.tsx or Dashboard.tsx (register TestsTab in tab list)",
-        "File to create: tests/e2e/tests-tab.spec.ts (Playwright E2E)",
-        "Test command: npx playwright test tests/e2e/tests-tab.spec.ts -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1313",
-      "title": "Regression tests: model escalation haiku→sonnet and worker crash respawn",
-      "priority": "medium",
-      "description": "Extend tests/test_spiral_e2e_integration.py with two tests for US-1211 behaviors: (1) test_us1211_model_escalation mocks a story failure and asserts results.tsv records haiku on attempt 1 then sonnet on attempt 2; (2) test_us1211_worker_crash_respawn simulates a worker process crash and asserts the main loop respawns it and all pending stories complete.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_spiral_e2e_integration.py -k us1211 -v exits 0 (both tests pass)",
-        "test_us1211_model_escalation: results.tsv contains two rows for same story_id with models haiku then sonnet",
-        "test_us1211_worker_crash_respawn: all seeded pending stories reach status 'done' despite simulated crash",
-        "Tests fail if escalation logic or respawn logic is monkey-patched out"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_spiral_e2e_integration.py (test_us1211_model_escalation, test_us1211_worker_crash_respawn)",
-        "File to edit: tests/fixtures/mock_claude_api.py (add fail-then-succeed response sequence builder)",
-        "Test command: uv run pytest tests/test_spiral_e2e_integration.py -k us1211 -v",
-        "For crash simulation: mock the worker process object's poll() to return non-zero on first check, then normal on retry",
-        "results.tsv is written by lib/impl/retry.sh — read it with csv.reader in the test assertion"
-      ],
-      "dependencies": [
-        "US-1211"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1314",
-      "title": "Phase G: Generate HTML API documentation from lib/ modules using pdoc",
-      "priority": "medium",
-      "description": "After story implementations in Phase I, automatically generate HTML API reference documentation for all lib/ Python modules using pdoc. Documentation is committed to docs/api/ and indexed from README for easy navigation.",
-      "acceptanceCriteria": [
-        "lib/api_docs_generator.py generates HTML docs for all .py files in lib/ (excluding tests) with module docstrings and function signatures extracted",
-        "Phase G (after Phase I implementation) invokes api_docs_generator, commits docs/api/index.html with commit message 'docs: auto-generated API docs'",
-        "Command `uv run python lib/api_docs_generator.py lib/ --output docs/api/` runs without errors and produces navigable HTML index with cross-module links"
-      ],
-      "technicalNotes": [
-        "File to create: lib/api_docs_generator.py (pdoc wrapper using pdoc.render(), ~120 lines)",
-        "File to modify: spiral.sh Phase G section to invoke generator and commit (add ~10 lines)",
-        "Test command: uv run pytest tests/test_api_docs_generator.py -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1315",
       "title": "Phase I: Enrich error messages with recovery hints indexed by failure type",
       "priority": "high",
@@ -2183,48 +2093,6 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1316",
-      "title": "Phase R cache: Create ResearchCache module with TTL and stats",
-      "priority": "medium",
-      "description": "Create lib/research_cache.py implementing a file-backed JSON cache for Phase R research queries. Cache is keyed by story type, supports 24h TTL, prunes expired entries on startup, and exposes a stats() method returning hit/miss counts.",
-      "acceptanceCriteria": [
-        "cache.get(key) returns None on miss and the stored summary on hit: `uv run pytest tests/test_research_cache.py::test_get_miss_and_hit -v`",
-        "Entries older than 24h are pruned by cache.prune(): `uv run pytest tests/test_research_cache.py::test_ttl_expiry -v`",
-        "cache.stats() returns dict with hit_count and miss_count matching actual usage: `uv run pytest tests/test_research_cache.py::test_stats_accuracy -v`",
-        "Cache file is valid JSON after put() and survives a re-instantiation: `uv run pytest tests/test_research_cache.py::test_persistence -v`"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/research_cache.py (new file — class ResearchCache with get, put, prune, stats methods; store as .spiral/research_cache.json)",
-        "File to edit: tests/test_research_cache.py (new file — unit tests for all ResearchCache methods)",
-        "Test command: uv run pytest tests/test_research_cache.py -v",
-        "Use tmp_path pytest fixture for .spiral/ directory; freeze time with freezegun or monkeypatch time.time() to test TTL"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1317",
-      "title": "Phase R cache: Integrate ResearchCache into phase_r.py with telemetry logging",
-      "priority": "medium",
-      "description": "Update lib/phases/phase_r.py to call ResearchCache.get() before invoking the Gemini API and ResearchCache.put() after. Append a telemetry row to .spiral/research_telemetry.jsonl per Phase R run containing hit_count, miss_count, api_calls_saved, and time_saved_seconds.",
-      "acceptanceCriteria": [
-        "Phase R skips Gemini API call when cache returns a hit (mock Gemini, assert not called): `uv run pytest tests/test_research_cache.py::test_phase_r_cache_hit_skips_api -v`",
-        "After a Phase R run, .spiral/research_telemetry.jsonl contains a valid JSON line with hit_count and api_calls_saved: `uv run pytest tests/test_research_cache.py::test_telemetry_written -v`"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/phases/phase_r.py (import ResearchCache; wrap Gemini call with cache.get/put; append telemetry line after phase completes)",
-        "File to edit: tests/test_research_cache.py (add integration tests for phase_r cache flow)",
-        "Test command: uv run pytest tests/test_research_cache.py::test_phase_r_cache_hit_skips_api tests/test_research_cache.py::test_telemetry_written -v",
-        "Telemetry line format: {\"ts\": <iso>, \"hit_count\": N, \"miss_count\": N, \"api_calls_saved\": N, \"time_saved_seconds\": F}"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
       "model": "haiku"
     }
   ]
