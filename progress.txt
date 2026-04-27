@@ -340,3 +340,32 @@ Note: Escalation to Opus detected (3.1% of stories) — 0.02 USD from model tier
 - CLI subcommands in spiral.sh follow pattern: declare vars → add case statement → add handler in cli_subcommands.sh
 - Cost calculations reuse existing PRICING constants and token estimation patterns
 - Pre-execution path handling via sys.path.insert() needed for standalone script execution
+## Iteration 2 - Mon, Apr 27, 2026 12:43:50 PM
+Completed: CLI: spiral cost-estimate <num-iterations> with historical accuracy bounds (ID: US-1302) in 9m
+
+
+## Pre-analysis for US-1303 (Gemini 2.5 Pro)
+### Technical Brief: US-1303 Regression Test for `trace-dependencies`
+
+This brief outlines the implementation for a regression test, ignoring the initial Frappe context as the story pertains to a Python CLI tool.
+
+**1. Files to Modify:**
+*   **New File:** `tests/test_regression_us1209.py` - Will contain the Pytest regression tests.
+*   **New Fixture:** `tests/fixtures/dep_chain_prd.json` - A sample `prd.json` with a multi-level dependency chain (e.g., US-001 -> US-002 -> US-003).
+*   **New Fixture:** `tests/fixtures/circular_dep_prd.json` - A sample `prd.json` with a circular dependency (e.g., US-001 -> US-002 -> US-001).
+
+**2. Core Components Involved:**
+*   **CLI Command:** `spiral trace-dependencies` (invoked via `python main.py trace-dependencies ...`).
+*   **Testing Framework:** `pytest`.
+*   **Python Module:** `subprocess` (to execute and capture output from the CLI command).
+
+**3. Recommended Implementation Approach:**
+1.  In `tests/test_regression_us1209.py`, create two test functions.
+2.  **Test 1 (Full Chain):** Use `subprocess.run` to call the CLI with `dep_chain_prd.json`. Assert the process exits with code 0 and that all dependent story IDs from the chain are present in the captured `stdout`.
+3.  **Test 2 (Circular Dependency):** Use `subprocess.run` to call the CLI with `circular_dep_prd.json`. Assert the process exits with a non-zero status code, indicating an error was correctly detected.
+
+**4. Edge Cases & Gotchas:**
+*   The test must correctly handle paths to `main.py` and the fixture files from the test execution context.
+*   Ensure `subprocess.run` is configured with `capture_output=True` and `text=True` to properly inspect stdout/stderr.
+*   Stdout assertions should check for the presence of substrings (`story-id in captured_output`) rather than exact string matches to avoid brittleness from formatting changes.
+
