@@ -67,6 +67,18 @@ run_phase_enrichment() {
     _ENRICHMENT_INPUT="$_SIMILAR_OUTPUT"
   fi
 
+  # Step 1.5: Inject hints from attempt history (US-1299) — always runs
+  local _HINTS_OUTPUT="$SCRATCH_DIR/_hints_stories.json"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/hint_enricher.py" \
+    --prd "$PRD_FILE" \
+    --results "$RESULTS_FILE" \
+    --enriched-in "$_ENRICHMENT_INPUT" \
+    --enriched-out "$_HINTS_OUTPUT" 2>/dev/null || true
+
+  if [[ -f "$_HINTS_OUTPUT" ]]; then
+    _ENRICHMENT_INPUT="$_HINTS_OUTPUT"
+  fi
+
   # Step 2: Optional Claude-based enrichment (US-443) — only if enabled
   if [[ "${SPIRAL_STORY_ENRICHMENT:-false}" == "true" ]]; then
     "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/enrich_stories.py" \
