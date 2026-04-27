@@ -2514,89 +2514,6 @@
       "model": "sonnet"
     },
     {
-      "id": "US-1331",
-      "title": "[Performance Test] spiral-ui config API response time benchmark",
-      "priority": "medium",
-      "description": "Write a pytest performance benchmark for the POST /api/config endpoint backed by lib/spiral_ui_config.py. Measures p95 response time over 50 calls and fails the test if it regresses more than 20% from a recorded baseline of 50ms.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v` exits 0",
-        "Test makes 50 POST /api/config requests via httpx or requests to a locally-started test server and asserts p95 latency < 60ms",
-        "Test asserts that lib/spiral_ui_config.py load_config() returns a dict containing keys SPIRAL_MAX_PENDING, SPIRAL_MODEL_ROUTING, and SPIRAL_VALIDATE_CMD"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_spiral_ui_config_perf.py (create new — add test_us_1214_config_load_perf and test_us_1214_config_keys)",
-        "File to edit: lib/spiral_ui_config.py (import load_config to assert key presence without HTTP overhead)",
-        "Use time.perf_counter() around repeated load_config() calls if HTTP server setup is complex; assert mean < 50ms",
-        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v"
-      ],
-      "dependencies": [
-        "US-1214"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1332",
-      "title": "Phase R: Add research cache to skip redundant Gemini calls for duplicate story titles",
-      "priority": "medium",
-      "description": "Cache Gemini research results by story title hash with 7-day TTL to avoid re-researching stories with identical or very similar titles. Phase R checks cache before calling Gemini API, reducing costs and research latency.",
-      "acceptanceCriteria": [
-        "lib/research_cache.py exports get_research(title_hash) and set_research(title_hash, results) using SQLite backend with TTL column",
-        "Phase R in lib/phases/phase_r.sh checks cache before Gemini API call; uses cached results if TTL > 0, logs cache hit/miss",
-        "Cache expires and triggers fresh Gemini call after 7 days; test with sample story pairs to verify deduplication"
-      ],
-      "technicalNotes": [
-        "File to create: lib/research_cache.py with SQLite table: CREATE TABLE research_cache (title_hash TEXT PRIMARY KEY, results TEXT, cached_at DATETIME, ttl_days INT DEFAULT 7)",
-        "File to modify: lib/phases/phase_r.sh call research_cache.get_research(story_title_hash) before Gemini API, store result via set_research() on success",
-        "Test command: uv run pytest tests/test_research_cache.py::test_cache_hit_within_ttl -v && uv run pytest tests/test_research_cache.py::test_cache_miss_expired -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1333",
-      "title": "WhatsApp notification plugin: Post-iteration summary with pass count and cost",
-      "priority": "medium",
-      "description": "Add plugin that sends WhatsApp message when SPIRAL iteration completes, including story pass/fail count, total token cost, pass-rate delta, and estimated iterations remaining.",
-      "acceptanceCriteria": [
-        "plugins/notify-whatsapp/plugin.toml declares post-phase-G hook; plugin reads .spiral/_checkpoint.json and results.tsv to extract stats",
-        "plugins/notify-whatsapp/notify.sh formats message: 'Iteration N complete: 5/12 stories passed, $2.45 spent, +1 from prev, ~8 iterations left'; sends via SPIRAL_WHATSAPP_API_URL",
-        "Plugin respects SPIRAL_NOTIFICATIONS_ENABLED config flag; gracefully skips if SPIRAL_WHATSAPP_API_URL not set (warning logged)"
-      ],
-      "technicalNotes": [
-        "File to create: plugins/notify-whatsapp/plugin.toml with [plugin] metadata and [[hook]] entry for post-phase-G",
-        "File to create: plugins/notify-whatsapp/notify.sh that parses results.tsv, calculates stats via awk/jq, POSTs to SPIRAL_WHATSAPP_API_URL with formatted JSON body",
-        "Test command: bash tests/test_plugin_whatsapp.bats && uv run pytest tests/test_whatsapp_message_formatter.py::test_format_iteration_message -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1334",
-      "title": "CLI: Add `spiral profile-phases` command to measure and report phase execution time",
-      "priority": "low",
-      "description": "Add CLI subcommand to profile wall-clock time per phase and identify bottlenecks. Outputs sorted table: Phase | Duration | % of Total | Status. Helps product owners and developers optimize SPIRAL runtime.",
-      "acceptanceCriteria": [
-        "spiral.sh logs phase start/end timestamps to .spiral/_phase_timings.jsonl in format {phase: 'R', start_ms: <timestamp>, end_ms: <timestamp>} for each phase execution",
-        "`spiral profile-phases` reads _phase_timings.jsonl, outputs table sorted by duration descending: Phase | Duration (s) | Pct | Status; handles incomplete/missing data",
-        "Includes summary: total runtime, slowest phase, suggestion to investigate phases >30% of total time"
-      ],
-      "technicalNotes": [
-        "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
-        "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
-        "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1335",
       "title": "[Security Test] history_search.py: validate FTS5 query sanitization and path safety",
       "priority": "high",
@@ -2616,47 +2533,6 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1336",
-      "title": "CLI: spiral workers kill <worker-id> with safe resource cleanup",
-      "priority": "medium",
-      "description": "Add a CLI subcommand to gracefully kill a specific worker by ID, including cleanup of its git worktree and any running processes. This improves operator control over long-running SPIRAL sessions.",
-      "acceptanceCriteria": [
-        "Command `spiral workers kill <worker-id>` accepts a valid worker ID and terminates the worker process",
-        "Associated git worktree at `.spiral-workers/worker-<id>/` is deleted via `git worktree remove`",
-        "No dangling processes or worktree references remain after kill command completes"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/worker_heartbeat.sh — add function kill_worker_safe() that sends SIGTERM, waits with timeout, runs git worktree remove, logs cleanup status",
-        "File to edit: lib/cli_subcommands.sh — add case handler for `spiral workers kill` subcommand",
-        "Test command: uv run pytest tests/test_cli_workers.py::test_kill_worker_cleanup -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1337",
-      "title": "Phase T: Test Failure Classification with Root Cause and Remediation Hint",
-      "priority": "medium",
-      "description": "Enhance Phase T (test synthesis) to classify each test failure into categories: syntax_error, import_error, assertion_failure, timeout, environment_error. Attach remediation hints (e.g., 'missing import: xyz' or 'test timeout — may need scope reduction') for downstream story generation.",
-      "acceptanceCriteria": [
-        "Phase T runs test scan and classifies each failure snippet by regex patterns (ImportError → import_error, AssertionError → assertion_failure, etc.)",
-        "Stores classification in _test_failures.json as {failure_id: {type, hint, snippet, line_number}}",
-        "Stories generated from Phase T failures include _rootCause and _hint fields for Ralph to use in implementation"
-      ],
-      "technicalNotes": [
-        "File to create: lib/test_classifier.py — function classify_test_failure(snippet) returns {type, hint} dict using regex patterns; supports ImportError, AssertionError, SyntaxError, TimeoutError, EnvironmentError",
-        "File to edit: lib/phases/phase_t.sh — after test collection, call `python3 lib/test_classifier.py --classify _test_failures.jsonl` to annotate failures",
-        "File to edit: lib/spiral/phase_a.py — patch story generation from Phase T results to include _rootCause and _hint fields in story JSON",
-        "Test command: uv run pytest tests/test_phase_t.py::test_classify_import_error -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
       "model": "haiku"
     },
     {
@@ -2699,27 +2575,27 @@
       "model": "sonnet"
     },
     {
-      "id": "US-1340",
-      "title": "spiral-ui: Add TestsTab component with Phase V pass/fail timeline",
-      "priority": "medium",
-      "description": "Create a TestsTab React component in spiral-ui that fetches /api/phase-v-results via a usePhaseVResults hook, renders a chronological pass/fail timeline per story with badge, test_file, and duration, and shows a summary bar with total count, pass rate, and average duration. Wire the tab into App.tsx.",
+      "id": "US-1342",
+      "title": "Worker Heartbeat and Stall Detection: Auto-Restart Failed Workers",
+      "priority": "high",
+      "description": "Implement periodic heartbeat monitoring for Ralph workers. Each worker emits a heartbeat every 30s; the parent process flags and terminates stalled workers (no heartbeat for 60s), logs events to .spiral/worker_crashes.jsonl, and defers the stalled story to the next iteration or a healthy worker based on SPIRAL_STALL_STRATEGY.",
       "acceptanceCriteria": [
-        "TestsTab renders a pass/fail badge, story_id, test_file, and duration_s for each record from /api/phase-v-results",
-        "Summary bar displays total tests, pass rate %, and average duration_s",
-        "npm run test -- --reporter=verbose spiral-ui/src/components/TestsTab.test.tsx exits 0"
+        "Running `python -c 'from lib.worker_heartbeat_monitor import HeartbeatSender; s = HeartbeatSender(\"US-1\"); s.emit({\"tokens\": 0})'` exits 0 and writes a JSON line to .spiral/worker_heartbeats.jsonl",
+        "Running `uv run pytest tests/test_worker_heartbeat.py::test_stall_detection_and_redirect -v` passes with stall detected after simulated 60s timeout",
+        "After a simulated stall, .spiral/worker_crashes.jsonl contains a JSON entry with keys: timestamp, story_id, worker_pid, reason",
+        "SPIRAL_STALL_STRATEGY=defer causes the stalled story to reappear in prd.json with passes=false; SPIRAL_STALL_STRATEGY=reassign routes it to an active worker slot"
       ],
       "technicalNotes": [
-        "File to create: spiral-ui/src/components/TestsTab.tsx (~80 lines; use shadcn/ui Badge for pass/fail colouring)",
-        "File to edit: spiral-ui/src/api/hooks.ts (add usePhaseVResults using TanStack Query useQuery)",
-        "File to edit: spiral-ui/src/App.tsx (add Tests tab entry pointing to TestsTab component)",
-        "File to edit: spiral-ui/src/types/phase.ts (add PhaseVResult interface if not present)",
-        "File to create: spiral-ui/src/components/TestsTab.test.tsx (Vitest + msw mock for /api/phase-v-results)",
-        "Test command: npm run test -- --reporter=verbose spiral-ui/src/components/TestsTab.test.tsx"
+        "File to create: lib/worker_heartbeat_monitor.py (HeartbeatSender.emit(), HeartbeatMonitor.check_all(), _terminate_worker())",
+        "File to edit: lib/run_parallel_ralph.sh (line ~180: spawn `uv run python lib/worker_heartbeat_monitor.py --mode=sender --story=$STORY_ID` per worker; spawn monitor in parent)",
+        "Test command: uv run pytest tests/test_worker_heartbeat.py::test_stall_detection_and_redirect -v",
+        "HeartbeatMonitor reads .spiral/worker_heartbeats.jsonl; uses os.kill(pid, signal.SIGTERM) to terminate stalled PIDs"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-27T08:04:01Z"
     }
   ]
 }

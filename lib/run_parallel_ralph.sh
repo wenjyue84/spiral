@@ -1469,9 +1469,23 @@ echo ""
 # WORKER_FINISHED and WORKER_EXIT_CODES are populated by _launch_worker_i() above.
 
 _ALL_DONE=0
+_LAST_HB_CHECK=0
 while [[ "$_ALL_DONE" -eq 0 ]]; do
   _ALL_DONE=1
   _ACTIVE_COUNT=0
+
+  # Check for stalled workers via heartbeat monitor (US-1342)
+  # Run every 10s to avoid excessive CPU usage
+  _CURRENT_TS=$(date +%s)
+  if [[ $((_CURRENT_TS - _LAST_HB_CHECK)) -ge 10 ]]; then
+    if [[ -n "${PYTHON:-}" && -f "$SPIRAL_HOME/lib/worker_heartbeat_monitor.py" ]]; then
+      _STALLED=$("$PYTHON" "$SPIRAL_HOME/lib/worker_heartbeat_monitor.py" --monitor 2>/dev/null || echo "")
+      if [[ -n "$_STALLED" ]]; then
+        echo "  [heartbeat] Stalled workers detected — check .spiral/worker_crashes.jsonl for details"
+      fi
+    fi
+    _LAST_HB_CHECK=$_CURRENT_TS
+  fi
 
   for i in "${!WORKER_PIDS[@]}"; do
     if [[ "${WORKER_FINISHED[$i]}" -eq 0 ]]; then

@@ -997,3 +997,36 @@ Completed: lib: Create phase_s duplicate_detector with embedding cache (ID: US-1
 ## Iteration 1 - Mon, Apr 27, 2026  3:51:40 PM
 Completed: lib: Wire duplicate_detector into phase_s.sh before merge_stories (ID: US-1339) in 13m
 
+
+## Pre-analysis for US-1342 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1342.
+
+**Project:** Spiral/Ralph (Python & Shell)
+**Note:** This is a Python/Shell task, not a Frappe/ERPNext task. No DocTypes are involved.
+
+**1. Files to Modify/Create:**
+*   **Create:** `lib/worker_heartbeat_monitor.py`
+    *   Will contain the `HeartbeatSender` and `HeartbeatMonitor` classes.
+*   **Create:** `tests/test_worker_heartbeat.py`
+    *   To house the unit and integration tests for the new functionality.
+*   **Modify:** `lib/run_parallel_ralph.sh`
+    *   To spawn the heartbeat sender process for each worker and the monitor process in the parent.
+
+**2. Implementation Approach:**
+*   **`HeartbeatSender`:** A simple class whose `emit` method appends a JSON line to `.spiral/worker_heartbeats.jsonl` containing the worker's PID, story ID, and current timestamp.
+*   **`HeartbeatMonitor`:**
+    *   Continuously reads `.spiral/worker_heartbeats.jsonl`.
+    *   For each known worker PID, it checks if the latest heartbeat is older than 60 seconds.
+    *   If a stall is detected, it terminates the worker using `os.kill(pid, signal.SIGTERM)`.
+    *   Logs the stalled worker's info to `.spiral/worker_crashes.jsonl`.
+    *   Implements the `SPIRAL_STALL_STRATEGY`: read the environment variable and either update the `prd.json` (defer) or signal for reassignment.
+*   **`run_parallel_ralph.sh`:**
+    *   When launching a worker, also launch `python lib/worker_heartbeat_monitor.py --mode=sender` in the background.
+    *   Launch a single instance of `python lib/worker_heartbeat_monitor.py --mode=monitor` that runs in a loop in the parent process.
+
+**3. Edge Cases & Gotchas:**
+*   **State Management:** The monitor needs a reliable way to know which worker PIDs are active vs. have exited cleanly. A simple check on heartbeat age alone could misfire. The parent script should pass the list of active PIDs to the monitor.
+*   **File I/O:** Use file locking (`fcntl` in Python) when writing to the `.jsonl` files to prevent race conditions between workers.
+*   **`reassign` Strategy:** The logic for "reassigning" is complex. For the initial implementation, focus on the `defer` strategy, as reassignment may require a more advanced orchestration queue.
+*   **Process Termination:** Ensure the termination signal (`SIGTERM`) is handled gracefully by the worker if possible, or use `SIGKILL` as a fallback.
+
