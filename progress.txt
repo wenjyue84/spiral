@@ -975,3 +975,22 @@ This task is a pure Python library implementation within the Spiral project. It 
 ## Iteration 2 - Mon, Apr 27, 2026  3:29:09 PM
 Completed: lib: Create phase_s duplicate_detector with embedding cache (ID: US-1338) in 12m
 
+
+## Iteration N - US-1339: lib: Wire duplicate_detector into phase_s.sh before merge_stories
+
+### What was implemented
+- Added `if __name__ == "__main__":` CLI entry point to `lib/phase_s/duplicate_detector.py`
+  - Accepts stories JSON file path + optional `--threshold` (default 0.85)
+  - Prints `DUPLICATE_CANDIDATE: <id_a> / <id_b> (<score>)` for each pair above threshold
+  - Exits 0 on all paths (errors logged to stderr)
+- Modified `lib/phases/phase_s_story_validate.sh`: in `run_phase_story_validate()`, after `validate_stories.py` call, added a `while read` loop that invokes `PYTHONPATH="$spiral_home" python -m lib.phase_s.duplicate_detector "$validated_out"` and echoes `[S] DUPLICATE_CANDIDATE: ...` lines
+- Created `tests/phase_s.bats` with 7 tests: CLI exit-0 for empty/single/missing, DUPLICATE_CANDIDATE format, pre-built file CLI test, and shell integration test
+
+### Patterns discovered
+- `validate_stories.py` deduplicates by lower-cased title before semantic dedup, so identical-title stories reduce to 1 in validated output — use different titles in shell integration tests
+- PYTHONPATH must be set to SPIRAL_HOME when calling `python -m lib.phase_s.*` since CWD is not guaranteed
+- phase_s_story_validate.bats was already failing before this change (pre-existing failures in tests 1,3,4,5,10)
+
+### Acceptance criteria met
+- [x] phase_s.sh invokes duplicate_detector and echoes 'DUPLICATE_CANDIDATE: <id_a> / <id_b> (<score>)' for pairs >0.85 before merge_stories
+- [x] bash tests/bats-core/bin/bats tests/phase_s.bats exits 0 (7/7 pass)

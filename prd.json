@@ -2494,109 +2494,6 @@
       "model": "sonnet"
     },
     {
-      "id": "US-1330",
-      "title": "Wire timeout_scope_reducer into lib/impl/retry.sh before decompose_story()",
-      "priority": "medium",
-      "description": "Modify select_retry_strategy() in lib/impl/retry.sh to call timeout_scope_reducer (via uv run python) when failure type is 'timeout' and the story has @optional ACs. Only fall through to decompose_story() when no optional ACs remain or scope reduction itself times out.",
-      "acceptanceCriteria": [
-        "select_retry_strategy timeout branch invokes lib/timeout_handler.py and writes reduced story JSON to a temp file before calling decompose_story",
-        "Integration test with a fixture story containing @optional AC verifies that the retry path calls scope_reducer output, not the original story (assert reduced file written to disk)",
-        "When the story has no @optional ACs, select_retry_strategy falls through to decompose_story without invoking timeout_handler"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/impl/retry.sh (select_retry_strategy — timeout branch, ~line where 'timeout' case is handled)",
-        "File to create: tests/fixtures/sample-stories-with-optional-ac.json — one story with two @optional ACs",
-        "Test command: uv run pytest tests/test_timeout_handler.py::test_timeout_triggers_scope_reduction_not_decompose -v --tb=short"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1331",
-      "title": "[Performance Test] spiral-ui config API response time benchmark",
-      "priority": "medium",
-      "description": "Write a pytest performance benchmark for the POST /api/config endpoint backed by lib/spiral_ui_config.py. Measures p95 response time over 50 calls and fails the test if it regresses more than 20% from a recorded baseline of 50ms.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v` exits 0",
-        "Test makes 50 POST /api/config requests via httpx or requests to a locally-started test server and asserts p95 latency < 60ms",
-        "Test asserts that lib/spiral_ui_config.py load_config() returns a dict containing keys SPIRAL_MAX_PENDING, SPIRAL_MODEL_ROUTING, and SPIRAL_VALIDATE_CMD"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_spiral_ui_config_perf.py (create new — add test_us_1214_config_load_perf and test_us_1214_config_keys)",
-        "File to edit: lib/spiral_ui_config.py (import load_config to assert key presence without HTTP overhead)",
-        "Use time.perf_counter() around repeated load_config() calls if HTTP server setup is complex; assert mean < 50ms",
-        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v"
-      ],
-      "dependencies": [
-        "US-1214"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1332",
-      "title": "Phase R: Add research cache to skip redundant Gemini calls for duplicate story titles",
-      "priority": "medium",
-      "description": "Cache Gemini research results by story title hash with 7-day TTL to avoid re-researching stories with identical or very similar titles. Phase R checks cache before calling Gemini API, reducing costs and research latency.",
-      "acceptanceCriteria": [
-        "lib/research_cache.py exports get_research(title_hash) and set_research(title_hash, results) using SQLite backend with TTL column",
-        "Phase R in lib/phases/phase_r.sh checks cache before Gemini API call; uses cached results if TTL > 0, logs cache hit/miss",
-        "Cache expires and triggers fresh Gemini call after 7 days; test with sample story pairs to verify deduplication"
-      ],
-      "technicalNotes": [
-        "File to create: lib/research_cache.py with SQLite table: CREATE TABLE research_cache (title_hash TEXT PRIMARY KEY, results TEXT, cached_at DATETIME, ttl_days INT DEFAULT 7)",
-        "File to modify: lib/phases/phase_r.sh call research_cache.get_research(story_title_hash) before Gemini API, store result via set_research() on success",
-        "Test command: uv run pytest tests/test_research_cache.py::test_cache_hit_within_ttl -v && uv run pytest tests/test_research_cache.py::test_cache_miss_expired -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1333",
-      "title": "WhatsApp notification plugin: Post-iteration summary with pass count and cost",
-      "priority": "medium",
-      "description": "Add plugin that sends WhatsApp message when SPIRAL iteration completes, including story pass/fail count, total token cost, pass-rate delta, and estimated iterations remaining.",
-      "acceptanceCriteria": [
-        "plugins/notify-whatsapp/plugin.toml declares post-phase-G hook; plugin reads .spiral/_checkpoint.json and results.tsv to extract stats",
-        "plugins/notify-whatsapp/notify.sh formats message: 'Iteration N complete: 5/12 stories passed, $2.45 spent, +1 from prev, ~8 iterations left'; sends via SPIRAL_WHATSAPP_API_URL",
-        "Plugin respects SPIRAL_NOTIFICATIONS_ENABLED config flag; gracefully skips if SPIRAL_WHATSAPP_API_URL not set (warning logged)"
-      ],
-      "technicalNotes": [
-        "File to create: plugins/notify-whatsapp/plugin.toml with [plugin] metadata and [[hook]] entry for post-phase-G",
-        "File to create: plugins/notify-whatsapp/notify.sh that parses results.tsv, calculates stats via awk/jq, POSTs to SPIRAL_WHATSAPP_API_URL with formatted JSON body",
-        "Test command: bash tests/test_plugin_whatsapp.bats && uv run pytest tests/test_whatsapp_message_formatter.py::test_format_iteration_message -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1334",
-      "title": "CLI: Add `spiral profile-phases` command to measure and report phase execution time",
-      "priority": "low",
-      "description": "Add CLI subcommand to profile wall-clock time per phase and identify bottlenecks. Outputs sorted table: Phase | Duration | % of Total | Status. Helps product owners and developers optimize SPIRAL runtime.",
-      "acceptanceCriteria": [
-        "spiral.sh logs phase start/end timestamps to .spiral/_phase_timings.jsonl in format {phase: 'R', start_ms: <timestamp>, end_ms: <timestamp>} for each phase execution",
-        "`spiral profile-phases` reads _phase_timings.jsonl, outputs table sorted by duration descending: Phase | Duration (s) | Pct | Status; handles incomplete/missing data",
-        "Includes summary: total runtime, slowest phase, suggestion to investigate phases >30% of total time"
-      ],
-      "technicalNotes": [
-        "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
-        "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
-        "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1335",
       "title": "[Security Test] history_search.py: validate FTS5 query sanitization and path safety",
       "priority": "high",
@@ -2619,47 +2516,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1336",
-      "title": "CLI: spiral workers kill <worker-id> with safe resource cleanup",
-      "priority": "medium",
-      "description": "Add a CLI subcommand to gracefully kill a specific worker by ID, including cleanup of its git worktree and any running processes. This improves operator control over long-running SPIRAL sessions.",
-      "acceptanceCriteria": [
-        "Command `spiral workers kill <worker-id>` accepts a valid worker ID and terminates the worker process",
-        "Associated git worktree at `.spiral-workers/worker-<id>/` is deleted via `git worktree remove`",
-        "No dangling processes or worktree references remain after kill command completes"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/worker_heartbeat.sh — add function kill_worker_safe() that sends SIGTERM, waits with timeout, runs git worktree remove, logs cleanup status",
-        "File to edit: lib/cli_subcommands.sh — add case handler for `spiral workers kill` subcommand",
-        "Test command: uv run pytest tests/test_cli_workers.py::test_kill_worker_cleanup -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1337",
-      "title": "Phase T: Test Failure Classification with Root Cause and Remediation Hint",
-      "priority": "medium",
-      "description": "Enhance Phase T (test synthesis) to classify each test failure into categories: syntax_error, import_error, assertion_failure, timeout, environment_error. Attach remediation hints (e.g., 'missing import: xyz' or 'test timeout — may need scope reduction') for downstream story generation.",
-      "acceptanceCriteria": [
-        "Phase T runs test scan and classifies each failure snippet by regex patterns (ImportError → import_error, AssertionError → assertion_failure, etc.)",
-        "Stores classification in _test_failures.json as {failure_id: {type, hint, snippet, line_number}}",
-        "Stories generated from Phase T failures include _rootCause and _hint fields for Ralph to use in implementation"
-      ],
-      "technicalNotes": [
-        "File to create: lib/test_classifier.py — function classify_test_failure(snippet) returns {type, hint} dict using regex patterns; supports ImportError, AssertionError, SyntaxError, TimeoutError, EnvironmentError",
-        "File to edit: lib/phases/phase_t.sh — after test collection, call `python3 lib/test_classifier.py --classify _test_failures.jsonl` to annotate failures",
-        "File to edit: lib/spiral/phase_a.py — patch story generation from Phase T results to include _rootCause and _hint fields in story JSON",
-        "Test command: uv run pytest tests/test_phase_t.py::test_classify_import_error -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1338",
       "title": "lib: Create phase_s duplicate_detector with embedding cache",
       "priority": "high",
@@ -2679,6 +2535,25 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku"
+    },
+    {
+      "id": "US-1339",
+      "title": "lib: Wire duplicate_detector into phase_s.sh before merge_stories",
+      "priority": "high",
+      "description": "Integrate the duplicate_detector module into lib/phases/phase_s.sh so Phase S logs near-duplicate story pairs before calling merge_stories. Any pair with similarity >0.85 is emitted as a DUPLICATE_CANDIDATE warning line in the Phase S output.",
+      "acceptanceCriteria": [
+        "phase_s.sh invokes duplicate_detector and echoes 'DUPLICATE_CANDIDATE: <id_a> / <id_b> (<score>)' for pairs >0.85 before merge_stories",
+        "bash tests/bats-core/bin/bats tests/phase_s.bats exits 0 after the integration change"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/phases/phase_s.sh (add 'uv run python -m lib.phase_s.duplicate_detector \"$STORIES_FILE\"' call immediately before the merge_stories invocation; capture output and grep for DUPLICATE_CANDIDATE lines)",
+        "Test command: bash tests/bats-core/bin/bats tests/phase_s.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-04-27T07:37:16Z"
     }
   ]
 }

@@ -101,6 +101,14 @@ run_phase_story_validate() {
     fi
     echo '{"stories":[]}' >"$rejected_out"
   fi
+
+  # ── US-1339: Emit DUPLICATE_CANDIDATE warnings before merge_stories ──
+  if [[ -f "$validated_out" ]]; then
+    while IFS= read -r line; do
+      echo "  [S] $line"
+    done < <(PYTHONPATH="$spiral_home${PYTHONPATH:+:$PYTHONPATH}" \
+      "$spiral_python" -m lib.phase_s.duplicate_detector "$validated_out" 2>/dev/null || true)
+  fi
 }
 
 # run_phase_s — Phase S orchestration wrapper

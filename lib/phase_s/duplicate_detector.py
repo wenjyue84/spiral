@@ -126,3 +126,39 @@ def _fallback_embedding(text: str) -> list[float]:
     for i in range(384):
         embedding.append(float((hash_val[i % len(hash_val)] & 0xFF) / 255.0))
     return embedding
+
+
+if __name__ == "__main__":
+    import argparse
+    import json
+    import sys
+
+    parser = argparse.ArgumentParser(
+        description="Detect duplicate stories in a validated stories JSON file."
+    )
+    parser.add_argument("stories_file", help="Path to JSON file with {stories: [...]} format")
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.85,
+        help="Similarity threshold (default: 0.85)",
+    )
+    args = parser.parse_args()
+
+    try:
+        with open(args.stories_file, encoding="utf-8") as f:
+            data = json.load(f)
+        stories = data.get("stories", [])
+    except Exception as e:
+        print(f"[S] duplicate_detector: failed to read {args.stories_file}: {e}", file=sys.stderr)
+        sys.exit(0)
+
+    try:
+        pairs = find_duplicates(stories, similarity_threshold=args.threshold)
+        for story_a, story_b, score in pairs:
+            id_a = story_a.get("id", "?")
+            id_b = story_b.get("id", "?")
+            print(f"DUPLICATE_CANDIDATE: {id_a} / {id_b} ({score:.2f})")
+    except Exception as e:
+        print(f"[S] duplicate_detector: error during detection: {e}", file=sys.stderr)
+        sys.exit(0)
