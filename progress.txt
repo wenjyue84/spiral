@@ -61,6 +61,33 @@ Running 9 tests using 6 workers
 ## Iteration 1 - Mon, Apr 27, 2026  9:46:09 AM
 FAILED diagnosis-block gate: [E2E Test] spiral-ui ActivityLogTable: filter by status and open detail modal (ID: US-1295) — no diagnosis block found — attempt 1/3
 
+## Iteration 32 - Story: US-1300 - CLI: spiral batch <operation> --stories-file for multi-story operations
+
+### What was implemented
+- Added BATCH_MODE, BATCH_OPERATION, BATCH_STORIES_FILE variable declarations to spiral.sh (~176)
+- Added batch argument parsing in spiral.sh case statement (~529-543)
+- lib/batch_operations.py already existed and is fully functional
+  - parse_story_file(): parses story file with validation for US-NNN and UT-NNN IDs
+  - execute_batch_operation(): implements mark-done and retrigger operations
+  - Supports comments (#) and blank lines in input files
+- tests/test_batch_operations.py: all 18 tests passing
+
+### Patterns discovered
+- CLI subcommand pattern in spiral.sh: declare vars → add case statement with nested while loop for optional flags
+- batch_operations.py follows Python best practices with proper error handling and type hints
+- cli_subcommands.sh already had the batch handler code at lines 457-469
+
+### Acceptance criteria met
+- [x] spiral batch mark-done --stories-file completed.txt marks stories as done with timestamp
+- [x] spiral batch retrigger --stories-file failed.txt resets retry counts
+- [x] Batch operations log results with counts: "X stories <op>, Y skipped"
+- [x] File format: one story ID per line, supports comments and blank lines
+
+### Verified end-to-end
+- Created test file with comments and blank lines
+- mark-done operation: 3 stories marked, properly added completedAt timestamp
+- retrigger operation: 3 stories retriggered, reset retry_num to 0
+- Error handling: file not found, missing args, invalid IDs
 
 ## Pre-analysis for US-1295 (Gemini 2.5 Pro)
 This technical brief is for a **React/Playwright E2E test**, not a Frappe/Python story as mentioned in the prompt. The guidance is based on the provided JSON data.
@@ -231,3 +258,5 @@ Completed: Phase E: Hint recommender from story attempt history (ID: US-1299) in
 - [x] POST /api/config without credentials returns HTTP 401 or 403
 - [x] Error response body contains no token, password, or secret key values
 - [x] Authenticated POST /api/config with valid payload returns 200 (not 401/403)
+## Iteration 1 - Mon, Apr 27, 2026 12:03:15 PM
+Completed: [Security Test] Config API: verify auth enforcement on POST /api/config (ID: US-1325) in 2m
