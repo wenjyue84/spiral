@@ -178,6 +178,9 @@ BATCH_OPERATION=""                           # mark-done or retrigger
 BATCH_STORIES_FILE=""                        # path to file with story IDs
 COST_ESTIMATE_MODE=0                         # 1 = estimate cost for N iterations and exit (cost-estimate)
 COST_ESTIMATE_ITERATIONS=""                  # number of iterations to estimate cost for
+COST_ESTIMATE_WORKERS=""                     # number of parallel workers (default: 1)
+COST_ESTIMATE_FORMAT=""                      # output format: text, json, csv (default: text)
+COST_ESTIMATE_DRY_RUN=0                      # 1 = show command without API calls
 DEDUP_MODE=0                                 # 1 = find duplicate stories and exit (dedup-suggestions)
 DEDUP_MERGE_MODE=0                           # 1 = merge two stories and exit (merge)
 DEDUP_MERGE_ID1=""                           # first story ID to merge
@@ -554,6 +557,23 @@ while [[ $# -gt 0 ]]; do
       COST_ESTIMATE_MODE=1
       COST_ESTIMATE_ITERATIONS="${2:-}"
       shift 2
+      while [[ $# -gt 0 ]]; do
+        case $1 in
+          --workers)
+            COST_ESTIMATE_WORKERS="$2"
+            shift 2
+            ;;
+          --format)
+            COST_ESTIMATE_FORMAT="$2"
+            shift 2
+            ;;
+          --dry-run)
+            COST_ESTIMATE_DRY_RUN=1
+            shift
+            ;;
+          *) break ;;
+        esac
+      done
       ;;
     dedup-suggestions)
       DEDUP_MODE=1

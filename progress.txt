@@ -1071,3 +1071,6 @@ Completed: Regression Test: worker crash respawn completes pending stories (US-1
 - Full test suite `pytest tests/test_federated_prd.py -v` passes all 9 tests
 - prd.json marked US-1319 as passes: true
 - Git commit created with proper message
+## Iteration 3 - Mon, Apr 27, 2026  4:26:47 PM
+Completed: Regression Test: prd.include merges stories with namespace prefixes (US-1212a) (ID: US-1319) in 7m
+

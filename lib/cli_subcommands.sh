@@ -471,13 +471,21 @@ fi
 # ── cost-estimate: predict total cost for N iterations with confidence bounds ──
 COST_ESTIMATE_MODE="${COST_ESTIMATE_MODE:-0}"
 COST_ESTIMATE_ITERATIONS="${COST_ESTIMATE_ITERATIONS:-}"
+COST_ESTIMATE_WORKERS="${COST_ESTIMATE_WORKERS:-}"
+COST_ESTIMATE_FORMAT="${COST_ESTIMATE_FORMAT:-}"
+COST_ESTIMATE_DRY_RUN="${COST_ESTIMATE_DRY_RUN:-0}"
 if [[ "$COST_ESTIMATE_MODE" -eq 1 ]]; then
   if [[ -z "$COST_ESTIMATE_ITERATIONS" ]]; then
     echo "Error: cost-estimate requires <num-iterations>" >&2
     exit 1
   fi
   _RESULTS_TSV="${RESULTS_TSV:-$REPO_ROOT/results.tsv}"
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_estimator.py" "$COST_ESTIMATE_ITERATIONS" "$_RESULTS_TSV"
+  _PRD_FILE="${PRD_FILE:-$REPO_ROOT/prd.json}"
+  _CE_ARGS=("--iterations" "$COST_ESTIMATE_ITERATIONS" "--results" "$_RESULTS_TSV" "--prd" "$_PRD_FILE")
+  [[ -n "$COST_ESTIMATE_WORKERS" ]] && _CE_ARGS+=("--workers" "$COST_ESTIMATE_WORKERS")
+  [[ -n "$COST_ESTIMATE_FORMAT" ]] && _CE_ARGS+=("--format" "$COST_ESTIMATE_FORMAT")
+  [[ "$COST_ESTIMATE_DRY_RUN" -eq 1 ]] && _CE_ARGS+=("--dry-run")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_estimator.py" "${_CE_ARGS[@]}"
   exit $?
 fi
 

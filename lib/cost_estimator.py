@@ -9,6 +9,7 @@ based on variance (mean ± 1 std dev).
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import math
@@ -263,45 +264,304 @@ def predict_cost_for_n_iterations(
     }
 
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python lib/cost_estimator.py <num_iterations> [results.tsv]", file=sys.stderr)
-        sys.exit(1)
+def estimate_story_cost_breakdown(
+    prd_data: dict[str, Any],
+    results_tsv_path: str = "results.tsv",
+) -> list[dict[str, Any]]:
+    """
+    Estimate cost breakdown for each story in prd.json.
 
-    try:
-        n_iters = int(sys.argv[1])
-    except ValueError:
-        print(f"ERROR: num_iterations must be an integer, got {sys.argv[1]!r}", file=sys.stderr)
-        sys.exit(1)
+    Returns list of dicts with per-story cost estimates sorted by descending cost.
+    Each dict contains: story_id, complexity, tokens_h, tokens_s, tokens_o,
+    cost_haiku, cost_sonnet, cost_opus, escalation_prob, model_pick, total_cost
+    """
+    stats = compute_historical_stats(results_tsv_path)
 
-    results_path = sys.argv[2] if len(sys.argv) > 2 else "results.tsv"
+    stories = prd_data.get("userStories", [])
+    breakdown_list: list[dict[str, Any]] = []
 
-    prediction = predict_cost_for_n_iterations(n_iters, results_path)
+    # Build per-complexity token estimates from historical data
+    # Default token estimate if no historical data: 5000 tokens
+    complexity_tokens: dict[str, float] = {
+        "small": 3000.0,
+        "medium": 7500.0,
+        "large": 15000.0,
+        "general": 5000.0,
+    }
 
-    # Format output message
-    total = prediction["estimated_cost"]
-    lower = prediction["confidence_lower"]
-    upper = prediction["confidence_upper"]
-    attempts = prediction["total_attempts"]
+    # Override with actual historical data if available
+    if stats["total_attempts"] > 0:
+        for comp, data in stats["per_complexity"].items():
+            # Use count as proxy for average tokens (rough estimate)
+            complexity_tokens[comp] = max(3000.0, float(data.get("count", 1) * 500))
 
-    output_msg = (
-        f"Estimated cost for {n_iters} iterations: ${total:.2f} "
-        f"(68% confidence: ${lower:.2f} - ${upper:.2f}) "
-        f"based on {attempts} historical attempts"
+    for story in stories:
+        if story.get("passes") or story.get("_skipped"):
+            continue
+
+        story_id = story.get("id", "")
+        title = story.get("title", "")
+        complexity = classify_story(title) if title else "general"
+
+        # Estimate tokens for this story (use complexity average)
+        tokens = complexity_tokens.get(complexity, 5000.0)
+
+        # Calculate costs for each model
+        cost_haiku = _cost_from_tokens(tokens, "haiku")
+        cost_sonnet = _cost_from_tokens(tokens, "sonnet")
+        cost_opus = _cost_from_tokens(tokens, "opus")
+
+        # Escalation probability: based on historical distribution
+        escalation_prob = 0.0
+        if stats["total_attempts"] > 0 and complexity in stats["per_complexity"]:
+            # Lower escalation if we have many successful haiku attempts for this complexity
+            complexity_count = stats["per_complexity"][complexity].get("count", 0)
+            escalation_prob = max(5.0, min(50.0, 100.0 * (1.0 - complexity_count / stats["total_attempts"])))
+
+        # Model pick: use haiku by default, escalate if high complexity
+        if complexity == "large" or tokens > 10000:
+            model_pick = "opus"
+        elif complexity == "medium" or tokens > 5000:
+            model_pick = "sonnet"
+        else:
+            model_pick = "haiku"
+
+        # Total cost: use expected value with escalation
+        total_cost = cost_haiku * (1.0 - escalation_prob / 100.0) + cost_opus * (escalation_prob / 100.0)
+
+        breakdown_list.append(
+            {
+                "story_id": story_id,
+                "complexity": complexity,
+                "tokens_h": round(tokens, 0),
+                "tokens_s": round(tokens, 0),
+                "tokens_o": round(tokens, 0),
+                "cost_haiku": round(cost_haiku, 6),
+                "cost_sonnet": round(cost_sonnet, 6),
+                "cost_opus": round(cost_opus, 6),
+                "escalation_prob": round(escalation_prob, 1),
+                "model_pick": model_pick,
+                "total_cost": round(total_cost, 6),
+            }
+        )
+
+    # Sort by descending total cost
+    breakdown_list.sort(key=lambda x: x["total_cost"], reverse=True)
+    return breakdown_list
+
+
+def compute_parallelization_adjustment(
+    num_stories: int,
+    num_workers: int,
+    num_iterations: int,
+) -> dict[str, Any]:
+    """
+    Compute cost adjustment for parallel execution.
+
+    Returns dict with:
+      - iterations_per_worker: ceil(num_stories / num_workers)
+      - total_parallel_iterations: iterations_per_worker * num_iterations
+      - parallelization_factor: reduction factor compared to serial execution
+    """
+    if num_workers <= 0:
+        num_workers = 1
+
+    iterations_per_worker = math.ceil(num_stories / num_workers)
+    total_parallel_iterations = iterations_per_worker * num_iterations
+    parallelization_factor = total_parallel_iterations / max(1, num_stories * num_iterations)
+
+    return {
+        "iterations_per_worker": iterations_per_worker,
+        "total_parallel_iterations": total_parallel_iterations,
+        "parallelization_factor": round(parallelization_factor, 3),
+    }
+
+
+def format_table_output(
+    breakdown: list[dict[str, Any]],
+    grand_total: float,
+    contingency_pct: float = 0.20,
+) -> str:
+    """Format per-story breakdown as human-readable table."""
+    lines = [
+        "Per-Story Cost Breakdown (sorted by descending cost):",
+        "",
+        (
+            f"{'ID':<12} {'Complexity':<12} {'Tokens':<10} "
+            f"{'Cost(H/S/O)':<20} {'Esc%':<6} {'Model':<8} {'Total':<10}"
+        ),
+        "-" * 91,
+    ]
+
+    total_cost = 0.0
+    for row in breakdown:
+        cost_str = f"${row['cost_haiku']:.4f}/${row['cost_sonnet']:.4f}/${row['cost_opus']:.4f}"
+        lines.append(
+            f"{row['story_id']:<15} {row['complexity']:<12} {int(row['tokens_h']):<10} "
+            f"{cost_str:<20} {row['escalation_prob']:<6.1f} {row['model_pick']:<8} ${row['total_cost']:<9.6f}"
+        )
+        total_cost += row["total_cost"]
+
+    lines.append("-" * 95)
+    contingency = total_cost * contingency_pct
+    final_total = total_cost + contingency
+
+    lines.append(
+        f"Subtotal:                                                                          ${total_cost:.2f}"
+    )
+    lines.append(
+        f"Contingency (20%):                                                                 ${contingency:.2f}"
+    )
+    lines.append(
+        f"Grand Total:                                                                       ${final_total:.2f}"
+    )
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def format_json_output(
+    breakdown: list[dict[str, Any]],
+    grand_total: float,
+    contingency_pct: float = 0.20,
+) -> str:
+    """Format per-story breakdown as JSON."""
+    contingency = grand_total * contingency_pct
+    return json.dumps(
+        {
+            "breakdown": breakdown,
+            "subtotal": round(grand_total, 2),
+            "contingency_pct": contingency_pct * 100,
+            "contingency": round(contingency, 2),
+            "grand_total": round(grand_total + contingency, 2),
+        },
+        indent=2,
     )
 
-    print(output_msg)
 
-    if prediction["breakdown_by_model"]:
-        print("\nBreakdown by model:")
-        for model, data in sorted(prediction["breakdown_by_model"].items()):
-            print(
-                f"  {model}: {data['pct']:.1f}% of stories, "
-                f"${data['cost_per_story']:.6f}/story = ${data['total_cost']:.2f} total"
-            )
+def format_csv_output(
+    breakdown: list[dict[str, Any]],
+    grand_total: float,
+    contingency_pct: float = 0.20,
+) -> str:
+    """Format per-story breakdown as CSV."""
+    lines = [
+        "story_id,complexity,tokens,cost_haiku,cost_sonnet,cost_opus,escalation_prob,model_pick,total_cost",
+    ]
 
-    if prediction["note"] and prediction["note"] != "No escalation detected":
-        print(f"\nNote: {prediction['note']}")
+    for row in breakdown:
+        lines.append(
+            f"{row['story_id']},{row['complexity']},{int(row['tokens_h'])},"
+            f"{row['cost_haiku']},{row['cost_sonnet']},{row['cost_opus']},"
+            f"{row['escalation_prob']},{row['model_pick']},{row['total_cost']}"
+        )
 
-    # Also output JSON for programmatic use
-    print(f"\nJSON: {json.dumps(prediction)}")
+    contingency = grand_total * contingency_pct
+    lines.append(f"TOTAL,,,,,,,{round(grand_total + contingency, 2)}")
+
+    return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Estimate SPIRAL execution cost")
+    parser.add_argument("--iterations", type=int, default=1, help="Number of iterations (default: 1)")
+    parser.add_argument("--workers", type=int, default=1, help="Number of parallel workers (default: 1)")
+    parser.add_argument(
+        "--format", choices=["text", "json", "csv"], default="text", help="Output format (default: text)"
+    )
+    parser.add_argument("--prd", default="prd.json", help="Path to prd.json (default: prd.json)")
+    parser.add_argument("--results", default="results.tsv", help="Path to results.tsv (default: results.tsv)")
+    parser.add_argument("--dry-run", action="store_true", help="Show command without API calls")
+
+    args = parser.parse_args()
+
+    # Legacy support: if no args, assume first positional is num_iterations
+    if len(sys.argv) == 2 and sys.argv[1].isdigit():
+        args.iterations = int(sys.argv[1])
+        args.results = sys.argv[2] if len(sys.argv) > 2 else "results.tsv"
+
+    if args.dry_run:
+        print("[DRY RUN] Would estimate cost for:")
+        print(f"  Iterations: {args.iterations}")
+        print(f"  Workers: {args.workers}")
+        print(f"  Format: {args.format}")
+        print(f"  PRD: {args.prd}")
+        print(f"  Results: {args.results}")
+        sys.exit(0)
+
+    # Load prd.json
+    prd_data = {}
+    if os.path.isfile(args.prd):
+        try:
+            with open(args.prd, encoding="utf-8") as f:
+                prd_data = json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not load {args.prd}: {e}", file=sys.stderr)
+
+    # Estimate per-story breakdown
+    breakdown = estimate_story_cost_breakdown(prd_data, args.results)
+
+    if not breakdown:
+        # Fallback to legacy behavior if no stories
+        prediction = predict_cost_for_n_iterations(args.iterations, args.results)
+        total = prediction["estimated_cost"]
+        lower = prediction["confidence_lower"]
+        upper = prediction["confidence_upper"]
+        attempts = prediction["total_attempts"]
+
+        output_msg = (
+            f"Estimated cost for {args.iterations} iterations: ${total:.2f} "
+            f"(68% confidence: ${lower:.2f} - ${upper:.2f}) "
+            f"based on {attempts} historical attempts"
+        )
+        print(output_msg)
+
+        if prediction["breakdown_by_model"]:
+            print("\nBreakdown by model:")
+            for model, data in sorted(prediction["breakdown_by_model"].items()):
+                print(
+                    f"  {model}: {data['pct']:.1f}% of stories, "
+                    f"${data['cost_per_story']:.6f}/story = ${data['total_cost']:.2f} total"
+                )
+        sys.exit(0)
+
+    # Compute grand total with contingency
+    subtotal = sum(row["total_cost"] for row in breakdown)
+    contingency = subtotal * 0.20  # 20% contingency buffer
+    grand_total = subtotal + contingency
+
+    # Account for parallelization
+    num_stories = len(breakdown)
+    adj = compute_parallelization_adjustment(num_stories, args.workers, args.iterations)
+
+    # Adjust grand total for iterations
+    adjusted_total = grand_total * args.iterations
+    adjusted_contingency = adjusted_total - (subtotal * args.iterations)
+
+    # Output based on format
+    if args.format == "json":
+        output_dict = {
+            "breakdown": breakdown,
+            "subtotal": round(subtotal, 2),
+            "contingency_pct": 20.0,
+            "contingency": round(adjusted_contingency, 2),
+            "grand_total": round(adjusted_total, 2),
+            "iterations": args.iterations,
+            "workers": args.workers,
+            "parallelization": adj,
+        }
+        print(json.dumps(output_dict, indent=2))
+    elif args.format == "csv":
+        print(format_csv_output(breakdown, subtotal, 0.20))
+        print("\nAdjustments:")
+        print(f"Iterations: {args.iterations}")
+        print(f"Workers: {args.workers}")
+        print(f"Grand Total (with {args.iterations} iterations): ${adjusted_total:.2f}")
+    else:  # text
+        print(format_table_output(breakdown, subtotal, 0.20))
+        print("Adjustments:")
+        print(f"  Iterations: {args.iterations}")
+        print(f"  Workers: {args.workers}")
+        print(f"  Iterations per worker: {adj['iterations_per_worker']}")
+        print(f"  Total parallel iterations: {adj['total_parallel_iterations']}")
+        print(f"\nGrand Total (with {args.iterations} iterations): ${adjusted_total:.2f}")
