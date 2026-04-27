@@ -369,3 +369,62 @@ This brief outlines the implementation for a regression test, ignoring the initi
 *   Ensure `subprocess.run` is configured with `capture_output=True` and `text=True` to properly inspect stdout/stderr.
 *   Stdout assertions should check for the presence of substrings (`story-id in captured_output`) rather than exact string matches to avoid brittleness from formatting changes.
 
+
+## Pre-analysis for US-1303 (Gemini 2.5 Pro)
+### Technical Brief: US-1303 Regression Test for `trace-dependencies`
+
+This brief outlines the implementation for a regression test, ignoring the initial Frappe context as the story pertains to a Python CLI tool.
+
+**1. Files to Modify:**
+*   **New File:** `tests/test_regression_us1209.py` - Will contain the Pytest regression tests.
+*   **New Fixture:** `tests/fixtures/dep_chain_prd.json` - A sample `prd.json` with a multi-level dependency chain (e.g., US-001 -> US-002 -> US-003).
+*   **New Fixture:** `tests/fixtures/circular_dep_prd.json` - A sample `prd.json` with a circular dependency (e.g., US-001 -> US-002 -> US-001).
+
+**2. Core Components Involved:**
+*   **CLI Command:** `spiral trace-dependencies` (invoked via `python main.py trace-dependencies ...`).
+*   **Testing Framework:** `pytest`.
+*   **Python Module:** `subprocess` (to execute and capture output from the CLI command).
+
+**3. Recommended Implementation Approach:**
+1.  In `tests/test_regression_us1209.py`, create two test functions.
+2.  **Test 1 (Full Chain):** Use `subprocess.run` to call the CLI with `dep_chain_prd.json`. Assert the process exits with code 0 and that all dependent story IDs from the chain are present in the captured `stdout`.
+3.  **Test 2 (Circular Dependency):** Use `subprocess.run` to call the CLI with `circular_dep_prd.json`. Assert the process exits with a non-zero status code, indicating an error was correctly detected.
+
+**4. Edge Cases & Gotchas:**
+*   The test must correctly handle paths to `main.py` and the fixture files from the test execution context.
+*   Ensure `subprocess.run` is configured with `capture_output=True` and `text=True` to properly inspect stdout/stderr.
+*   Stdout assertions should check for the presence of substrings (`story-id in captured_output`) rather than exact string matches to avoid brittleness from formatting changes.
+
+
+## Iteration 1 - Mon, Apr 27, 2026 12:45:00 PM
+Completed: [Regression Test] CLI trace-dependencies: verify full dep chain output (ID: US-1303) in 15m
+
+### What was implemented
+- Added two new regression tests to `tests/test_regression_us1209.py`:
+  1. test_trace_dependencies_plain_text_output: Verifies plain text tree output shows all story IDs and file paths
+  2. test_trace_dependencies_circular_exit_code: Verifies circular dependency detection exits with code 2
+
+### Key findings
+- trace-dependencies CLI properly formats tree output with ASCII connectors
+- Circular dependencies are marked with "*** CYCLE ***" in the tree
+- Exit codes: 0 for success (with/without --json), 2 for circular dependency (plain text only)
+- File paths from filesTouch array are properly included in tree output
+
+### Test coverage
+- All 4 tests pass (2 existing JSON-based tests + 2 new plain text tests)
+- mypy strict mode: no issues
+- ruff lint and format: all checks pass
+- Command: uv run pytest tests/test_regression_us1209.py -k us_1209 -v ✅
+
+### Acceptance criteria met
+- [x] Test invokes CLI with fixture prd.json and captures stdout; all expected story IDs appear in output
+- [x] Test asserts circular-dependency detection triggers non-zero exit code (code 2)
+- [x] uv run pytest tests/ -k us_1209 -v exits with code 0 and both assertions pass
+
+### Files modified
+- tests/test_regression_us1209.py: Added @pytest.mark.us_1209 markers and 2 new test functions
+
+### Patterns discovered
+- Regression tests follow pattern: fixture-based test with subprocess.run to invoke CLI
+- Plain text output format: ASCII tree with indentation, sub-project tags, file lists, cycle markers
+- Exit code semantics: 0=success, 2=circular dependency error
