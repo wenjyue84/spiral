@@ -916,3 +916,6 @@ story_id, prompt, decomposition_strategy, response, tokens_used, success, error_
 - ✅ mypy --strict: no errors in new files
 - ✅ ruff check + format: clean
 - ✅ shellcheck/shfmt: passed on spiral.sh and cli_subcommands.sh
+## Iteration 2 - Mon, Apr 27, 2026  2:59:07 PM
+Completed: Trajectory Export: Generate JSONL training data from story execution traces (ID: US-1324) in 7m
+

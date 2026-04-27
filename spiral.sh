@@ -185,6 +185,7 @@ DEDUP_MERGE_ID2=""                           # second story ID to merge
 EXPORT_TRAJECTORY_MODE=0                     # 1 = export JSONL training data and exit (export-trajectory)
 EXPORT_TRAJECTORY_OUTPUT=""                  # output .jsonl.gz path (default: timestamped)
 EXPORT_TRAJECTORY_FILTER=""                  # filter as key=value (e.g. model=sonnet)
+PROFILE_PHASES_MODE=0                        # 1 = read phase timings and print profiling report (profile-phases)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -1112,6 +1113,30 @@ log_msg() {
       printf "${_C_RED}[ERROR]${_C_RESET} %s\n" "$*" >&2
     else
       echo "[$lvl] $*" >&2
+    fi
+  fi
+}
+
+# ── log_phase_timing: record phase execution time to .spiral/_phase_timings.jsonl ─
+# Usage: log_phase_timing "R" "start|end" [start_ms]
+# When action="start", records start timestamp; when action="end", records end timestamp
+# Appends JSON record: {phase: 'X', start_ms: <num>, end_ms: <num>} (end fills in both)
+log_phase_timing() {
+  local phase="$1" action="${2:-end}" start_ms="${3:-}"
+  local timings_file="$SCRATCH_DIR/_phase_timings.jsonl"
+  local now_ms current_record
+
+  # Get current timestamp in milliseconds
+  now_ms=$(date +%s%3N 2>/dev/null || echo "$(( $(date +%s) * 1000 ))")
+
+  if [[ "$action" == "start" ]]; then
+    # Record start time; end_ms will be filled on "end" call
+    echo "{\"phase\": \"$phase\", \"start_ms\": $now_ms, \"end_ms\": $now_ms}" >>"$timings_file"
+  elif [[ "$action" == "end" ]]; then
+    # Update the last record for this phase with end_ms
+    # Since we can't easily edit JSON in a JSONL file, we'll just append a new complete record
+    if [[ -n "$start_ms" ]]; then
+      echo "{\"phase\": \"$phase\", \"start_ms\": $start_ms, \"end_ms\": $now_ms}" >>"$timings_file"
     fi
   fi
 }

@@ -2387,11 +2387,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-04-27T06:50:51Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`spiral export-trajectory` command doesn't exist. `results.tsv` has columns: timestamp, spiral_iter, ralph_iter, story_id, story_title, status, duration_sec, model, retry_num, cache_read_tokens, cache_creation_tokens, etc.\n\n## Problem Identified\nNeed to implement `lib/trajectory_exporter.py` with a `TrajectoryExporter` class that reads `results.tsv` and exports JSONL records (story_id, prompt, decomposition_strategy, response, tokens_used, success, error_type, model_tier, retry_count) as gzipped files to `.spiral/trajectory/`.\n\n## Planned Changes\n- **Create** `lib/trajectory_exporter.py`: `TrajectoryExporter` class with `to_jsonl(filter_dict)` and `export()` methods\n- **Create** `tests/test_trajectory_exporter.py`: tests including `test_trajectory_jsonl_schema_validation`\n- **Modify** `spiral.sh`: add `EXPORT_TRAJECTORY_MODE` variable + arg parser case\n- **Modify** `lib/cli_subcommands.sh`: add `export-trajectory` subcommand handler\n\n<plan>\n{\n  \"files_to_create\": [\"lib/trajectory_exporter.py\", \"tests/test_trajectory_exporter.py\"],\n  \"files_to_modify\": [\"spiral.sh\", \"lib/cli_subcommands.sh\"],\n  \"functions_to_add\": [\"TrajectoryExporter.to_jsonl\", \"TrajectoryExporter.export\", \"test_trajectory_jsonl_schema_validation\"],\n  \"estimated_loc\": 210\n}\n</plan>\nNow I'll implement all changes:\nNow add the variable declaration and arg parser case to `spiral.sh`:\nNow add the arg parser case. Let me find where `merge)` case ends to add after it:\nNow add the help line for `export-trajectory`. Let me find where other subcommands are in the help:\nNow add the handler to `lib/cli_subcommands.sh`:\nNow run the tests:\nAll 16 tests pass. Now run mypy and ruff:\nAll 16 pass. Now run pre-commit:\nThe mypy errors are all in pre-existing files (not my changes). Let me verify:\nMy files are clean. The pre-existing mypy errors are unrelated to this story. Now mark the story as passes and commit:\nUS-1324 is complete. Here's a summary:\n\n**Implemented:**\n- `lib/trajectory_exporter.py` — `TrajectoryExporter` class with `to_jsonl(filter_dict)` and `export()` methods, plus a CLI `main()` entrypoint\n- `tests/test_trajectory_exporter.py` — 16 tests, all passing\n- `spiral.sh` — `EXPORT_TRAJECTORY_MODE/OUTPUT/FILTER` vars + `export-trajectory` subcommand in arg parser\n- `lib/cli_subcommands.sh` — handler routing to the Python module\n\n**All acceptance criteria met:**\n- `spiral export-trajectory [--output file.jsonl] [--filter model=sonnet]` works\n- Records contain all 9 required fields parsed from `results.tsv`\n- Output is gzipped to `.spiral/trajectory/export-YYYY-MM-DD-HHMMSS.jsonl.gz`\n- `validate_record()` enforces 100% field presence; `test_trajectory_jsonl_schema_validation` writes a real `.gz` file so the Phase V `zcat` check works"
-      }
+      "model": "sonnet"
     },
     {
       "id": "US-1325",
@@ -2594,6 +2590,69 @@
         "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
         "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
         "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1335",
+      "title": "[Security Test] history_search.py: validate FTS5 query sanitization and path safety",
+      "priority": "high",
+      "description": "Write security tests for lib/history_search.py introduced by US-1259. Verify that FTS5 queries are parameterized (no SQL injection), that .spiral/history.db is created only inside the project directory, and that find_similar_attempts() never surfaces raw file paths or tokens from results.tsv in its return value.",
+      "acceptanceCriteria": [
+        "Calling find_similar_attempts() with an SQL injection payload (e.g. \"'; DROP TABLE--\") raises no exception and returns an empty list (verified by pytest assert result == [])",
+        "history.db is created at .spiral/history.db and not at any absolute/escaped path (verified by assert Path('.spiral/history.db').exists())",
+        "Return value from find_similar_attempts() contains only fields (story_id, model, outcome, duration, cost) — no raw file content or token strings (verified by assert all(set(r.keys()) <= {'story_id','model','outcome','duration','cost'} for r in result))"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us_1259_security.py (new file — create security test suite)",
+        "File to edit: lib/history_search.py (ensure sqlite3 parameterized queries, no string formatting in SQL)",
+        "Test command: uv run pytest tests/test_us_1259_security.py -v"
+      ],
+      "dependencies": [
+        "US-1259"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1336",
+      "title": "CLI: spiral workers kill <worker-id> with safe resource cleanup",
+      "priority": "medium",
+      "description": "Add a CLI subcommand to gracefully kill a specific worker by ID, including cleanup of its git worktree and any running processes. This improves operator control over long-running SPIRAL sessions.",
+      "acceptanceCriteria": [
+        "Command `spiral workers kill <worker-id>` accepts a valid worker ID and terminates the worker process",
+        "Associated git worktree at `.spiral-workers/worker-<id>/` is deleted via `git worktree remove`",
+        "No dangling processes or worktree references remain after kill command completes"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/worker_heartbeat.sh — add function kill_worker_safe() that sends SIGTERM, waits with timeout, runs git worktree remove, logs cleanup status",
+        "File to edit: lib/cli_subcommands.sh — add case handler for `spiral workers kill` subcommand",
+        "Test command: uv run pytest tests/test_cli_workers.py::test_kill_worker_cleanup -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1337",
+      "title": "Phase T: Test Failure Classification with Root Cause and Remediation Hint",
+      "priority": "medium",
+      "description": "Enhance Phase T (test synthesis) to classify each test failure into categories: syntax_error, import_error, assertion_failure, timeout, environment_error. Attach remediation hints (e.g., 'missing import: xyz' or 'test timeout — may need scope reduction') for downstream story generation.",
+      "acceptanceCriteria": [
+        "Phase T runs test scan and classifies each failure snippet by regex patterns (ImportError → import_error, AssertionError → assertion_failure, etc.)",
+        "Stores classification in _test_failures.json as {failure_id: {type, hint, snippet, line_number}}",
+        "Stories generated from Phase T failures include _rootCause and _hint fields for Ralph to use in implementation"
+      ],
+      "technicalNotes": [
+        "File to create: lib/test_classifier.py — function classify_test_failure(snippet) returns {type, hint} dict using regex patterns; supports ImportError, AssertionError, SyntaxError, TimeoutError, EnvironmentError",
+        "File to edit: lib/phases/phase_t.sh — after test collection, call `python3 lib/test_classifier.py --classify _test_failures.jsonl` to annotate failures",
+        "File to edit: lib/spiral/phase_a.py — patch story generation from Phase T results to include _rootCause and _hint fields in story JSON",
+        "Test command: uv run pytest tests/test_phase_t.py::test_classify_import_error -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
