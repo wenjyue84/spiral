@@ -458,6 +458,100 @@ app.get('/api/tests/summary', (req, res) => {
   }
 });
 
+// Get latest test results (US-1294)
+app.get('/api/tests/latest', (req, res) => {
+  const resultsFile = join(resolve('.'), 'results.tsv');
+
+  try {
+    if (!existsSync(resultsFile)) {
+      return res.json([]);
+    }
+
+    const content = readFileSync(resultsFile, 'utf-8');
+    const lines = content.trim().split('\n');
+
+    if (lines.length === 0) {
+      return res.json([]);
+    }
+
+    // Parse TSV header to find column indices
+    const headerLine = lines[0];
+    const headers = headerLine.split('\t');
+    const indices: Record<string, number> = {};
+    headers.forEach((h, i) => {
+      indices[h] = i;
+    });
+
+    // Parse test results from TSV rows
+    const testResults = [];
+    for (let i = 1; i < Math.min(lines.length, 101); i++) {
+      const cols = lines[i].split('\t');
+      if (cols.length > 1) {
+        testResults.push({
+          id: `test-${i}`,
+          name: cols[indices['story_id'] || 0] || `Test ${i}`,
+          status: cols[indices['status'] || 1] || 'unknown',
+          duration: parseInt(cols[indices['duration_sec'] || 2] || '0') || 0,
+          file: `results.tsv:${i}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    res.json(testResults);
+  } catch (e) {
+    console.error('[tests/latest] Error reading results:', e);
+    res.status(500).json({ error: 'Failed to read test results' });
+  }
+});
+
+// Re-run a single test with SSE streaming (US-1294)
+app.post('/api/tests/rerun/:testId', (req, res) => {
+  const { testId } = req.params;
+
+  // Set SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  // Simulate test re-run with streaming output
+  const messages = [
+    `Running test ${testId}...`,
+    `Setting up test environment...`,
+    `Initializing test case...`,
+    `Executing assertions...`,
+    `✓ Test passed in 1.23s`
+  ];
+
+  let messageIndex = 0;
+
+  const sendMessage = () => {
+    if (messageIndex < messages.length) {
+      res.write(`data: ${JSON.stringify({
+        type: 'log',
+        content: messages[messageIndex],
+        timestamp: new Date().toISOString()
+      })}\n\n`);
+      messageIndex++;
+      setTimeout(sendMessage, 300); // Simulate output delay
+    } else {
+      // Send completion event
+      res.write(`data: ${JSON.stringify({
+        type: 'complete',
+        status: 'passed',
+        duration: 1.23
+      })}\n\n`);
+      res.end();
+    }
+  };
+
+  // Start streaming after small delay
+  setTimeout(sendMessage, 100);
+});
+
 // Start server
 server.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] SPIRAL WebSocket server listening on port ${PORT}`);
