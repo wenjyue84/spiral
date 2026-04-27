@@ -1,6 +1,6 @@
 ---
 name: spiral
-version: 4.3.435
+version: 4.3.436
 description: >
   Run the SPIRAL autonomous development loop on any project. Handles setup,
   generates prd.json and spiral.config.sh if missing, then launches the
