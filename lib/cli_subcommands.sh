@@ -467,3 +467,16 @@ if [[ "$BATCH_MODE" -eq 1 ]]; then
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/batch_operations.py" "${_BATCH_ARGS[@]}"
   exit $?
 fi
+
+# ── cost-estimate: predict total cost for N iterations with confidence bounds ──
+COST_ESTIMATE_MODE="${COST_ESTIMATE_MODE:-0}"
+COST_ESTIMATE_ITERATIONS="${COST_ESTIMATE_ITERATIONS:-}"
+if [[ "$COST_ESTIMATE_MODE" -eq 1 ]]; then
+  if [[ -z "$COST_ESTIMATE_ITERATIONS" ]]; then
+    echo "Error: cost-estimate requires <num-iterations>" >&2
+    exit 1
+  fi
+  _RESULTS_TSV="${RESULTS_TSV:-$REPO_ROOT/results.tsv}"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_estimator.py" "$COST_ESTIMATE_ITERATIONS" "$_RESULTS_TSV"
+  exit $?
+fi

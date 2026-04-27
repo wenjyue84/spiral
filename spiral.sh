@@ -176,6 +176,8 @@ EXPORT_PROGRESS_OUTPUT=""                    # output file path (default: timest
 BATCH_MODE=0                                 # 1 = execute batch operation and exit (batch)
 BATCH_OPERATION=""                           # mark-done or retrigger
 BATCH_STORIES_FILE=""                        # path to file with story IDs
+COST_ESTIMATE_MODE=0                         # 1 = estimate cost for N iterations and exit (cost-estimate)
+COST_ESTIMATE_ITERATIONS=""                  # number of iterations to estimate cost for
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -539,6 +541,11 @@ while [[ $# -gt 0 ]]; do
           *) break ;;
         esac
       done
+      ;;
+    cost-estimate)
+      COST_ESTIMATE_MODE=1
+      COST_ESTIMATE_ITERATIONS="${2:-}"
+      shift 2
       ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
