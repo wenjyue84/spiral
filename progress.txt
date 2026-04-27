@@ -140,3 +140,75 @@ This user story describes a frontend feature for the `spiral-ui` React applicati
 *   **Polling Cleanup:** The `setInterval` must be cleared in the `useEffect` cleanup function to prevent memory leaks and redundant API calls when the component is unmounted or hidden.
 *   **Testing:** Tests should cover the polling logic (e.g., that it fires every 30s) and the "insufficient data" display state, in addition to successful data rendering.
 
+## Iteration 1 - Mon, Apr 27, 2026 11:36:41 AM
+Completed: spiral-ui frontend: ThroughputMetrics widget on Dashboard with auto-refresh (ID: US-1298) in 12m
+
+
+## Pre-analysis for US-1299 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent, based on the user story JSON provided.
+
+**Project Context:** The user story is for the **Spiral** codebase, not a Frappe application. The goal is to enhance the story planning phase (Phase E) by recommending strategies based on historical performance data.
+
+**1. Files to Modify/Create:**
+*   **Create:** `lib/hint_recommender.py`
+    *   This new file will contain the core logic for analyzing historical results.
+*   **Edit:** `lib/phases.py`
+    *   The "Phase E" handler needs to be updated to call the new recommender and append its output to the story.
+*   **Create:** `tests/test_hint_recommender.py`
+    *   Unit and integration tests for the new functionality.
+
+**2. Key Data Structures (Not Frappe DocTypes):**
+*   `results.tsv`: A TSV file acting as a database of past story attempt outcomes.
+*   `prd.json`: The main JSON file containing the list of user stories to be implemented. The `_hints` array within each story object is the target for the new recommendations.
+
+**3. Implementation Approach:**
+*   In `lib/hint_recommender.py`, implement `suggest_hints_from_history(story)`.
+    *   Read `results.tsv` using `csv.DictReader`.
+    *   Group results by the story's complexity band to calculate pass rates for different models (e.g., 'haiku').
+    *   If the pass rate for a model is below a threshold (e.g., 50%), recommend a more powerful model (e.g., 'sonnet').
+    *   Return a dictionary of hints, ensuring the schema matches the acceptance criteria.
+*   In the `lib/phases.py` Phase E handler, import and call `suggest_hints_from_history()`.
+*   Append the returned hints dictionary to the `story['_hints']` list for the story being processed.
+
+**4. Edge Cases & Gotchas:**
+*   Handle cases where `results.tsv` is empty or lacks data for a specific complexity band to avoid errors.
+*   Ensure data types from the TSV (e.g., boolean 'passes' column) are parsed correctly.
+*   The new hints must be appended to the `_hints` array, not overwrite existing hints.
+
+## Iteration 31 - Story: US-1299 - Phase E: Hint recommender from story attempt history
+
+### What was implemented
+- Created `lib/hint_recommender.py` with core hint generation logic
+  - `analyze_story_cohort()`: Groups story attempts by complexity band and model, calculates pass rates
+  - `suggest_hints_from_history()`: Returns dict with decomposition_suggested, recommended_model, recommended_retries
+  - Model escalation: When haiku pass rate < 50% for a complexity band, recommends sonnet
+  - Decomposition detection: Stories with >5 files or retry_num >= 2 suggest decomposition
+- Created `lib/hint_enricher.py`: Phase E integration wrapper
+  - Takes validated/enriched stories and adds hints from results.tsv
+  - Preserves _enrichment fields from previous enrichment steps
+- Created `tests/test_hint_recommender.py`: 6 comprehensive tests
+  - test_suggest_hints_schema: validates output schema has required keys
+  - test_low_haiku_pass_rate_escalates_model: verifies model escalation at <50% pass rate
+  - test_hints_persisted_to_prd: confirms hints added to story._hints array
+  - test_analyze_story_cohort: cohort statistics grouped by complexity
+  - test_decomposition_from_many_files: large story detection
+  - test_decomposition_from_previous_failures: retry history analysis
+- Updated `lib/phases/phase_e_enrich.sh`: integrated hint enricher as Phase E step 1.5
+  - Runs after similar solutions injection
+  - Calls hint_enricher.py to inject hints before Phase M merge
+
+### Patterns discovered
+- Phase E orchestration pattern: each enrichment step reads/modifies stories JSON
+- Results.tsv has tab-separated columns: story_id, status, model, retry_num, estimatedComplexity
+- Complexity bands: small, medium (no large found in current data)
+- Pass rate calculation handles zero-division case (return 0.0)
+- CSV DictReader used for results.tsv; csv module default tab delimiter
+
+### Acceptance criteria met
+- [x] suggest_hints_from_history() returns dict with schema keys (decomposition_suggested, recommended_model, recommended_retries)
+- [x] When haiku pass rate < 50% for complexity band, recommended_model is 'sonnet'
+- [x] Phase E handler writes hints to story._hints array before Phase I
+
+### Test results
+All 6 tests passing (100%)
+Commit: f2154789 (code implementation) + 04dd73a3 (mark as passed)
