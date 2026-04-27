@@ -2143,8 +2143,9 @@
         "US-1211"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-04-27T06:07:52Z"
     },
     {
       "id": "US-1314",
@@ -2369,27 +2370,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1324",
-      "title": "Trajectory Export: Generate JSONL training data from story execution traces",
-      "priority": "low",
-      "description": "Add lib/trajectory_exporter.py to export story execution traces (prompts, inputs, outputs, success/failure, token counts) as JSONL format for RL fine-tuning custom Claude instances on SPIRAL patterns.",
-      "acceptanceCriteria": [
-        "New command `spiral export-trajectory [--output file.jsonl] [--filter model=sonnet]` generates JSONL from results.tsv and worker logs",
-        "Each JSONL record contains: story_id, prompt, decomposition_strategy, response, tokens_used, success, error_type, model_tier, retry_count",
-        "Output file gzipped and stored at .spiral/trajectory/export-YYYY-MM-DD-HHMMSS.jsonl.gz",
-        "JSONL records validated against JSON Schema with 100% field presence for complete stories"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/trajectory_exporter.py (implement TrajectoryExporter class with to_jsonl(filter_dict) method parsing results.tsv and worker logs)",
-        "File to edit: lib/cli_subcommands.sh (register export-trajectory subcommand routing to Python module)",
-        "Test command: uv run pytest tests/test_trajectory_exporter.py::test_trajectory_jsonl_schema_validation -v && zcat .spiral/trajectory/*.jsonl.gz | jq . > /dev/null"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
       "id": "US-1325",
       "title": "[Security Test] Config API: verify auth enforcement on POST /api/config",
       "priority": "high",
@@ -2450,89 +2430,6 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1328",
-      "title": "Add federation validation test suite: include resolution and story ID uniqueness",
-      "priority": "medium",
-      "description": "Write tests/test_federation_validation.py covering prd.include path resolution and global story ID uniqueness checks across a multi-project topology. Relies on lib/federation_graph.py and the fixtures created alongside it.",
-      "acceptanceCriteria": [
-        "test_all_includes_resolve passes when all prd.include paths in the fixture topology point to existing files (assert no FileNotFoundError from build_dag)",
-        "test_circular_dependency_detection fails fast and reports all three node paths when project-a includes project-b which includes project-c which includes project-a",
-        "test_story_id_uniqueness detects a duplicate US-001 defined in both project-a and project-b and reports both file locations"
-      ],
-      "technicalNotes": [
-        "File to create: tests/test_federation_validation.py — import build_dag, detect_cycles from lib.federation_graph",
-        "File to reference: lib/federation_graph.py (build_dag, detect_cycles) — must exist before this story runs",
-        "Test command: uv run pytest tests/test_federation_validation.py -v --tb=short"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1329",
-      "title": "Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming",
-      "priority": "medium",
-      "description": "Implement timeout_scope_reducer(story_id, story_obj) in lib/timeout_handler.py. It strips acceptance criteria tagged with @optional from the story dict and delegates to lib/impl/scope_reducer.py. Returns the reduced story dict ready for retry.",
-      "acceptanceCriteria": [
-        "timeout_scope_reducer called with a story containing two @optional ACs returns a story dict with those ACs removed and non-optional ACs intact",
-        "timeout_scope_reducer called with a story containing zero @optional ACs returns the story unchanged",
-        "Reduced story dict passes Phase S JSON schema validation (uv run python lib/prd_schema.py on the output)"
-      ],
-      "technicalNotes": [
-        "File to create: lib/timeout_handler.py (timeout_scope_reducer(story_id, story_obj) → dict)",
-        "File to create: lib/impl/scope_reducer.py (strip_optional_ac(story_obj) → dict, detects '@optional' prefix in AC strings)",
-        "Test command: uv run pytest tests/test_timeout_handler.py::test_scope_reducer_strips_optional_ac -v --tb=short"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1330",
-      "title": "Wire timeout_scope_reducer into lib/impl/retry.sh before decompose_story()",
-      "priority": "medium",
-      "description": "Modify select_retry_strategy() in lib/impl/retry.sh to call timeout_scope_reducer (via uv run python) when failure type is 'timeout' and the story has @optional ACs. Only fall through to decompose_story() when no optional ACs remain or scope reduction itself times out.",
-      "acceptanceCriteria": [
-        "select_retry_strategy timeout branch invokes lib/timeout_handler.py and writes reduced story JSON to a temp file before calling decompose_story",
-        "Integration test with a fixture story containing @optional AC verifies that the retry path calls scope_reducer output, not the original story (assert reduced file written to disk)",
-        "When the story has no @optional ACs, select_retry_strategy falls through to decompose_story without invoking timeout_handler"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/impl/retry.sh (select_retry_strategy — timeout branch, ~line where 'timeout' case is handled)",
-        "File to create: tests/fixtures/sample-stories-with-optional-ac.json — one story with two @optional ACs",
-        "Test command: uv run pytest tests/test_timeout_handler.py::test_timeout_triggers_scope_reduction_not_decompose -v --tb=short"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1331",
-      "title": "[Performance Test] spiral-ui config API response time benchmark",
-      "priority": "medium",
-      "description": "Write a pytest performance benchmark for the POST /api/config endpoint backed by lib/spiral_ui_config.py. Measures p95 response time over 50 calls and fails the test if it regresses more than 20% from a recorded baseline of 50ms.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v` exits 0",
-        "Test makes 50 POST /api/config requests via httpx or requests to a locally-started test server and asserts p95 latency < 60ms",
-        "Test asserts that lib/spiral_ui_config.py load_config() returns a dict containing keys SPIRAL_MAX_PENDING, SPIRAL_MODEL_ROUTING, and SPIRAL_VALIDATE_CMD"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_spiral_ui_config_perf.py (create new — add test_us_1214_config_load_perf and test_us_1214_config_keys)",
-        "File to edit: lib/spiral_ui_config.py (import load_config to assert key presence without HTTP overhead)",
-        "Use time.perf_counter() around repeated load_config() calls if HTTP server setup is complex; assert mean < 50ms",
-        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v"
-      ],
-      "dependencies": [
-        "US-1214"
-      ],
-      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     }

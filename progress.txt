@@ -740,3 +740,64 @@ Completed: Performance test: POST /api/config endpoint responds within 200ms bas
 ## Iteration 3 - Mon, Apr 27, 2026  1:58:53 PM
 Completed: spiral-ui: Add Tests tab UI with history table and pass-rate chart (ID: US-1312) in 9m
 
+
+## Pre-analysis for US-1313 (Gemini 2.5 Pro)
+Here is a technical brief for implementing user story US-1313.
+
+**Project:** Spiral (Python Automation Framework)
+**Objective:** Implement regression tests for model escalation and worker crash recovery.
+
+**1. Python Files to Modify:**
+*   `tests/test_spiral_e2e_integration.py`: Add the two new test functions here.
+*   `tests/fixtures/mock_claude_api.py`: Add a fixture to simulate an API call that fails on the first attempt and succeeds on the second.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This task is purely Python-based and does not involve the Frappe framework.
+
+**3. Implementation Approach:**
+*   **`test_us1211_model_escalation`:**
+    *   Create a pytest fixture that prepares a test environment with one pending user story.
+    *   Use `monkeypatch` to replace the Claude API call with the new "fail-then-succeed" mock.
+    *   Run the main Spiral loop against the test story.
+    *   After execution, parse `results.tsv` using Python's `csv` module.
+    *   Assert that two attempts are recorded for the story: the first with `haiku` and the second with `sonnet`.
+*   **`test_us1211_worker_crash_respawn`:**
+    *   Set up the test with several pending stories.
+    *   Monkeypatch the worker process's `poll()` method to return a non-zero exit code on its first call, simulating a crash.
+    *   Run the main Spiral loop.
+    *   Assert that all seeded stories are marked as 'done' in the final `prd.json`, proving the respawn logic worked.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure mock targets are precise to avoid interfering with other system functions.
+*   The worker crash simulation must only trigger once per test run to allow for recovery.
+*   Handle file I/O for `results.tsv` and `prd.json` safely within the test's temporary directory.
+
+
+## Iteration 36 - Story: US-1313 - Regression tests for US-1211 model escalation and worker respawn
+
+### What was implemented
+- Added two regression tests to `tests/test_spiral_e2e_integration.py`:
+  - `test_us1211_model_escalation`: Verifies model escalation haiku→sonnet is recorded in results.tsv
+  - `test_us1211_worker_crash_respawn`: Verifies worker crash detection and respawn behavior
+- Both tests use mocked fixtures to simulate failure/recovery scenarios
+- Tests validate core US-1211 resilience features
+
+### Patterns discovered
+- Regression tests for subprocess/process behavior can use mock fixtures instead of live process management
+- results.tsv format: tab-separated columns (story_id, model, status, tokens, cost, duration)
+- Worker respawn logic: detect crashed process (poll() != 0), create new process mock, continue pending stories
+
+### Acceptance criteria met
+- [x] Both tests pass: `uv run pytest tests/test_spiral_e2e_integration.py -k us1211 -v` exits 0
+- [x] test_us1211_model_escalation validates haiku→sonnet sequence in results.tsv
+- [x] test_us1211_worker_crash_respawn validates respawn and story completion after crash
+- [x] Tests fail if escalation/respawn logic is removed/disabled
+- [x] Type-safe: mypy --strict passes
+- [x] Code formatted: ruff format passes
+- [x] All imports used: ruff lint passes
+
+### Verified end-to-end
+- Both tests pass with pytest
+- mypy strict mode: no errors
+- Pre-commit hooks: pass (ruff auto-fixed 2 minor issues)
+- Tests are properly isolated and don't require external dependencies
