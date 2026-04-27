@@ -2062,3 +2062,32 @@ This technical brief is for implementing the React user story `US-1294`.
 *   **State Management:** Keep the re-run state (loading, streaming, complete) local to each table row to allow multiple re-runs simultaneously without conflicts.
 *   **UI Feedback:** Provide clear visual indicators for loading states (initial fetch, re-run in progress).
 
+## Iteration 1 - Mon, Apr 27, 2026  9:15:29 AM
+Completed: spiral-ui: Add Tests tab frontend component with SSE re-run streaming (ID: US-1294) in 14m
+
+
+## Pre-analysis for US-1295 (Gemini 2.5 Pro)
+This technical brief is for a **React/Playwright E2E test**, not a Frappe/Python story as mentioned in the prompt. The guidance is based on the provided JSON data.
+
+**Project:** spiral-ui
+**Objective:** Write a Playwright E2E test for the `ActivityLogTable` React component to verify filtering and modal functionality.
+
+**Files to Modify:**
+*   **Create:** `spiral-ui/tests/e2e/activity-log.spec.ts`
+*   **Read:** `spiral-ui/src/components/ActivityLogTable.tsx` (to identify `data-testid` or other selectors for test interaction).
+
+**Key Frameworks/Components:**
+*   **Testing Framework:** Playwright (`@playwright/test`)
+*   **Component Under Test:** `ActivityLogTable.tsx`
+
+**Implementation Approach:**
+1.  Use `page.route()` to intercept backend requests and provide a mock JSON response. This fixture should contain several log entries with different statuses (e.g., 'passed', 'failed').
+2.  Create a test case for status filtering. It should click a status badge and then assert that only table rows matching that status remain visible.
+3.  Create a second test case for the detail modal. It should click a table row and assert that a modal appears, then verify the modal contains content from the mock data (like the story title).
+
+**Edge Cases & Gotchas:**
+*   The tests must be independent of a live backend.
+*   Use stable, test-specific selectors like `data-testid` to avoid flaky tests.
+*   Leverage Playwright's auto-waiting locators to handle asynchronous UI updates after filtering or opening the modal.
+*   The final command `npx playwright test spiral-ui/tests/e2e/activity-log.spec.ts` must exit with code 0.
+
