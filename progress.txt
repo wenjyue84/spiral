@@ -115,3 +115,28 @@ Completed: [Security Test] history_search: no sensitive data exposed in FTS5 que
 - [x] JSON schema: { prd, results, learning, loopQuality, metadata: { iteration, timestamp, passCount, failCount, totalCost, checksum } }
 - [x] ZIP archive with prd.json, results.tsv, learning.md, retry-counts.json, README.md
 - [x] sha256 checksum in metadata; timestamped filename
+
+## Pre-analysis for US-1298 (Gemini 2.5 Pro)
+This user story describes a frontend feature for the `spiral-ui` React application, not a Frappe/Python task. The following technical brief is based on the provided JSON, adapted to the user story's actual requirements.
+
+**Technical Brief: US-1298 - ThroughputMetrics Frontend Widget**
+
+**1. Files to Modify/Create:**
+*   **Create:** `spiral-ui/src/components/ThroughputMetrics.tsx` to house the new React component.
+*   **Create:** `spiral-ui/src/components/ThroughputMetrics.test.tsx` to implement unit tests. MSW or `vi.mock` should be used to mock the API endpoint.
+*   **Edit:** `spiral-ui/src/pages/Dashboard.tsx` to import and place the `<ThroughputMetrics />` component on the dashboard.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This is a frontend story. It will interact with the backend via a GET request to the `/api/throughput` REST endpoint, not through Frappe hooks or DocTypes.
+
+**3. Recommended Implementation Approach:**
+*   The `ThroughputMetrics` component should use a `useEffect` hook containing a `setInterval` or a `useInterval` custom hook to fetch data from `/api/throughput` every 30 seconds.
+*   The polling mechanism must be conditional, firing only when the main spiral iteration is active. This status will likely need to be passed down as a prop.
+*   Use the `recharts` library to render a `BarChart` for visualizing cycle time distribution by complexity.
+*   Display "velocity" and "median cycle time" as distinct visual metrics.
+
+**4. Edge Cases & Gotchas to Watch For:**
+*   **API State:** The component must handle the case where `/api/throughput` returns an empty or insufficient dataset, displaying a specific "Insufficient data" message.
+*   **Polling Cleanup:** The `setInterval` must be cleared in the `useEffect` cleanup function to prevent memory leaks and redundant API calls when the component is unmounted or hidden.
+*   **Testing:** Tests should cover the polling logic (e.g., that it fires every 30s) and the "insufficient data" display state, in addition to successful data rendering.
+

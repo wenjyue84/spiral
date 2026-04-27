@@ -1809,7 +1809,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-04-27T03:23:04Z"
+      "last_attempted": "2026-04-27T03:23:04Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe spiral-ui dashboard currently displays progress stats but lacks a throughput metrics widget. The ProjectDashboard passes an `isRunning` flag that indicates whether SPIRAL is actively executing. I need to create a new ThroughputMetrics component that fetches throughput data from `/api/throughput` every 30 seconds and displays velocity and cycle time metrics using recharts.\n\n## Problem Identified\nStory US-1298 requires implementing a frontend widget that:\n1. Fetches `/api/throughput` every 30 seconds when iteration is running\n2. Displays velocity (\"X stories/hour\") and cycle time distribution by complexity\n3. Shows \"Insufficient data\" when the API returns empty metrics\n4. Includes comprehensive unit tests with polling and insufficient data coverage\n\n## Planned Changes\n- **Create:** `spiral-ui/src/components/ThroughputMetrics.tsx` — React component with useEffect polling, recharts BarChart visualization, and conditional rendering\n- **Create:** `spiral-ui/src/components/ThroughputMetrics.test.tsx` — Unit tests covering rendering, polling behavior, and insufficient data state\n- **Modify:** `spiral-ui/src/components/dashboard/ProgressTab.tsx` — Add import and render ThroughputMetrics component after stats cards\n- **Modify:** `spiral-ui/src/components/ProjectDashboard.tsx` — Pass `isRunning` prop to ProgressTab if needed\n\n<plan>\n{\n  \"files_to_create\": [\n    \"spiral-ui/src/components/ThroughputMetrics.tsx\",\n    \"spiral-ui/src/components/ThroughputMetrics.test.tsx\"\n  ],\n  \"files_to_modify\": [\n    \"spiral-ui/src/components/dashboard/ProgressTab.tsx\"\n  ],\n  \"functions_to_add\": [\n    \"ThroughputMetrics (React component)\",\n    \"tests for polling, rendering, insufficient data\"\n  ],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow let me implement the ThroughputMetrics component:\nNow let me update the ProgressTab to include the ThroughputMetrics component. First, let me check what I need to pass:\nPerfect! Let me update prd.json to mark this story as complete, then commit all changes.\n## Summary"
+      }
     },
     {
       "id": "US-1299",
