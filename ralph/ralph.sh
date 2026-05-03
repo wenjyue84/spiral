@@ -64,6 +64,8 @@ SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"                          # di
 SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                                 # number of commits to look back for git diff context injection (US-280)
 SPIRAL_WORKER_NETWORK_ISOLATION="${SPIRAL_WORKER_NETWORK_ISOLATION:-false}" # true = wrap worker in Linux network namespace via unshare --net (US-278)
 SPIRAL_STRICT_SCOPE_GUARD="${SPIRAL_STRICT_SCOPE_GUARD:-false}"             # true = abort commit when changed files exceed story filesTouch scope (US-356)
+SPIRAL_GATE_STRICT_FILES="${SPIRAL_GATE_STRICT_FILES:-true}"               # true = reject fake passes with no feature code (file-existence gate)
+SPIRAL_MIN_FILE_LINES="${SPIRAL_MIN_FILE_LINES:-5}"                        # minimum non-blank lines per filesTouch file (file-existence gate)
 SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"                    # US-373: adaptive thinking effort for 4.6 models (low/medium/high/max)
 SPIRAL_THINKING_BUDGET_TOKENS="${SPIRAL_THINKING_BUDGET_TOKENS:-10000}"     # US-398: max thinking tokens per story (0=disable thinking, min 1024)
 SPIRAL_PROGRAMMATIC_TOOLS="${SPIRAL_PROGRAMMATIC_TOOLS:-auto}"              # US-339: enable code_execution_20250825 tool (auto/true/false)
@@ -1648,6 +1650,22 @@ ACTION: Fix the critical issues listed above before marking passes=true."
         append_result "reject"
         echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
         echo "FAILED scope-guard: $STORY_TITLE (ID: $NEXT_STORY) — out-of-scope files detected — attempt $RETRY_NOW/$MAX_RETRIES" >>"$PROGRESS_FILE"
+        echo "" >>"$PROGRESS_FILE"
+        continue
+      fi
+      if ! check_file_existence_gate "$NEXT_STORY"; then
+        echo "  [file-gate] Unstaging changes and aborting story"
+        do_story_reset "$PRE_STORY_SHA"
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" >"${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"file_existence_gate: no feature code written\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        increment_retry "$NEXT_STORY"
+        RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+        echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES (file existence gate failed)"
+        append_result "reject"
+        echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
+        echo "FAILED file-gate: $STORY_TITLE (ID: $NEXT_STORY) — no feature code written — attempt $RETRY_NOW/$MAX_RETRIES" >>"$PROGRESS_FILE"
         echo "" >>"$PROGRESS_FILE"
         continue
       fi

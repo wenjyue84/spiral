@@ -524,6 +524,12 @@
 # declared scope is staged. When false (default), logs a WARN but allows commit.
 # SPIRAL_STRICT_SCOPE_GUARD=false
 
+# File-existence gate: prevents fake story passes when workers write zero
+# feature code. Checks that filesTouch files exist, are staged, and have
+# minimum content. When true (default), aborts commit if checks fail.
+# SPIRAL_GATE_STRICT_FILES=true
+# SPIRAL_MIN_FILE_LINES=5
+
 # Memory watchdog: background PowerShell monitor that kills Node.js processes
 # exceeding the RSS threshold. Requires PowerShell on Windows.
 # 1 = enabled (default), 0 = disabled.

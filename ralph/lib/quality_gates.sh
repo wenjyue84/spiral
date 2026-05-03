@@ -179,6 +179,93 @@ check_scope_guard() {
   return 0
 }
 
+# ── File-existence gate ─────────────────────────────────────────
+# Prevents fake passes when workers write zero feature code.
+# Enabled by SPIRAL_GATE_STRICT_FILES (default true).
+# Returns 1 if story declares filesTouch but none were actually modified,
+# or if the only staged changes are metadata files (prd.json, progress.txt, *.md).
+check_file_existence_gate() {
+  local story_id="${1:-}"
+  if [[ "${SPIRAL_GATE_STRICT_FILES:-true}" != "true" ]]; then
+    return 0
+  fi
+
+  # Read filesTouch from prd.json
+  local files_to_touch
+  files_to_touch=$($JQ -r --arg id "$story_id" \
+    '(.userStories[] | select(.id == $id) | .filesTouch // []) | .[]' "$PRD_FILE" 2>/dev/null)
+
+  if [[ -z "$files_to_touch" ]]; then
+    echo "  [file-gate] WARNING: Story $story_id has empty filesTouch — failing gate"
+    log_ralph_event "file_existence_gate" \
+      "\"story_id\":\"$story_id\",\"result\":\"fail\",\"reason\":\"empty_filesTouch\""
+    return 1
+  fi
+
+  # Get staged files
+  local staged_files
+  staged_files=$(git diff --name-only --cached 2>/dev/null)
+  if [[ -z "$staged_files" ]]; then
+    echo "  [file-gate] WARNING: No staged files at all — failing gate"
+    log_ralph_event "file_existence_gate" \
+      "\"story_id\":\"$story_id\",\"result\":\"fail\",\"reason\":\"no_staged_files\""
+    return 1
+  fi
+
+  # Diff-sanity: at least one staged file must NOT be prd.json, progress.txt, or *.md
+  local has_feature_file=0
+  while IFS= read -r sf; do
+    case "$sf" in
+      prd.json|progress.txt|*.md) ;;
+      *) has_feature_file=1; break ;;
+    esac
+  done <<<"$staged_files"
+  if [[ "$has_feature_file" -eq 0 ]]; then
+    echo "  [file-gate] WARNING: Only metadata files staged (prd.json/progress.txt/*.md) — no feature code"
+    log_ralph_event "file_existence_gate" \
+      "\"story_id\":\"$story_id\",\"result\":\"fail\",\"reason\":\"metadata_only\""
+    return 1
+  fi
+
+  # Check each filesTouch entry
+  local min_lines="${SPIRAL_MIN_FILE_LINES:-5}"
+  local missing=0
+  while IFS= read -r ft_path; do
+    [[ -n "$ft_path" ]] || continue
+    # Must exist on disk
+    if [[ ! -f "$ft_path" && ! -d "$ft_path" ]]; then
+      echo "  [file-gate] MISSING: $ft_path (declared in filesTouch but not on disk)"
+      missing=1
+      continue
+    fi
+    # Must appear in staged diff
+    if ! echo "$staged_files" | grep -qF "$ft_path"; then
+      echo "  [file-gate] NOT STAGED: $ft_path (exists but not modified)"
+      missing=1
+      continue
+    fi
+    # If it's a file (not dir), check minimum content
+    if [[ -f "$ft_path" ]]; then
+      local non_blank
+      non_blank=$(grep -cve '^\s*$' "$ft_path" 2>/dev/null || echo "0")
+      if [[ "$non_blank" -lt "$min_lines" ]]; then
+        echo "  [file-gate] THIN: $ft_path has only $non_blank non-blank lines (min: $min_lines)"
+        missing=1
+      fi
+    fi
+  done <<<"$files_to_touch"
+
+  if [[ "$missing" -eq 1 ]]; then
+    log_ralph_event "file_existence_gate" \
+      "\"story_id\":\"$story_id\",\"result\":\"fail\",\"reason\":\"files_check_failed\""
+    return 1
+  fi
+
+  log_ralph_event "file_existence_gate" \
+    "\"story_id\":\"$story_id\",\"result\":\"pass\""
+  return 0
+}
+
 # ── Security scan gate (Phase S) ────────────────────────────────
 # run_security_scan: Optional Phase S gate between quality checks and git commit.
 # Enabled by SPIRAL_SECURITY_SCAN=true.  Scans only staged files.
