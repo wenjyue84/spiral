@@ -1280,6 +1280,55 @@ class TestFallbackThresholdLogic:
         assert effective_threshold == 0.60
 
 
+class TestCorruptPRDRecovery:
+    """Tests for prd.json corruption handling in merge_stories.py"""
+
+    def test_corrupt_prd_json_fails_gracefully(self, tmp_path: "pytest.TempPathFactory") -> None:  # type: ignore[name-defined]
+        """merge_stories exits with error when prd.json is corrupt and no backup exists."""
+        prd_file = tmp_path / "prd.json"
+        prd_file.write_text("{corrupt json!!!", encoding="utf-8")
+        research = tmp_path / "research.json"
+        research.write_text('{"stories":[]}', encoding="utf-8")
+
+        result = subprocess.run(
+            [sys.executable, "-m", "merge_stories", str(prd_file), str(research)],
+            capture_output=True,
+            text=True,
+            cwd=os.path.join(os.path.dirname(__file__), "..", "lib", "prd"),
+            env={**os.environ, "SPIRAL_SCRATCH_DIR": str(tmp_path)},
+        )
+        assert result.returncode != 0
+        assert "corrupt" in result.stderr.lower() or "error" in result.stderr.lower()
+
+    def test_corrupt_prd_restores_from_backup(self, tmp_path: "pytest.TempPathFactory") -> None:  # type: ignore[name-defined]
+        """merge_stories restores prd.json from backup when corrupt."""
+        # Create valid backup
+        backup_dir = tmp_path / "prd-backups"
+        backup_dir.mkdir()
+        valid_prd = {"userStories": [{"id": "US-001", "title": "Test", "passes": False}]}
+        backup_file = backup_dir / "prd-iter1.json"
+        backup_file.write_text(json.dumps(valid_prd), encoding="utf-8")
+
+        # Create corrupt prd.json
+        prd_file = tmp_path / "prd.json"
+        prd_file.write_text("{corrupt!!!", encoding="utf-8")
+        research = tmp_path / "research.json"
+        research.write_text('{"stories":[]}', encoding="utf-8")
+
+        result = subprocess.run(
+            [sys.executable, "-m", "merge_stories", str(prd_file), str(research)],
+            capture_output=True,
+            text=True,
+            cwd=os.path.join(os.path.dirname(__file__), "..", "lib", "prd"),
+            env={**os.environ, "SPIRAL_SCRATCH_DIR": str(tmp_path)},
+        )
+        # Should succeed after restoring from backup
+        assert result.returncode == 0
+        # prd.json should now be valid
+        restored = json.loads(prd_file.read_text(encoding="utf-8"))
+        assert "userStories" in restored
+
+
 # Hypothesis needs this test class to discover the state machine
 TestPRDMergeInvariants = PRDMergeStateMachine.TestCase
 TestPRDMergeInvariants.settings = settings(

@@ -455,8 +455,32 @@ def main() -> int:
         print(f"[merge] ERROR: {args.prd} not found", file=sys.stderr)
         return 1
 
-    with open(args.prd, encoding="utf-8") as f:
-        prd = json.load(f)
+    try:
+        with open(args.prd, encoding="utf-8") as f:
+            prd = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"[merge] ERROR: prd.json is corrupt: {e}", file=sys.stderr)
+        scratch_dir = os.environ.get("SPIRAL_SCRATCH_DIR", ".spiral")
+        backup_dir = os.path.join(scratch_dir, "prd-backups")
+        if os.path.isdir(backup_dir):
+            backups = sorted(
+                [f for f in os.listdir(backup_dir) if f.startswith("prd-iter") and f.endswith(".json")],
+                key=lambda x: os.path.getmtime(os.path.join(backup_dir, x)),
+                reverse=True,
+            )
+            if backups:
+                backup_path = os.path.join(backup_dir, backups[0])
+                print(f"[merge] Restoring from backup: {backup_path}", file=sys.stderr)
+                import shutil
+                shutil.copy2(backup_path, args.prd)
+                with open(args.prd, encoding="utf-8") as f:
+                    prd = json.load(f)
+            else:
+                print("[merge] No backups available", file=sys.stderr)
+                return 1
+        else:
+            print("[merge] No backup directory found", file=sys.stderr)
+            return 1
 
     # ── US-1134: Load fallback counter for dense backlog detection ───────────────
     scratch_dir = os.environ.get("SPIRAL_SCRATCH_DIR", ".spiral")

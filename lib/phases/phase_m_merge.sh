@@ -69,6 +69,19 @@ run_phase_merge() {
   if checkpoint_phase_done "M"; then
     echo "  [M] Skipping (checkpoint: already done this iter)"
   else
+    # ── Phase M integrity check: verify prd.json is valid before merge ──────
+    if [[ -f "$PRD_FILE" ]] && ! "$JQ" empty "$PRD_FILE" 2>/dev/null; then
+      echo "  [M] WARNING: prd.json corrupt at Phase M entry — restoring from backup"
+      _LATEST_BACKUP=$(ls -t "$SCRATCH_DIR/prd-backups/prd-iter"*.json 2>/dev/null | head -1 || true)
+      if [[ -n "$_LATEST_BACKUP" && -f "$_LATEST_BACKUP" ]]; then
+        cp "$_LATEST_BACKUP" "$PRD_FILE"
+        log_spiral_event "prd_restored" "\"phase\":\"M\",\"backup\":\"$_LATEST_BACKUP\""
+      else
+        echo "  [M] ERROR: No backup available — skipping merge this iteration"
+        write_checkpoint "$SPIRAL_ITER" "M"
+      fi
+    fi
+
     # ── Phase M backup: snapshot prd.json before merge ──────────────────────
     if [[ -f "$PRD_FILE" ]]; then
       mkdir -p "$SCRATCH_DIR/prd-backups"
