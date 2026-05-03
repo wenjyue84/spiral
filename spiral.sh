@@ -166,6 +166,29 @@ SKILLS_URL=""                                # URL for skills install
 METRICS_MODE=0                               # 1 = run metrics subcommand and exit (metrics)
 METRICS_SUBCOMMAND=""                        # export-timeseries
 METRICS_OUTPUT=""                            # output file path for metrics
+COST_ANALYSIS_MODE=0                         # 1 = run cost-analysis subcommand and exit
+COST_ANALYSIS_DETAILED=0                     # 1 = show per-story breakdown (--detailed)
+COST_ANALYSIS_JSON=0                         # 1 = output as JSON (--json)
+COST_ANALYSIS_COMPARE_ITERATION=""           # iteration to compare with (--compare-iteration N)
+EXPORT_PROGRESS_MODE=0                       # 1 = export PRD+results snapshot and exit (export-progress)
+EXPORT_PROGRESS_FORMAT="json"                # json|zip output format
+EXPORT_PROGRESS_OUTPUT=""                    # output file path (default: timestamped)
+BATCH_MODE=0                                 # 1 = execute batch operation and exit (batch)
+BATCH_OPERATION=""                           # mark-done or retrigger
+BATCH_STORIES_FILE=""                        # path to file with story IDs
+COST_ESTIMATE_MODE=0                         # 1 = estimate cost for N iterations and exit (cost-estimate)
+COST_ESTIMATE_ITERATIONS=""                  # number of iterations to estimate cost for
+COST_ESTIMATE_WORKERS=""                     # number of parallel workers (default: 1)
+COST_ESTIMATE_FORMAT=""                      # output format: text, json, csv (default: text)
+COST_ESTIMATE_DRY_RUN=0                      # 1 = show command without API calls
+DEDUP_MODE=0                                 # 1 = find duplicate stories and exit (dedup-suggestions)
+DEDUP_MERGE_MODE=0                           # 1 = merge two stories and exit (merge)
+DEDUP_MERGE_ID1=""                           # first story ID to merge
+DEDUP_MERGE_ID2=""                           # second story ID to merge
+EXPORT_TRAJECTORY_MODE=0                     # 1 = export JSONL training data and exit (export-trajectory)
+EXPORT_TRAJECTORY_OUTPUT=""                  # output .jsonl.gz path (default: timestamped)
+EXPORT_TRAJECTORY_FILTER=""                  # filter as key=value (e.g. model=sonnet)
+PROFILE_PHASES_MODE=0                        # 1 = read phase timings and print profiling report (profile-phases)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -477,6 +500,108 @@ while [[ $# -gt 0 ]]; do
         shift 2
       fi
       ;;
+    cost-analysis)
+      COST_ANALYSIS_MODE=1
+      shift
+      # Parse optional cost-analysis flags
+      while [[ $# -gt 0 ]] && [[ "$1" != --* || "$1" == --detailed || "$1" == --json || "$1" == --compare-iteration ]]; do
+        case $1 in
+          --detailed)
+            COST_ANALYSIS_DETAILED=1
+            shift
+            ;;
+          --json)
+            COST_ANALYSIS_JSON=1
+            shift
+            ;;
+          --compare-iteration)
+            COST_ANALYSIS_COMPARE_ITERATION="$2"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
+    export-progress)
+      EXPORT_PROGRESS_MODE=1
+      shift
+      while [[ $# -gt 0 ]]; do
+        case $1 in
+          --format)
+            EXPORT_PROGRESS_FORMAT="${2:-json}"
+            shift 2
+            ;;
+          --output)
+            EXPORT_PROGRESS_OUTPUT="${2:-}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
+    batch)
+      BATCH_MODE=1
+      BATCH_OPERATION="${2:-}"
+      shift 2
+      while [[ $# -gt 0 ]] && [[ "$1" == --stories-file ]]; do
+        case $1 in
+          --stories-file)
+            BATCH_STORIES_FILE="${2:-}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
+    cost-estimate)
+      COST_ESTIMATE_MODE=1
+      COST_ESTIMATE_ITERATIONS="${2:-}"
+      shift 2
+      while [[ $# -gt 0 ]]; do
+        case $1 in
+          --workers)
+            COST_ESTIMATE_WORKERS="$2"
+            shift 2
+            ;;
+          --format)
+            COST_ESTIMATE_FORMAT="$2"
+            shift 2
+            ;;
+          --dry-run)
+            COST_ESTIMATE_DRY_RUN=1
+            shift
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
+    dedup-suggestions)
+      DEDUP_MODE=1
+      shift
+      ;;
+    merge)
+      DEDUP_MERGE_MODE=1
+      DEDUP_MERGE_ID1="${2:-}"
+      DEDUP_MERGE_ID2="${3:-}"
+      shift 3
+      ;;
+    export-trajectory)
+      EXPORT_TRAJECTORY_MODE=1
+      shift
+      while [[ $# -gt 0 ]]; do
+        case $1 in
+          --output)
+            EXPORT_TRAJECTORY_OUTPUT="${2:-}"
+            shift 2
+            ;;
+          --filter)
+            EXPORT_TRAJECTORY_FILTER="${2:-}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -562,6 +687,19 @@ while [[ $# -gt 0 ]]; do
       echo "    --project NAME             Filter results to a specific sub-project"
       echo "    --min-score N              Minimum match score 0-100 (default: 30)"
       echo "  metrics export-timeseries <output.json>  Export time-series metrics (token burn, throughput) to JSON"
+      echo "  cost-analysis              Analyze token costs and spend from results.tsv"
+      echo "    --detailed                 Show per-story breakdown (top 20 by cost)"
+      echo "    --json                     Output as JSON"
+      echo "    --compare-iteration N      Compare current iteration to iteration N with delta"
+      echo "  export-progress            Bundle PRD, results, and metrics as a shareable snapshot"
+      echo "    --format json|zip          Output format (default: json)"
+      echo "    --output PATH              Output file path (default: spiral-export-<timestamp>.<ext>)"
+      echo "  export-trajectory          Export story execution traces as JSONL training data"
+      echo "    --output PATH              Output .jsonl.gz path (default: .spiral/trajectory/export-<ts>.jsonl.gz)"
+      echo "    --filter key=value         Filter records (e.g. model=sonnet)"
+      echo "  batch <op> --stories-file F  Execute batch operation on multiple stories (mark-done, retrigger)"
+      echo "    <op>                       Operation: mark-done or retrigger"
+      echo "    --stories-file FILE        File path with story IDs (one per line)"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --continuous               Never stop — loop back to Phase A after all stories pass"
@@ -999,6 +1137,30 @@ log_msg() {
   fi
 }
 
+# ── log_phase_timing: record phase execution time to .spiral/_phase_timings.jsonl ─
+# Usage: log_phase_timing "R" "start|end" [start_ms]
+# When action="start", records start timestamp; when action="end", records end timestamp
+# Appends JSON record: {phase: 'X', start_ms: <num>, end_ms: <num>} (end fills in both)
+log_phase_timing() {
+  local phase="$1" action="${2:-end}" start_ms="${3:-}"
+  local timings_file="$SCRATCH_DIR/_phase_timings.jsonl"
+  local now_ms current_record
+
+  # Get current timestamp in milliseconds
+  now_ms=$(date +%s%3N 2>/dev/null || echo "$(($(date +%s) * 1000))")
+
+  if [[ "$action" == "start" ]]; then
+    # Record start time; end_ms will be filled on "end" call
+    echo "{\"phase\": \"$phase\", \"start_ms\": $now_ms, \"end_ms\": $now_ms}" >>"$timings_file"
+  elif [[ "$action" == "end" ]]; then
+    # Update the last record for this phase with end_ms
+    # Since we can't easily edit JSON in a JSONL file, we'll just append a new complete record
+    if [[ -n "$start_ms" ]]; then
+      echo "{\"phase\": \"$phase\", \"start_ms\": $start_ms, \"end_ms\": $now_ms}" >>"$timings_file"
+    fi
+  fi
+}
+
 # Scratch directory in project root
 SCRATCH_DIR="$REPO_ROOT/.spiral"
 PRD_FILE="$REPO_ROOT/prd.json"
@@ -1120,6 +1282,10 @@ fi
 
 SESSION_START=$(date +%s)
 
+# ── Central log: record run start ──────────────────────────────────────────────
+"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/central_log.py" record-run-start \
+  --run-id "$SPIRAL_RUN_ID" --project-path "$REPO_ROOT" 2>/dev/null || true
+
 # ── Time limit ────────────────────────────────────────────────────────────────
 SESSION_DEADLINE=0
 if [[ "$TIME_LIMIT_MINS" -gt 0 ]]; then
@@ -1140,9 +1306,14 @@ trap '_spiral_cleanup INT' INT
 trap '_spiral_cleanup TERM' TERM
 
 # SIGCHLD trap: reap zombie worker processes as they exit (US-076)
-# Uses `wait -n` (bash 4.3+) in a loop to drain all available zombies per signal delivery.
-# The `true` at the end suppresses non-zero exit when no children remain.
-trap 'while wait -n 2>/dev/null; do :; done; true' SIGCHLD
+# Uses a function-based handler to avoid inline trap action strings that can
+# cause "unexpected EOF while looking for matching ')'" errors when SIGCHLD
+# fires during command substitution parsing (Git Bash/Windows).
+_reap_zombies() {
+  while wait -n 2>/dev/null; do :; done
+  true
+}
+trap _reap_zombies SIGCHLD
 
 # ── Memory watchdog — background monitor (graduated pressure or kill-only) ────
 if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/dev/null; then
@@ -1225,6 +1396,43 @@ if [[ "${SPIRAL_CONTINUOUS:-false}" == "true" ]]; then
   echo "  [continuous] Continuous mode enabled — SPIRAL will not stop on all-pass"
 fi
 
+# ── Circuit breaker for continuous mode ──────────────────────────────────────
+# If a framework bug (not a story validation failure) crashes a phase script,
+# log it, increment the breaker, and retry the next iteration instead of dying.
+# After SPIRAL_CIRCUIT_BREAKER_LIMIT consecutive framework errors, halt.
+_CIRCUIT_BREAKER_COUNT=0
+_CIRCUIT_BREAKER_LIMIT="${SPIRAL_CIRCUIT_BREAKER_LIMIT:-3}"
+
+# safe_phase: run a phase function, catching framework errors in continuous mode.
+# Usage: safe_phase run_phase_validate || continue
+# In non-continuous mode, this is a transparent passthrough.
+safe_phase() {
+  if [[ "${SPIRAL_CONTINUOUS:-false}" != "true" ]]; then
+    "$@"
+    return $?
+  fi
+  # Continuous mode: temporarily disable errexit so bash-level errors
+  # (bad array subscript, trap parse errors) don't kill the process.
+  local _sp_rc=0
+  set +e
+  "$@"
+  _sp_rc=$?
+  set -e
+  if [[ "$_sp_rc" -ne 0 ]]; then
+    _CIRCUIT_BREAKER_COUNT=$((_CIRCUIT_BREAKER_COUNT + 1))
+    echo ""
+    echo "  [circuit-breaker] Phase '$1' failed with exit code $_sp_rc (${_CIRCUIT_BREAKER_COUNT}/${_CIRCUIT_BREAKER_LIMIT})"
+    log_spiral_event "circuit_breaker" \
+      "\"phase\":\"$1\",\"iteration\":$SPIRAL_ITER,\"exit_code\":$_sp_rc,\"count\":$_CIRCUIT_BREAKER_COUNT,\"limit\":$_CIRCUIT_BREAKER_LIMIT" 2>/dev/null || true
+    if [[ "$_CIRCUIT_BREAKER_COUNT" -ge "$_CIRCUIT_BREAKER_LIMIT" ]]; then
+      echo "  [circuit-breaker] HALTING — $_CIRCUIT_BREAKER_LIMIT consecutive framework errors"
+      spiral_exit E503 "Circuit breaker tripped after $_CIRCUIT_BREAKER_LIMIT consecutive failures"
+    fi
+    echo "  [circuit-breaker] Will retry next iteration..."
+  fi
+  return $_sp_rc
+}
+
 # ── Main SPIRAL loop ────────────────────────────────────────────────────────
 while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   SPIRAL_ITER=$((SPIRAL_ITER + 1))
@@ -1271,6 +1479,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   _PASSES_BEFORE_I=-1   # passed-story count snapshot before Phase I (US-183)
   _PASSES_AFTER_I=-1    # passed-story count snapshot after Phase I (US-183)
   _PHASE_V_SKIPPED=0    # 1 when Phase V is skipped due to no new passes (US-183)
+
   # Phase duration tracking (US-046): reset per-iteration, updated at each phase_end
   _PHASE_DUR_R=0
   _PHASE_DUR_T=0
@@ -1462,9 +1671,9 @@ print(len(completed))
 
   # ── Phase R + T: RESEARCH and TEST SYNTHESIS (parallel) ──────────────────
   # US-182: R and T are independent — launch as background jobs and await both.
-  run_phase_rt_parallel || continue
+  safe_phase run_phase_rt_parallel || continue
 
-  run_phase_s || continue
+  safe_phase run_phase_s || continue
   log_spiral_event "phase_end" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER,\"model\":\"$SPIRAL_VALIDATION_MODEL\""
   run_phase_enrichment
 
@@ -1478,7 +1687,7 @@ print(len(completed))
     --output "$_DEPS_OUTPUT" || true
   [[ -f "$_DEPS_OUTPUT" ]] && echo "  [S+] Dependency resolution complete → $_DEPS_OUTPUT" || true
 
-  run_phase_merge || continue
+  safe_phase run_phase_merge || continue
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"model\":\"$SPIRAL_MERGE_MODEL\""
 
   # ── US-1103: Fast-path skip Phase R/T if no new stories and all pending have retries ──
@@ -1559,7 +1768,7 @@ PYEOF
   fi
   export _TEST_BASELINE_FILE
 
-  run_phase_gate_and_implement || continue
+  safe_phase run_phase_gate_and_implement || continue
 
   # Re-hash core files after Phase I commits (self-referential projects modify lib/*.py)
   if [[ -f "$_CORE_HASH_FILE" ]]; then
@@ -1572,7 +1781,7 @@ PYEOF
     } >"$_CORE_HASH_FILE"
   fi
 
-  run_phase_validate || continue
+  safe_phase run_phase_validate || continue
 
   run_phase_push
 
@@ -1583,21 +1792,73 @@ PYEOF
   # SKIP when SPIRAL_PROJECT_ROOT == SPIRAL_HOME (self-referential: SPIRAL developing itself)
   if [[ -f "$_CORE_HASH_FILE" && "$REPO_ROOT" != "$SPIRAL_HOME" ]]; then
     if ! sha256sum -c "$_CORE_HASH_FILE" >/dev/null 2>&1; then
-      echo ""
-      echo "  ╔══════════════════════════════════════════════════════╗"
-      echo "  ║  CRITICAL: Core files modified during iteration $SPIRAL_ITER  ║"
-      echo "  ║  Halting SPIRAL to prevent cascading damage.        ║"
-      echo "  ╚══════════════════════════════════════════════════════╝"
-      echo ""
-      echo "  Changed files:"
-      sha256sum -c "$_CORE_HASH_FILE" 2>&1 | grep -i "FAILED" || true
-      echo ""
-      echo "  Run 'git diff' to inspect and 'git checkout -- <file>' to restore."
-      spiral_exit E500 "Core file integrity check failed"
+      _CHANGED_FILES=$(sha256sum -c "$_CORE_HASH_FILE" 2>&1 | grep -i ": FAILED$" | sed 's/: FAILED$//' || true)
+      _CHANGED_COUNT=$(echo "$_CHANGED_FILES" | grep -c '.' 2>/dev/null || echo 0)
+
+      if [[ "${SPIRAL_INTEGRITY_AUTO_RECOVER:-true}" == "true" ]]; then
+        echo ""
+        echo "  ╔══════════════════════════════════════════════════════╗"
+        echo "  ║  [integrity] Core files modified — auto-recovering  ║"
+        echo "  ╚══════════════════════════════════════════════════════╝"
+        echo ""
+        echo "  Changed files:"
+        echo "$_CHANGED_FILES"
+        echo ""
+        # Pre-flight: abort if SPIRAL_HOME has staged (index) changes — those represent
+        # deliberate work that git checkout HEAD -- <file> could overwrite. Unstaged
+        # working-tree modifications are expected (they are the corrupted files we restore).
+        _GIT_STAGED=$(git -C "$SPIRAL_HOME" diff --cached --name-only 2>/dev/null || true)
+        if [[ -n "$_GIT_STAGED" ]] || ! git -C "$SPIRAL_HOME" rev-parse --git-dir >/dev/null 2>&1; then
+          echo "  [integrity] Cannot auto-recover: SPIRAL_HOME has staged git changes or is not a git repo."
+          echo "  [integrity] Resolve manually: git -C \"$SPIRAL_HOME\" status"
+          spiral_exit E500 "Core file integrity check failed (staged git changes — cannot auto-restore)"
+        fi
+        # Restore each changed file from HEAD
+        _RESTORE_FAILED=0
+        while IFS= read -r _cf; do
+          [[ -z "$_cf" ]] && continue
+          _rel="${_cf#"${SPIRAL_HOME}/"}"
+          if ! git -C "$SPIRAL_HOME" checkout HEAD -- "$_rel" 2>/dev/null; then
+            echo "  [integrity] Failed to restore: $_rel"
+            _RESTORE_FAILED=1
+          fi
+        done <<<"$_CHANGED_FILES"
+        if [[ "$_RESTORE_FAILED" -eq 1 ]]; then
+          spiral_exit E500 "Core file integrity check failed (git restore failed)"
+        fi
+        # Re-verify after restore
+        if sha256sum -c "$_CORE_HASH_FILE" >/dev/null 2>&1; then
+          echo "  ╔══════════════════════════════════════════════════════╗"
+          echo "  ║  [integrity] Auto-recovered — resuming SPIRAL loop  ║"
+          echo "  ╚══════════════════════════════════════════════════════╝"
+          echo ""
+          echo "  [integrity] Auto-recovered ${_CHANGED_COUNT} files: $(echo "$_CHANGED_FILES" | tr '\n' ' ')"
+        else
+          echo "  [integrity] Re-verify failed after restore — halting."
+          spiral_exit E500 "Core file integrity check failed (re-verify after restore failed)"
+        fi
+      else
+        # SPIRAL_INTEGRITY_AUTO_RECOVER=false: strict halt (opt-in legacy behavior)
+        echo ""
+        echo "  ╔══════════════════════════════════════════════════════╗"
+        echo "  ║  CRITICAL: Core files modified during iteration $SPIRAL_ITER  ║"
+        echo "  ║  Halting SPIRAL to prevent cascading damage.        ║"
+        echo "  ╚══════════════════════════════════════════════════════╝"
+        echo ""
+        echo "  Changed files:"
+        echo "$_CHANGED_FILES"
+        echo ""
+        echo "  Run 'git -C \"$SPIRAL_HOME\" checkout HEAD -- <file>' to restore."
+        echo "  Set SPIRAL_INTEGRITY_AUTO_RECOVER=true to enable auto-recovery."
+        spiral_exit E500 "Core file integrity check failed"
+      fi
     fi
   elif [[ -f "$_CORE_HASH_FILE" ]]; then
     echo "  [integrity] Skipped (self-referential project — SPIRAL developing itself)"
   fi
+
+  # Iteration completed without framework crash — reset circuit breaker
+  _CIRCUIT_BREAKER_COUNT=0
 
   echo "  [C] Looping back to Phase R"
   echo ""
