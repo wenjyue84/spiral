@@ -306,9 +306,13 @@ checkpoint_phase_done() {
   # Guard: if jq failed or returned non-numeric, treat as no checkpoint
   [[ "$ckpt_iter" =~ ^[0-9]+$ ]] || return 1
   [[ "$ckpt_iter" -eq "$SPIRAL_ITER" ]] || return 1
+  # Guard: empty phase tokens crash associative array subscript (Bug: bad array subscript)
+  [[ -n "$ckpt_phase" && -n "$phase" ]] || return 1
   # Phase order: A R T S E M X G I V C
   local -A PHASE_ORDER=([A]=1 [R]=2 [T]=3 [S]=4 [E]=5 [M]=6 [X]=7 [G]=8 [I]=9 [V]=10 [C]=11)
-  [[ "${PHASE_ORDER[$ckpt_phase]:-0}" -ge "${PHASE_ORDER[$phase]:-0}" ]]
+  # Guard: phase tokens must be in the known set
+  [[ -n "${PHASE_ORDER[$ckpt_phase]:-}" && -n "${PHASE_ORDER[$phase]:-}" ]] || return 1
+  [[ "${PHASE_ORDER[$ckpt_phase]}" -ge "${PHASE_ORDER[$phase]}" ]]
 }
 
 # ── US-262: SAST gate check — run Semgrep on story-branch diff ───────────────

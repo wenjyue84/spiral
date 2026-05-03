@@ -114,6 +114,8 @@ spiral_assert_phase_order() {
   if [[ -f "$last_phase_file" ]]; then
     local last_phase
     last_phase=$(cat "$last_phase_file")
+    [[ -n "$last_phase" ]] || return 0
+    [[ -n "${PHASE_ORDER[$last_phase]:-}" && -n "${PHASE_ORDER[$current_phase]:-}" ]] || return 0
     local last_ord="${PHASE_ORDER[$last_phase]:-0}"
     local curr_ord="${PHASE_ORDER[$current_phase]:-0}"
     # Phase order must increase within an iteration, or reset (C → R on new iteration)

@@ -114,6 +114,7 @@ load_plugins() {
     parse_plugin_manifest "$plugin_dir"
 
     # Register plugin
+    [[ -n "$plugin_name" ]] || continue
     PLUGINS["$plugin_name"]="$plugin_dir"
 
     # Register hooks

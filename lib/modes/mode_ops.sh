@@ -49,6 +49,7 @@ handle_benchmark_mode() {
 
   for MODEL in "${MODELS_ARRAY[@]}"; do
     MODEL=$(echo "$MODEL" | xargs) # trim whitespace
+    [[ -n "$MODEL" ]] || continue
     BM_WORKTREE="$BENCHMARK_DIR/worktree-$MODEL"
     BM_BRANCH="spiral-benchmark-${BENCHMARK_STORY_ID}-${MODEL}-$(date +%Y%m%d-%H%M%S)"
     BM_LOG="$BENCHMARK_DIR/log-${MODEL}.txt"
