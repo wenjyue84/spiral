@@ -1,6 +1,6 @@
 ---
 name: spiral
-version: 4.3.433
+version: 4.3.453
 description: >
   Run the SPIRAL autonomous development loop on any project. Handles setup,
   generates prd.json and spiral.config.sh if missing, then launches the
@@ -415,7 +415,8 @@ Apply these fixes WITHOUT asking — they are always safe:
 
 | Problem | Auto-Fix |
 |---------|----------|
-| **SPIRAL process died** | Restart: `bash spiral.sh 5 --gate proceed` (single worker default — never auto-add `--ralph-workers` without user confirmation) |
+| **SPIRAL process died (clean exit)** | Check `$SCRATCH_DIR/_last_exit_code`: if 0 or 130 (SIGINT), restart with `bash spiral.sh 5 --gate proceed`. If exit code is 500/502/503 (framework crash), do NOT restart — report to user and wait for triage. |
+| **SPIRAL process died (no exit code file)** | Likely killed by OOM or system — safe to restart with `bash spiral.sh 5 --gate proceed` (single worker default) |
 | **spiral-ui down** | Restart: `cd spiral-ui && npm run dev -- --port 5299` in background |
 | **Stale lock files** (dead PID) | Delete: `rm prd.json.lock` or `rm .git/index.lock` |
 | **Orphaned worktrees** | Unlock + remove: `git worktree unlock <path> && git worktree remove <path> --force` |

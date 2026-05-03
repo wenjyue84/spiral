@@ -8,6 +8,30 @@ Generated automatically by [git-cliff](https://git-cliff.org/).
 
 ### Bug Fixes
 
+- Fix `PHASE_ORDER: bad array subscript` crash when checkpoint phase is empty (continuous mode)
+- Fix trap parse error (`unexpected EOF while looking for matching ')'`) by converting SIGCHLD handler to function-based trap
+- Add `safe_phase` wrapper + circuit breaker for continuous mode resilience (3 consecutive framework errors before halt)
+- Guard all associative-array lookups (`PHASE_ORDER`, `BM_DURATIONS`, `BM_RESULTS`, `PLUGINS`) against empty subscripts
+- Harden prd.json against corruption at Phase M entry — auto-restore from backup
+- Harden `merge_stories.py` `json.load()` with try/except and backup restore on `JSONDecodeError`
+- Capture exit code in cleanup for cron triage — framework crashes (500/502/503) no longer auto-restart
+- Cron template distinguishes framework crashes from resource issues (SKILL.md Step 4)
+
+### Features
+
+- File-existence gate (`SPIRAL_GATE_STRICT_FILES`) — reject fake story passes when workers write zero feature code
+- Add `bash -n` syntax check bats test for all shell scripts
+- Add phase order guard bats tests (empty/null/unknown phase tokens)
+- Add file-existence gate bats tests
+
+### Other
+
+- Add central log (`~/.spiral/central.db`) — cross-project SQLite telemetry aggregation
+- Add `central-log` plugin (post-story + run-completion hooks)
+- Add `spiral central-log` CLI with 7 query subcommands (summary, projects, models, failures, cost-trend, velocity, runs)
+
+### Bug Fixes (prior)
+
 - Add UTF-8 stdout guard to all Python scripts ([4c1fd2f](4c1fd2f82f6132e41d7ec0143c4244d8c3981005))
 
 

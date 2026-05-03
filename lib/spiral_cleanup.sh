@@ -42,6 +42,8 @@ _spiral_cleanup() {
 
 # Regular cleanup (EXIT)
 cleanup() {
+  local _exit_code=$?
+  echo "$_exit_code" > "${SCRATCH_DIR:-/tmp}/_last_exit_code" 2>/dev/null || true
   echo ""
   echo "  [cleanup] Shutting down child processes..."
   # Kill memory watchdog
