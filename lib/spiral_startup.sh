@@ -219,6 +219,7 @@ fi
 [[ "$SPIRAL_MAX_PENDING" -gt 0 ]] && echo "  ║  Max pending: $SPIRAL_MAX_PENDING incomplete stories"
 [[ "$SPIRAL_MAX_RESEARCH_STORIES" -gt 0 ]] && echo "  ║  Max research: $SPIRAL_MAX_RESEARCH_STORIES stories per iteration"
 [[ "$SPIRAL_STORY_BATCH_SIZE" -gt 0 ]] && echo "  ║  Batch size:  $SPIRAL_STORY_BATCH_SIZE stories per iteration"
+[[ "${SPIRAL_DRAIN_THRESHOLD:-0}" -gt 0 ]] && echo "  ║  Drain mode:  suppress A/R when pending <= $SPIRAL_DRAIN_THRESHOLD"
 [[ -n "$SPIRAL_COST_CEILING" ]] && echo "  ║  Cost cap:    \$${SPIRAL_COST_CEILING} USD"
 [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && echo "  ║  Low power:   adaptive memory management enabled"
 if [[ "$TIME_LIMIT_MINS" -gt 0 ]]; then
@@ -275,6 +276,7 @@ export SPIRAL_FOCUS
 export SPIRAL_FOCUS_TAGS
 export SPIRAL_ITER
 export SPIRAL_MAX_RESEARCH_STORIES
+export SPIRAL_DRAIN_THRESHOLD
 export SPIRAL_SKIP_STORY_IDS
 export NO_CASCADE_SKIP
 export DRY_RUN

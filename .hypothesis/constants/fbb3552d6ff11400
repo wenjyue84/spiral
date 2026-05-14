@@ -1,0 +1,4 @@
+# file: /home/user/spiral/lib/phases/phase_v_performance.py
+# hypothesis_version: 6.151.9
+
+[0.0, 10.0, 100.0, 1000.0, 'baseline_ms', 'call', 'current_ms', 'duration', 'nodeid', 'pct_change', 'test', 'tests', 'utf-8', 'w']

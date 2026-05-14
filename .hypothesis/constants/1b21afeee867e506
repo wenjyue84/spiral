@@ -1,0 +1,4 @@
+# file: /home/user/spiral/lib/core/constants.py
+# hypothesis_version: 6.151.9
+
+[0.04, 0.1, 0.24, 0.45, 0.6, 0.8, 2.4, 3.0, 4.0, 15.0, 30.0, 75.0, 8000, 'critical', 'haiku', 'high', 'input', 'low', 'medium', 'opus', 'output', 'sonnet']

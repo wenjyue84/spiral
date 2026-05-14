@@ -68,6 +68,13 @@ run_phase_rt_parallel() {
     echo '{"stories":[]}' >"$RESEARCH_OUTPUT"
     touch "$_phase_r_ckpt"
     _R_SKIP=1
+  elif [[ "${DRAIN_MODE:-0}" -eq 1 ]]; then
+    echo ""
+    echo "  [R] Skipping Phase R (drain mode: clearing $PENDING remaining stories)"
+    echo '{"stories":[]}' >"$RESEARCH_OUTPUT"
+    touch "$_phase_r_ckpt"
+    _R_SKIP=1
+    log_spiral_event "phase_skip" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"reason\":\"drain_mode\""
   elif [[ "$OVER_CAPACITY" -eq 1 ]]; then
     echo ""
     echo "  [R] Skipping Phase R (over-capacity: $PENDING pending > $CAPACITY_LIMIT)"
@@ -125,6 +132,12 @@ run_phase_rt_parallel() {
     touch "$_phase_t_ckpt"
     _T_SKIP=1
     log_spiral_event "phase_skip" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"reason\":\"no_new_stories_and_all_retried\""
+  elif [[ "${DRAIN_MODE:-0}" -eq 1 ]]; then
+    echo "  [T] Skipping Phase T (drain mode: clearing $PENDING remaining stories)"
+    _write_empty_test_output
+    touch "$_phase_t_ckpt"
+    _T_SKIP=1
+    log_spiral_event "phase_skip" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"reason\":\"drain_mode\""
   elif [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [dry-run] skipping test synthesis"
     _write_empty_test_output
