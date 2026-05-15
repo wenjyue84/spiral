@@ -71,7 +71,7 @@ run_phase_enrichment() {
   local _HINTS_OUTPUT="$SCRATCH_DIR/_hints_stories.json"
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/hint_enricher.py" \
     --prd "$PRD_FILE" \
-    --results "$RESULTS_FILE" \
+    --results "${RESULTS_FILE:-results.tsv}" \
     --enriched-in "$_ENRICHMENT_INPUT" \
     --enriched-out "$_HINTS_OUTPUT" 2>/dev/null || true
 
