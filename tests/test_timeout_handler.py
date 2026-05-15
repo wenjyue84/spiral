@@ -1,16 +1,17 @@
-"""Tests for US-1329: timeout_handler and scope_reducer modules."""
+"""Tests for US-1329/US-1330: timeout_handler and scope_reducer modules."""
 
+import json
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
-from timeout_handler import timeout_scope_reducer
 from impl.scope_reducer import strip_optional_ac
+from timeout_handler import reduce_story_for_timeout, timeout_scope_reducer
 
 # Import validate_prd for schema validation tests
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "prd"))
-from prd_schema import validate_prd  # type: ignore[import-untyped]
+from prd_schema import validate_prd
 
 # Minimal valid story fixture
 _BASE_STORY: dict[str, object] = {
@@ -44,7 +45,7 @@ class TestScopeReducerStripsOptionalAC:
 
     def test_original_story_is_not_mutated(self) -> None:
         """strip_optional_ac returns a copy — original story is unchanged."""
-        original_acs = list(_BASE_STORY["acceptanceCriteria"])  # type: ignore[arg-type]
+        original_acs = list(_BASE_STORY["acceptanceCriteria"])  # type: ignore[call-overload]
         strip_optional_ac(_BASE_STORY)
         assert _BASE_STORY["acceptanceCriteria"] == original_acs
 
@@ -106,3 +107,61 @@ class TestReducedStorySchemaValidation:
         }
         errors = validate_prd(prd)
         assert errors == [], f"Schema validation failed: {errors}"
+
+
+# ── US-1330: Integration tests for timeout retry path scope reduction ──────────
+
+
+_FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
+
+
+class TestTimeoutTrigersScopeReductionNotDecompose:
+    """US-1330 AC1+AC2: retry path calls scope_reducer and writes temp file."""
+
+    def test_timeout_triggers_scope_reduction_not_decompose(self) -> None:
+        """Fixture story with @optional ACs → reduced file written to disk.
+
+        Simulates what try_timeout_scope_reduction in retry.sh does: calls
+        reduce_story_for_timeout(), which writes the reduced story to a temp
+        file before decompose_story() would be called.
+        """
+        fixture_path = os.path.join(_FIXTURES_DIR, "sample-stories-with-optional-ac.json")
+        reduced_path = reduce_story_for_timeout(fixture_path)
+        assert reduced_path != "", "Expected a temp file path, got empty string"
+        assert os.path.exists(reduced_path), f"Reduced story temp file not on disk: {reduced_path}"
+
+        try:
+            with open(reduced_path, encoding="utf-8") as fh:
+                on_disk: dict[str, object] = json.load(fh)
+
+            disk_acs = on_disk.get("acceptanceCriteria", [])
+            assert isinstance(disk_acs, list)
+            assert len(disk_acs) == 2, f"Expected 2 ACs after stripping, got {len(disk_acs)}"
+            for ac in disk_acs:
+                assert not str(ac).startswith("@optional"), f"@optional AC not stripped: {ac}"
+        finally:
+            os.unlink(reduced_path)
+
+    def test_no_optional_ac_falls_through_to_decompose(self) -> None:
+        """US-1330 AC3: story with no @optional ACs returns '' (no temp file written)."""
+        import tempfile
+
+        story: dict[str, object] = {
+            "id": "US-no-optional",
+            "title": "Story with no optional ACs",
+            "priority": "low",
+            "passes": False,
+            "dependencies": [],
+            "acceptanceCriteria": ["Required AC only"],
+        }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+            json.dump(story, tmp, ensure_ascii=False)
+            tmp_path = tmp.name
+
+        try:
+            result = reduce_story_for_timeout(tmp_path)
+            assert result == "", (
+                f"Expected empty string (no scope reduction) for story with no @optional ACs, got: {result!r}"
+            )
+        finally:
+            os.unlink(tmp_path)

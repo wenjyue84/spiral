@@ -1,0 +1,13 @@
+{
+  "id": "US-fixture-optional-ac",
+  "title": "Fixture story with optional acceptance criteria",
+  "priority": "medium",
+  "passes": false,
+  "dependencies": [],
+  "acceptanceCriteria": [
+    "Required AC 1 — must remain after reduction",
+    "Required AC 2 — must remain after reduction",
+    "@optional Extra feature A — strip on timeout",
+    "@optional Extra feature B — strip on timeout"
+  ]
+}

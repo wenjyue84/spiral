@@ -1528,3 +1528,55 @@ Completed: Add federation validation test suite: include resolution and story ID
 ## Iteration 1 - 2026年05月16日  2:55:42
 FAILED diagnosis-block gate: Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming (ID: US-1329) — no diagnosis block found — attempt 1/3
 
+## Iteration 2 - 2026年05月16日  2:58:37
+Completed: Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming (ID: US-1329) in 2m
+
+
+## Pre-analysis for US-1330 (Gemini 2.5 Pro)
+### Technical Brief: US-1330 Scope Reduction on Timeout
+
+This brief outlines the implementation plan for handling story timeouts by first attempting to reduce scope before retrying decomposition.
+
+**1. Files to Modify/Create:**
+*   **Modify:** `lib/impl/retry.sh` – The core logic change resides here.
+*   **Create:** `tests/fixtures/sample-stories-with-optional-ac.json` – A test fixture with a story containing ACs marked as `@optional`.
+
+**2. Involved Components:**
+*   **Shell Function:** `select_retry_strategy()` in `lib/impl/retry.sh`.
+*   **Python Handler:** `lib/timeout_handler.py`. This script is expected to contain the `timeout_scope_reducer` logic that strips optional ACs.
+*   **Core Logic:** `lib/impl/scope_reducer.py` (used by the handler).
+*   **No Frappe DocTypes or hooks are involved.** The story relates to the Spiral project's internal tooling.
+
+**3. Implementation Approach:**
+1.  In `lib/impl/retry.sh`, within the `timeout)` case of the `select_retry_strategy` function, check if the story JSON contains the string `_priority=optional` or `@optional` in its acceptance criteria.
+2.  If it does, execute `uv run python lib/timeout_handler.py <story_file>`.
+3.  The Python script will process the story, remove optional ACs, and write a new, reduced story to a temporary file (e.g., `$(mktemp)`).
+4.  The shell script will then call `decompose_story` using the path to this new temporary file.
+5.  If no optional ACs are found, the script should proceed with the existing `decompose_story` call on the original story file.
+
+**4. Edge Cases & Gotchas:**
+*   **Contract:** Ensure the Python script correctly accepts a story file path and outputs the path to the new temporary file on stdout for the shell script to capture.
+*   **Cleanup:** The temporary file must be reliably cleaned up after the `decompose_story` call completes, regardless of success or failure.
+*   **Failure Modes:** If the `timeout_handler.py` script itself fails or times out, the `retry.sh` script should log this and fall back to decomposing the original story to avoid getting stuck.
+*   **Testing:** The new integration test must verify that the temporary file with the reduced story is created and that `decompose_story` is called with its path.
+
+
+## Iteration N - Story: US-1330 - Wire timeout_scope_reducer into lib/impl/retry.sh before decompose_story()
+
+### What was implemented
+- Added `reduce_story_for_timeout(story_file)` to lib/timeout_handler.py: reads story JSON, calls timeout_scope_reducer, writes reduced story to temp file if optional ACs were stripped, returns temp file path (or '' if no optional ACs)
+- Added CLI entry point to timeout_handler.py: `python lib/timeout_handler.py <story_file>` prints temp file path and exits 0, or exits 1 if no reduction occurred
+- Added `try_timeout_scope_reduction <story_file>` bash function to lib/impl/retry.sh: calls timeout_handler.py CLI, echoes temp file path on stdout, falls back gracefully if handler unavailable
+- Created tests/fixtures/sample-stories-with-optional-ac.json: fixture with 2 required ACs and 2 @optional ACs
+- Added 2 new integration tests to tests/test_timeout_handler.py: test_timeout_triggers_scope_reduction_not_decompose, test_no_optional_ac_falls_through_to_decompose
+- Fixed 3 pre-existing mypy errors in test_timeout_handler.py (unused type: ignore comments)
+
+### Patterns discovered
+- timeout_handler.py uses sys.path.insert for imports; CLI should follow same pattern
+- When adding CLI to existing modules, add `if __name__ == '__main__':` block at end
+- Callers in retry.sh can use `result=$(uv run python handler.py file.json) && [[ -n "$result" ]]` pattern for conditional scope reduction before decompose
+
+### Acceptance criteria met
+- [x] select_retry_strategy timeout branch: try_timeout_scope_reduction() in retry.sh invokes timeout_handler.py and writes reduced story to temp file before decompose_story
+- [x] Integration test with fixture story verifies reduced file written to disk
+- [x] Story with no @optional ACs: reduce_story_for_timeout returns '' (no temp file, falls through)

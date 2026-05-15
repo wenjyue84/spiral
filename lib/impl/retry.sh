@@ -308,6 +308,50 @@ print(json.dumps(d['reduced_story']))
   fi
 }
 
+# try_timeout_scope_reduction <story_file>
+# Invokes lib/timeout_handler.py to strip @optional ACs from the story before
+# falling through to decompose_story().  The handler writes the reduced story
+# to a temp file and prints the path.  If no @optional ACs exist it prints
+# nothing and exits 1, and this function echoes "" so callers can fall back to
+# decompose_story with the original story file.
+#
+# Usage in the timeout retry path (before calling decompose_story):
+#   reduced_file=$(try_timeout_scope_reduction story.json)
+#   if [[ -n "$reduced_file" ]]; then
+#     decompose_story "$reduced_file"
+#     rm -f "$reduced_file"  # clean up temp file after decompose
+#   else
+#     decompose_story story.json
+#   fi
+try_timeout_scope_reduction() {
+  local story_file="${1:-}"
+  local handler_script
+  handler_script="$(dirname "${BASH_SOURCE[0]}")/../../lib/timeout_handler.py"
+
+  if [[ ! -f "$handler_script" || ! -f "$story_file" ]]; then
+    echo "[Phase I / timeout] timeout_handler.py or story file not found, skipping scope reduction" >&2
+    echo ""
+    return 1
+  fi
+
+  local reduced_file
+  reduced_file=$(uv run python "$handler_script" "$story_file" 2>/dev/null) || {
+    echo "[Phase I / timeout] timeout_handler.py failed for $story_file, falling through to decompose" >&2
+    echo ""
+    return 1
+  }
+
+  if [[ -n "$reduced_file" && -f "$reduced_file" ]]; then
+    echo "[Phase I / timeout] Reduced story written to $reduced_file (optional ACs stripped)" >&2
+    echo "$reduced_file"
+    return 0
+  fi
+
+  echo "[Phase I / timeout] No @optional ACs found in $(basename "$story_file"), falling through to decompose" >&2
+  echo ""
+  return 1
+}
+
 # build_files_only_args <failed_files_json>
 # Converts a JSON array like '["src/a.py","lib/b.sh"]' into a space-separated
 # string suitable for passing as --files-only args to a ralph command.

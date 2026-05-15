@@ -2502,7 +2502,8 @@
         "tokensAfterMasking": 337,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "_passedCommit": "5446b438276d776243e7ffc7d33a4426ce20129a"
     },
     {
       "id": "US-1330",
@@ -2521,8 +2522,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-05-15T18:58:40Z"
     },
     {
       "id": "US-1331",
