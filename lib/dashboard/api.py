@@ -1137,7 +1137,10 @@ async def tests_coverage() -> dict[str, Any]:
     coverage_json_path = Path(".spiral/coverage.json")
     if not coverage_json_path.exists():
         # Return empty coverage data if no coverage file exists
-        return {"files": [], "summary": {"total_files": 0, "covered_files": 0, "avg_coverage": 0.0, "overall_status": "green"}}
+        return {
+            "files": [],
+            "summary": {"total_files": 0, "covered_files": 0, "avg_coverage": 0.0, "overall_status": "green"},
+        }
 
     try:
         with open(coverage_json_path, "r", encoding="utf-8") as f:
@@ -1145,7 +1148,10 @@ async def tests_coverage() -> dict[str, Any]:
         return generate_coverage_matrix(coverage_data)
     except (json.JSONDecodeError, IOError) as e:
         logger.warning(f"Failed to parse coverage.json: {e}")
-        return {"files": [], "summary": {"total_files": 0, "covered_files": 0, "avg_coverage": 0.0, "overall_status": "green"}}
+        return {
+            "files": [],
+            "summary": {"total_files": 0, "covered_files": 0, "avg_coverage": 0.0, "overall_status": "green"},
+        }
 
 
 @app.post("/api/tests/rerun/{test_id:path}")
