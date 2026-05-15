@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Architecture</title>
 <link rel="stylesheet" href="../assets/css/custom.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/style.css">
+<script src="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/umd/simple-datatables.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script src="../assets/js/data.js"></script>
 <script src="../assets/js/nav.js"></script>
 </head>
@@ -19,6 +22,22 @@
       </div>
       <button id="themeToggle" class="theme-toggle">Dark mode</button>
     </header>
+
+    <h2 class="section-title">System Architecture Diagram</h2>
+    <p>The following diagram shows how SPIRAL's core components interact:</p>
+    <pre class="mermaid">
+graph TD
+    A["spiral.sh<br/>Main Orchestrator"] -->|manages| B["Phase Loop<br/>A→R+T→S→E→M→X→G→I→V→C"]
+    A -->|launches| C["ralph/ralph.sh<br/>Story Executor"]
+    A -->|invokes| D["lib/run_parallel_ralph.sh<br/>Worker Manager"]
+    D -->|isolated git<br/>worktrees| E[".spiral-workers/<br/>worker-N/"]
+    C -->|reads| F["prd.json<br/>Story Backlog"]
+    F -->|merges stories<br/>in Phase M| G["Phase M Handler"]
+    C -->|outputs| H["results.tsv<br/>Telemetry"]
+    A -->|API &amp; live<br/>monitoring| I["spiral-ui/<br/>React Dashboard<br/>localhost:5299"]
+    E -->|executes stories<br/>in parallel| C
+    H -->|feeds| I
+    </pre>
 
     <h2 class="section-title">Phase Loop Overview</h2>
     <p>SPIRAL runs in a structured loop with 11 phases per iteration:</p>
@@ -39,30 +58,67 @@
     </ol>
 
     <h2 class="section-title">Key Components</h2>
-    <div class="card">
-      <h3>spiral.sh</h3>
-      <p>Main orchestrator script. Parses arguments, manages the phase loop, coordinates workers, and handles state recovery.</p>
-    </div>
-
-    <div class="card">
-      <h3>ralph/ralph.sh</h3>
-      <p>Implementation worker. One invocation per story. Reads story from prd.json, calls Claude CLI, and commits results to git.</p>
-    </div>
-
-    <div class="card">
-      <h3>lib/spiral/</h3>
-      <p>Python modules for story management, validation, merging, and analysis. Handles PRD schema, deduplication, cost tracking.</p>
-    </div>
-
-    <div class="card">
-      <h3>lib/phases/</h3>
-      <p>Phase orchestration stubs. Delegates to spiral.sh or Python submodules. Future migration target from monolithic spiral.sh.</p>
-    </div>
-
-    <div class="card">
-      <h3>spiral-ui/</h3>
-      <p>React dashboard at http://localhost:5299. Live monitoring of phases, stories, workers, token burn, and results.</p>
-    </div>
+    <p>All top-level components with their roles, file paths, and languages:</p>
+    <table class="components-table" id="componentsTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Role</th>
+          <th>Path</th>
+          <th>Language</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>spiral.sh</strong></td>
+          <td>Main orchestrator. Parses arguments, manages phase loop, coordinates workers, handles state recovery.</td>
+          <td><a href="../../../spiral.sh">spiral.sh</a></td>
+          <td>Bash</td>
+        </tr>
+        <tr>
+          <td><strong>ralph/ralph.sh</strong></td>
+          <td>Implementation worker. One invocation per story. Reads story from prd.json, calls Claude CLI, commits results.</td>
+          <td><a href="../../../ralph/ralph.sh">ralph/ralph.sh</a></td>
+          <td>Bash</td>
+        </tr>
+        <tr>
+          <td><strong>lib/run_parallel_ralph.sh</strong></td>
+          <td>Worker manager. Creates isolated git worktrees, distributes story slices, monitors worker progress.</td>
+          <td><a href="../../../lib/run_parallel_ralph.sh">lib/run_parallel_ralph.sh</a></td>
+          <td>Bash</td>
+        </tr>
+        <tr>
+          <td><strong>lib/spiral/</strong></td>
+          <td>Python modules for story management, validation, merging, deduplication, cost tracking, and analysis.</td>
+          <td><a href="../../../lib/spiral/">lib/spiral/</a></td>
+          <td>Python</td>
+        </tr>
+        <tr>
+          <td><strong>lib/phases/</strong></td>
+          <td>Phase orchestration stubs. Delegates to spiral.sh or Python submodules. Migration target from monolithic spiral.sh.</td>
+          <td><a href="../../../lib/phases/">lib/phases/</a></td>
+          <td>Bash/Python</td>
+        </tr>
+        <tr>
+          <td><strong>prd.json</strong></td>
+          <td>Product backlog. Contains all stories with status, priority, dependencies, and metadata.</td>
+          <td><a href="../../../prd.json">prd.json</a></td>
+          <td>JSON</td>
+        </tr>
+        <tr>
+          <td><strong>spiral-ui/</strong></td>
+          <td>React dashboard at http://localhost:5299. Live monitoring of phases, stories, workers, token burn, results.</td>
+          <td><a href="../../../spiral-ui/">spiral-ui/</a></td>
+          <td>React/TypeScript</td>
+        </tr>
+        <tr>
+          <td><strong>.spiral-workers/</strong></td>
+          <td>Directory containing isolated git worktrees for parallel workers. One per worker during Phase I.</td>
+          <td><a href="../../../.spiral-workers/">.spiral-workers/</a></td>
+          <td>Git</td>
+        </tr>
+      </tbody>
+    </table>
 
     <h2 class="section-title">Data Flow</h2>
     <p><strong>Configuration:</strong> spiral.config.sh → environment variables</p>
@@ -88,8 +144,88 @@
     </div>
   </main>
 </div>
+<style>
+.components-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  background-color: var(--bg-secondary, #f9f9f9);
+  border: 1px solid var(--border-color, #ddd);
+}
+
+.components-table thead {
+  background-color: var(--bg-tertiary, #f0f0f0);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.components-table th {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 2px solid var(--border-color, #ddd);
+  user-select: none;
+}
+
+.components-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color, #eee);
+}
+
+.components-table tbody tr:hover {
+  background-color: var(--hover-bg, #f5f5f5);
+}
+
+.components-table a {
+  color: var(--link-color, #0066cc);
+  text-decoration: none;
+}
+
+.components-table a:hover {
+  text-decoration: underline;
+}
+
+.components-table th::after {
+  content: '';
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: 0.5rem;
+  opacity: 0.5;
+}
+
+.components-table th.asc::after {
+  content: '▲';
+}
+
+.components-table th.desc::after {
+  content: '▼';
+}
+</style>
+
 <script>
 renderShell({ page: 'architecture' });
+
+// Initialize Mermaid diagrams
+mermaid.initialize({ startOnLoad: true, theme: 'default' });
+mermaid.contentLoaded();
+
+// Initialize simple-datatables for the components table
+document.addEventListener('DOMContentLoaded', function() {
+  const table = document.getElementById('componentsTable');
+  if (table) {
+    new simpleDatatables.DataTable(table, {
+      perPage: 25,
+      paging: false,
+      searchable: true,
+      sortable: true,
+      labels: {
+        perPage: '{select}',
+        noRows: 'No entries found',
+        info: 'Showing {start} to {end} of {rows} entries'
+      }
+    });
+  }
+});
 </script>
 </body>
 </html>
