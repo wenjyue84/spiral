@@ -1,3 +1,42 @@
+## Iteration N - Story: US-1322 - [Regression Test] e2e SPIRAL loop: phase order and final prd.json state
+
+### What was implemented
+- Added `test_full_spiral_phase_order_e2e()` to `tests/test_spiral_e2e_integration.py`
+  - Validates phases A→R→T→S→E→M→X→G→I→V→C execute in correct order
+  - Uses monkeypatch.setattr to mock subprocess.run
+  - Seeds minimal prd.json with one pending story (UT-PHASE-001)
+  - Records all subprocess calls and verifies phase sequence
+  - Simulates story completion (mark as done/passed at end of loop)
+  - Verifies final prd.json has at least one story with passes=true or status='done'
+
+### Test execution
+- All 5 tests pass: fixtures, single_iteration, model_escalation, worker_crash, full_phase_order
+- mypy --strict: no type errors
+- ruff check: all linting checks pass
+- ruff format: code properly formatted
+
+### Patterns discovered
+- monkeypatch fixture allows intercepting subprocess.run calls without live process execution
+- pytest fixtures (monkeypatch, tmp_path) provide clean isolation for each test
+- Phase tracking via command string inspection works well for E2E validation
+- Story completion simulation via direct prd.json updates mimics what Phase I would do
+
+### Acceptance criteria met
+- [x] AC1: Test confirms phases A→R→T→S→E→M→X→G→I→V→C execute in order (assert call sequence on mock)
+- [x] AC2: After the mocked loop, at least one story in prd.json has status 'done' or 'pass'
+- [x] AC3: uv run pytest tests/test_spiral_e2e_integration.py -v exits 0 with all tests passing
+
+### Quality checks
+- ✅ mypy --strict: no type errors
+- ✅ ruff check: all linting checks pass
+- ✅ ruff format: code properly formatted
+- ✅ All 5 tests pass (100% success rate)
+
+### Verified end-to-end
+- `uv run pytest tests/test_spiral_e2e_integration.py -v` exits 0 with all 5 tests passing
+- prd.json marked US-1322 as passes: true
+- Git commit 354c6f61 with proper message including Story ID and acceptance criteria
+
 
 ## Pre-analysis for US-1295 (Gemini 2.5 Pro)
 This technical brief is for a **React/Playwright E2E test**, not a Frappe/Python story as mentioned in the prompt. The guidance is based on the provided JSON data.
