@@ -2763,6 +2763,347 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku"
+    },
+    {
+      "id": "US-1343",
+      "title": "Bootstrap html/ scaffold for sequential project documentation",
+      "priority": "high",
+      "description": "Create the html/ folder scaffold at repo root so any newcomer can read the project end-to-end in sequence. Layout: html/index.html (entry dashboard with reading-order list and progress checkbox tracker), html/pages/01..09-*.html stubs, html/assets/css/custom.css, html/assets/js/nav.js (shared sidebar + dark-mode toggle persisted to localStorage). Use CDN-only stack per html-report skill (Chart.js v4, Mermaid v11, simple-datatables v9). No build step. Reuse templates from $HOME/.claude/skills/html-report/templates if present; otherwise generate from scratch.",
+      "acceptanceCriteria": [
+        "Directory html/ exists at repo root with subfolders pages/, assets/css/, assets/js/",
+        "Opening html/index.html in a browser shows a sidebar with links 01..09 in order plus a Reading Progress checklist that persists checked items to localStorage",
+        "html/assets/js/nav.js contains a working dark-mode toggle that persists across pages via localStorage key 'spiral-html-theme'",
+        "Running `python -c \"import pathlib; print(all((pathlib.Path('html')/p).exists() for p in ['index.html','pages','assets/css/custom.css','assets/js/nav.js']))\"` prints True",
+        "No external network calls at runtime — all libs loaded via <script> tags from public CDNs"
+      ],
+      "technicalNotes": [
+        "Files to create: html/index.html, html/assets/css/custom.css, html/assets/js/nav.js, html/pages/01-introduction.html ... html/pages/09-troubleshooting.html (stubs are fine for now — sibling stories will fill content)",
+        "Copy CSS/JS verbatim from C:/Users/Jyue/.claude/skills/html-report/templates/assets/ if present",
+        "Sidebar nav lives in nav.js as a single getNav() function so every page imports it identically — avoid fetch() because file:// blocks CORS",
+        "Test: open html/index.html in default browser via `start html/index.html` (Windows) and verify sidebar + dark-mode toggle appear"
+      ],
+      "dependencies": [],
+      "filesTouch": [
+        "html/index.html",
+        "html/assets/css/custom.css",
+        "html/assets/js/nav.js",
+        "html/pages/01-introduction.html",
+        "html/pages/02-quick-start.html",
+        "html/pages/03-architecture.html",
+        "html/pages/04-phase-deep-dive.html",
+        "html/pages/05-cli-reference.html",
+        "html/pages/06-configuration.html",
+        "html/pages/07-examples-and-recipes.html",
+        "html/pages/08-glossary.html",
+        "html/pages/09-troubleshooting.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html",
+        "newcomer-friendly"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1344",
+      "title": "Fill html/pages/01-introduction.html — what SPIRAL is and who it is for",
+      "priority": "high",
+      "description": "Populate the introduction page so a brand-new reader understands SPIRAL in under 5 minutes. Cover: one-paragraph definition (self-iterating PRD research + implementation loop), the problem it solves, who should use it, the 30-second mental model (research → implement → validate, repeat), and a short Why-this-is-different section vs plain Claude Code or vs a pure CI pipeline. Source content from README.md and CLAUDE.md. Plain English, no jargon — define every acronym on first use.",
+      "acceptanceCriteria": [
+        "html/pages/01-introduction.html opens with a hero block (project name + one-line definition + status badge) followed by 4 sections: What is SPIRAL, The Problem, Who Should Use This, How It Works in 30 seconds",
+        "Page contains a Mermaid flowchart node sequence: Research → Implement → Validate → Loop",
+        "Every acronym (PRD, PR, CLI, LLM) is expanded on first mention",
+        "Page links forward to 02-quick-start.html via a 'Next: Quick Start →' button at the bottom",
+        "grep -E 'jargon|TODO|lorem' html/pages/01-introduction.html returns no matches"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/01-introduction.html",
+        "Source content from: README.md (overview), CLAUDE.md (What is SPIRAL section)",
+        "Use Mermaid via <pre class=\"mermaid\">…</pre> — already wired by nav.js from US-1343"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/01-introduction.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1345",
+      "title": "Fill html/pages/02-quick-start.html — copy-pasteable first run in under 5 minutes",
+      "priority": "high",
+      "description": "A newcomer should be able to copy-paste 3 commands and see SPIRAL run. Cover: install / setup.sh, minimal prd.json, single command to launch (`bash spiral.sh 5 --gate proceed`), expected output, and where to look at the live dashboard (http://localhost:5299). Include a 'common first-run gotchas' callout (Windows path format, jq missing, claude CLI not in PATH).",
+      "acceptanceCriteria": [
+        "Page contains exactly 3 numbered steps with copy-pasteable code blocks (use <button onclick=\"navigator.clipboard.writeText…\"> for one-click copy)",
+        "A 'Expected Output' section shows a screenshot or trimmed text of a successful first iteration",
+        "A 'Common Gotchas' collapsible <details> block lists at least 4 known first-run issues with fixes",
+        "Forward link to 03-architecture.html at the bottom, back link to 01-introduction.html at the top"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/02-quick-start.html",
+        "Source: setup.sh, README.md Quick Start section, CLAUDE.md Commands section"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/02-quick-start.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1346",
+      "title": "Fill html/pages/03-architecture.html — high-level system diagram",
+      "priority": "high",
+      "description": "Show the big picture: how spiral.sh, ralph/ralph.sh, lib/run_parallel_ralph.sh, prd.json, spiral-ui, and the worker git worktrees fit together. Use a single Mermaid flowchart as the centerpiece. Below it, a component table (Name | Role | File path | Language). Page must answer 'where does X live?' in under 30 seconds.",
+      "acceptanceCriteria": [
+        "Single Mermaid graph TD diagram with all 6 components and arrows showing data flow",
+        "Below the diagram, a sortable table (simple-datatables) of all top-level components with columns Name / Role / Path / Language",
+        "Every path in the table is a relative link that resolves (e.g. ../../../spiral.sh)",
+        "Page renders with no console errors in Chrome DevTools"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/03-architecture.html",
+        "Source: CLAUDE.md Architecture section",
+        "Mermaid: <pre class=\"mermaid\">graph TD; A[spiral.sh]-->B[ralph.sh]; …</pre>"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/03-architecture.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1347",
+      "title": "Fill html/pages/04-phase-deep-dive.html — every phase explained with inputs and outputs",
+      "priority": "high",
+      "description": "One section per phase (0, A, R, T, S, E, M, X, I, V, C, L, G). Each section: 1-line summary, inputs, outputs, config vars that change behaviour, and which file implements it. Wrap each phase in a collapsible <details> so the page is scannable. Cross-link to 06-configuration.html anchors for relevant config vars.",
+      "acceptanceCriteria": [
+        "Page contains 12 <details><summary>Phase X — …</summary>…</details> blocks in the canonical order (0, A, R, T, S, E, M, X, I, V, C, L)",
+        "Each phase block has 4 subsections: Summary / Inputs / Outputs / Config vars",
+        "Every config var name links to #config-<varname> on 06-configuration.html",
+        "A 'jump to phase' dropdown at the top scrolls to the matching <details> block via document.querySelector"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/04-phase-deep-dive.html",
+        "Source: CLAUDE.md Phase Loop section, $HOME/.claude/skills/spiral/SKILL.md Spiral Loop Phases section"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/04-phase-deep-dive.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1348",
+      "title": "Fill html/pages/05-cli-reference.html — all flags and subcommands in a filterable table",
+      "priority": "medium",
+      "description": "One filterable table for spiral.sh flags and another for main.py subcommands. Use simple-datatables for live search. Each row has Flag / Default / Description, with a one-click copy of an example launch line that uses that flag.",
+      "acceptanceCriteria": [
+        "Two simple-datatables tables on the page with working search box and column sort",
+        "Every flag from SKILL.md CLI Flags Reference appears as a row",
+        "Every main.py subcommand from SKILL.md appears as a row in the second table",
+        "Clicking a row reveals a copy-to-clipboard example command using that flag",
+        "Total flags row count >= 35 (matches the CLI Flags Reference table)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/05-cli-reference.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md CLI Flags Reference and main.py Subcommands sections",
+        "simple-datatables v9 via CDN <link> + <script>"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/05-cli-reference.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1349",
+      "title": "Fill html/pages/06-configuration.html — every SPIRAL_* env var grouped by category",
+      "priority": "medium",
+      "description": "Mirror the Configurable Options Reference from SKILL.md. Group config vars by category (Loop & Iteration, AI Suggestions, Research, Story Validation, Implementation, Validation, Git & Commits, Memory & Workers, Security, Hooks, Logging, Tool & Inference, Context Injection, Quality & Retry, Observability, Local Fallback, ADR & Self-Review). Each var gets an anchor id=config-<VARNAME> so other pages can deep-link.",
+      "acceptanceCriteria": [
+        "Page has a sticky table-of-contents on the left listing every category as a jump link",
+        "Each config var row has an HTML id of the form id=\"config-SPIRAL_FOO_BAR\"",
+        "Every default value is displayed in a <code> tag",
+        "A search box at the top filters all categories live (matches against var name AND description)",
+        "Anchor #config-SPIRAL_VALIDATE_CMD scrolls to the correct row when navigated to from another page"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/06-configuration.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Configurable Options Reference"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/06-configuration.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1350",
+      "title": "Fill html/pages/07-examples-and-recipes.html — 8 real-world launch scenarios",
+      "priority": "medium",
+      "description": "Recipe cards for common scenarios: 1) First run, 2) Run for 2 hours, 3) Focus on performance, 4) Skip research, 5) Rollback a story, 6) Replay a single story, 7) Parallel workers (with warnings), 8) Cheap haiku-only run. Each card: Goal / Command / What to expect / How long.",
+      "acceptanceCriteria": [
+        "Page renders 8 recipe cards in a CSS grid (2 columns desktop, 1 column mobile)",
+        "Each card includes a copy-to-clipboard button for the command",
+        "Parallel workers card has a visible warning callout about RAM consumption and the 3-worker hard cap",
+        "Each card has an 'Estimated runtime' badge (e.g. ~5 min, ~2 h, instant)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/07-examples-and-recipes.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Example Launch Commands section"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/07-examples-and-recipes.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1351",
+      "title": "Fill html/pages/08-glossary.html — define every SPIRAL term in one place",
+      "priority": "medium",
+      "description": "An A–Z glossary every other page can deep-link to. Terms: Phase, Iteration, Story, PRD, Ralph, Worker, Worktree, Gate, Decompose, DLQ, Constitution, Focus, Capacity Limit, Model Routing, Episodic Memory, Cost Ceiling, Validate Cmd. Each term: 2-sentence definition + 'See also' cross-links.",
+      "acceptanceCriteria": [
+        "Page has an A–Z index strip at top (each letter links to that letter's section)",
+        "Every term has id=\"term-<kebab-name>\" so other pages can deep-link",
+        "Each term has at least one 'See also' cross-link to another term or another page",
+        "Term count >= 17"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/08-glossary.html",
+        "Source: CLAUDE.md, $HOME/.claude/skills/spiral/SKILL.md"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/08-glossary.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1352",
+      "title": "Fill html/pages/09-troubleshooting.html — known issues, exit codes, recovery",
+      "priority": "medium",
+      "description": "Self-service troubleshooting page. Three sections: (1) Symptom → Fix lookup table (live-searchable via simple-datatables), (2) Exit codes reference table, (3) Crash recovery summary (what auto-heals, what needs manual intervention).",
+      "acceptanceCriteria": [
+        "Section 1 has a searchable table with columns Symptom / Cause / Fix derived from the Troubleshooting section in SKILL.md (>= 15 rows)",
+        "Section 2 lists every exit code 0–15, 130 with meaning",
+        "Section 3 mirrors the Crash Recovery & Reliability table from SKILL.md",
+        "Page contains an 'Was this helpful?' thumbs-up/down widget that records vote count to localStorage (no backend)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/09-troubleshooting.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Troubleshooting + Exit Codes + Crash Recovery sections"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/09-troubleshooting.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1353",
+      "title": "html/index.html dashboard — sequential reading flow with progress tracker",
+      "priority": "high",
+      "description": "Finalize html/index.html so a brand-new reader can click 'Start Reading' and be guided through pages 01→09 in order, with their progress saved. Include: hero block, 'Start Reading' CTA jumping to 01, a 9-step progress strip across the top, KPI cards (Total Phases, Total CLI Flags, Total Config Vars, Total Stories Passed pulled from prd.json), and a 'Last updated' timestamp auto-set at generate time.",
+      "acceptanceCriteria": [
+        "Index has a horizontal 9-step progress strip; clicking step N opens pages/0N-*.html",
+        "Reading progress (which steps have been opened) persists across browser refresh via localStorage key 'spiral-html-progress'",
+        "4 KPI cards display real numbers: phase count = 12, flag count parsed from 05-cli-reference.html row count, config var count parsed from 06-configuration.html row count, stories passed read from a generated html/data.js exported from prd.json",
+        "A small script lib/gen_html_data.py exports {storiesTotal, storiesPassed, lastUpdated} from prd.json into html/data.js — run it as part of the build",
+        "`python lib/gen_html_data.py` exits 0 and produces a valid html/data.js with `window.SPIRAL_DATA = {...};`"
+      ],
+      "technicalNotes": [
+        "Files: html/index.html, html/data.js (generated), lib/gen_html_data.py (new)",
+        "lib/gen_html_data.py reads prd.json, counts passes, writes html/data.js",
+        "Index page reads window.SPIRAL_DATA via inline <script src=\"./data.js\"></script>"
+      ],
+      "dependencies": [
+        "US-1343",
+        "US-1344",
+        "US-1345",
+        "US-1346",
+        "US-1347",
+        "US-1348",
+        "US-1349",
+        "US-1350",
+        "US-1351",
+        "US-1352"
+      ],
+      "filesTouch": [
+        "html/index.html",
+        "html/data.js",
+        "lib/gen_html_data.py"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html",
+        "newcomer-friendly"
+      ],
+      "passes": false
     }
   ]
 }
