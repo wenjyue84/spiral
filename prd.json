@@ -2804,7 +2804,8 @@
         "newcomer-friendly"
       ],
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1344",
@@ -2834,7 +2835,7 @@
         "docs",
         "html"
       ],
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
