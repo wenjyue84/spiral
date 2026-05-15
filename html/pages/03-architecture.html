@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture</title>
+<link rel="stylesheet" href="../assets/css/custom.css">
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/nav.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar"></aside>
+  <main class="main">
+    <header class="page-head">
+      <div>
+        <h1>Architecture</h1>
+        <div class="sub">Understanding SPIRAL's phase system and components</div>
+      </div>
+      <button id="themeToggle" class="theme-toggle">Dark mode</button>
+    </header>
+
+    <h2 class="section-title">Phase Loop Overview</h2>
+    <p>SPIRAL runs in a structured loop with 11 phases per iteration:</p>
+
+    <ol style="margin: 1.5rem 0;">
+      <li><strong>Phase 0 (CLARIFY):</strong> Initial setup — constitution, focus, scope (startup only)</li>
+      <li><strong>Phase A (AI SUGGEST):</strong> Generate story candidates</li>
+      <li><strong>Phase R (RESEARCH):</strong> Web search for requirements (parallel with Phase T)</li>
+      <li><strong>Phase T (TEST SYNTH):</strong> Scan test failures for regression stories (parallel with Phase R)</li>
+      <li><strong>Phase S (STORY VALID):</strong> Validate stories against constitution</li>
+      <li><strong>Phase E (ENRICHMENT):</strong> Populate hints and context on stories</li>
+      <li><strong>Phase M (MERGE):</strong> Update prd.json with validated stories</li>
+      <li><strong>Phase X (CONTEXT BUILD):</strong> Dependency inference (optional)</li>
+      <li><strong>Phase G (GATE):</strong> Human checkpoint (skipped with --gate proceed)</li>
+      <li><strong>Phase I (IMPLEMENT):</strong> Ralph workers execute stories in parallel</li>
+      <li><strong>Phase V (VALIDATE):</strong> Run tests and quality gates</li>
+      <li><strong>Phase C (CHECK DONE):</strong> Assess completion and decide to continue</li>
+    </ol>
+
+    <h2 class="section-title">Key Components</h2>
+    <div class="card">
+      <h3>spiral.sh</h3>
+      <p>Main orchestrator script. Parses arguments, manages the phase loop, coordinates workers, and handles state recovery.</p>
+    </div>
+
+    <div class="card">
+      <h3>ralph/ralph.sh</h3>
+      <p>Implementation worker. One invocation per story. Reads story from prd.json, calls Claude CLI, and commits results to git.</p>
+    </div>
+
+    <div class="card">
+      <h3>lib/spiral/</h3>
+      <p>Python modules for story management, validation, merging, and analysis. Handles PRD schema, deduplication, cost tracking.</p>
+    </div>
+
+    <div class="card">
+      <h3>lib/phases/</h3>
+      <p>Phase orchestration stubs. Delegates to spiral.sh or Python submodules. Future migration target from monolithic spiral.sh.</p>
+    </div>
+
+    <div class="card">
+      <h3>spiral-ui/</h3>
+      <p>React dashboard at http://localhost:5299. Live monitoring of phases, stories, workers, token burn, and results.</p>
+    </div>
+
+    <h2 class="section-title">Data Flow</h2>
+    <p><strong>Configuration:</strong> spiral.config.sh → environment variables</p>
+    <p><strong>Stories:</strong> prd.json → Phase M → Phase I (Ralph) → git commit → results.tsv</p>
+    <p><strong>State:</strong> .spiral/_checkpoint.json (crash recovery), retry-counts.json, results.tsv (telemetry)</p>
+
+    <h2 class="section-title">Parallel Workers</h2>
+    <p>Phase I launches up to N workers (configurable, default 1). Each worker:</p>
+    <ul>
+      <li>Gets an isolated git worktree at <code>.spiral-workers/worker-N/</code></li>
+      <li>Receives a slice of prd.json with assigned stories</li>
+      <li>Runs ralph.sh for each story</li>
+      <li>Commits completed work back to main branch</li>
+    </ul>
+
+    <div class="nav-links">
+      <a href="02-quick-start.html">← Back: Quick Start</a>
+      <a href="04-phase-deep-dive.html">Next: Phase Deep Dive →</a>
+    </div>
+
+    <div class="source-footer">
+      Source: CLAUDE.md, spiral.sh, architecture documentation
+    </div>
+  </main>
+</div>
+<script>
+renderShell({ page: 'architecture' });
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Introduction</title>
+<link rel="stylesheet" href="../assets/css/custom.css">
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/nav.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar"></aside>
+  <main class="main">
+    <header class="page-head">
+      <div>
+        <h1>Introduction to SPIRAL</h1>
+        <div class="sub">What is SPIRAL and how does it work?</div>
+      </div>
+      <button id="themeToggle" class="theme-toggle">Dark mode</button>
+    </header>
+
+    <h2 class="section-title">What is SPIRAL?</h2>
+    <p><strong>SPIRAL</strong> (Self-iterating PRD Research & Implementation Autonomous Loop) is an autonomous AI development system that:</p>
+    <ul>
+      <li>Discovers requirements via web research (Gemini)</li>
+      <li>Validates stories against a project constitution</li>
+      <li>Implements them using parallel Claude workers</li>
+      <li>Loops until all stories pass or a time/iteration limit is hit</li>
+    </ul>
+
+    <h2 class="section-title">Key Features</h2>
+    <ul>
+      <li><strong>Autonomous loops:</strong> Run 1, 5, 20+ iterations automatically</li>
+      <li><strong>Web research:</strong> Auto-discover stories from PRD gaps and web search</li>
+      <li><strong>Parallel workers:</strong> Multiple Claude instances implementing stories in git worktrees</li>
+      <li><strong>Quality gates:</strong> Automated testing, type checking, linting before merge</li>
+      <li><strong>Live dashboard:</strong> Monitor progress at http://localhost:5299</li>
+      <li><strong>Cost tracking:</strong> Token spend and budget per iteration</li>
+    </ul>
+
+    <h2 class="section-title">Phase Overview</h2>
+    <p>Each iteration runs through these phases:</p>
+    <ul>
+      <li><strong>Phase A:</strong> AI Suggestions — generate story candidates</li>
+      <li><strong>Phase R:</strong> Research — web search for requirements</li>
+      <li><strong>Phase T:</strong> Test Synthesis — find regression tests</li>
+      <li><strong>Phase S:</strong> Story Validation — constitution checks</li>
+      <li><strong>Phase E:</strong> Enrichment — populate context hints</li>
+      <li><strong>Phase M:</strong> Merge — update prd.json with new stories</li>
+      <li><strong>Phase X:</strong> Context Build — dependency inference</li>
+      <li><strong>Phase G:</strong> Gate — human checkpoint (optional)</li>
+      <li><strong>Phase I:</strong> Implement — Ralph workers execute stories</li>
+      <li><strong>Phase V:</strong> Validate — run tests and quality checks</li>
+      <li><strong>Phase C:</strong> Check Done — assess completion and decide to continue</li>
+    </ul>
+
+    <div class="nav-links">
+      <a href="../index.html">← Back to Dashboard</a>
+      <a href="02-quick-start.html">Next: Quick Start →</a>
+    </div>
+
+    <div class="source-footer">
+      Source: CLAUDE.md, prd.json, spiral.sh
+    </div>
+  </main>
+</div>
+<script>
+renderShell({ page: 'introduction' });
+</script>
+</body>
+</html>

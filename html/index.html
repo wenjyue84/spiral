@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPIRAL — Dashboard</title>
+<link rel="stylesheet" href="assets/css/custom.css">
+<script src="assets/js/data.js"></script>
+<script src="assets/js/nav.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar"></aside>
+  <main class="main">
+    <header class="page-head">
+      <div>
+        <h1>Dashboard</h1>
+        <div class="sub">Welcome to SPIRAL documentation</div>
+      </div>
+      <button id="themeToggle" class="theme-toggle">Dark mode</button>
+    </header>
+
+    <h2 class="section-title">Getting Started</h2>
+    <div class="row">
+      <div class="col card">
+        <h3>📖 New to SPIRAL?</h3>
+        <p>Start with the <a href="pages/01-introduction.html">Introduction</a> to understand what SPIRAL is and how it works.</p>
+      </div>
+      <div class="col card">
+        <h3>⚡ First Run</h3>
+        <p>Follow the <a href="pages/02-quick-start.html">Quick Start</a> guide to get SPIRAL running in 5 minutes.</p>
+      </div>
+      <div class="col card">
+        <h3>🏗️ How It Works</h3>
+        <p>Dive into the <a href="pages/03-architecture.html">Architecture</a> to understand the phases and components.</p>
+      </div>
+    </div>
+
+    <h2 class="section-title">Documentation</h2>
+    <p>Use the sidebar to navigate through the full documentation set, including CLI reference, configuration options, examples, and troubleshooting guides.</p>
+
+    <div class="source-footer">
+      Source: spiral.sh, README.md, CLAUDE.md
+    </div>
+  </main>
+</div>
+<script>
+renderShell({ page: 'dashboard' });
+</script>
+</body>
+</html>

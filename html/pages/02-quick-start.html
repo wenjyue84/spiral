@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quick Start</title>
+<link rel="stylesheet" href="../assets/css/custom.css">
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/nav.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar"></aside>
+  <main class="main">
+    <header class="page-head">
+      <div>
+        <h1>Quick Start</h1>
+        <div class="sub">Get SPIRAL running in under 5 minutes</div>
+      </div>
+      <button id="themeToggle" class="theme-toggle">Dark mode</button>
+    </header>
+
+    <p>Follow these 3 steps to run SPIRAL for the first time. Copy-paste the commands below to get started.</p>
+
+    <!-- Step 1 -->
+    <div class="step">
+      <h3><span class="step-number">1</span> Install and Setup</h3>
+      <p>Install dependencies and run the setup script:</p>
+      <div class="code-block">
+        <div class="code-block-header">
+          <span>bash</span>
+          <button class="copy-btn" onclick="copyCode(this, document.getElementById('step1-code').innerText)">Copy</button>
+        </div>
+        <div class="code-block-content" id="step1-code">bash setup.sh</div>
+      </div>
+      <p class="small"><strong>What this does:</strong> Installs uv (Python package manager), creates virtual environment, installs dependencies, verifies Claude CLI is available.</p>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step">
+      <h3><span class="step-number">2</span> Run SPIRAL</h3>
+      <p>Launch SPIRAL with 5 iterations and auto-proceed through gates:</p>
+      <div class="code-block">
+        <div class="code-block-header">
+          <span>bash</span>
+          <button class="copy-btn" onclick="copyCode(this, document.getElementById('step2-code').innerText)">Copy</button>
+        </div>
+        <div class="code-block-content" id="step2-code">bash spiral.sh 5 --gate proceed</div>
+      </div>
+      <p class="small"><strong>What this does:</strong> Runs 5 iterations of the SPIRAL loop. The <code>--gate proceed</code> flag skips manual checkpoints. Progress is logged to <code>results.tsv</code> and <code>.spiral/_checkpoint.json</code>.</p>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step">
+      <h3><span class="step-number">3</span> View Live Dashboard</h3>
+      <p>Open the dashboard in your browser while SPIRAL runs:</p>
+      <div class="code-block">
+        <div class="code-block-header">
+          <span>url</span>
+          <button class="copy-btn" onclick="copyCode(this, 'http://localhost:5299')">Copy URL</button>
+        </div>
+        <div class="code-block-content" id="step3-code">http://localhost:5299</div>
+      </div>
+      <p class="small"><strong>What you'll see:</strong> Live dashboard showing phase progress, stories completed, token spend, and worker status. Updates every few seconds as SPIRAL runs.</p>
+    </div>
+
+    <!-- Expected Output -->
+    <h2 class="section-title">Expected Output</h2>
+    <p>After running Step 2, you should see output like this:</p>
+    <div class="code-block">
+      <div class="code-block-header"><span>Terminal Output</span></div>
+      <div class="code-block-content">[SPIRAL] Iteration 1 of 5
+[Phase A] Generating AI suggestions...
+[Phase R] Running web research... (parallel)
+[Phase T] Scanning test failures... (parallel)
+[Phase S] Validating stories...
+[Phase M] Merging 3 new stories into prd.json
+[Phase G] GATE: proceeding (--gate proceed)
+[Phase I] Deploying Ralph workers (1 worker)
+[Ralph worker 1] Implementing US-1234...
+[Ralph worker 1] ✓ US-1234 passed
+[Phase V] Running quality gates...
+[Phase C] Checking completion: 1/5 stories passed
+[SPIRAL] Iteration 2 of 5
+...
+[SPIRAL] ✓ Completed: 5 stories passed, 0 failed in 18m 34s
+[SPIRAL] Total tokens: 142,500 | Cost: $0.43</div>
+    </div>
+
+    <!-- Common Gotchas -->
+    <h2 class="section-title">Common Gotchas</h2>
+    <p>If you run into issues during your first run, check the collapsible sections below:</p>
+
+    <details class="collapsible">
+      <summary class="collapsible-head">
+        <span><strong>❌ jq: command not found</strong></span>
+        <span>→</span>
+      </summary>
+      <div class="collapsible-body">
+        <p><strong>Symptom:</strong> Error message <code>jq: command not found</code> when running spiral.sh</p>
+        <p><strong>Cause:</strong> <code>jq</code> (JSON query tool) is not installed or not in your PATH.</p>
+        <p><strong>Fix:</strong></p>
+        <ul>
+          <li><strong>macOS:</strong> <code>brew install jq</code></li>
+          <li><strong>Linux/Ubuntu:</strong> <code>sudo apt-get install jq</code></li>
+          <li><strong>Windows (Git Bash):</strong> Download <code>jq.exe</code> from <a href="https://stedolan.github.io/jq/download/" target="_blank">stedolan.github.io/jq</a> and place in your PATH (or in <code>C:\Program Files\Git\usr\bin\</code>)</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="collapsible">
+      <summary class="collapsible-head">
+        <span><strong>❌ Claude CLI not in PATH</strong></span>
+        <span>→</span>
+      </summary>
+      <div class="collapsible-body">
+        <p><strong>Symptom:</strong> Error <code>claude: command not found</code> or similar</p>
+        <p><strong>Cause:</strong> The Claude Code CLI is installed but not accessible via your shell PATH.</p>
+        <p><strong>Fix:</strong></p>
+        <ul>
+          <li>Ensure Node.js 20+ is installed: <code>node --version</code></li>
+          <li>Install Claude CLI globally: <code>npm install -g @anthropic-ai/claude-code</code></li>
+          <li>Verify: <code>claude --version</code> should print a version number</li>
+          <li>On Windows, you may need to restart your terminal (or VS Code) after installing</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="collapsible">
+      <summary class="collapsible-head">
+        <span><strong>❌ Windows path issues (backslashes)</strong></span>
+        <span>→</span>
+      </summary>
+      <div class="collapsible-body">
+        <p><strong>Symptom:</strong> Error messages about paths with backslashes (<code>\</code>) not found, or scripts fail to locate files</p>
+        <p><strong>Cause:</strong> PowerShell or CMD interprets backslashes differently than Bash. SPIRAL is a Bash script.</p>
+        <p><strong>Fix:</strong></p>
+        <ul>
+          <li>Use <strong>Git Bash</strong> (not PowerShell or CMD): Search for "Git Bash" in your Start menu and open it</li>
+          <li>Navigate to your SPIRAL repo: <code>cd /c/path/to/spiral</code> (forward slashes, no drive colon after first one)</li>
+          <li>Run SPIRAL from Git Bash: <code>bash spiral.sh 5 --gate proceed</code></li>
+          <li>Or download and use WSL 2 (Windows Subsystem for Linux) for full Linux compatibility</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="collapsible">
+      <summary class="collapsible-head">
+        <span><strong>❌ Dashboard not accessible at localhost:5299</strong></span>
+        <span>→</span>
+      </summary>
+      <div class="collapsible-body">
+        <p><strong>Symptom:</strong> Browser says <code>Cannot reach localhost:5299</code> or connection refused</p>
+        <p><strong>Cause:</strong> The spiral-ui backend server hasn't started, or port 5299 is in use by another application.</p>
+        <p><strong>Fix:</strong></p>
+        <ul>
+          <li>Wait 10-15 seconds after running <code>spiral.sh</code> — the dashboard takes a moment to start</li>
+          <li>Check if port 5299 is already in use: <code>lsof -i :5299</code> (macOS/Linux) or <code>netstat -ano | findstr :5299</code> (Windows)</li>
+          <li>Kill any existing process: <code>kill -9 &lt;PID&gt;</code> or in Windows Task Manager, end the task</li>
+          <li>Alternatively, configure a different port in <code>spiral.config.sh</code>: <code>SPIRAL_UI_PORT=5300</code></li>
+        </ul>
+      </div>
+    </details>
+
+    <h2 class="section-title">Next Steps</h2>
+    <ul>
+      <li><a href="03-architecture.html">Read the Architecture guide</a> to understand SPIRAL's phase system</li>
+      <li><a href="05-cli-reference.html">Check the CLI Reference</a> for all available flags and subcommands</li>
+      <li><a href="07-examples-and-recipes.html">Browse Examples & Recipes</a> for common use cases</li>
+      <li><a href="09-troubleshooting.html">See Troubleshooting</a> for deeper diagnostic steps</li>
+    </ul>
+
+    <div class="nav-links">
+      <a href="01-introduction.html">← Back: Introduction</a>
+      <a href="03-architecture.html">Next: Architecture →</a>
+    </div>
+
+    <div class="source-footer">
+      Source: setup.sh, README.md, spiral.sh, CLAUDE.md Commands section
+    </div>
+  </main>
+</div>
+
+<script>
+renderShell({ page: 'quick-start' });
+
+function copyCode(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.textContent;
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove('copied');
+    }, 2000);
+  }).catch(err => {
+    console.error('Copy failed:', err);
+    btn.textContent = '✗ Copy failed';
+  });
+}
+
+// Expand/collapse details on click
+document.querySelectorAll('.collapsible-head').forEach(head => {
+  head.addEventListener('click', () => {
+    const body = head.nextElementSibling;
+    body.style.display = body.style.display === 'none' ? 'block' : 'none';
+  });
+  head.nextElementSibling.style.display = 'none';
+});
+</script>
+</body>
+</html>
