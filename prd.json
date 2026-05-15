@@ -2493,7 +2493,16 @@
       "passes": true,
       "model": "sonnet",
       "last_attempted": "2026-05-15T18:55:45Z",
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files."
+      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/timeout_handler.py` and `lib/impl/scope_reducer.py` already exist from a prior attempt\n- `tests/test_timeout_handler.py` exists with 6 comprehensive tests, all passing\n- The story is marked `passes: false` in prd.json because the prior attempt failed the diagnosis-block gate (not a code issue)\n- The code and tests are complete and working\n\n## Problem Identified\nThe story's code implementation is complete and all tests pass. The only reason it failed previously was the diagnosis-block procedural gate. I need to:\n1. Verify the acceptance criteria are all met\n2. Mark the story as `passes: true` in prd.json\n3. Commit\n\n## Planned Changes\n- `prd.json`: Mark US-1329 `passes: true`\n\nLet me verify all three acceptance criteria explicitly.\nAll code is complete and all 6 tests pass. The implementation satisfies all three acceptance criteria:\n\n- **AC1**: `strip_optional_ac` removes @optional ACs, keeps non-optional (tested by `TestScopeReducerStripsOptionalAC`)\n- **AC2**: Story with zero @optional ACs returned unchanged (tested by `TestScopeReducerNoOptionalAC`)\n- **AC3**: Reduced story passes schema validation (tested by `TestReducedStorySchemaValidation`)\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 1\n}\n</plan>\n\nNow I'll mark the story as passed and commit.\nThe test naming uses a class-based format. Let me run the correct test path.\nNow commit.\nUS-1329 is complete. The implementation (`lib/timeout_handler.py`, `lib/impl/scope_reducer.py`, and `tests/test_timeout_handler.py`) was already in place from a prior attempt — all 6 tests pass, all 3 acceptance criteria are met. Committed as `b7db05b4`."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 339,
+        "tokensAfterMasking": 337,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1330",

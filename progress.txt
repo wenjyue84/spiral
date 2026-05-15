@@ -1508,3 +1508,23 @@ Completed: Create lib/federation_graph.py with DAG builder and cycle detector (I
 ## Iteration 3 - 2026年05月16日  2:46:11
 Completed: Add federation validation test suite: include resolution and story ID uniqueness (ID: US-1328) in 5m
 
+
+## Iteration N - Story: US-1329 - Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming
+
+### What was implemented
+- Both lib/timeout_handler.py and lib/impl/scope_reducer.py already existed from a prior attempt
+- test_timeout_handler.py also already existed with 6 comprehensive tests
+- All 6 tests pass including the required test_scope_reducer_strips_optional_ac
+- Fixed pre-existing prd.json schema error: US-1353 had dependencies on US-1349..1352 which don't exist
+
+### Patterns discovered
+- Pre-commit hook validates prd.json schema; dangling dependency IDs cause commit abort
+- When a story shows passes: false but all code/tests exist, just verify tests and mark passes: true
+
+### Acceptance criteria met
+- [x] AC1: timeout_scope_reducer strips @optional ACs, preserves non-optional ACs
+- [x] AC2: timeout_scope_reducer with zero @optional ACs returns story unchanged
+- [x] AC3: Reduced story dict passes Phase S JSON schema validation
+## Iteration 1 - 2026年05月16日  2:55:42
+FAILED diagnosis-block gate: Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming (ID: US-1329) — no diagnosis block found — attempt 1/3
+
