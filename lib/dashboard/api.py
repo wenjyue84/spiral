@@ -31,6 +31,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from ..analyze_results import parse_research_cache
+from ..coverage_analyzer import generate_coverage_matrix
 from ..history_search import find_similar_attempts
 from ..research_source_scorer import extract_sources
 from ..spiral.dashboard.aggregator import aggregate_overview
@@ -1124,6 +1125,27 @@ async def tests_history(days: int | None = None) -> dict[str, Any]:
     # For now, return empty history (endpoint exists for frontend compatibility)
     # In production, this would query historical test results from .spiral/test-results/
     return {"entries": []}
+
+
+@app.get("/api/tests/coverage")
+async def tests_coverage() -> dict[str, Any]:
+    """Return file-level test coverage data for heatmap visualization.
+
+    Reads .spiral/coverage.json if available and generates per-file coverage metrics.
+    Returns a dict with 'files' array and 'summary' statistics.
+    """
+    coverage_json_path = Path(".spiral/coverage.json")
+    if not coverage_json_path.exists():
+        # Return empty coverage data if no coverage file exists
+        return {"files": [], "summary": {"total_files": 0, "covered_files": 0, "avg_coverage": 0.0, "overall_status": "green"}}
+
+    try:
+        with open(coverage_json_path, "r", encoding="utf-8") as f:
+            coverage_data = json.load(f)
+        return generate_coverage_matrix(coverage_data)
+    except (json.JSONDecodeError, IOError) as e:
+        logger.warning(f"Failed to parse coverage.json: {e}")
+        return {"files": [], "summary": {"total_files": 0, "covered_files": 0, "avg_coverage": 0.0, "overall_status": "green"}}
 
 
 @app.post("/api/tests/rerun/{test_id:path}")

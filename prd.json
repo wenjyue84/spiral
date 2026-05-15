@@ -2297,12 +2297,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-15T18:02:33Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe story US-1320 requires a `spiral cost-estimate` CLI command with per-story cost breakdown. The implementation exists:\n- `lib/cost_estimator.py` is fully implemented with:\n  - `estimate_story_cost_breakdown()` — per-story cost table with tokens, costs per model, escalation prob, model pick\n  - `compute_parallelization_adjustment()` — accounts for worker parallelization\n  - `format_table_output()`, `format_json_output()`, `format_csv_output()` — output formatting\n  - CLI argument parsing for `--iterations`, `--workers`, `--format`, `--dry-run`\n- CLI is wired into `spiral.sh` (lines ~179, ~556) and `lib/cli_subcommands.sh` (lines ~477-490)\n- 15 existing tests in `tests/test_cost_estimator.py` all pass\n- However, the story is marked `passes: false` — missing the specific test mentioned: `test_budget_with_parallelization`\n\n## Problem Identified\n\nThe story's acceptance criterion requires: \"Test: uv run pytest tests/test_cost_estimator.py::test_budget_with_parallelization -v\". This test does not exist, which is why the story fails. The test should validate:\n- Stories from a fixture PRD (50 stories)\n- Parallelization math: `ceil(stories / workers) * iterations`\n- Contingency buffer (20%) is included\n- Final cost within 15% accuracy against actual historical data\n\n## Planned Changes\n\n1. **Create `test_budget_with_parallelization` test** in `tests/test_cost_estimator.py`:\n   - Use a 50-story fixture PRD with realistic complexity distribution\n   - Test with different worker counts (1, 2, 5, 10)\n   - Validate cost estimate accuracy within 15% of historical baseline\n   - Verify contingency buffer is applied\n   - Verify grand total accounts for iterations and parallelization\n\n2. **Mark story as passed** once test is added and passes\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_cost_estimator.py\"],\n  \"functions_to_add\": [\"test_budget_with_parallelization\"],\n  \"estimated_loc\": 60\n}\n</plan>\n\nNow I'll implement the test:\nNow let me run the new test to verify it passes:\nI see the issue - the `classify_story()` function classifies by story type (test, ui, cost, etc.), not by complexity level. Let me fix the test:\nLet me fix the cost range validation to match actual costs:\nPerfect! Now let me run all the cost_estimator tests to verify everything passes:\nExcellent! All 16 tests pass. Now let me run pre-commit checks:\nLet me verify the tests still pass after formatting:\nPerfect! Now let me mark the story as passed in prd.json:\nExcellent! Now let me commit the changes:\nThese are pre-existing schema errors. Let me fix them by removing the invalid dependencies from US-1353:\nPerfect! Now let me verify the final state:\n## Summary"
-      },
-      "_passedCommit": "27b14f963638a1278dcc5a74cb36a2bf912d935e"
+      "model": "haiku"
     },
     {
       "id": "US-1321",
@@ -2351,11 +2346,7 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-15T18:10:17Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- test_spiral_e2e_integration.py exists with 4 E2E tests that all pass\n- conftest.py has fixtures mock_ralph_env and mock_prd_fixture\n- tests/fixtures/mock_claude.py exists with MockClaudeAPI\n- No test yet validates the **full SPIRAL phase sequence order** (A→R→T→S→E→M→X→G→I→V→C)\n\n## Problem Identified\nUS-1322 requires a regression test that validates:\n1. Phases A→R→T→S→E→M→X→G→I→V→C execute in correct order (via mocked subprocess.run)\n2. Final prd.json has at least one story with status 'done' or 'pass'\n3. uv run pytest tests/test_spiral_e2e_integration.py -v exits 0\n\n## Planned Changes\n1. Add a new test `test_full_spiral_phase_order_e2e()` to TestSpiralE2EIntegration\n   - Uses monkeypatch to mock subprocess.run\n   - Seeds a minimal prd.json with one pending story (UT-PHASE-001)\n   - Records all subprocess calls and their \"phase\" context\n   - Simulates calling phase handlers in sequence (A, R, T, S, E, M, X, G, I, V, C)\n   - Validates phase execution order matches A→R→T→S→E→M→X→G→I→V→C\n   - Verifies final prd.json contains a story with passes=true or status='done'\nNow let me test that the new test runs and passes:\nPerfect! I have successfully completed story **US-1322**.\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1323",
@@ -2586,6 +2577,26 @@
       "model": "haiku"
     },
     {
+      "id": "US-1334",
+      "title": "CLI: Add `spiral profile-phases` command to measure and report phase execution time",
+      "priority": "low",
+      "description": "Add CLI subcommand to profile wall-clock time per phase and identify bottlenecks. Outputs sorted table: Phase | Duration | % of Total | Status. Helps product owners and developers optimize SPIRAL runtime.",
+      "acceptanceCriteria": [
+        "spiral.sh logs phase start/end timestamps to .spiral/_phase_timings.jsonl in format {phase: 'R', start_ms: <timestamp>, end_ms: <timestamp>} for each phase execution",
+        "`spiral profile-phases` reads _phase_timings.jsonl, outputs table sorted by duration descending: Phase | Duration (s) | Pct | Status; handles incomplete/missing data",
+        "Includes summary: total runtime, slowest phase, suggestion to investigate phases >30% of total time"
+      ],
+      "technicalNotes": [
+        "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
+        "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
+        "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1335",
       "title": "[Security Test] history_search.py: validate FTS5 query sanitization and path safety",
       "priority": "high",
@@ -2605,6 +2616,47 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1336",
+      "title": "CLI: spiral workers kill <worker-id> with safe resource cleanup",
+      "priority": "medium",
+      "description": "Add a CLI subcommand to gracefully kill a specific worker by ID, including cleanup of its git worktree and any running processes. This improves operator control over long-running SPIRAL sessions.",
+      "acceptanceCriteria": [
+        "Command `spiral workers kill <worker-id>` accepts a valid worker ID and terminates the worker process",
+        "Associated git worktree at `.spiral-workers/worker-<id>/` is deleted via `git worktree remove`",
+        "No dangling processes or worktree references remain after kill command completes"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/worker_heartbeat.sh — add function kill_worker_safe() that sends SIGTERM, waits with timeout, runs git worktree remove, logs cleanup status",
+        "File to edit: lib/cli_subcommands.sh — add case handler for `spiral workers kill` subcommand",
+        "Test command: uv run pytest tests/test_cli_workers.py::test_kill_worker_cleanup -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1337",
+      "title": "Phase T: Test Failure Classification with Root Cause and Remediation Hint",
+      "priority": "medium",
+      "description": "Enhance Phase T (test synthesis) to classify each test failure into categories: syntax_error, import_error, assertion_failure, timeout, environment_error. Attach remediation hints (e.g., 'missing import: xyz' or 'test timeout — may need scope reduction') for downstream story generation.",
+      "acceptanceCriteria": [
+        "Phase T runs test scan and classifies each failure snippet by regex patterns (ImportError → import_error, AssertionError → assertion_failure, etc.)",
+        "Stores classification in _test_failures.json as {failure_id: {type, hint, snippet, line_number}}",
+        "Stories generated from Phase T failures include _rootCause and _hint fields for Ralph to use in implementation"
+      ],
+      "technicalNotes": [
+        "File to create: lib/test_classifier.py — function classify_test_failure(snippet) returns {type, hint} dict using regex patterns; supports ImportError, AssertionError, SyntaxError, TimeoutError, EnvironmentError",
+        "File to edit: lib/phases/phase_t.sh — after test collection, call `python3 lib/test_classifier.py --classify _test_failures.jsonl` to annotate failures",
+        "File to edit: lib/spiral/phase_a.py — patch story generation from Phase T results to include _rootCause and _hint fields in story JSON",
+        "Test command: uv run pytest tests/test_phase_t.py::test_classify_import_error -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -2644,6 +2696,50 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1340",
+      "title": "spiral-ui: Add TestsTab component with Phase V pass/fail timeline",
+      "priority": "medium",
+      "description": "Create a TestsTab React component in spiral-ui that fetches /api/phase-v-results via a usePhaseVResults hook, renders a chronological pass/fail timeline per story with badge, test_file, and duration, and shows a summary bar with total count, pass rate, and average duration. Wire the tab into App.tsx.",
+      "acceptanceCriteria": [
+        "TestsTab renders a pass/fail badge, story_id, test_file, and duration_s for each record from /api/phase-v-results",
+        "Summary bar displays total tests, pass rate %, and average duration_s",
+        "npm run test -- --reporter=verbose spiral-ui/src/components/TestsTab.test.tsx exits 0"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/TestsTab.tsx (~80 lines; use shadcn/ui Badge for pass/fail colouring)",
+        "File to edit: spiral-ui/src/api/hooks.ts (add usePhaseVResults using TanStack Query useQuery)",
+        "File to edit: spiral-ui/src/App.tsx (add Tests tab entry pointing to TestsTab component)",
+        "File to edit: spiral-ui/src/types/phase.ts (add PhaseVResult interface if not present)",
+        "File to create: spiral-ui/src/components/TestsTab.test.tsx (Vitest + msw mock for /api/phase-v-results)",
+        "Test command: npm run test -- --reporter=verbose spiral-ui/src/components/TestsTab.test.tsx"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1341",
+      "title": "Ralph: Support @spiral:hint-complexity-band marker for scope-aware decomposition",
+      "priority": "medium",
+      "description": "Extend Ralph's story decomposition strategy to read and use complexity hints embedded in prd.json story descriptions. Developers can annotate stories with @spiral:hint-complexity-band:small/medium/large to guide Phase I decomposition logic and inform scope reduction strategies.",
+      "acceptanceCriteria": [
+        "Ralph parses @spiral:hint-complexity-band markers from story.description in prd.json",
+        "Phase I decomposition prompt includes hint context to guide sub-story generation",
+        "Integration test: 3 stories with hints → decomposed sub-stories reflect hint guidance in output"
+      ],
+      "technicalNotes": [
+        "File to create: lib/parse_story_hints.py (extract @spiral:* markers, ~50 lines)",
+        "File to edit: ralph/CLAUDE.md (document @spiral:hint-complexity-band marker syntax)",
+        "File to edit: lib/impl/decompose.sh (pass hint_context to Ralph invocation)",
+        "Test command: uv run pytest tests/test_parse_story_hints.py::test_extract_complexity_band -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "sonnet"
     },
     {
@@ -2832,6 +2928,154 @@
       "model": "haiku"
     },
     {
+      "id": "US-1348",
+      "title": "Fill html/pages/05-cli-reference.html — all flags and subcommands in a filterable table",
+      "priority": "medium",
+      "description": "One filterable table for spiral.sh flags and another for main.py subcommands. Use simple-datatables for live search. Each row has Flag / Default / Description, with a one-click copy of an example launch line that uses that flag.",
+      "acceptanceCriteria": [
+        "Two simple-datatables tables on the page with working search box and column sort",
+        "Every flag from SKILL.md CLI Flags Reference appears as a row",
+        "Every main.py subcommand from SKILL.md appears as a row in the second table",
+        "Clicking a row reveals a copy-to-clipboard example command using that flag",
+        "Total flags row count >= 35 (matches the CLI Flags Reference table)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/05-cli-reference.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md CLI Flags Reference and main.py Subcommands sections",
+        "simple-datatables v9 via CDN <link> + <script>"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/05-cli-reference.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1349",
+      "title": "Fill html/pages/06-configuration.html — every SPIRAL_* env var grouped by category",
+      "priority": "medium",
+      "description": "Mirror the Configurable Options Reference from SKILL.md. Group config vars by category (Loop & Iteration, AI Suggestions, Research, Story Validation, Implementation, Validation, Git & Commits, Memory & Workers, Security, Hooks, Logging, Tool & Inference, Context Injection, Quality & Retry, Observability, Local Fallback, ADR & Self-Review). Each var gets an anchor id=config-<VARNAME> so other pages can deep-link.",
+      "acceptanceCriteria": [
+        "Page has a sticky table-of-contents on the left listing every category as a jump link",
+        "Each config var row has an HTML id of the form id=\"config-SPIRAL_FOO_BAR\"",
+        "Every default value is displayed in a <code> tag",
+        "A search box at the top filters all categories live (matches against var name AND description)",
+        "Anchor #config-SPIRAL_VALIDATE_CMD scrolls to the correct row when navigated to from another page"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/06-configuration.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Configurable Options Reference"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/06-configuration.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1350",
+      "title": "Fill html/pages/07-examples-and-recipes.html — 8 real-world launch scenarios",
+      "priority": "medium",
+      "description": "Recipe cards for common scenarios: 1) First run, 2) Run for 2 hours, 3) Focus on performance, 4) Skip research, 5) Rollback a story, 6) Replay a single story, 7) Parallel workers (with warnings), 8) Cheap haiku-only run. Each card: Goal / Command / What to expect / How long.",
+      "acceptanceCriteria": [
+        "Page renders 8 recipe cards in a CSS grid (2 columns desktop, 1 column mobile)",
+        "Each card includes a copy-to-clipboard button for the command",
+        "Parallel workers card has a visible warning callout about RAM consumption and the 3-worker hard cap",
+        "Each card has an 'Estimated runtime' badge (e.g. ~5 min, ~2 h, instant)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/07-examples-and-recipes.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Example Launch Commands section"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/07-examples-and-recipes.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1351",
+      "title": "Fill html/pages/08-glossary.html — define every SPIRAL term in one place",
+      "priority": "medium",
+      "description": "An A–Z glossary every other page can deep-link to. Terms: Phase, Iteration, Story, PRD, Ralph, Worker, Worktree, Gate, Decompose, DLQ, Constitution, Focus, Capacity Limit, Model Routing, Episodic Memory, Cost Ceiling, Validate Cmd. Each term: 2-sentence definition + 'See also' cross-links.",
+      "acceptanceCriteria": [
+        "Page has an A–Z index strip at top (each letter links to that letter's section)",
+        "Every term has id=\"term-<kebab-name>\" so other pages can deep-link",
+        "Each term has at least one 'See also' cross-link to another term or another page",
+        "Term count >= 17"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/08-glossary.html",
+        "Source: CLAUDE.md, $HOME/.claude/skills/spiral/SKILL.md"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/08-glossary.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1352",
+      "title": "Fill html/pages/09-troubleshooting.html — known issues, exit codes, recovery",
+      "priority": "medium",
+      "description": "Self-service troubleshooting page. Three sections: (1) Symptom → Fix lookup table (live-searchable via simple-datatables), (2) Exit codes reference table, (3) Crash recovery summary (what auto-heals, what needs manual intervention).",
+      "acceptanceCriteria": [
+        "Section 1 has a searchable table with columns Symptom / Cause / Fix derived from the Troubleshooting section in SKILL.md (>= 15 rows)",
+        "Section 2 lists every exit code 0–15, 130 with meaning",
+        "Section 3 mirrors the Crash Recovery & Reliability table from SKILL.md",
+        "Page contains an 'Was this helpful?' thumbs-up/down widget that records vote count to localStorage (no backend)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/09-troubleshooting.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Troubleshooting + Exit Codes + Crash Recovery sections"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/09-troubleshooting.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1353",
       "title": "html/index.html dashboard — sequential reading flow with progress tracker",
       "priority": "high",
@@ -2853,7 +3097,12 @@
         "US-1344",
         "US-1345",
         "US-1346",
-        "US-1347"
+        "US-1347",
+        "US-1348",
+        "US-1349",
+        "US-1350",
+        "US-1351",
+        "US-1352"
       ],
       "filesTouch": [
         "html/index.html",

@@ -14,6 +14,7 @@ import ConstitutionTab from './dashboard/ConstitutionTab';
 import SkillsTab from './dashboard/SkillsTab';
 import ActivityTab from './dashboard/ActivityTab';
 import TestsTab from './TestsTab';
+import TestsCoverageTab from './TestsCoverageTab';
 import { type ProjectData, type ActiveStoryInfo, pct } from './dashboard/types';
 
 // Re-exports for backward compatibility
@@ -23,7 +24,7 @@ export { default as ActiveStoryBanner } from './dashboard/ActiveStoryBanner';
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type DashTab = 'progress' | 'settings' | 'constitution' | 'skills' | 'activity' | 'graph' | 'phase-trace' | 'workers' | 'tokens' | 'tests' | 'analytics';
+type DashTab = 'progress' | 'settings' | 'constitution' | 'skills' | 'activity' | 'graph' | 'phase-trace' | 'workers' | 'tokens' | 'tests' | 'coverage' | 'analytics';
 
 const DASH_TABS: { id: DashTab; slug: string; label: string; icon: string }[] = [
   { id: 'progress',     slug: 'progress',     label: 'Progress',     icon: '📊' },
@@ -32,6 +33,7 @@ const DASH_TABS: { id: DashTab; slug: string; label: string; icon: string }[] = 
   { id: 'tokens',       slug: 'tokens',       label: 'Tokens',       icon: '💰' },
   { id: 'graph',        slug: 'graph',        label: 'Graph',        icon: '🔗' },
   { id: 'tests',        slug: 'tests',        label: 'Tests',        icon: '🧪' },
+  { id: 'coverage',     slug: 'coverage',     label: 'Coverage',     icon: '📈' },
   { id: 'settings',     slug: 'settings',     label: 'Settings',     icon: '⚙️' },
   { id: 'constitution', slug: 'constitution', label: 'Constitution', icon: '📜' },
   { id: 'skills',       slug: 'skills',       label: 'Skills',       icon: '🎯' },
@@ -269,6 +271,7 @@ export default function ProjectDashboard() {
         {activeTab === 'skills'       && <div className="h-full overflow-hidden"><SkillsTab projectName={projectName ?? undefined} /></div>}
         {activeTab === 'activity'     && <div className="h-full overflow-y-auto"><ActivityTab log={data.activity} activeStory={activeStory} /></div>}
         {activeTab === 'tests'        && <div className="h-full overflow-hidden"><TestsTab /></div>}
+        {activeTab === 'coverage'     && <div className="h-full overflow-hidden"><TestsCoverageTab /></div>}
         {activeTab === 'analytics'    && <div className="h-full overflow-y-auto"><AnalyticsTab projectName={projectName ?? ''} /></div>}
       </main>
     </div>
