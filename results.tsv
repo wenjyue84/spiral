@@ -180,3 +180,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-15T17:40:32Z	3	1	US-1345	Fill html/pages/02-quick-start.html — copy-pasteable first run in under 5 minutes	keep	372	haiku	0	b636d140b999e55ddd8ec8a6dec99f873dc30056	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-15T17:44:47Z	3	2	US-1346	Fill html/pages/03-architecture.html — high-level system diagram	keep	224	haiku	0	ad2afd88ba9f266bd42b19ff5589fbb3828a62b8	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-15T17:50:11Z	3	3	US-1347	Fill html/pages/04-phase-deep-dive.html — every phase explained with inputs and outputs	keep	301	haiku	0	d5751075707a0efd020b75908e0e7849b96942a9	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-15T18:10:15Z	5	1	US-1320	CLI: Add `spiral cost-estimate` with model escalation breakdown and budget projection	keep	441	haiku	0	27b14f963638a1278dcc5a74cb36a2bf912d935e	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0				

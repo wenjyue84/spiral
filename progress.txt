@@ -1261,3 +1261,38 @@ Completed: Fill html/pages/04-phase-deep-dive.html — every phase explained wit
 *   The Python script needs robust error handling for a missing or malformed `prd.json`.
 *   The `lib/gen_html_data.py` script must be integrated into the project's build process to ensure `data.js` is fresh.
 *   The dashboard should handle `localStorage` being unavailable or disabled in the user's browser without crashing.
+## Iteration 1 - 2026年05月16日  2:10:15
+Completed: CLI: Add `spiral cost-estimate` with model escalation breakdown and budget projection (ID: US-1320) in 7m
+
+
+## Pre-analysis for US-1322 (Gemini 2.5 Pro)
+This user story is for a Python/Pytest project, not a Frappe application. Here is the technical brief based on the provided JSON:
+
+**To:** Claude Code Agent
+**From:** Gemini Code Assistant
+**Re:** Technical Brief for US-1322
+
+**1. Python Files to Modify:**
+*   **Create:** `tests/test_spiral_e2e_integration.py`
+*   **Modify:** `tests/conftest.py` (if a shared fixture is needed)
+*   **Modify:** `tests/fixtures/mock_claude_api.py` (or a similar new mock file)
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is a regression test for a Python command-line process using `pytest`.
+
+**3. Recommended Implementation Approach:**
+*   In `tests/test_spiral_e2e_integration.py`, create a new test `test_full_spiral_loop_e2e`.
+*   Use `pytest`'s `monkeypatch` and `tmp_path` fixtures.
+*   Create a mock function to replace `subprocess.run`. This mock should:
+    *   Record the sequence of commands it receives.
+    *   Return a `CompletedProcess` object with pre-scripted `stdout` to simulate the output of each SPIRAL phase (A, R, T, etc.).
+*   Inside the test, copy a minimal seed `prd.json` to `tmp_path`.
+*   Invoke the main SPIRAL loop entry point.
+*   Assert the recorded command sequence matches the expected phase order (A→R→T→S→...).
+*   Load the final `prd.json` from `tmp_path` and verify a story's status is 'done' or 'pass'.
+
+**4. Edge Cases & Gotchas:**
+*   The `subprocess.run` mock must be robust enough to differentiate between calls for different phases.
+*   Ensure the test environment correctly uses the `tmp_path` for all file I/O, especially for reading and writing `prd.json`.
+*   The seed `prd.json` must be valid and contain at least one story in a 'pending' state.
+
