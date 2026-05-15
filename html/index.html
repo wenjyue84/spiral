@@ -5,8 +5,109 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SPIRAL — Dashboard</title>
 <link rel="stylesheet" href="assets/css/custom.css">
-<script src="assets/js/data.js"></script>
+<script src="data.js"></script>
 <script src="assets/js/nav.js"></script>
+<style>
+  .hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 3rem 2rem;
+    border-radius: 8px;
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  .hero h2 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem 0;
+  }
+  .hero p {
+    font-size: 1.1rem;
+    margin: 0 0 1.5rem 0;
+    opacity: 0.95;
+  }
+  .hero-button {
+    background: white;
+    color: #667eea;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .hero-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  }
+
+  .progress-strip {
+    display: flex;
+    gap: 0.5rem;
+    margin: 2rem 0;
+    padding: 1rem;
+    background: #f5f5f5;
+    border-radius: 8px;
+    flex-wrap: wrap;
+  }
+  .progress-step {
+    flex: 1;
+    min-width: 100px;
+    padding: 1rem;
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 500;
+  }
+  .progress-step:hover {
+    border-color: #667eea;
+    background: #f0f4ff;
+  }
+  .progress-step.visited {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+  }
+  .progress-step.active {
+    background: #764ba2;
+    color: white;
+    border-color: #764ba2;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+  }
+  .kpi-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+  .kpi-label {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+  }
+  .kpi-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #667eea;
+  }
+
+  .meta-info {
+    font-size: 0.85rem;
+    color: #999;
+    margin-top: 1rem;
+    text-align: center;
+  }
+</style>
 </head>
 <body>
 <div class="app">
@@ -19,6 +120,35 @@
       </div>
       <button id="themeToggle" class="theme-toggle">Dark mode</button>
     </header>
+
+    <div class="hero">
+      <h2>📚 New to SPIRAL?</h2>
+      <p>Start with a guided reading path through all 9 chapters of documentation.</p>
+      <button class="hero-button" onclick="startReading()">Start Reading</button>
+    </div>
+
+    <h2 class="section-title">Your Reading Progress</h2>
+    <div class="progress-strip" id="progressStrip"></div>
+
+    <h2 class="section-title">Key Metrics</h2>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Phases</div>
+        <div class="kpi-value">12</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">CLI Flags</div>
+        <div class="kpi-value" id="flagCount">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Config Vars</div>
+        <div class="kpi-value" id="configCount">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Stories Passed</div>
+        <div class="kpi-value" id="storiesPassed">—</div>
+      </div>
+    </div>
 
     <h2 class="section-title">Getting Started</h2>
     <div class="row">
@@ -39,13 +169,89 @@
     <h2 class="section-title">Documentation</h2>
     <p>Use the sidebar to navigate through the full documentation set, including CLI reference, configuration options, examples, and troubleshooting guides.</p>
 
+    <div class="meta-info" id="lastUpdated"></div>
+
     <div class="source-footer">
       Source: spiral.sh, README.md, CLAUDE.md
     </div>
   </main>
 </div>
+
 <script>
-renderShell({ page: 'dashboard' });
+// Progress tracking with localStorage
+const PROGRESS_KEY = 'spiral-html-progress';
+const PAGES = [
+  { num: 1, title: '01 Introduction' },
+  { num: 2, title: '02 Quick Start' },
+  { num: 3, title: '03 Architecture' },
+  { num: 4, title: '04 Phase Deep Dive' },
+  { num: 5, title: '05 CLI Reference' },
+  { num: 6, title: '06 Configuration' },
+  { num: 7, title: '07 Examples' },
+  { num: 8, title: '08 Troubleshooting' },
+  { num: 9, title: '09 API Reference' }
+];
+
+function getProgress() {
+  const stored = localStorage.getItem(PROGRESS_KEY);
+  return stored ? JSON.parse(stored) : [];
+}
+
+function saveProgress(visited) {
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify(visited));
+}
+
+function markPageVisited(pageNum) {
+  const visited = getProgress();
+  if (!visited.includes(pageNum)) {
+    visited.push(pageNum);
+    saveProgress(visited);
+  }
+}
+
+function renderProgressStrip() {
+  const strip = document.getElementById('progressStrip');
+  const visited = getProgress();
+
+  strip.innerHTML = PAGES.map(page => {
+    const isVisited = visited.includes(page.num);
+    const className = `progress-step ${isVisited ? 'visited' : ''}`;
+    return `<button class="${className}" onclick="goToPage(${page.num})">${page.num}</button>`;
+  }).join('');
+}
+
+function goToPage(pageNum) {
+  const pageFile = `pages/${String(pageNum).padStart(2, '0')}-${PAGES[pageNum - 1].title.split(' ').slice(1).join('-').toLowerCase()}.html`;
+  markPageVisited(pageNum);
+  renderProgressStrip();
+  window.location.href = pageFile;
+}
+
+function startReading() {
+  goToPage(1);
+}
+
+function loadMetrics() {
+  // Stories passed from generated data.js
+  if (window.SPIRAL_DATA) {
+    document.getElementById('storiesPassed').textContent = window.SPIRAL_DATA.storiesPassed;
+    const lastUpdated = new Date(window.SPIRAL_DATA.lastUpdated);
+    document.getElementById('lastUpdated').textContent =
+      `Last updated: ${lastUpdated.toLocaleDateString()} ${lastUpdated.toLocaleTimeString()}`;
+  }
+
+  // TODO: Parse flag and config counts from HTML pages when available
+  // For now, placeholder values
+  document.getElementById('flagCount').textContent = '—';
+  document.getElementById('configCount').textContent = '—';
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+  renderProgressStrip();
+  loadMetrics();
+  renderShell({ page: 'dashboard' });
+});
 </script>
 </body>
 </html>

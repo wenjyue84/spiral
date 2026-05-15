@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
-import tempfile
 
 import pytest
 
@@ -113,8 +111,23 @@ class TestRecordStory:
 class TestRecordRunEnd:
     def test_aggregates_cost_and_models(self, cl):
         cl.record_run_start("run-e1", "/proj")
-        cl.record_story(run_id="run-e1", project_name="proj", story_id="US-1", model="haiku", status="pass", cache_read_tokens=500000)
-        cl.record_story(run_id="run-e1", project_name="proj", story_id="US-2", model="sonnet", status="fail", failure_type="timeout", cache_read_tokens=100000)
+        cl.record_story(
+            run_id="run-e1",
+            project_name="proj",
+            story_id="US-1",
+            model="haiku",
+            status="pass",
+            cache_read_tokens=500000,
+        )
+        cl.record_story(
+            run_id="run-e1",
+            project_name="proj",
+            story_id="US-2",
+            model="sonnet",
+            status="fail",
+            failure_type="timeout",
+            cache_read_tokens=100000,
+        )
 
         cl.record_run_end(
             run_id="run-e1",

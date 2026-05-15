@@ -1226,3 +1226,38 @@ This user story is for creating an HTML documentation page, not a Frappe/Python 
 - Details elements integrate with collapsible-head and collapsible-body CSS classes
 - Dropdown event listener uses target value to find and open details elements
 
+## Iteration 3 - 2026年05月16日  1:50:11
+Completed: Fill html/pages/04-phase-deep-dive.html — every phase explained with inputs and outputs (ID: US-1347) in 5m
+
+
+## Pre-analysis for US-1353 (Gemini 2.5 Pro)
+### Technical Brief for US-1353: HTML Dashboard
+
+**Analysis:** This user story is for a static HTML/JavaScript dashboard, not a Frappe application. There are no Frappe DocTypes or hooks involved. The implementation requires creating a Python build script and a corresponding HTML page with client-side JavaScript.
+
+**1. Files to Create/Modify:**
+*   **`lib/gen_html_data.py` (New File):** A Python script to read `prd.json`, process data, and generate `html/data.js`.
+*   **`html/index.html` (Modify):** The main dashboard page. Will require significant HTML structure, CSS, and client-side JavaScript.
+*   **`html/data.js` (Generated):** This file is an output of the Python script, not manually edited.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is not a Frappe-based feature.
+
+**3. Recommended Implementation Approach:**
+*   **`lib/gen_html_data.py`:**
+    *   Use the `json` module to load `prd.json`.
+    *   Count items where `"passes": true`.
+    *   Use the `datetime` module to get the current timestamp.
+    *   Write a string to `html/data.js` in the format `window.SPIRAL_DATA = { "storiesPassed": X, "lastUpdated": "YYYY-MM-DDTHH:MM:SSZ" };`.
+*   **`html/index.html`:**
+    *   Use vanilla JavaScript and a `<script>` tag within the body.
+    *   On `DOMContentLoaded`, use `fetch()` to get `05-cli-reference.html` and `06-configuration.html`. Use `DOMParser` to parse the text response and `querySelectorAll` to count the table rows for the KPI cards.
+    *   Read `window.SPIRAL_DATA` (from the generated `data.js`) to populate the "Stories Passed" KPI and "Last updated" timestamp.
+    *   Use `localStorage.getItem('spiral-html-progress')` on load to render the progress bar's completed state.
+    *   Add click listeners to navigation links that call `localStorage.setItem()` to save progress.
+
+**4. Edge Cases & Gotchas:**
+*   The HTML parsing for KPI counts is brittle and will break if the source table structures in `05-*.html` or `06-*.html` change.
+*   The Python script needs robust error handling for a missing or malformed `prd.json`.
+*   The `lib/gen_html_data.py` script must be integrated into the project's build process to ensure `data.js` is fresh.
+*   The dashboard should handle `localStorage` being unavailable or disabled in the user's browser without crashing.

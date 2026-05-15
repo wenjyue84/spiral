@@ -386,10 +386,7 @@ def format_table_output(
     lines = [
         "Per-Story Cost Breakdown (sorted by descending cost):",
         "",
-        (
-            f"{'ID':<12} {'Complexity':<12} {'Tokens':<10} "
-            f"{'Cost(H/S/O)':<20} {'Esc%':<6} {'Model':<8} {'Total':<10}"
-        ),
+        (f"{'ID':<12} {'Complexity':<12} {'Tokens':<10} {'Cost(H/S/O)':<20} {'Esc%':<6} {'Model':<8} {'Total':<10}"),
         "-" * 91,
     ]
 

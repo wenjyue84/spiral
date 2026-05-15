@@ -84,7 +84,9 @@ def cmd_summary(args: argparse.Namespace) -> None:
     print(_c("SPIRAL Central Log Summary", "bold"))
     print(f"  Runs:      {data['total_runs']}")
     print(f"  Projects:  {data['projects']}")
-    print(f"  Stories:   {data['total_attempted']} attempted, {data['total_passed']} passed, {data['total_failed']} failed")
+    print(
+        f"  Stories:   {data['total_attempted']} attempted, {data['total_passed']} passed, {data['total_failed']} failed"
+    )
     if data["total_attempted"] > 0:
         rate = data["total_passed"] / data["total_attempted"] * 100
         colour = "green" if rate >= 70 else "yellow" if rate >= 50 else "red"
@@ -158,7 +160,9 @@ def cmd_models(args: argparse.Namespace) -> None:
         print(json.dumps(data, indent=2))
         return
 
-    print(_c(f"{'Model':<10} {'Complexity':<12} {'Attempts':>8} {'Pass%':>6} {'Avg $/story':>12} {'Avg sec':>8}", "bold"))
+    print(
+        _c(f"{'Model':<10} {'Complexity':<12} {'Attempts':>8} {'Pass%':>6} {'Avg $/story':>12} {'Avg sec':>8}", "bold")
+    )
     print("-" * 60)
     for r in data:
         rate = (r["passes"] / r["attempts"] * 100) if r["attempts"] > 0 else 0
@@ -249,7 +253,14 @@ def cmd_velocity(args: argparse.Namespace) -> None:
     for r in rows:
         hours = r["total_sec"] / 3600 if r["total_sec"] > 0 else 0
         velocity = r["passed"] / hours if hours > 0 else 0
-        data.append({"project_name": r["project_name"], "passed": r["passed"], "hours": round(hours, 1), "stories_per_hour": round(velocity, 2)})
+        data.append(
+            {
+                "project_name": r["project_name"],
+                "passed": r["passed"],
+                "hours": round(hours, 1),
+                "stories_per_hour": round(velocity, 2),
+            }
+        )
 
     if getattr(args, "json", False):
         print(json.dumps(data, indent=2))
@@ -298,6 +309,7 @@ def cmd_runs(args: argparse.Namespace) -> None:
 
 
 # ── Public dispatch (called from main.py) ────────────────────────────────────
+
 
 def cmd_central_log(args: argparse.Namespace) -> None:
     """Dispatch central-log subcommands."""

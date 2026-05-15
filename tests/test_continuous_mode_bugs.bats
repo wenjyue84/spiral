@@ -49,7 +49,7 @@ teardown() {
 
   # Call with empty phase arg — should return 1 (not done), NOT crash
   run checkpoint_phase_done ""
-  assert_failure  # return 1 = phase not done
+  assert_failure # return 1 = phase not done
   # Must not contain "bad array subscript"
   refute_output --partial "bad array subscript"
 }
