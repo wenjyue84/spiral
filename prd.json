@@ -2865,7 +2865,8 @@
         "html"
       ],
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1346",
@@ -3114,7 +3115,7 @@
         "html",
         "newcomer-friendly"
       ],
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     }
   ]
