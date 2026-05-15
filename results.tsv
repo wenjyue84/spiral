@@ -183,3 +183,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-15T18:10:15Z	5	1	US-1320	CLI: Add `spiral cost-estimate` with model escalation breakdown and budget projection	keep	441	haiku	0	27b14f963638a1278dcc5a74cb36a2bf912d935e	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-15T18:17:52Z	5	2	US-1322	[Regression Test] e2e SPIRAL loop: phase order and final prd.json state	keep	435	haiku	0	bf74dc54812a79158d8e6e18adbae5b56ea9c6ab	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-15T18:33:14Z	6	1	US-1323	spiral-ui: Add Tests Coverage Tab with file-level heatmap visualization	keep	263	haiku	0	73a03a561aed0bd5f68b5d6039c4e3d8ac556fb9	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-15T18:40:46Z	6	2	US-1327	Create lib/federation_graph.py with DAG builder and cycle detector	keep	418	haiku	0	bf04086de1a2d382c27cbc64947e5b561c0a252c	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0

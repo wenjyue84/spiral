@@ -3,8 +3,12 @@
   "prd.include": ["../project-b/prd.json"],
   "userStories": [
     {
-      "id": "A-001",
+      "id": "US-001",
       "title": "Project A Story 1"
+    },
+    {
+      "id": "A-001",
+      "title": "Project A Story 2"
     }
   ]
 }

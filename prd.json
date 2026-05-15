@@ -2460,7 +2460,8 @@
       "last_attempted": "2026-05-15T18:33:16Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe Spiral repository has a federated PRD system with `prd.include` field for loading sub-project PRDs. I can see `federated_search.py` already implements recursive prd.include resolution with cycle detection using a visited set. Now I need to build a core library for DAG creation and cycle detection.\n\n## Problem Identified\n\nStory US-1327 requires a foundational `lib/federation_graph.py` module that:\n1. Builds a directed acyclic graph (DAG) from prd.include relationships\n2. Detects cycles in the dependency graph\n3. Serves as the core library for story federation validation tests\n\nCurrently, these utilities don't exist as a standalone module that the test suite can depend on.\n\n## Planned Changes\n\n- **Create:** `lib/federation_graph.py` with `build_dag()`, `detect_cycles()`, and `_resolve_includes()` helper\n- **Create:** Test fixture files under `tests/fixtures/multi-project-prd/` (project-a, project-b, project-c with cycle A→B→C→A)\n- **Create:** `tests/test_federation_graph.py` with comprehensive tests covering all acceptance criteria\n\n<plan>\n{\n  \"files_to_create\": [\n    \"lib/federation_graph.py\",\n    \"tests/test_federation_graph.py\",\n    \"tests/fixtures/multi-project-prd/project-a/prd.json\",\n    \"tests/fixtures/multi-project-prd/project-b/prd.json\",\n    \"tests/fixtures/multi-project-prd/project-c/prd.json\"\n  ],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\n    \"build_dag\",\n    \"detect_cycles\",\n    \"_resolve_includes\"\n  ],\n  \"estimated_loc\": 165\n}\n</plan>\n\nNow let me implement the solution:\n## ✅ Story US-1327 Complete"
-      }
+      },
+      "_passedCommit": "bf04086de1a2d382c27cbc64947e5b561c0a252c"
     },
     {
       "id": "US-1328",
@@ -2479,8 +2480,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-05-15T18:40:49Z"
     },
     {
       "id": "US-1329",
