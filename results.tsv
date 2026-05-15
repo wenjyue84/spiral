@@ -178,3 +178,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-04-27T08:18:36Z	40	2	US-1318	Regression Test: worker crash respawn completes pending stories (US-1211b)	keep	255	haiku	0	3f6c650d0960911ffce5cc1697f75ce0b8879a51	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-04-27T08:26:47Z	40	3	US-1319	Regression Test: prd.include merges stories with namespace prefixes (US-1212a)	keep	456	haiku	0	248acfda42ba2e37f78c67663efb575dab827dc0	69ee3eb8122e	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-15T17:40:32Z	3	1	US-1345	Fill html/pages/02-quick-start.html — copy-pasteable first run in under 5 minutes	keep	372	haiku	0	b636d140b999e55ddd8ec8a6dec99f873dc30056	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-15T17:44:47Z	3	2	US-1346	Fill html/pages/03-architecture.html — high-level system diagram	keep	224	haiku	0	ad2afd88ba9f266bd42b19ff5589fbb3828a62b8	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0				

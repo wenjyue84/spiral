@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase Deep Dive</title>
+<link rel="stylesheet" href="../assets/css/custom.css">
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/nav.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="sidebar"></aside>
+  <main class="main">
+    <header class="page-head">
+      <div>
+        <h1>Phase Deep Dive</h1>
+        <div class="sub">Every phase explained with inputs, outputs, and configuration</div>
+      </div>
+      <button id="themeToggle" class="theme-toggle">Dark mode</button>
+    </header>
+
+    <div style="margin-bottom: 1.5rem;">
+      <label for="phaseJump" style="font-weight: 600; margin-right: 0.5rem;">Jump to phase:</label>
+      <select id="phaseJump" style="padding: 0.35rem 0.5rem; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer;">
+        <option value="">Select a phase...</option>
+        <option value="phase-0">Phase 0 — CLARIFY</option>
+        <option value="phase-a">Phase A — AI SUGGEST</option>
+        <option value="phase-r">Phase R — RESEARCH</option>
+        <option value="phase-t">Phase T — TEST SYNTH</option>
+        <option value="phase-s">Phase S — STORY VALID</option>
+        <option value="phase-e">Phase E — ENRICHMENT</option>
+        <option value="phase-m">Phase M — MERGE</option>
+        <option value="phase-x">Phase X — CONTEXT BUILD</option>
+        <option value="phase-i">Phase I — IMPLEMENT</option>
+        <option value="phase-v">Phase V — VALIDATE</option>
+        <option value="phase-c">Phase C — CHECK DONE</option>
+        <option value="phase-l">Phase L — LEARNING</option>
+      </select>
+    </div>
+
+    <!-- Phase 0: CLARIFY -->
+    <details class="collapsible" id="phase-0">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase 0 — CLARIFY</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Startup only, interactive session</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>One-time interactive session that runs before the main loop begins. Establishes the project's constitution (non-negotiable rules), sets the session focus theme, clarifies scope via 3 targeted questions, collects initial story seeds, and configures session options (time limit, worker count).</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li><code>prd.json</code> — Product requirements document to extract goals and epics</li>
+          <li>User interaction — Interactive prompts for constitution review, focus definition, clarifying questions, story seeds</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li><code>.spiral/_clarify_output.json</code> — Audit log of session setup: constitution path, focus, time limit</li>
+          <li><code>.spiral/_phase_0_done</code> — Marker file so resume skips Phase 0</li>
+          <li>Environment variables exported: <code>SPIRAL_FOCUS</code>, <code>TIME_LIMIT_MINS</code>, <code>SPIRAL_SPECKIT_CONSTITUTION</code></li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_FOCUS">SPIRAL_FOCUS</a> — Session theme/context string set during Clarify phase</li>
+          <li><a href="../pages/06-configuration.html#config-TIME_LIMIT_MINS">TIME_LIMIT_MINS</a> — Maximum iteration duration in minutes (0 = unlimited)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_SPECKIT_CONSTITUTION">SPIRAL_SPECKIT_CONSTITUTION</a> — Path to constitution.md file</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_0_clarify.sh</code></p>
+      </div>
+    </details>
+
+    <!-- Phase A: AI SUGGEST -->
+    <details class="collapsible" id="phase-a">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase A — AI SUGGEST</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Per-iteration story candidates</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Generate AI-suggested story candidates by analyzing gaps in the PRD (missing user stories, incomplete epics) and scanning for test stories that could improve test coverage. Stories are marked with <code>_source: "ai-example"</code> for later prioritization.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li><code>prd.json</code> — Current PRD with goals, epics, and existing stories</li>
+          <li><code>results.tsv</code> (optional) — Historical attempt data to identify patterns</li>
+          <li>Test files (optional) — Scan for untested code paths</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li>New story candidates with <code>_source: "ai-example"</code>, <code>estimatedComplexity</code>, and <code>description</code></li>
+          <li>Stories queued for Phase R research, Phase S validation, and Phase E enrichment</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_MAX_PENDING">SPIRAL_MAX_PENDING</a> — Maximum pending stories to hold before merge (default 20)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_STORY_BATCH_SIZE">SPIRAL_STORY_BATCH_SIZE</a> — Stories to generate per iteration (default 5)</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_a_ai_suggest.sh</code></p>
+      </div>
+    </details>
+
+    <!-- Phase R: RESEARCH -->
+    <details class="collapsible" id="phase-r">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase R — RESEARCH</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Web search + synthesis (parallel with T)</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Conduct federated web research via Gemini on high-level PRD gaps (missing features, architectural questions, security requirements). Claude then synthesizes findings into story descriptions. Runs in parallel with Phase T for efficiency.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li>PRD gaps and epic descriptions</li>
+          <li>Search queries derived from missing features and stakeholder feedback</li>
+          <li><code>.spiral/research_cache.jsonl</code> (optional) — Cached results to avoid re-searching</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li>Research story candidates with <code>_source: "research"</code>, <code>description</code>, and <code>_enrichment.research_source</code></li>
+          <li>Updated <code>.spiral/research_cache.jsonl</code> with TTL-based caching</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_RESEARCH_ENABLED">SPIRAL_RESEARCH_ENABLED</a> — Enable/disable research phase (default true)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_RESEARCH_CACHE_TTL">SPIRAL_RESEARCH_CACHE_TTL</a> — Cache time-to-live in hours (default 24)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_CONTEXT_BUDGET_TOKENS">SPIRAL_CONTEXT_BUDGET_TOKENS</a> — Token limit for research synthesis (default 180000)</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_r_research.sh</code> / <code>lib/phases/phase_r.py</code></p>
+      </div>
+    </details>
+
+    <!-- Phase T: TEST SYNTH -->
+    <details class="collapsible" id="phase-t">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase T — TEST SYNTH</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Test failure regression analysis (parallel with R)</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Scan test-reports/ for failing tests, analyze root causes, and synthesize regression story candidates to fix each failure. Highest priority source — test-fix stories are merged before research or ai-example stories.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li><code>test-reports/</code> — JSON/XML test result files from last validation</li>
+          <li>Code being tested — For context on what failed</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li>Regression story candidates with <code>_source: "test-fix"</code> and root-cause analysis</li>
+          <li>High priority — merged before research or ai-example stories</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_VALIDATE_CMD">SPIRAL_VALIDATE_CMD</a> — Test command to run (e.g., <code>uv run pytest tests/ -v</code>)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_TEST_BASELINE_CMD">SPIRAL_TEST_BASELINE_CMD</a> — Baseline performance threshold command</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_t_test_synth.sh</code></p>
+      </div>
+    </details>
+
+    <!-- Phase S: STORY VALID -->
+    <details class="collapsible" id="phase-s">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase S — STORY VALID</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Validation & deduplication</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Validate stories from Phases A/R/T against the project constitution, goal alignment, and deduplication rules. Duplicate stories are merged, and invalid stories are rejected. Output is a set of validated stories ready for enrichment.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li>Story candidates from Phase A (ai-example), Phase R (research), Phase T (test-fix)</li>
+          <li><code>constitution.md</code> — Non-negotiable rules for acceptance</li>
+          <li><code>prd.json</code> goals — For alignment checking</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li><code>.spiral/_validated_stories.json</code> — Deduplicated, validated stories</li>
+          <li>Rejection reasons logged for failed stories</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_SPECKIT_CONSTITUTION">SPIRAL_SPECKIT_CONSTITUTION</a> — Path to constitution.md</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_DEDUP_CONFIDENCE_THRESHOLD">SPIRAL_DEDUP_CONFIDENCE_THRESHOLD</a> — Similarity threshold for dedup (default 0.75)</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_s_story_validate.sh</code></p>
+      </div>
+    </details>
+
+    <!-- Phase E: ENRICHMENT -->
+    <details class="collapsible" id="phase-e">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase E — ENRICHMENT</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Populate hints & context</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Populate each validated story with enrichment hints: similar passed stories as references, recommended implementation strategies, historical pass rates for model selection, and expected complexity. Prepares stories for efficient implementation.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li><code>.spiral/_validated_stories.json</code> — Validated stories from Phase S</li>
+          <li><code>results.tsv</code> — Historical attempt data for pattern matching</li>
+          <li><code>prd.json</code> — Full story history for reference solutions</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li>Enriched stories with <code>_hints</code>, <code>_enrichment</code>, <code>_reference_implementations</code>, and <code>_antiPatterns</code> fields</li>
+          <li>Ready for efficient Phase I implementation</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_ENRICHMENT_ENABLED">SPIRAL_ENRICHMENT_ENABLED</a> — Enable enrichment (default true)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_REFERENCE_IMPLEMENTATION_COUNT">SPIRAL_REFERENCE_IMPLEMENTATION_COUNT</a> — Number of similar solutions to include (default 3)</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_e_enrich.sh</code></p>
+      </div>
+    </details>
+
+    <!-- Phase M: MERGE -->
+    <details class="collapsible" id="phase-m">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase M — MERGE</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Update prd.json atomically</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Merge enriched stories into prd.json following strict priority order: test-fix &gt; research &gt; ai-example. Respects <code>SPIRAL_MAX_PENDING</code> cap to prevent queue growth. Each merge is logged with timestamp and source for traceability.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li>Enriched stories from Phase E (organized by priority: test-fix, research, ai-example)</li>
+          <li><code>prd.json</code> — Current state to patch</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li>Updated <code>prd.json</code> with merged stories, atomic write via temporary file</li>
+          <li><code>.spiral/_merge_log.jsonl</code> — Audit trail of each merge operation</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_MAX_PENDING">SPIRAL_MAX_PENDING</a> — Story cap before merge pauses (default 20)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_MERGE_STRATEGY">SPIRAL_MERGE_STRATEGY</a> — Merge ordering: priority-first (default) or round-robin</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_m_merge.sh</code></p>
+      </div>
+    </details>
+
+    <!-- Phase X: CONTEXT BUILD -->
+    <details class="collapsible" id="phase-x">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase X — CONTEXT BUILD</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Dependency inference (optional)</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Build a dependency graph from story <code>dependencies</code> fields and construct symbol maps from code being changed. Prepares context for Ralph workers to make informed implementation decisions. Optional optimization phase.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li><code>prd.json</code> — Updated story list with dependencies and filesTouch arrays</li>
+          <li>Source code — For symbol extraction and type inference</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li><code>.spiral/context_map.jsonl</code> — Story ID → symbol map, dependency chains</li>
+          <li>Ready-to-use context for Phase I workers</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_CONTEXT_BUILD_ENABLED">SPIRAL_CONTEXT_BUILD_ENABLED</a> — Enable context build (default true)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_REPO_MAP">SPIRAL_REPO_MAP</a> — Pre-computed symbol map (optional, skips Phase X if provided)</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_x_contextbuild.sh</code></p>
+      </div>
+    </details>
+
+    <!-- Phase I: IMPLEMENT -->
+    <details class="collapsible" id="phase-i">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase I — IMPLEMENT</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Parallel story execution</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Ralph worker processes execute stories in parallel using isolated git worktrees. Each worker calls Claude CLI with the story spec, commits results, and reports to results.tsv. Failure-aware retry: syntax errors same model + hint, context overflow → decompose, timeouts → escalate.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li><code>prd.json</code> (sliced) — Each worker gets a PRD slice with 1-3 pending stories</li>
+          <li>Context from Phase X (optional) — Symbol maps, dependency info</li>
+          <li><code>ralph/CLAUDE.md</code> — Agent prompt for Claude CLI</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li><code>results.tsv</code> — One row per story attempt: model, status, tokens, cost, duration, error_type</li>
+          <li>Git commits on per-worker branches (merged back to main in Phase P)</li>
+          <li><code>.spiral/worker_crashes.jsonl</code> (optional) — Crash logs if workers fail</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_MODEL_ROUTING">SPIRAL_MODEL_ROUTING</a> — Model selection: auto (haiku→sonnet→opus), fixed, or historical (default auto)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_WORKER_POOL">SPIRAL_WORKER_POOL</a> — Enable worker pooling (default true)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_VALIDATE_CMD">SPIRAL_VALIDATE_CMD</a> — Quality check command (defaults to pytest)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_CONTEXT_WINDOW_MARGIN">SPIRAL_CONTEXT_WINDOW_MARGIN</a> — Safety margin for context overflow (default 0.85)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_DECOMPOSE_THRESHOLD">SPIRAL_DECOMPOSE_THRESHOLD</a> — Files per story before auto-decompose (default 3)</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_i_implement.sh</code> / <code>ralph/ralph.sh</code></p>
+      </div>
+    </details>
+
+    <!-- Phase V: VALIDATE -->
+    <details class="collapsible" id="phase-v">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase V — VALIDATE</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Quality gates & test ratchet</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Run the full test suite and quality gates: pytest coverage (minimum 48%), security scan (gitleaks), performance baseline, and test ratchet (never decrease passing tests). Stories that fail gates are reverted and retried in Phase I.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li>Git commits from Phase I workers</li>
+          <li><code>results.tsv</code> — Story outcome data</li>
+          <li><code>.spiral/test_baseline.txt</code> (optional) — Previous passing test count</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li><code>.spiral/validation_report.json</code> — Pass/fail for each gate with details</li>
+          <li>Updated <code>.spiral/test_baseline.txt</code> — Current passing test count</li>
+          <li>Reverted commits for failed stories (stored for retry analysis)</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_VALIDATE_CMD">SPIRAL_VALIDATE_CMD</a> — Test command (default: <code>uv run pytest tests/ -v --tb=short -n 6</code>)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_VALIDATE_TIMEOUT">SPIRAL_VALIDATE_TIMEOUT</a> — Test execution timeout in seconds (default 600)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_TEST_BASELINE_CMD">SPIRAL_TEST_BASELINE_CMD</a> — Baseline performance check</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_SECURITY_SCAN_ENABLED">SPIRAL_SECURITY_SCAN_ENABLED</a> — Run gitleaks scan (default true)</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_v_validate.sh</code> / <code>lib/phases/phase_v.py</code></p>
+      </div>
+    </details>
+
+    <!-- Phase C: CHECK DONE -->
+    <details class="collapsible" id="phase-c">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase C — CHECK DONE</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Completion assessment</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Assess loop completion: count passed vs pending stories, check cost ceiling and time limits, generate summary report. Exit if all stories pass or limits hit; else loop back to Phase A for next iteration.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li><code>prd.json</code> — Current state with story status (passes: true/false)</li>
+          <li><code>results.tsv</code> — Accumulated cost and attempt data</li>
+          <li>Time elapsed since start</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li><code>.spiral/completion_report.json</code> — Pass count, fail count, pending count, total cost, reason for exit</li>
+          <li>Exit decision: continue loop (Phase A) or exit gracefully</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_COST_CEILING">SPIRAL_COST_CEILING</a> — Maximum USD cost per run (default unlimited)</li>
+          <li><a href="../pages/06-configuration.html#config-TIME_LIMIT_MINS">TIME_LIMIT_MINS</a> — Maximum duration in minutes (0 = unlimited)</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_c_check_done.sh</code></p>
+      </div>
+    </details>
+
+    <!-- Phase L: LEARNING -->
+    <details class="collapsible" id="phase-l">
+      <summary class="collapsible-head" style="cursor: pointer;">
+        <strong>Phase L — LEARNING</strong>
+        <span style="font-size: 0.85rem; color: var(--muted);">Episodic memory extraction</span>
+      </summary>
+      <div class="collapsible-body">
+        <h3 style="margin-top: 0;">Summary</h3>
+        <p>Extract patterns and success/failure modes from results.tsv and git history. Learn which story types (complexity, source, model) have highest success rates. Store episodic memory for future iterations to make better model routing and decomposition decisions.</p>
+
+        <h3>Inputs</h3>
+        <ul>
+          <li><code>results.tsv</code> — Complete attempt history: model, status, complexity, source</li>
+          <li><code>prd.json</code> — Story metadata and dependency info</li>
+          <li>Git log — For context on implementation patterns</li>
+        </ul>
+
+        <h3>Outputs</h3>
+        <ul>
+          <li><code>.spiral/episodic_memory.jsonl</code> — Pattern records: story similarity, success rate by complexity/model, anti-patterns</li>
+          <li><code>learning.md</code> — Human-readable summary of insights</li>
+        </ul>
+
+        <h3>Configuration Variables</h3>
+        <ul>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_EPISODIC_MEMORY">SPIRAL_EPISODIC_MEMORY</a> — Enable memory extraction (default true)</li>
+          <li><a href="../pages/06-configuration.html#config-SPIRAL_LEARNING_MIN_SAMPLES">SPIRAL_LEARNING_MIN_SAMPLES</a> — Minimum attempts before pattern learned (default 3)</li>
+        </ul>
+
+        <h3>Implementing File</h3>
+        <p><code>lib/phases/phase_l_learn.sh</code></p>
+      </div>
+    </details>
+
+    <div class="source-footer">
+      <p>Phase documentation generated from CLAUDE.md, spiral.config.sh, and lib/phases/. For detailed implementation, see the corresponding phase files.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// Dropdown navigation to jump to phases
+document.getElementById('phaseJump').addEventListener('change', function() {
+  const phaseId = this.value;
+  if (phaseId) {
+    const element = document.getElementById(phaseId);
+    if (element) {
+      // Expand the details element if it's a details tag
+      if (element.tagName === 'DETAILS') {
+        element.open = true;
+      }
+      // Scroll to the element
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Reset dropdown after selection
+      this.value = '';
+    }
+  }
+});
+
+// Expand/collapse behavior for details elements
+document.querySelectorAll('.collapsible').forEach(details => {
+  const summary = details.querySelector('.collapsible-head');
+  if (summary) {
+    summary.addEventListener('click', (e) => {
+      e.preventDefault();
+      details.open = !details.open;
+    });
+  }
+});
+</script>
+</body>
+</html>

@@ -2716,7 +2716,8 @@
       "last_attempted": "2026-05-15T17:40:34Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe file `html/pages/03-architecture.html` exists with textual descriptions of SPIRAL's components and phase loop, but lacks the required Mermaid diagram and sortable component table specified in the acceptance criteria.\n\n## Problem Identified\nThe story requires:\n1. A single Mermaid graph TD diagram showing all 6 components (spiral.sh, ralph/ralph.sh, lib/run_parallel_ralph.sh, prd.json, spiral-ui, .spiral-workers/) with arrows showing data flow\n2. A sortable table with columns Name / Role / Path / Language\n3. All relative paths must resolve correctly\n4. No console errors in Chrome DevTools\n\n## Planned Changes\n- Add Mermaid.js script and diagram section showing component relationships and data flow\n- Add simple-datatables library and create a sortable component table with proper relative links\n- Update the page structure to include both diagram and table sections\n- Ensure all relative paths (e.g., `../../../spiral.sh`) are correct for the html/pages/ location\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"html/pages/03-architecture.html\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow I'll implement the required changes:\nNow let me verify the file was updated correctly:\nLet me verify the dependencies are met:\nNow let me commit the changes:\nLet me start a simple HTTP server to test the page rendering:\nNow let me open the page in Chrome and verify it renders correctly:\nLet me take a screenshot to see what's currently on screen:\nLet me click on Chrome in the taskbar to open it:\nLet me use a different approach and check the HTML syntax directly:\nPerfect! All the critical paths exist. Now let me update prd.json to mark this story as passed:\nLet me verify the HTML is well-formed:\nLet me kill the HTTP server:\nPerfect! Let me verify the final commit status:\nNow let me update progress.txt with the completion summary:\nLet me verify the story is now marked as passed:\nPerfect! Story **US-1346** has been successfully implemented. Here's a summary:\n\n## Summary"
-      }
+      },
+      "_passedCommit": "ad2afd88ba9f266bd42b19ff5589fbb3828a62b8"
     },
     {
       "id": "US-1347",
@@ -2744,8 +2745,9 @@
         "docs",
         "html"
       ],
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-05-15T17:44:49Z"
     },
     {
       "id": "US-1353",
