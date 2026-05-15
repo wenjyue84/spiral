@@ -1,3 +1,42 @@
+## Iteration N - Story: US-1328 - Add federation validation test suite: include resolution and story ID uniqueness
+
+### What was implemented
+- Created `tests/test_federation_validation.py` with three validation test cases:
+  - `test_all_includes_resolve()`: Validates all prd.include paths resolve without FileNotFoundError
+  - `test_circular_dependency_detection()`: Verifies circular dependency (A→B→C→A) detection reports all 3 node paths
+  - `test_story_id_uniqueness()`: Detects duplicate US-001 story ID across project-a and project-b
+
+- Updated test fixtures to support story ID uniqueness testing:
+  - Modified tests/fixtures/multi-project-prd/project-a/prd.json: Added duplicate US-001 story ID
+  - Modified tests/fixtures/multi-project-prd/project-b/prd.json: Added duplicate US-001 story ID
+
+- Implemented helper function `_collect_story_ids_from_dag()`:
+  - Traverses DAG graph from build_dag()
+  - Collects all story IDs from all PRD files
+  - Returns dict mapping story_id → list of file locations where it appears
+
+### Test execution
+- All 3 federation validation tests pass (100% success rate)
+- All 10 federation graph tests still pass (no regressions)
+- mypy --strict: no type errors
+- ruff check: all linting checks pass
+- ruff format: code properly formatted
+
+### Patterns discovered
+- Story ID uniqueness checking requires traversing the entire DAG and collecting story IDs from all prd.json files
+- Helper function pattern for collecting data from DAG is reusable for other analyses
+- Type annotations with `dict[str, object]` and conditional `isinstance()` checks are needed for JSON parsing
+
+### Acceptance criteria met
+- [x] AC1: test_all_includes_resolve passes when all prd.include paths point to existing files
+- [x] AC2: test_circular_dependency_detection detects A→B→C→A cycle and reports all 3 node paths
+- [x] AC3: test_story_id_uniqueness detects duplicate US-001 in project-a and project-b
+
+### Verified end-to-end
+- `uv run pytest tests/test_federation_validation.py -v` exits 0 with all 3 tests passing
+- prd.json marked US-1328 as passes: true
+- Git commit 0afe1893 with proper message including Story ID and acceptance criteria
+
 ## Iteration N - Story: US-1322 - [Regression Test] e2e SPIRAL loop: phase order and final prd.json state
 
 ### What was implemented
