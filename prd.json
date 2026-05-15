@@ -2681,7 +2681,8 @@
       "last_attempted": "2026-05-15T17:33:57Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe html/ documentation folder structure doesn't exist yet, even though US-1343 (bootstrap) is marked as passed. The user story US-1345 requires a fully populated `html/pages/02-quick-start.html` file that is part of a navigation-aware documentation site.\n\n## Problem Identified\n\nUS-1345 requires:\n1. A quick-start guide at `html/pages/02-quick-start.html`\n2. The page must have 3 numbered, copy-pasteable code steps\n3. An Expected Output section showing successful first run\n4. A Common Gotchas collapsible block with 4+ issues\n5. Navigation links to 01-introduction.html and 03-architecture.html\n6. The page must use a shared navigation framework (nav.js)\n\nWithout the html/ scaffold from US-1343, I need to create the minimum bootstrap structure plus the complete 02-quick-start.html content.\n\n## Planned Changes\n\n1. **html/index.html** — Dashboard entry point with project navigation\n2. **html/assets/css/custom.css** — Styled CSS from html-report template (copy)\n3. **html/assets/js/nav.js** — Navigation sidebar and dark mode toggle (Spiral-specific)\n4. **html/assets/js/data.js** — Project data object for nav.js to reference\n5. **html/pages/01-introduction.html** — Stub page with back/forward navigation\n6. **html/pages/02-quick-start.html** — **Full implementation** with:\n   - 3 numbered steps with copy-to-clipboard buttons\n   - Expected Output section\n   - Common Gotchas collapsible details\n   - Back/forward navigation\n7. **html/pages/03-architecture.html** — Stub page with navigation\nNow I'll create all the necessary files. Let me start with the HTML files and supporting assets:\nNow let me verify the HTML structure is complete and check the created files:\nLet me verify the quick-start.html has all acceptance criteria by checking the key sections:\nNow let me verify the HTML syntax is correct by checking for any parsing issues:\nPerfect! Now let me check the key content of the quick-start page to verify it meets all acceptance criteria:\nPerfect! All files are created and the acceptance criteria are met. Let me test by opening the quick-start page in a browser to verify the functionality:\nNow let me update prd.json to mark US-1345 as passed:\nNow let me commit the changes:\nLet me check the dependencies for US-1345:\nThe issue is with US-1353 which references non-existent stories. Let me fix this:\nNow let me commit the changes again:\nPerfect! Let me verify the final state:\nExcellent! Let me create a final summary of what was implemented:\n\n## Summary"
-      }
+      },
+      "_passedCommit": "b636d140b999e55ddd8ec8a6dec99f873dc30056"
     },
     {
       "id": "US-1346",
@@ -2710,8 +2711,9 @@
         "docs",
         "html"
       ],
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-05-15T17:40:34Z"
     },
     {
       "id": "US-1347",
