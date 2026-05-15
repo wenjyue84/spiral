@@ -1,0 +1,8 @@
+[plugin]
+name = "central-log"
+version = "1.0.0"
+description = "Aggregates per-story and per-run metrics into ~/.spiral/central.db"
+hooks = ["post-story", "run-completion"]
+tags = ["telemetry", "analytics", "sqlite"]
+inputs = ["story_id", "story_title", "status", "iteration"]
+outputs = []

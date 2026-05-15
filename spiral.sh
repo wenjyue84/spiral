@@ -1283,6 +1283,10 @@ fi
 
 SESSION_START=$(date +%s)
 
+# ── Central log: record run start ──────────────────────────────────────────────
+"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/central_log.py" record-run-start \
+  --run-id "$SPIRAL_RUN_ID" --project-path "$REPO_ROOT" 2>/dev/null || true
+
 # ── Time limit ────────────────────────────────────────────────────────────────
 SESSION_DEADLINE=0
 if [[ "$TIME_LIMIT_MINS" -gt 0 ]]; then
@@ -1303,9 +1307,14 @@ trap '_spiral_cleanup INT' INT
 trap '_spiral_cleanup TERM' TERM
 
 # SIGCHLD trap: reap zombie worker processes as they exit (US-076)
-# Uses `wait -n` (bash 4.3+) in a loop to drain all available zombies per signal delivery.
-# The `true` at the end suppresses non-zero exit when no children remain.
-trap 'while wait -n 2>/dev/null; do :; done; true' SIGCHLD
+# Uses a function-based handler to avoid inline trap action strings that can
+# cause "unexpected EOF while looking for matching ')'" errors when SIGCHLD
+# fires during command substitution parsing (Git Bash/Windows).
+_reap_zombies() {
+  while wait -n 2>/dev/null; do :; done
+  true
+}
+trap _reap_zombies SIGCHLD
 
 # ── Memory watchdog — background monitor (graduated pressure or kill-only) ────
 if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/dev/null; then
@@ -1388,6 +1397,43 @@ if [[ "${SPIRAL_CONTINUOUS:-false}" == "true" ]]; then
   echo "  [continuous] Continuous mode enabled — SPIRAL will not stop on all-pass"
 fi
 
+# ── Circuit breaker for continuous mode ──────────────────────────────────────
+# If a framework bug (not a story validation failure) crashes a phase script,
+# log it, increment the breaker, and retry the next iteration instead of dying.
+# After SPIRAL_CIRCUIT_BREAKER_LIMIT consecutive framework errors, halt.
+_CIRCUIT_BREAKER_COUNT=0
+_CIRCUIT_BREAKER_LIMIT="${SPIRAL_CIRCUIT_BREAKER_LIMIT:-3}"
+
+# safe_phase: run a phase function, catching framework errors in continuous mode.
+# Usage: safe_phase run_phase_validate || continue
+# In non-continuous mode, this is a transparent passthrough.
+safe_phase() {
+  if [[ "${SPIRAL_CONTINUOUS:-false}" != "true" ]]; then
+    "$@"
+    return $?
+  fi
+  # Continuous mode: temporarily disable errexit so bash-level errors
+  # (bad array subscript, trap parse errors) don't kill the process.
+  local _sp_rc=0
+  set +e
+  "$@"
+  _sp_rc=$?
+  set -e
+  if [[ "$_sp_rc" -ne 0 ]]; then
+    _CIRCUIT_BREAKER_COUNT=$((_CIRCUIT_BREAKER_COUNT + 1))
+    echo ""
+    echo "  [circuit-breaker] Phase '$1' failed with exit code $_sp_rc (${_CIRCUIT_BREAKER_COUNT}/${_CIRCUIT_BREAKER_LIMIT})"
+    log_spiral_event "circuit_breaker" \
+      "\"phase\":\"$1\",\"iteration\":$SPIRAL_ITER,\"exit_code\":$_sp_rc,\"count\":$_CIRCUIT_BREAKER_COUNT,\"limit\":$_CIRCUIT_BREAKER_LIMIT" 2>/dev/null || true
+    if [[ "$_CIRCUIT_BREAKER_COUNT" -ge "$_CIRCUIT_BREAKER_LIMIT" ]]; then
+      echo "  [circuit-breaker] HALTING — $_CIRCUIT_BREAKER_LIMIT consecutive framework errors"
+      spiral_exit E503 "Circuit breaker tripped after $_CIRCUIT_BREAKER_LIMIT consecutive failures"
+    fi
+    echo "  [circuit-breaker] Will retry next iteration..."
+  fi
+  return $_sp_rc
+}
+
 # ── Main SPIRAL loop ────────────────────────────────────────────────────────
 while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   SPIRAL_ITER=$((SPIRAL_ITER + 1))
@@ -1434,6 +1480,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   _PASSES_BEFORE_I=-1   # passed-story count snapshot before Phase I (US-183)
   _PASSES_AFTER_I=-1    # passed-story count snapshot after Phase I (US-183)
   _PHASE_V_SKIPPED=0    # 1 when Phase V is skipped due to no new passes (US-183)
+
   # Phase duration tracking (US-046): reset per-iteration, updated at each phase_end
   _PHASE_DUR_R=0
   _PHASE_DUR_T=0
@@ -1645,9 +1692,9 @@ print(len(completed))
 
   # ── Phase R + T: RESEARCH and TEST SYNTHESIS (parallel) ──────────────────
   # US-182: R and T are independent — launch as background jobs and await both.
-  run_phase_rt_parallel || continue
+  safe_phase run_phase_rt_parallel || continue
 
-  run_phase_s || continue
+  safe_phase run_phase_s || continue
   log_spiral_event "phase_end" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER,\"model\":\"$SPIRAL_VALIDATION_MODEL\""
   run_phase_enrichment
 
@@ -1661,7 +1708,7 @@ print(len(completed))
     --output "$_DEPS_OUTPUT" || true
   [[ -f "$_DEPS_OUTPUT" ]] && echo "  [S+] Dependency resolution complete → $_DEPS_OUTPUT" || true
 
-  run_phase_merge || continue
+  safe_phase run_phase_merge || continue
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"model\":\"$SPIRAL_MERGE_MODEL\""
 
   # ── US-1103: Fast-path skip Phase R/T if no new stories and all pending have retries ──
@@ -1742,7 +1789,7 @@ PYEOF
   fi
   export _TEST_BASELINE_FILE
 
-  run_phase_gate_and_implement || continue
+  safe_phase run_phase_gate_and_implement || continue
 
   # Re-hash core files after Phase I commits (self-referential projects modify lib/*.py)
   if [[ -f "$_CORE_HASH_FILE" ]]; then
@@ -1755,7 +1802,7 @@ PYEOF
     } >"$_CORE_HASH_FILE"
   fi
 
-  run_phase_validate || continue
+  safe_phase run_phase_validate || continue
 
   run_phase_push
 
@@ -1830,6 +1877,9 @@ PYEOF
   elif [[ -f "$_CORE_HASH_FILE" ]]; then
     echo "  [integrity] Skipped (self-referential project — SPIRAL developing itself)"
   fi
+
+  # Iteration completed without framework crash — reset circuit breaker
+  _CIRCUIT_BREAKER_COUNT=0
 
   echo "  [C] Looping back to Phase R"
   echo ""

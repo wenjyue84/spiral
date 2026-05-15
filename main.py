@@ -50,6 +50,7 @@ Subcommands:
   explain-retry           Analyze retry sequence and suggest decomposition for a story (US-728)
   deploy-docs             Deploy CHANGELOG and pdoc outputs to GitHub Pages branch (US-732)
   score-stories-for-validation Score stories 0-100 for validation confidence; writes _validation_confidence (US-1062)
+  central-log             Cross-project telemetry insights from ~/.spiral/central.db
 """
 
 import argparse
@@ -4523,6 +4524,11 @@ def main():
         help="Output format (default: grid)",
     )
 
+    # ── Central log insights (cross-project telemetry) ──────────────────────
+    from lib.cli.central_log_insights import register_subparser as _register_central_log
+
+    cl_parser = _register_central_log(subparsers)
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -4687,6 +4693,10 @@ def main():
         cmd_debug_worker_state(args)
     elif args.command == "timing-report":
         cmd_timing_report(args)
+    elif args.command == "central-log":
+        from lib.cli.central_log_insights import cmd_central_log
+
+        cmd_central_log(args)
     else:
         parser.print_help()
         sys.exit(0)

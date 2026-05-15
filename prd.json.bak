@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "productName": "Spiral",
   "branchName": "main",
-  "overview": "SPIRAL is a self-iterating autonomous development loop (Research  ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢  Implement  ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢  Validate). This PRD drives Spiral to improve itself: integrating newly-written lib modules into the main loop, enhancing the setup wizard to educate users about every configurable option, and adding Chrome DevTools-powered visual validation.",
+  "overview": "SPIRAL is a self-iterating autonomous development loop (Research  \u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a0\u00c3\u00a2\u00e2\u201a\u00ac\u00e2\u201e\u00a2  Implement  \u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a0\u00c3\u00a2\u00e2\u201a\u00ac\u00e2\u201e\u00a2  Validate). This PRD drives Spiral to improve itself: integrating newly-written lib modules into the main loop, enhancing the setup wizard to educate users about every configurable option, and adding Chrome DevTools-powered visual validation.",
   "goals": [
     "Implement SPIRAL Phase G: auto-generate CHANGELOG.md and API docs from story commits using git-cliff and pdoc",
     "Add comprehensive integration test suite that runs SPIRAL end-to-end with mock Claude API responses",
@@ -31,14 +31,14 @@
       "id": "US-1210",
       "title": "Add e2e integration test: full SPIRAL loop with mocked Claude CLI",
       "priority": "high",
-      "description": "Create tests/test_spiral_e2e_integration.py with a single test that runs the full SPIRAL phase loop (Aâ†’Râ†’Tâ†’Sâ†’Eâ†’Mâ†’Xâ†’Gâ†’Iâ†’Vâ†’C) using monkeypatched subprocess.run to mock Claude CLI responses. Validates phase execution order and final prd.json state without real API calls.",
+      "description": "Create tests/test_spiral_e2e_integration.py with a single test that runs the full SPIRAL phase loop (A\u00e2\u2020\u2019R\u00e2\u2020\u2019T\u00e2\u2020\u2019S\u00e2\u2020\u2019E\u00e2\u2020\u2019M\u00e2\u2020\u2019X\u00e2\u2020\u2019G\u00e2\u2020\u2019I\u00e2\u2020\u2019V\u00e2\u2020\u2019C) using monkeypatched subprocess.run to mock Claude CLI responses. Validates phase execution order and final prd.json state without real API calls.",
       "acceptanceCriteria": [
         "uv run pytest tests/test_spiral_e2e_integration.py::test_full_spiral_loop -v completes in <30s with no real API calls",
         "Test asserts all 11 phases executed in correct order by checking a captured phase_log list",
         "Test asserts prd.json story status is 'done' after loop completes"
       ],
       "technicalNotes": [
-        "File to create: tests/test_spiral_e2e_integration.py (test_full_spiral_loop â€” monkeypatch subprocess.run to return deterministic Claude CLI output)",
+        "File to create: tests/test_spiral_e2e_integration.py (test_full_spiral_loop \u00e2\u20ac\u201d monkeypatch subprocess.run to return deterministic Claude CLI output)",
         "File to create: tests/fixtures/mock_claude_api.py (make_mock_response() returning minimal valid story implementation response)",
         "File to edit: tests/conftest.py (add shared tmp_prd_json fixture using tests/fixtures/sample_prd.json)",
         "Test command: uv run pytest tests/test_spiral_e2e_integration.py::test_full_spiral_loop -v --tb=short"
@@ -55,7 +55,7 @@
       "id": "US-1211",
       "title": "Add e2e integration tests: story retry escalation and worker crash recovery",
       "priority": "high",
-      "description": "Extend tests/test_spiral_e2e_integration.py with two tests: one that mocks a story failure and validates model escalation (haikuâ†’sonnet) written to results.tsv, and one that simulates a worker crash and validates the main loop respawns the worker and completes pending stories.",
+      "description": "Extend tests/test_spiral_e2e_integration.py with two tests: one that mocks a story failure and validates model escalation (haiku\u00e2\u2020\u2019sonnet) written to results.tsv, and one that simulates a worker crash and validates the main loop respawns the worker and completes pending stories.",
       "acceptanceCriteria": [
         "uv run pytest tests/test_spiral_e2e_integration.py::test_story_retry_on_failure -v passes and asserts results.tsv contains a sonnet row after haiku failure",
         "uv run pytest tests/test_spiral_e2e_integration.py::test_worker_crash_recovery -v passes and asserts all pending stories reach 'done' status after simulated worker crash"
@@ -194,7 +194,7 @@
         "npm test -- useStoryTimeline --watchAll=false exits 0 with at least one passing test"
       ],
       "technicalNotes": [
-        "File to create: web/src/hooks/useStoryTimeline.ts (useStoryTimeline hook â€” fetch /api/results, split lines, parse fields: story_id, status, model, duration, tokens, cost)",
+        "File to create: web/src/hooks/useStoryTimeline.ts (useStoryTimeline hook \u00e2\u20ac\u201d fetch /api/results, split lines, parse fields: story_id, status, model, duration, tokens, cost)",
         "File to create: web/src/pages/ActivityLog.tsx (scaffold: import hook, render <div>loading / empty state</div>)",
         "File to edit: web/src/App.tsx (add <Route path='/activity-log' component={ActivityLog} /> and nav link)",
         "Test command: npm test -- useStoryTimeline --watchAll=false"
@@ -213,7 +213,7 @@
       "description": "Build the ActivityLogTable component that consumes the useStoryTimeline hook and renders a sortable table with colour-coded status badges, per-status click filtering, and a modal showing full story details on row click.",
       "acceptanceCriteria": [
         "Table renders rows in reverse chronological order with columns ID, Status, Duration ('2m 34s' format), Model, Source; verified by npm test -- ActivityLog --watchAll=false",
-        "Clicking a status badge filters table to that status; clicking again clears the filter â€” asserted in component test",
+        "Clicking a status badge filters table to that status; clicking again clears the filter \u00e2\u20ac\u201d asserted in component test",
         "Clicking any row opens a modal displaying the story description and git commit excerpt; modal closes on Escape key"
       ],
       "technicalNotes": [
@@ -278,9 +278,9 @@
       "priority": "medium",
       "description": "Write integration tests in tests/test_phase_s_constitution.py using JSON fixtures to verify Phase S accepts stories that match constitution.md goals, rejects mismatched stories with a 'constitution violation' message, and rejects malformed _decomposed.antiPatterns fields.",
       "acceptanceCriteria": [
-        "test_valid_story_passes: loading tests/fixtures/valid_constitution_story.json through Phase S validation returns success â€” verified by uv run pytest tests/test_phase_s_constitution.py::test_valid_story_passes -v",
-        "test_goal_mismatch_fails: invalid story fixture produces error string containing 'constitution violation' â€” verified by uv run pytest tests/test_phase_s_constitution.py::test_goal_mismatch_fails -v",
-        "test_antipattern_validation: story with duplicate antiPatterns raises ValueError â€” verified by uv run pytest tests/test_phase_s_constitution.py::test_antipattern_validation -v"
+        "test_valid_story_passes: loading tests/fixtures/valid_constitution_story.json through Phase S validation returns success \u00e2\u20ac\u201d verified by uv run pytest tests/test_phase_s_constitution.py::test_valid_story_passes -v",
+        "test_goal_mismatch_fails: invalid story fixture produces error string containing 'constitution violation' \u00e2\u20ac\u201d verified by uv run pytest tests/test_phase_s_constitution.py::test_goal_mismatch_fails -v",
+        "test_antipattern_validation: story with duplicate antiPatterns raises ValueError \u00e2\u20ac\u201d verified by uv run pytest tests/test_phase_s_constitution.py::test_antipattern_validation -v"
       ],
       "technicalNotes": [
         "File to create: tests/test_phase_s_constitution.py (three pytest test functions; import parse_constitution_rules from lib/spiral/constitution_parser)",
@@ -302,7 +302,7 @@
       "description": "Implement `spiral validate-federation` command to validate federated PRD configuration. Verifies all prd.include paths exist and are valid JSON, detects circular dependencies, validates referenced stories, and outputs dependency graph as DOT format compatible with graphviz.",
       "acceptanceCriteria": [
         "spiral validate-federation prd.json parses prd.include array, verifies each file exists and is valid JSON; reports 'File not found: missing.json' if missing",
-        "Command detects circular dependencies (e.g., prd-a includes prd-b, prd-b includes prd-a) and outputs 'Circular dependency detected: prd-a â†’ prd-b â†’ prd-a'",
+        "Command detects circular dependencies (e.g., prd-a includes prd-b, prd-b includes prd-a) and outputs 'Circular dependency detected: prd-a \u00e2\u2020\u2019 prd-b \u00e2\u2020\u2019 prd-a'",
         "spiral validate-federation --output graph.dot generates DOT file with PRD filenames as nodes and includes as edges; verify via: dot -Tsvg graph.dot -o graph.svg"
       ],
       "technicalNotes": [
@@ -497,9 +497,9 @@
         "generate_changelog() raises ValueError if start_sha or end_sha is empty string; returns non-empty string on valid git range"
       ],
       "technicalNotes": [
-        "File to edit: lib/changelog_generator.py (generate_changelog function) — new file; use subprocess.run(['git-cliff', '--config', '.cliff.toml', f'{start_sha}..{end_sha}'], capture_output=True)",
-        "File to edit: .cliff.toml (root config) — new file; set [git] section with conventional_commits=true, commit_parsers matching '^(feat|fix|docs)\\(US-\\d+\\)' pattern",
-        "File to edit: tests/test_changelog_generator.py (test_generate_changelog_us_pattern) — new file; mock subprocess.run to return sample git-cliff output containing US-0001",
+        "File to edit: lib/changelog_generator.py (generate_changelog function) \u2014 new file; use subprocess.run(['git-cliff', '--config', '.cliff.toml', f'{start_sha}..{end_sha}'], capture_output=True)",
+        "File to edit: .cliff.toml (root config) \u2014 new file; set [git] section with conventional_commits=true, commit_parsers matching '^(feat|fix|docs)\\(US-\\d+\\)' pattern",
+        "File to edit: tests/test_changelog_generator.py (test_generate_changelog_us_pattern) \u2014 new file; mock subprocess.run to return sample git-cliff output containing US-0001",
         "Test command: uv run pytest tests/test_changelog_generator.py -v"
       ],
       "dependencies": [],
@@ -518,7 +518,7 @@
         "CHANGELOG.md is added and committed in git with message 'chore: update CHANGELOG for iteration N'; verify with git log --oneline -1 showing that message"
       ],
       "technicalNotes": [
-        "File to edit: lib/phases/phase_g.sh (changelog block after story commit loop) — call `uv run python lib/changelog_generator.py --start \"$ITER_START_SHA\" --end HEAD --prd prd.json --iteration \"$SPIRAL_ITERATION\"` and redirect stdout to CHANGELOG.md",
+        "File to edit: lib/phases/phase_g.sh (changelog block after story commit loop) \u2014 call `uv run python lib/changelog_generator.py --start \"$ITER_START_SHA\" --end HEAD --prd prd.json --iteration \"$SPIRAL_ITERATION\"` and redirect stdout to CHANGELOG.md",
         "Add CLI entrypoint to lib/changelog_generator.py using argparse so phase_g.sh can invoke it directly",
         "Test command: bash -c 'SPIRAL_ITERATION=1 bash lib/phases/phase_g.sh --dry-run 2>&1 | grep -q changelog && echo OK'"
       ],
@@ -539,8 +539,8 @@
         "Workers inactive >5 minutes have status='stale' in the response; verified by test that sets last_activity_ts to >300 seconds ago"
       ],
       "technicalNotes": [
-        "File to edit: spiral-ui/backend/api/workers.py (list_workers, stream_worker_logs) — new file; use psutil.Process(pid).memory_info().rss // 1024**2 for memory_mb and psutil.Process(pid).cpu_percent(interval=1)",
-        "File to edit: tests/test_worker_monitor.py (test_list_workers, test_memory_cpu_parsing) — new file; use unittest.mock.patch('psutil.Process')",
+        "File to edit: spiral-ui/backend/api/workers.py (list_workers, stream_worker_logs) \u2014 new file; use psutil.Process(pid).memory_info().rss // 1024**2 for memory_mb and psutil.Process(pid).cpu_percent(interval=1)",
+        "File to edit: tests/test_worker_monitor.py (test_list_workers, test_memory_cpu_parsing) \u2014 new file; use unittest.mock.patch('psutil.Process')",
         "Test command: uv run pytest tests/test_worker_monitor.py -v"
       ],
       "dependencies": [],
@@ -559,10 +559,10 @@
         "useWorkerMonitor hook exported from spiral-ui/src/hooks/useWorkerMonitor.ts returns { workers, isLoading, error } and clears interval on unmount"
       ],
       "technicalNotes": [
-        "File to edit: spiral-ui/src/hooks/useWorkerMonitor.ts (useWorkerMonitor) — new file; use setInterval with 2000ms, fetch('/api/workers/list'), cleanup in useEffect return",
-        "File to edit: spiral-ui/src/tabs/WorkersTab.tsx (WorkersTab) — new file; import WorkerTable and WorkerLogViewer; wire to useWorkerMonitor",
-        "File to edit: spiral-ui/src/components/WorkerTable.tsx (WorkerTable) — new file",
-        "File to edit: spiral-ui/src/components/WorkerLogViewer.tsx (WorkerLogViewer) — new file; use EventSource for SSE",
+        "File to edit: spiral-ui/src/hooks/useWorkerMonitor.ts (useWorkerMonitor) \u2014 new file; use setInterval with 2000ms, fetch('/api/workers/list'), cleanup in useEffect return",
+        "File to edit: spiral-ui/src/tabs/WorkersTab.tsx (WorkersTab) \u2014 new file; import WorkerTable and WorkerLogViewer; wire to useWorkerMonitor",
+        "File to edit: spiral-ui/src/components/WorkerTable.tsx (WorkerTable) \u2014 new file",
+        "File to edit: spiral-ui/src/components/WorkerLogViewer.tsx (WorkerLogViewer) \u2014 new file; use EventSource for SSE",
         "Test command: npx vitest run src/hooks/useWorkerMonitor.test.ts"
       ],
       "dependencies": [],
@@ -647,9 +647,9 @@
         "Test clicks a table row and asserts a modal containing story details appears in the DOM"
       ],
       "technicalNotes": [
-        "File to edit: tests/web/ActivityLog.test.tsx (new file — add test blocks for badge render, filter click, and modal open)",
+        "File to edit: tests/web/ActivityLog.test.tsx (new file \u2014 add test blocks for badge render, filter click, and modal open)",
         "The spiral-ui dev server must be running on http://localhost:5299 before the test; use baseURL in playwright.config.ts",
-        "Use page.locator('[data-testid=\"story-modal\"]') pattern — add data-testid attributes to ActivityLogTable.tsx if missing",
+        "Use page.locator('[data-testid=\"story-modal\"]') pattern \u2014 add data-testid attributes to ActivityLogTable.tsx if missing",
         "Test command: npx playwright test tests/web/ActivityLog.test.tsx --reporter=line"
       ],
       "dependencies": [
@@ -688,7 +688,7 @@
       "acceptanceCriteria": [
         "Phase L parses results.tsv for passing stories; groups by _category and model; computes first-attempt success % per group; e.g. 'schema/sonnet: 85% first-attempt (N=5)'",
         "Appends to learning.md timestamped entries with format: category, model, complexity_band, success_rate, example_story_id, pattern description",
-        "Integration test: SPIRAL run with 5 passing stories (3 api/sonnet, 2 ui/haiku) → learning.md contains 2 correct entries with accurate stats"
+        "Integration test: SPIRAL run with 5 passing stories (3 api/sonnet, 2 ui/haiku) \u2192 learning.md contains 2 correct entries with accurate stats"
       ],
       "technicalNotes": [
         "File to create: lib/learning_extractor.py (extract_patterns() function parsing results.tsv and generating LearningEntry objects)",
@@ -732,7 +732,7 @@
         "An entry is appended to .spiral/_loop_quality.jsonl containing iteration, score, and the three sub-metric fields"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_loop_quality.py (new file — create regression tests here)",
+        "File to edit: tests/test_loop_quality.py (new file \u2014 create regression tests here)",
         "File to edit: lib/loop_quality.py or equivalent module that implements compute_loop_quality()",
         "Test command: uv run pytest tests/test_loop_quality.py -v",
         "Use tmp_path to redirect _loop_quality.jsonl writes; patch results.tsv parsing with synthetic rows",
@@ -756,8 +756,8 @@
         "uv run pytest tests/test_phase_v_evidence.py::test_evidence_aggregation -v passes"
       ],
       "technicalNotes": [
-        "File to create: lib/phase_v_evidence.py (aggregate_test_evidence function — use subprocess.run(['uv','run','pytest','-v', target], capture_output=True) per target)",
-        "File to create: tests/test_phase_v_evidence.py (test_evidence_aggregation — mock subprocess output with sample pytest -v text)",
+        "File to create: lib/phase_v_evidence.py (aggregate_test_evidence function \u2014 use subprocess.run(['uv','run','pytest','-v', target], capture_output=True) per target)",
+        "File to create: tests/test_phase_v_evidence.py (test_evidence_aggregation \u2014 mock subprocess output with sample pytest -v text)",
         "Test command: uv run pytest tests/test_phase_v_evidence.py::test_evidence_aggregation -v"
       ],
       "dependencies": [],
@@ -776,8 +776,8 @@
         "uv run python lib/prd_schema.py prd.json exits 0 after schema change"
       ],
       "technicalNotes": [
-        "File to edit: prd.schema.json (verification object — change testFiles from type:string to oneOf:[string, array of string])",
-        "File to edit: spiral.sh (Phase V section ~line search for 'phase_v' or 'PHASE V' — add: python lib/phase_v_evidence.py after pytest calls, redirect output to .spiral/evidence.json)",
+        "File to edit: prd.schema.json (verification object \u2014 change testFiles from type:string to oneOf:[string, array of string])",
+        "File to edit: spiral.sh (Phase V section ~line search for 'phase_v' or 'PHASE V' \u2014 add: python lib/phase_v_evidence.py after pytest calls, redirect output to .spiral/evidence.json)",
         "Test command: uv run python lib/prd_schema.py prd.json"
       ],
       "dependencies": [],
@@ -797,7 +797,7 @@
         "`uv run pytest tests/ -k us_1226 -v` exits 0 with no failures"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_loop_quality.py (new file — unit tests for score computation and jsonl append)",
+        "File to edit: tests/test_loop_quality.py (new file \u2014 unit tests for score computation and jsonl append)",
         "File to edit: lib/loop_quality.py or equivalent Phase C scorer module",
         "Test command: uv run pytest tests/test_loop_quality.py -v",
         "Use tmp_path fixture to isolate .spiral/_loop_quality.jsonl; assert json.loads(line) structure"
@@ -820,8 +820,8 @@
         "uv run pytest tests/test_config_security.py -v --tb=short exits 0 with all tests passing"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_config_security.py (create — security test module for US-1214)",
-        "File to edit: lib/spiral_ui_config.py (reference only — do not modify; import for fixtures)",
+        "File to edit: tests/test_config_security.py (create \u2014 security test module for US-1214)",
+        "File to edit: lib/spiral_ui_config.py (reference only \u2014 do not modify; import for fixtures)",
         "Test command: uv run pytest tests/test_config_security.py -v --tb=short",
         "Use FastAPI/Flask test client or httpx.AsyncClient to POST /api/config without auth headers",
         "Assert response status in {401, 403} and that response body JSON contains no keys matching 'token|key|secret|password'"
@@ -866,9 +866,9 @@
         "grep 'timeout_scope_exhausted' results.tsv confirms failure is logged after a simulated double-timeout run"
       ],
       "technicalNotes": [
-        "File to create: lib/impl/scope_reducer.py — functions: extract_optional_requirements(criteria: list[dict]) -> list[dict], apply_scope_reduction(story: dict) -> dict",
-        "File to edit: lib/impl/retry.sh (select_retry_strategy) — detect exit code 124 (timeout), invoke scope_reducer.py via uv run python, pass reduced story JSON to next Ralph invocation",
-        "File to create: tests/test_timeout_handler.py — pytest tests for all three timeout scenarios above",
+        "File to create: lib/impl/scope_reducer.py \u2014 functions: extract_optional_requirements(criteria: list[dict]) -> list[dict], apply_scope_reduction(story: dict) -> dict",
+        "File to edit: lib/impl/retry.sh (select_retry_strategy) \u2014 detect exit code 124 (timeout), invoke scope_reducer.py via uv run python, pass reduced story JSON to next Ralph invocation",
+        "File to create: tests/test_timeout_handler.py \u2014 pytest tests for all three timeout scenarios above",
         "Test command: uv run pytest tests/test_timeout_handler.py -v --tb=short"
       ],
       "dependencies": [],
@@ -888,7 +888,7 @@
         "uv run pytest tests/ -k us_1215 -v exits 0 with all security tests passing"
       ],
       "technicalNotes": [
-        "File to create: tests/test_security_us1215.py — use pytest + httpx or requests to hit GET /api/config without auth, assert 401/403",
+        "File to create: tests/test_security_us1215.py \u2014 use pytest + httpx or requests to hit GET /api/config without auth, assert 401/403",
         "Reference implementation under test: spiral-ui/src/components/SettingsTab.tsx and spiral-ui/src/App.tsx (from US-1215)",
         "Test command: uv run pytest tests/test_security_us1215.py -v --tb=short"
       ],
@@ -1093,7 +1093,7 @@
         "US-1263"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "model": "sonnet"
     },
@@ -1136,14 +1136,14 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
       "id": "US-1268",
       "title": "Phase I: Error Classification Engine with Intelligent Retry Routing",
       "priority": "high",
-      "description": "Ralph retries stories with a fixed haiku→sonnet→opus escalation regardless of failure cause. This story creates lib/error_classifier.py to parse failure messages and return the appropriate retry strategy, then wires it into lib/impl/retry.sh so each retry is strategy-driven rather than always escalating.",
+      "description": "Ralph retries stories with a fixed haiku\u2192sonnet\u2192opus escalation regardless of failure cause. This story creates lib/error_classifier.py to parse failure messages and return the appropriate retry strategy, then wires it into lib/impl/retry.sh so each retry is strategy-driven rather than always escalating.",
       "acceptanceCriteria": [
         "uv run python -c \"from lib.error_classifier import classify_error; t,c,s = classify_error('SyntaxError: unexpected indent'); assert t=='SyntaxError' and c>0.9\" exits 0",
         "uv run pytest tests/test_error_classifier.py -v passes with coverage of all 6 error types (SyntaxError, TimeoutError, MemoryError, ContextOverflow, LogicError, ResourceError)",
@@ -1151,9 +1151,9 @@
         "uv run mypy lib/error_classifier.py --strict exits 0"
       ],
       "technicalNotes": [
-        "File to edit: lib/error_classifier.py (new file — classify_error(error_msg: str) -> tuple[str, float, str] using regex dict keyed by error type)",
-        "File to edit: lib/impl/retry.sh (select_retry_strategy function — call python -m lib.error_classifier and read stdout JSON before escalation logic)",
-        "File to edit: tests/test_error_classifier.py (new file — parametrize over all 6 error types with fixture error strings)",
+        "File to edit: lib/error_classifier.py (new file \u2014 classify_error(error_msg: str) -> tuple[str, float, str] using regex dict keyed by error type)",
+        "File to edit: lib/impl/retry.sh (select_retry_strategy function \u2014 call python -m lib.error_classifier and read stdout JSON before escalation logic)",
+        "File to edit: tests/test_error_classifier.py (new file \u2014 parametrize over all 6 error types with fixture error strings)",
         "Test command: uv run pytest tests/test_error_classifier.py -v --tb=short"
       ],
       "dependencies": [],
@@ -1167,14 +1167,14 @@
       "priority": "high",
       "description": "SPIRAL writes checkpoints after each phase but has no tested --resume path. This story adds the --resume flag to spiral.sh, implements checkpoint_read_and_resume in lib/checkpoint.sh, and writes a bats integration test that kills SPIRAL mid-Phase I and verifies clean recovery without re-running prior phases.",
       "acceptanceCriteria": [
-        "After SPIRAL is killed mid-Phase I, .spiral/_checkpoint.json contains keys: iteration, phase, completed_stories, timestamp — verified by: cat .spiral/_checkpoint.json | jq 'has(\"completed_stories\")'",
+        "After SPIRAL is killed mid-Phase I, .spiral/_checkpoint.json contains keys: iteration, phase, completed_stories, timestamp \u2014 verified by: cat .spiral/_checkpoint.json | jq 'has(\"completed_stories\")'",
         "SPIRAL restarted with --resume skips to Phase I story N+1 (not phase 0); verified by grep 'Resuming at' .spiral/spiral.log",
         "tests/bats-core/bin/bats tests/integration/test_crash_recovery.bats exits 0 with all tests passing"
       ],
       "technicalNotes": [
-        "File to edit: lib/checkpoint.sh (new checkpoint_read_and_resume() function — reads .spiral/_checkpoint.json with jq, exports SPIRAL_RESUME_PHASE and SPIRAL_RESUME_STORY_INDEX)",
+        "File to edit: lib/checkpoint.sh (new checkpoint_read_and_resume() function \u2014 reads .spiral/_checkpoint.json with jq, exports SPIRAL_RESUME_PHASE and SPIRAL_RESUME_STORY_INDEX)",
         "File to edit: spiral.sh (parse --resume flag in argument loop; skip phases before SPIRAL_RESUME_PHASE when set; source lib/checkpoint.sh)",
-        "File to edit: tests/integration/test_crash_recovery.bats (new file — use kill -9 on SPIRAL PID after story 2 begins, then restart with --resume)",
+        "File to edit: tests/integration/test_crash_recovery.bats (new file \u2014 use kill -9 on SPIRAL PID after story 2 begins, then restart with --resume)",
         "Test command: tests/bats-core/bin/bats tests/integration/test_crash_recovery.bats -v"
       ],
       "dependencies": [],
@@ -1193,15 +1193,15 @@
         "uv run pytest tests/test_cli_lint.py::test_lint_invalid_prd tests/test_cli_lint.py::test_lint_valid_prd -v exits 0"
       ],
       "technicalNotes": [
-        "File to edit: lib/cli_lint.py (new file — load_and_validate_prd(path) uses jsonschema against prd.schema.json; check_config_sh(path) regex-scans for bare $VAR without default)",
-        "File to edit: lib/cli_subcommands.sh (add 'lint' case in dispatch, ~8 lines — call python main.py lint)",
-        "File to edit: tests/test_cli_lint.py (new file — tests for valid and invalid prd.json paths)",
+        "File to edit: lib/cli_lint.py (new file \u2014 load_and_validate_prd(path) uses jsonschema against prd.schema.json; check_config_sh(path) regex-scans for bare $VAR without default)",
+        "File to edit: lib/cli_subcommands.sh (add 'lint' case in dispatch, ~8 lines \u2014 call python main.py lint)",
+        "File to edit: tests/test_cli_lint.py (new file \u2014 tests for valid and invalid prd.json paths)",
         "File to create: tests/fixtures/bad_prd.json (minimal JSON with one invalid field for test fixture)",
         "Test command: uv run pytest tests/test_cli_lint.py -v --tb=short"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1221,8 +1221,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1272",
@@ -1244,8 +1245,9 @@
         "US-1212"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1273",
@@ -1253,7 +1255,7 @@
       "priority": "medium",
       "description": "Phase S (story validation) currently checks constitution and goal alignment. This story adds a deduplication step that compares story intent across pending/completed stories and flags potential duplicates based on semantic similarity, reducing redundant work and improving story quality.",
       "acceptanceCriteria": [
-        "lib/story_dedup.py exports find_duplicates(story: dict, existing_stories: list) → list of (existing_id, similarity: float, merge_reason: str)",
+        "lib/story_dedup.py exports find_duplicates(story: dict, existing_stories: list) \u2192 list of (existing_id, similarity: float, merge_reason: str)",
         "Similarity >0.75 flags as 'likely duplicate', >0.85 flags as 'high-confidence merge candidate'",
         "Phase S logs duplicates in _validated_stories.json with new field 'duplicate_of' if found"
       ],
@@ -1264,7 +1266,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1331,7 +1333,7 @@
         "US-1212"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1356,7 +1358,7 @@
         "US-1215"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1367,7 +1369,7 @@
       "acceptanceCriteria": [
         "`spiral cost-breakdown` outputs table with columns: Phase | Stories | Tokens | Cost | Avg Model | % of Total",
         "`spiral cost-breakdown --output json` exports full breakdown indexed by phase and story ID",
-        "`spiral cost-breakdown --compare <baseline.tsv>` shows delta vs historical baseline with ↑↓ indicators"
+        "`spiral cost-breakdown --compare <baseline.tsv>` shows delta vs historical baseline with \u2191\u2193 indicators"
       ],
       "technicalNotes": [
         "File to edit: lib/cost_analyzer.py (implement parse_results_tsv, breakdown_by_phase, format_table functions)",
@@ -1376,8 +1378,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1279",
@@ -1391,7 +1394,7 @@
       ],
       "technicalNotes": [
         "File to edit: tests/test_us_1214_perf.py (create; use timeit or time.perf_counter around spiral_ui_config.load_config() calls)",
-        "File to edit: lib/spiral_ui_config.py (import only — do not modify; confirm function signatures first)",
+        "File to edit: lib/spiral_ui_config.py (import only \u2014 do not modify; confirm function signatures first)",
         "Test command: uv run pytest tests/test_us_1214_perf.py -v -s",
         "Use pytest-benchmark if available (uv run pytest --co -q to check); otherwise use time.perf_counter with 100 iterations and assert mean < 0.2s"
       ],
@@ -1399,8 +1402,9 @@
         "US-1214"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-1280",
@@ -1408,7 +1412,7 @@
       "priority": "high",
       "description": "Add a `spiral doctor` command that validates the SPIRAL environment, detects common issues (missing dependencies, invalid prd.json, orphaned worktrees), and outputs structured remediation commands. Exit code 0 if healthy, 1 if issues found.",
       "acceptanceCriteria": [
-        "Running `spiral doctor` outputs a structured report with one row per check (Python version, Bash 4+, Node 20+, git status, docker daemon, prd.json schema, .spiral-workers orphans). Each row shows status (✓ pass / ✗ fail) and remediation command",
+        "Running `spiral doctor` outputs a structured report with one row per check (Python version, Bash 4+, Node 20+, git status, docker daemon, prd.json schema, .spiral-workers orphans). Each row shows status (\u2713 pass / \u2717 fail) and remediation command",
         "Validates prd.json against prd.schema.json; suggests `uv run python lib/prd_schema.py prd.json` if schema validation fails",
         "Detects orphaned .spiral-workers/ and suggests `rm -rf .spiral-workers/` to clean up stale worktrees from crashed workers"
       ],
@@ -1440,7 +1444,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1454,11 +1458,11 @@
         "Error response body contains no sensitive field names (verify with: uv run pytest tests/test_security_us1215.py::test_no_sensitive_leak -v)"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_security_us1215.py (new file — create test module)",
+        "File to edit: tests/test_security_us1215.py (new file \u2014 create test module)",
         "File to edit: spiral-ui/src/components/SettingsTab.tsx (confirm auth-gating pattern used)",
         "Test command: uv run pytest tests/test_security_us1215.py -v",
         "Mirror test structure from test_security_us1214.py; parameterize over GET and POST methods",
-        "SettingsTab frontend tests are out of scope for pytest — focus tests on backend /api/config route only"
+        "SettingsTab frontend tests are out of scope for pytest \u2014 focus tests on backend /api/config route only"
       ],
       "dependencies": [
         "US-1215"
@@ -1487,7 +1491,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1531,7 +1535,7 @@
         "US-1209"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1551,7 +1555,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "sonnet"
     },
     {
@@ -1572,6 +1576,1534 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1288",
+      "title": "CLI: Add spiral metrics export-timeseries to export token burn and story throughput as time series JSON",
+      "priority": "medium",
+      "description": "Add new CLI command `spiral metrics export-timeseries <output.json>` that parses results.tsv and spiral_events.jsonl to extract time-series data: iteration, timestamp, cumulative tokens, stories passed per iteration, average model tier. Enables external dashboarding and trend analysis beyond spiral-ui.",
+      "acceptanceCriteria": [
+        "Command outputs JSON array with entries: {iteration, timestamp, cumulative_tokens, stories_passed_delta, avg_model_tier, total_cost}",
+        "Timestamps derived from spiral_events.jsonl Phase G completion times; tokens summed from results.tsv cost field",
+        "Output file contains min 10 data points; command rejects if fewer than 10 story records exist"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/metrics_export.py (new; functions: parse_results_tsv(), parse_spiral_events(), aggregate_timeseries())",
+        "File to edit: lib/cli_subcommands.sh (add export-timeseries case handler that calls metrics_export.py)",
+        "Test command: uv run pytest tests/test_metrics_export.py::test_export_timeseries_format -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1289",
+      "title": "CLI: `spiral snapshot save` and `snapshot restore` commands",
+      "priority": "medium",
+      "description": "Add SnapshotManager.save() and SnapshotManager.restore() to lib/snapshot.py using Python's tarfile module. Wire both subcommands into lib/cli_subcommands.sh so that `spiral snapshot save` creates .spiral/snapshot-<ISO8601>.tar.gz and `spiral snapshot restore <timestamp>` extracts and overwrites current state.",
+      "acceptanceCriteria": [
+        "`spiral snapshot save` creates .spiral/snapshot-<ISO8601>.tar.gz containing prd.json, results.tsv, .spiral/checkpoint.json, and retry-counts.json",
+        "`spiral snapshot restore <timestamp>` extracts the matching archive and overwrites prd.json and results.tsv; prints checkpoint resume info to stdout",
+        "uv run pytest tests/test_snapshot.py::test_snapshot_save -v and tests/test_snapshot.py::test_snapshot_restore_overwrites_prd -v both pass"
+      ],
+      "technicalNotes": [
+        "File to create: lib/snapshot.py (SnapshotManager class; save(out_dir='.spiral') and restore(timestamp, out_dir='.spiral') methods using tarfile)",
+        "File to edit: lib/cli_subcommands.sh (add snapshot_save_handler and snapshot_restore_handler that call python lib/snapshot.py save/restore)",
+        "Test command: uv run pytest tests/test_snapshot.py::test_snapshot_restore_overwrites_prd -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1290",
+      "title": "CLI: `spiral snapshot list` command with ASCII table and --json flag",
+      "priority": "medium",
+      "description": "Add SnapshotManager.list() to lib/snapshot.py that scans .spiral/ for snapshot archives and returns metadata (size, story count, creation time). Wire `spiral snapshot list` into lib/cli_subcommands.sh with plain ASCII-table output and a --json flag for structured output.",
+      "acceptanceCriteria": [
+        "`spiral snapshot list` prints an ASCII table with columns: timestamp, size (human-readable), story count, creation time",
+        "`spiral snapshot list --json` outputs a valid JSON array with the same fields",
+        "uv run pytest tests/test_snapshot.py::test_snapshot_list_ascii -v and tests/test_snapshot.py::test_snapshot_list_json -v both pass"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/snapshot.py (add list(out_dir='.spiral') -> list[dict] method; parse story count from prd.json inside each archive without full extraction)",
+        "File to edit: lib/cli_subcommands.sh (add snapshot_list_handler; use printf for ASCII table, json.dumps for --json)",
+        "Test command: uv run pytest tests/test_snapshot.py::test_snapshot_list_ascii -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1291",
+      "title": "CLI: Add `spiral cost-analysis` for detailed cost breakdown by phase, model, and story",
+      "priority": "medium",
+      "description": "New CLI command to analyze token costs and spend across phases, models, and stories from results.tsv, with comparison to prior iteration.",
+      "acceptanceCriteria": [
+        "`spiral cost-analysis` shows total spend, cost per phase (A/R/T/S/E/M/X/G/I/V/C/L), cost per model tier (haiku/sonnet/opus), and average cost per story",
+        "`--detailed` flag shows per-story breakdown sorted by highest cost; `--json` exports structured data for scripting",
+        "`--compare-iteration N` compares current iteration to iteration N with delta and % change in table format"
+      ],
+      "technicalNotes": [
+        "File to create: lib/cost_analysis.py (parse_results_tsv, compute_phase_costs, compute_model_costs functions)",
+        "File to edit: lib/cli_subcommands.sh (add cost-analysis handler with option parsing)",
+        "Test command: uv run pytest tests/test_cost_analysis.py::test_cost_breakdown_by_phase -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1292",
+      "title": "Phase R: Add research result caching with 24-hour TTL",
+      "priority": "high",
+      "description": "Optimize Phase R (research) by caching Gemini web search results in .spiral/research-cache/ with 24-hour TTL. Reduces API calls and accelerates repeated SPIRAL runs with similar stories. Cache key is hash(query_string).",
+      "acceptanceCriteria": [
+        "Phase R checks .spiral/research-cache/{query_hash}.json before calling Gemini API; if cache hit and TTL valid, uses cached results",
+        "Cache entry format: {query, results, timestamp_created, timestamp_expires}. Cache expires after 24 hours (configurable via SPIRAL_RESEARCH_CACHE_TTL_HOURS)",
+        "Add --clear-research-cache flag to spiral.sh to flush cache before iteration"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_r_cache.py with functions get_cached_research(query) and cache_research(query, results)",
+        "File to modify: spiral.sh Phase R section to call lib/phase_r_cache.py before Gemini API invocation",
+        "Test command: uv run pytest tests/test_phase_r_cache.py::test_cache_hit_returns_results_within_ttl -v",
+        "Hash query string using hashlib.sha256() for cache key; store in JSON format with UTC timestamps"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1293",
+      "title": "spiral-ui: Add /api/tests/latest and /api/tests/rerun backend endpoints",
+      "priority": "medium",
+      "description": "Create Flask route file spiral-ui/backend/routes/tests.py exposing GET /api/tests/latest (parses .spiral/test-results/ JSON) and POST /api/tests/rerun/:testId (runs pytest on one test via SSE stream). Register routes in app.py.",
+      "acceptanceCriteria": [
+        "GET /api/tests/latest returns JSON array with fields test_id, test_name, file, status, duration_ms, error_message (verified by pytest assert on response JSON schema)",
+        "POST /api/tests/rerun/:testId streams SSE events and exits with final status event containing pass or fail",
+        "Unit test file tests/test_spiral_ui_tests_api.py covers both endpoints and passes"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/backend/routes/tests.py (parse_test_results(), stream_rerun())",
+        "File to edit: spiral-ui/backend/app.py (register Blueprint for tests routes)",
+        "File to create: tests/test_spiral_ui_tests_api.py (test_tests_latest_endpoint, test_tests_rerun_streams_sse)",
+        "Test command: uv run pytest tests/test_spiral_ui_tests_api.py -v",
+        "Parse .spiral/test-results/*.json using pytest --json-report output format"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1294",
+      "title": "spiral-ui: Add Tests tab frontend component with SSE re-run streaming",
+      "priority": "medium",
+      "description": "Create a TestsTab React component that fetches GET /api/tests/latest on mount, renders a sortable table (test name, status, duration, file), and supports per-row re-run via SSE from POST /api/tests/rerun/:testId with live status update.",
+      "acceptanceCriteria": [
+        "Tests tab renders a table with columns: test name, status badge (pass/fail/error), duration, file path",
+        "Clicking Re-run on a row opens an inline SSE log panel that updates in real-time until the stream closes",
+        "Tab appears in the main navigation and is reachable at the /tests route without page reload"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/frontend/tabs/Tests.tsx (TestsTab component, useSseRerun hook)",
+        "File to edit: spiral-ui/frontend/App.tsx (add /tests route and nav link)",
+        "Test command: npx vitest run spiral-ui/frontend/tabs/Tests.test.tsx",
+        "File to create: spiral-ui/frontend/tabs/Tests.test.tsx (renders table, rerun opens SSE panel)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1295",
+      "title": "[E2E Test] spiral-ui ActivityLogTable: filter by status and open detail modal",
+      "priority": "medium",
+      "description": "Write a Playwright end-to-end test for the ActivityLogTable component added in US-1218. The test must assert that clicking a status badge filters the table rows and that clicking any row opens a detail modal showing story fields. Tests run headless in CI.",
+      "acceptanceCriteria": [
+        "npx playwright test spiral-ui/tests/e2e/activity-log.spec.ts --reporter=line exits 0",
+        "Test clicks a 'passed' status badge and asserts only rows with status 'passed' remain visible",
+        "Test clicks the first table row and asserts a modal appears containing at least one story field (e.g. title or description)"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral-ui/tests/e2e/activity-log.spec.ts (create; use @playwright/test)",
+        "File to edit: spiral-ui/src/components/ActivityLogTable.tsx (read to find data-testid / aria labels for badges, rows, and modal)",
+        "Test command: npx playwright test spiral-ui/tests/e2e/activity-log.spec.ts --reporter=line",
+        "Seed the page with fixture data via a mock API route (page.route) if the backend is not available in test mode"
+      ],
+      "dependencies": [
+        "US-1218"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-1296",
+      "title": "[Regression Test] Meta-Harness: Success-Pattern Library appends on zero-retry pass",
+      "priority": "medium",
+      "description": "Write a regression test that guards the success-pattern extraction logic from US-1225. The test must verify that after a story completes with 0 retries, its characteristics are appended to .spiral/_success_patterns.jsonl, and that Phase A candidate scoring reads this file. Breaking either side must cause the test to fail.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_success_patterns.py -v exits 0 with at least one test collected",
+        "Test asserts that calling the extraction function with a zero-retry story result appends one JSON line to _success_patterns.jsonl containing keys: file_count, ac_count, keywords",
+        "Test asserts that the Phase A scoring function returns a higher score for a candidate matching a stored pattern than for one with no match"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_success_patterns.py (create)",
+        "File to edit: lib/phases/phase_l.sh or equivalent Python module (read to locate the extraction logic introduced by US-1225)",
+        "Test command: uv run pytest tests/test_success_patterns.py -v --tb=short",
+        "Use tmp_path fixture to write _success_patterns.jsonl to a temporary directory; patch the path constant before calling the extraction function"
+      ],
+      "dependencies": [
+        "US-1225"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1297",
+      "title": "CLI: Add spiral export-progress command to bundle PRD, results, and metrics as snapshot",
+      "priority": "medium",
+      "description": "Add a CLI subcommand `spiral export-progress [--format json|zip]` that bundles the current spiral state (prd.json, results.tsv, learning.md, loop_quality.jsonl, metadata) into a single JSON or ZIP file for stakeholder sharing or iteration archiving.",
+      "acceptanceCriteria": [
+        "Command `spiral export-progress` outputs JSON with schema: { prd, results, learning, loopQuality, metadata: { iteration, timestamp, passCount, failCount, totalCost, checksum } }",
+        "Command `spiral export-progress --format zip` creates ZIP archive containing prd.json, results.tsv, learning.md, retry-counts.json, and README.md explaining contents",
+        "Exported file includes sha256 checksum in metadata to detect corruption; filename is timestamped (e.g., spiral-export-2026-04-14T18:30:00Z.json)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/export_progress.py (new), lib/snapshot_schema.py (new for JSON schema validation), lib/cli_subcommands.sh (add export-progress handler)",
+        "Test command: uv run pytest tests/test_export_progress.py::test_export_json -v; uv run pytest tests/test_export_progress.py::test_export_zip -v",
+        "Read from: prd.json, results.tsv, learning.md, .spiral/loop_quality.jsonl, retry-counts.json; compute metadata from file contents and iteration state"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1298",
+      "title": "spiral-ui frontend: ThroughputMetrics widget on Dashboard with auto-refresh",
+      "priority": "medium",
+      "description": "Create a ThroughputMetrics React component that fetches /api/throughput every 30 seconds and renders velocity and median cycle time. Register the widget on the Dashboard page. Requires the backend endpoint from the companion story.",
+      "acceptanceCriteria": [
+        "Dashboard renders ThroughputMetrics showing 'X stories/hour' and cycle time by complexity band (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx)",
+        "Component polls /api/throughput every 30 seconds when iteration is running (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx --testNamePattern=refresh)",
+        "Displays 'Insufficient data' string when API returns empty metrics (verified by: npm run test -- src/components/ThroughputMetrics.test.tsx --testNamePattern=insufficient)"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/ThroughputMetrics.tsx (ThroughputMetrics component)",
+        "File to create: spiral-ui/src/components/ThroughputMetrics.test.tsx (unit tests with MSW or vi.mock)",
+        "File to edit: spiral-ui/src/pages/Dashboard.tsx (import and render <ThroughputMetrics />)",
+        "Test command: npm run test -- src/components/ThroughputMetrics.test.tsx",
+        "Use recharts BarChart for cycle-time distribution; useInterval or setInterval in useEffect for 30s polling"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-1299",
+      "title": "Phase E: Hint recommender from story attempt history",
+      "priority": "medium",
+      "description": "Create lib/hint_recommender.py that reads results.tsv and returns decomposition, model, and retry hints for a story before Phase I runs. Integrate into the Phase E handler so hints are appended to prd.json story._hints before implementation begins.",
+      "acceptanceCriteria": [
+        "suggest_hints_from_history() returns dict with keys decomposition_suggested, recommended_model, recommended_retries (verified by: uv run pytest tests/test_hint_recommender.py::test_suggest_hints_schema -v)",
+        "When haiku pass rate < 50% for the story's complexity band, recommended_model is 'sonnet' (verified by: uv run pytest tests/test_hint_recommender.py::test_low_haiku_pass_rate_escalates_model -v)",
+        "Phase E handler writes returned hints into story._hints array in prd.json before Phase I (verified by: uv run pytest tests/test_hint_recommender.py::test_hints_persisted_to_prd -v)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/hint_recommender.py (analyze_story_cohort, suggest_hints_from_history)",
+        "File to edit: lib/phases.py (Phase E handler \u2014 call suggest_hints_from_history and patch story._hints)",
+        "File to create: tests/test_hint_recommender.py with fixture results_tsv containing >=10 sample attempts across haiku/sonnet",
+        "Test command: uv run pytest tests/test_hint_recommender.py -v",
+        "Read results.tsv with csv.DictReader; group by complexity band using collections.defaultdict"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1300",
+      "title": "CLI: spiral batch <operation> --stories-file for multi-story operations",
+      "priority": "medium",
+      "description": "Enable batch operations on multiple stories (mark-done, retrigger, update-metadata) by reading story IDs from a file. Improves CLI ergonomics for managing groups of stories without manual iteration.",
+      "acceptanceCriteria": [
+        "spiral batch mark-done --stories-file completed.txt marks all stories in file as done in prd.json and adds timestamps",
+        "spiral batch retrigger --stories-file failed.txt resets retry counts and re-queues stories for Phase I",
+        "Batch operations log results with counts: '3 stories marked done, 1 skipped (not pending)'",
+        "File format: one story ID per line (US-123, UT-456, etc.)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/batch_operations.py with parse_story_file() and execute_batch_operation() functions",
+        "File to edit: lib/cli_subcommands.sh to add batch subcommand handler",
+        "Test command: uv run pytest tests/test_batch_operations.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1301",
+      "title": "Phase X: Build lib/dependency_resolver.py with NLP-based story blocker inference and DAG cycle detection",
+      "priority": "high",
+      "description": "New Phase X module that scans prd.json story titles and descriptions for dependency keywords, builds a story dependency graph, validates for cycles, and outputs .spiral/dependencies.json with blocker counts and criticality scores.",
+      "acceptanceCriteria": [
+        "Reads prd.json and uses NLP keyword matching ('requires', 'depends on', 'blocked by', 'after', 'must complete') to infer depends_on relationships",
+        "Validates DAG with cycle detection; logs warnings for circular dependencies with affected story IDs",
+        "Outputs .spiral/dependencies.json: {story_id, depends_on: [ids], blocked_by: [ids], critical: bool, depth_in_dag: int, blocker_count: int}"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral.sh (invoke lib/dependency_resolver.py after Phase S; store results in .spiral/dependencies.json)",
+        "Create lib/dependency_resolver.py with infer_dependencies() and detect_cycles() functions",
+        "Test command: uv run pytest tests/test_dependency_resolver.py::test_cycle_detection -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1302",
+      "title": "CLI: spiral cost-estimate <num-iterations> with historical accuracy bounds",
+      "priority": "medium",
+      "description": "New CLI subcommand that predicts total cost and token burn for N iterations using historical data from results.tsv, with confidence intervals based on per-model variance.",
+      "acceptanceCriteria": [
+        "spiral cost-estimate 5 reads results.tsv and computes avg tokens/story per model and per complexity band",
+        "Outputs: 'Estimated cost for 5 iterations: $X.XX (68% confidence: $L.LL - $H.HH) based on 47 historical attempts'",
+        "Includes breakdown by model (haiku 60%, sonnet 30%, opus 10%) and notes escalation impact on cost"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_subcommands.sh (add 'cost-estimate' handler)",
+        "Create lib/cost_estimator.py with compute_historical_stats() and predict_cost_for_n_iterations() using numpy for variance",
+        "Test command: uv run pytest tests/test_cost_estimator.py::test_cost_estimate_with_variance -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1303",
+      "title": "[Regression Test] CLI trace-dependencies: verify full dep chain output",
+      "priority": "medium",
+      "description": "Write a regression test for the spiral trace-dependencies CLI command introduced in US-1209. The test invokes the command against a fixture prd.json containing a known multi-level dependency chain and asserts that all story IDs, file paths, and cross-project boundary markers appear in the output.",
+      "acceptanceCriteria": [
+        "Test invokes the CLI with a fixture prd.json and captures stdout; assert all expected story IDs appear in output",
+        "Test asserts circular-dependency detection triggers a non-zero exit code when a cycle is present in the fixture",
+        "uv run pytest tests/ -k us_1209 -v exits with code 0 and both assertions pass"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_regression_us1209.py (new file \u2014 regression tests for trace-dependencies CLI)",
+        "File to edit: tests/fixtures/dep_chain_prd.json (new fixture \u2014 multi-level deps including cross-project boundary)",
+        "Test command: uv run pytest tests/ -k us_1209 -v",
+        "Use subprocess.run(['python', 'main.py', 'trace-dependencies', 'US-001'], capture_output=True) to invoke CLI",
+        "Circular-dependency fixture should have US-001 depend on US-002, US-002 depend on US-001"
+      ],
+      "dependencies": [
+        "US-1209"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1304",
+      "title": "[Security Test] Config API: block unauthorized access (US-1214)",
+      "priority": "high",
+      "description": "Write pytest security tests for the POST /api/config endpoint introduced by US-1214. Verify that requests missing authentication headers receive 401/403 and that error responses never leak tokens or file-system paths.",
+      "acceptanceCriteria": [
+        "POST /api/config with no auth header returns 401 or 403",
+        "Error response body contains no secrets: run `uv run pytest tests/test_security_us1214.py -v` and assert no token/password in response JSON",
+        "GET /api/config with no auth header also returns 401 or 403"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us1214.py (new file \u2014 create security test module)",
+        "File to edit: lib/spiral_ui_config.py (load/validate/persist config \u2014 read to understand auth hook points)",
+        "Test command: uv run pytest tests/test_security_us1214.py -v",
+        "Use requests or httpx against a locally-started FastAPI/Flask test client; import the app from spiral-ui backend directly so no real server is needed",
+        "Assert response.status_code in (401, 403) and that response.json() keys do not include 'token', 'password', 'secret', or 'key'"
+      ],
+      "dependencies": [
+        "US-1214"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1305",
+      "title": "[Security Test] history_search.py: no unauthorized DB read via API (US-1259)",
+      "priority": "high",
+      "description": "Write pytest security tests for the history search feature introduced by US-1259. Verify that any HTTP endpoint or CLI wrapper that exposes find_similar_attempts() rejects unauthenticated callers and does not leak raw SQLite row data in error messages.",
+      "acceptanceCriteria": [
+        "Any HTTP route exposing find_similar_attempts returns 401/403 without auth: `uv run pytest tests/test_security_us1259.py::test_history_endpoint_unauth -v`",
+        "Error response body contains no SQLite row data or file-system paths",
+        "Running `uv run pytest tests/test_security_us1259.py -v` exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us1259.py (new file \u2014 create security test module)",
+        "File to edit: lib/history_search.py (find_similar_attempts \u2014 read to identify the public surface for auth checks)",
+        "Test command: uv run pytest tests/test_security_us1259.py -v",
+        "If US-1259 exposes no HTTP route (pure Python library), write a unit test asserting the function raises PermissionError or similar when called without a valid session token, or document that no auth surface exists",
+        "Check .spiral/history.db is not world-readable: assert oct(os.stat('.spiral/history.db').st_mode)[-3:] in ('600', '640')"
+      ],
+      "dependencies": [
+        "US-1259"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1306",
+      "title": "[Security Test] history_search: DB access control and data-leak guards (US-1259)",
+      "priority": "high",
+      "description": "Write security tests verifying that .spiral/history.db and the find_similar_attempts() function introduced in US-1259 do not expose sensitive execution data (API keys, tokens, passwords) through query results or error messages.",
+      "acceptanceCriteria": [
+        "find_similar_attempts() results contain no secret/token/password fields: `uv run pytest tests/test_history_security.py::test_no_sensitive_fields_in_results -v`",
+        "Querying a non-existent DB raises a handled error with no raw path leak: `uv run pytest tests/test_history_security.py::test_missing_db_safe_error -v`",
+        "Returned attempt records include only (story_id, model, outcome, duration, cost) keys: `uv run pytest tests/test_history_security.py::test_result_schema -v`"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_history_security.py (test_no_sensitive_fields_in_results, test_missing_db_safe_error, test_result_schema)",
+        "File to read: lib/history_search.py (find_similar_attempts) \u2014 inspect return schema before writing assertions",
+        "Test command: uv run pytest tests/test_history_security.py -v"
+      ],
+      "dependencies": [
+        "US-1259"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1307",
+      "title": "Deduplication Confidence Scorer: suggest and merge similar stories",
+      "priority": "medium",
+      "description": "Add lib/dedup_confidence.py with TF-IDF similarity scoring over prd.json stories, and wire two new CLI subcommands: spiral dedup-suggestions (show top duplicate pairs) and spiral merge <id1> <id2> (combine stories and mark originals superseded). Seed stories are excluded from dedup candidates.",
+      "acceptanceCriteria": [
+        "`spiral dedup-suggestions` prints at least one pair with confidence \u22650.75 when obvious duplicates exist in prd.json: `uv run pytest tests/test_dedup_confidence.py::test_high_confidence_detection -v`",
+        "`spiral merge US-X US-Y` writes a new story with combined acceptanceCriteria and sets superseded_by on both originals: `uv run pytest tests/test_dedup_confidence.py::test_merge_sets_superseded_by -v`",
+        "Seed stories (source == 'seed') never appear as dedup candidates: `uv run pytest tests/test_dedup_confidence.py::test_seed_excluded -v`"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dedup_confidence.py (find_duplicates(prd_data) \u2192 List[Tuple[str,str,float]] sorted by score desc, merge_stories(id1, id2, prd_data) \u2192 dict)",
+        "File to edit: lib/cli_subcommands.sh (add dedup-suggestions and merge command handlers near existing subcommand dispatch)",
+        "File to create: tests/test_dedup_confidence.py",
+        "Test command: uv run pytest tests/test_dedup_confidence.py -v",
+        "Use sklearn TfidfVectorizer on title + description concatenation; cosine_similarity threshold 0.75"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1308",
+      "title": "spiral-ui: Backend GET /api/tests/summary endpoint from spiral_events.jsonl",
+      "priority": "high",
+      "description": "Create a backend route that reads spiral_events.jsonl, aggregates verification events by story_id, and returns a summary payload with test status, test count, file-touch results, and coverage percentage. This powers the Tests tab frontend.",
+      "acceptanceCriteria": [
+        "GET /api/tests/summary returns JSON array with fields: story_id, test_status, test_count, file_touch_ok, coverage_pct",
+        "Endpoint correctly parses spiral_events.jsonl verification events and groups by story_id",
+        "curl http://localhost:5299/api/tests/summary returns HTTP 200 with valid JSON array"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral-ui/backend/routes/tests.py (new file \u2014 create GET /api/tests/summary handler)",
+        "File to edit: spiral-ui/backend/app.py (register_blueprint for tests router)",
+        "Test command: uv run pytest tests/test_tests_route.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1309",
+      "title": "spiral-ui: Tests tab React component with story grid and detail modal",
+      "priority": "high",
+      "description": "Create the TestsTab React component that fetches from GET /api/tests/summary via a useTestResults hook and renders a grid of Story ID, Test Status, Test Count, File-Touch Verification, and Coverage. Clicking a row opens a TestDetailModal showing individual failure logs.",
+      "acceptanceCriteria": [
+        "Tests tab renders a table with columns: Story ID, Test Status, Test Count, File-Touch OK, Coverage %",
+        "Clicking a story row opens TestDetailModal displaying raw failure messages for that story",
+        "npm run test -- src/tabs/TestsTab.test.tsx exits 0 with all assertions passing"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral-ui/src/tabs/TestsTab.tsx (new React component, fetches via useTestResults hook)",
+        "File to edit: spiral-ui/src/hooks/useTestResults.ts (new hook \u2014 GET /api/tests/summary with React Query)",
+        "File to edit: spiral-ui/src/components/TestDetailModal.tsx (new modal component)",
+        "Test command: npm run test -- src/tabs/TestsTab.test.tsx"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1310",
+      "title": "Add prd.include schema field and circular-include detection to merge_stories.py",
+      "priority": "medium",
+      "description": "Extend prd.schema.json with an optional prd.include array of file paths. Update lib/merge_stories.py to load each included sub-project PRD, prefix story IDs with the sub-project namespace (e.g., web:US-100), and raise an error on circular includes or missing files. This is the implementation half of US-1212.",
+      "acceptanceCriteria": [
+        "uv run python lib/prd_schema.py prd.json exits 0 when prd.include contains a valid sub-project path",
+        "python -c \"from lib.merge_stories import load_with_includes; load_with_includes('tests/fixtures/subproject_web_prd.json')\" prints namespaced story IDs like web:US-100",
+        "Circular include (A includes B includes A) raises MergeError with message containing 'circular'",
+        "uv run pytest tests/test_federated_prd.py -k include_schema -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: prd.schema.json (add prd.include: array of strings, optional)",
+        "File to edit: lib/merge_stories.py (add load_with_includes() that recurses include list, prefixes IDs, detects cycles via visited-set)",
+        "Test command: uv run pytest tests/test_federated_prd.py -k include_schema -v",
+        "Cycle detection: pass a frozenset of already-visited paths; raise MergeError if current path is in set"
+      ],
+      "dependencies": [
+        "US-1212"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1311",
+      "title": "Performance test: POST /api/config endpoint responds within 200ms baseline",
+      "priority": "medium",
+      "description": "Write a pytest performance benchmark in tests/test_spiral_ui_config_perf.py that calls POST /api/config via httpx against a locally started spiral-ui backend, measures p99 response time over 50 iterations, and fails if it exceeds 200ms. Establishes a repeatable baseline for the config endpoint introduced in US-1214.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v exits 0 when server is running",
+        "Test records p50 and p99 latency and asserts p99 < 200ms",
+        "Test fails if POST /api/config returns a non-200 HTTP status"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_ui_config_perf.py (new \u2014 test_config_post_latency_us_1214)",
+        "File to edit: lib/spiral_ui_config.py (reference \u2014 load/validate/persist config; must exist before this test runs)",
+        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v",
+        "Use httpx.Client for sync requests; spin up the backend with subprocess in a session-scoped fixture or assume it is already running on localhost:5299",
+        "Measure wall-clock time with time.perf_counter() around each POST call; collect into list; assert statistics.quantiles(times, n=100)[98] < 0.2"
+      ],
+      "dependencies": [
+        "US-1214"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1312",
+      "title": "spiral-ui: Add Tests tab UI with history table and pass-rate chart",
+      "priority": "medium",
+      "description": "Create a TestsTab React component that fetches /api/tests/history, renders a filterable table (date, test file, status, coverage %), a trend line chart of pass rate over time, and an expandable row showing full pytest output. Register the tab in Dashboard.tsx.",
+      "acceptanceCriteria": [
+        "Tests tab renders table with Date, Test File, Status, Coverage % columns populated from API: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'renders table' -v`",
+        "Date range preset buttons (7d, 30d) filter visible rows and re-render trend chart: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'date filter' -v`",
+        "Clicking a table row expands to show pytest output text: `npx playwright test tests/e2e/tests-tab.spec.ts --grep 'row expand' -v`"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/TestsTab.tsx (React component, TanStack Query for /api/tests/history, recharts LineChart for trend)",
+        "File to create: spiral-ui/src/hooks/useTestHistory.ts (TanStack Query hook wrapping GET /api/tests/history)",
+        "File to edit: spiral-ui/src/App.tsx or Dashboard.tsx (register TestsTab in tab list)",
+        "File to create: tests/e2e/tests-tab.spec.ts (Playwright E2E)",
+        "Test command: npx playwright test tests/e2e/tests-tab.spec.ts -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1313",
+      "title": "Regression tests: model escalation haiku\u2192sonnet and worker crash respawn",
+      "priority": "medium",
+      "description": "Extend tests/test_spiral_e2e_integration.py with two tests for US-1211 behaviors: (1) test_us1211_model_escalation mocks a story failure and asserts results.tsv records haiku on attempt 1 then sonnet on attempt 2; (2) test_us1211_worker_crash_respawn simulates a worker process crash and asserts the main loop respawns it and all pending stories complete.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_spiral_e2e_integration.py -k us1211 -v exits 0 (both tests pass)",
+        "test_us1211_model_escalation: results.tsv contains two rows for same story_id with models haiku then sonnet",
+        "test_us1211_worker_crash_respawn: all seeded pending stories reach status 'done' despite simulated crash",
+        "Tests fail if escalation logic or respawn logic is monkey-patched out"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_e2e_integration.py (test_us1211_model_escalation, test_us1211_worker_crash_respawn)",
+        "File to edit: tests/fixtures/mock_claude_api.py (add fail-then-succeed response sequence builder)",
+        "Test command: uv run pytest tests/test_spiral_e2e_integration.py -k us1211 -v",
+        "For crash simulation: mock the worker process object's poll() to return non-zero on first check, then normal on retry",
+        "results.tsv is written by lib/impl/retry.sh \u2014 read it with csv.reader in the test assertion"
+      ],
+      "dependencies": [
+        "US-1211"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1314",
+      "title": "Phase G: Generate HTML API documentation from lib/ modules using pdoc",
+      "priority": "medium",
+      "description": "After story implementations in Phase I, automatically generate HTML API reference documentation for all lib/ Python modules using pdoc. Documentation is committed to docs/api/ and indexed from README for easy navigation.",
+      "acceptanceCriteria": [
+        "lib/api_docs_generator.py generates HTML docs for all .py files in lib/ (excluding tests) with module docstrings and function signatures extracted",
+        "Phase G (after Phase I implementation) invokes api_docs_generator, commits docs/api/index.html with commit message 'docs: auto-generated API docs'",
+        "Command `uv run python lib/api_docs_generator.py lib/ --output docs/api/` runs without errors and produces navigable HTML index with cross-module links"
+      ],
+      "technicalNotes": [
+        "File to create: lib/api_docs_generator.py (pdoc wrapper using pdoc.render(), ~120 lines)",
+        "File to modify: spiral.sh Phase G section to invoke generator and commit (add ~10 lines)",
+        "Test command: uv run pytest tests/test_api_docs_generator.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1315",
+      "title": "Phase I: Enrich error messages with recovery hints indexed by failure type",
+      "priority": "high",
+      "description": "Add error context enrichment to Phase I that maps failure types (syntax, timeout, scope overflow, import errors) to actionable recovery hints. Store hints in results.tsv and display in spiral-ui Activity Log with clickable recovery actions.",
+      "acceptanceCriteria": [
+        "Each story failure in results.tsv includes 'hint' column with recovery suggestion (e.g., 'Reduce to atomic steps' for overflow, 'Increase SPIRAL_TIMEOUT' for timeouts)",
+        "Hints are generated from failure regex patterns and include one clickable action (e.g., 'View decomposition', 'Increase budget', 'Check constraints')",
+        "Test suite validates 8+ failure pattern\u2192hint mappings with regex matching on actual error output"
+      ],
+      "technicalNotes": [
+        "Create: lib/error_hints.py with FailureHintMapper class and pattern-to-hint registry",
+        "Update: lib/impl/retry.sh to invoke error_hints.py and append hint column to results.tsv after failure categorization",
+        "Create: tests/test_error_hints.py validating all 8+ patterns and hint content completeness",
+        "Test: uv run pytest tests/test_error_hints.py::test_hint_coverage -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1316",
+      "title": "Phase R cache: Create ResearchCache module with TTL and stats",
+      "priority": "medium",
+      "description": "Create lib/research_cache.py implementing a file-backed JSON cache for Phase R research queries. Cache is keyed by story type, supports 24h TTL, prunes expired entries on startup, and exposes a stats() method returning hit/miss counts.",
+      "acceptanceCriteria": [
+        "cache.get(key) returns None on miss and the stored summary on hit: `uv run pytest tests/test_research_cache.py::test_get_miss_and_hit -v`",
+        "Entries older than 24h are pruned by cache.prune(): `uv run pytest tests/test_research_cache.py::test_ttl_expiry -v`",
+        "cache.stats() returns dict with hit_count and miss_count matching actual usage: `uv run pytest tests/test_research_cache.py::test_stats_accuracy -v`",
+        "Cache file is valid JSON after put() and survives a re-instantiation: `uv run pytest tests/test_research_cache.py::test_persistence -v`"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/research_cache.py (new file \u2014 class ResearchCache with get, put, prune, stats methods; store as .spiral/research_cache.json)",
+        "File to edit: tests/test_research_cache.py (new file \u2014 unit tests for all ResearchCache methods)",
+        "Test command: uv run pytest tests/test_research_cache.py -v",
+        "Use tmp_path pytest fixture for .spiral/ directory; freeze time with freezegun or monkeypatch time.time() to test TTL"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1317",
+      "title": "Phase R cache: Integrate ResearchCache into phase_r.py with telemetry logging",
+      "priority": "medium",
+      "description": "Update lib/phases/phase_r.py to call ResearchCache.get() before invoking the Gemini API and ResearchCache.put() after. Append a telemetry row to .spiral/research_telemetry.jsonl per Phase R run containing hit_count, miss_count, api_calls_saved, and time_saved_seconds.",
+      "acceptanceCriteria": [
+        "Phase R skips Gemini API call when cache returns a hit (mock Gemini, assert not called): `uv run pytest tests/test_research_cache.py::test_phase_r_cache_hit_skips_api -v`",
+        "After a Phase R run, .spiral/research_telemetry.jsonl contains a valid JSON line with hit_count and api_calls_saved: `uv run pytest tests/test_research_cache.py::test_telemetry_written -v`"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/phases/phase_r.py (import ResearchCache; wrap Gemini call with cache.get/put; append telemetry line after phase completes)",
+        "File to edit: tests/test_research_cache.py (add integration tests for phase_r cache flow)",
+        "Test command: uv run pytest tests/test_research_cache.py::test_phase_r_cache_hit_skips_api tests/test_research_cache.py::test_telemetry_written -v",
+        "Telemetry line format: {\"ts\": <iso>, \"hit_count\": N, \"miss_count\": N, \"api_calls_saved\": N, \"time_saved_seconds\": F}"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1318",
+      "title": "Regression Test: worker crash respawn completes pending stories (US-1211b)",
+      "priority": "medium",
+      "description": "Add a test to tests/test_spiral_e2e_integration.py that simulates a worker process crash mid-run and asserts the main loop detects the crash, respawns the worker, and all pending stories are eventually completed. Guards the crash-recovery branch of US-1211.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_spiral_e2e_integration.py::test_worker_crash_recovery_us1211 -v` exits 0",
+        "Test asserts all stories in the mocked PRD slice reach status 'done' after crash+respawn",
+        "Test fails when crash-detection or respawn logic is removed (stories remain 'pending')"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_e2e_integration.py (test_worker_crash_recovery_us1211)",
+        "File to edit: tests/fixtures/mock_claude_api.py (add crash-signal mock for worker subprocess)",
+        "Test command: uv run pytest tests/test_spiral_e2e_integration.py::test_worker_crash_recovery_us1211 -v",
+        "Simulate crash by having mock subprocess.run raise subprocess.TimeoutExpired on the first worker invocation",
+        "Assert prd.json story statuses after loop: all should be 'done'"
+      ],
+      "dependencies": [
+        "US-1211"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1319",
+      "title": "Regression Test: prd.include merges stories with namespace prefixes (US-1212a)",
+      "priority": "medium",
+      "description": "Add tests/test_federated_prd.py with a test that loads a prd.json containing a prd.include pointing to tests/fixtures/subproject_web_prd.json, calls the Phase M merge logic, and asserts included stories appear in the merged output with 'web:' namespace prefixes. Guards the merge path of US-1212.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_federated_prd.py::test_include_merges_with_prefix -v` exits 0",
+        "Merged story list contains stories with IDs prefixed 'web:' matching those in subproject_web_prd.json",
+        "Test fails when namespace-prefix logic is removed from merge_stories.py"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_federated_prd.py (test_include_merges_with_prefix)",
+        "File to edit: tests/fixtures/subproject_web_prd.json (create fixture with 2-3 sample stories)",
+        "File to edit: lib/merge_stories.py (import and call merge function under test)",
+        "Test command: uv run pytest tests/test_federated_prd.py::test_include_merges_with_prefix -v",
+        "Call merge_stories.load_with_includes('tests/fixtures/base_prd.json') and assert result['stories'][*]['id'] starts with 'web:'"
+      ],
+      "dependencies": [
+        "US-1212"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1320",
+      "title": "CLI: Add `spiral cost-estimate` with model escalation breakdown and budget projection",
+      "priority": "medium",
+      "description": "Implement `spiral cost-estimate [--iterations N] [--workers M]` command to forecast total cost before running, showing per-story token estimates, model selection rationale, and grand total accounting for parallelization.",
+      "acceptanceCriteria": [
+        "Command outputs table: story_id | complexity | tokens_h/s/o | cost_haiku | escalation_prob | model_pick | total_cost, sorted by descending cost",
+        "Grand total = sum over (ceil(stories / workers)) iterations; includes 20% contingency buffer",
+        "--format json|csv outputs machine-readable estimates; --dry-run shows command without API calls",
+        "Test with fixture prd.json (50 stories) shows cost within 15% of actual results.tsv"
+      ],
+      "technicalNotes": [
+        "Create: lib/cost_estimator.py with estimate_story_tokens(complexity) using historical token/complexity ratio from results.tsv",
+        "Create: lib/cli_commands/cost_estimate.py with table formatting and output modes",
+        "Update: lib/cli_subcommands.sh to wire 'cost-estimate' subcommand to cost_estimate.py",
+        "Test: uv run pytest tests/test_cost_estimator.py::test_budget_with_parallelization -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1321",
+      "title": "[Security Test] history_search: no sensitive data exposed in FTS5 query results",
+      "priority": "high",
+      "description": "Write security tests for lib/history_search.py introduced by US-1259. Verify that find_similar_attempts() never returns raw API tokens or secrets stored in results.tsv, and that the SQLite DB file has appropriate permissions.",
+      "acceptanceCriteria": [
+        "find_similar_attempts() return values contain no field named 'token', 'api_key', or 'password'",
+        "Calling find_similar_attempts() with a malformed query string raises ValueError, not an unhandled sqlite3 exception",
+        "uv run pytest tests/test_security_us1259.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us1259.py (new file \u2014 create security test module)",
+        "File to edit: lib/history_search.py (find_similar_attempts function \u2014 add input sanitisation if missing)",
+        "Test command: uv run pytest tests/test_security_us1259.py -v",
+        "Seed a temp .spiral/history.db with fixture rows that include a fake 'sk-test-token' value; assert it does not appear in query results",
+        "Use pytest tmp_path fixture to isolate the test DB from the real .spiral/ directory"
+      ],
+      "dependencies": [
+        "US-1259"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1322",
+      "title": "[Regression Test] e2e SPIRAL loop: phase order and final prd.json state",
+      "priority": "medium",
+      "description": "Write a regression test for the full SPIRAL phase loop introduced by US-1210. Uses monkeypatched subprocess.run to mock Claude CLI so no real API calls are made. Validates that phases execute in the correct order and prd.json reflects expected final state.",
+      "acceptanceCriteria": [
+        "Test confirms phases A\u2192R\u2192T\u2192S\u2192E\u2192M\u2192X\u2192G\u2192I\u2192V\u2192C execute in order (assert call sequence on mock)",
+        "After the mocked loop, at least one story in prd.json has status 'done' or 'pass'",
+        "uv run pytest tests/test_spiral_e2e_integration.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_e2e_integration.py (new file \u2014 create e2e regression test)",
+        "File to edit: tests/conftest.py (add shared mock_claude_cli fixture if not present)",
+        "File to edit: tests/fixtures/mock_claude_api.py (stub subprocess.run responses per phase)",
+        "Test command: uv run pytest tests/test_spiral_e2e_integration.py -v",
+        "Use monkeypatch.setattr('subprocess.run', mock_fn) where mock_fn returns a CompletedProcess with phase-appropriate stdout",
+        "Copy a minimal seed prd.json (1 story, status pending) into tmp_path before running the loop"
+      ],
+      "dependencies": [
+        "US-1210"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1323",
+      "title": "spiral-ui: Add Tests Coverage Tab with file-level heatmap visualization",
+      "priority": "medium",
+      "description": "Add new dashboard tab displaying test coverage metrics from recent SPIRAL stories. Heatmap visualization shows coverage % per file, highlights untested modules, helps developers prioritize testing effort.",
+      "acceptanceCriteria": [
+        "Tab renders coverage data from .spiral/coverage.json (generated by pytest --cov run after Phase V)",
+        "Heatmap shows files color-coded by coverage: red <50%, yellow 50-80%, green >80%",
+        "Clicking a file shows covered/uncovered lines, diffs from latest story that touched that file"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/coverage_analyzer.py (add generate_coverage_matrix function that parses coverage.json and computes per-file metrics)",
+        "File to edit: spiral-ui/src/components/TestsCoverageTab.tsx (React component with Recharts heatmap visualization)",
+        "Test command: uv run pytest tests/test_coverage_analyzer.py::test_coverage_matrix_generation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1324",
+      "title": "Trajectory Export: Generate JSONL training data from story execution traces",
+      "priority": "low",
+      "description": "Add lib/trajectory_exporter.py to export story execution traces (prompts, inputs, outputs, success/failure, token counts) as JSONL format for RL fine-tuning custom Claude instances on SPIRAL patterns.",
+      "acceptanceCriteria": [
+        "New command `spiral export-trajectory [--output file.jsonl] [--filter model=sonnet]` generates JSONL from results.tsv and worker logs",
+        "Each JSONL record contains: story_id, prompt, decomposition_strategy, response, tokens_used, success, error_type, model_tier, retry_count",
+        "Output file gzipped and stored at .spiral/trajectory/export-YYYY-MM-DD-HHMMSS.jsonl.gz",
+        "JSONL records validated against JSON Schema with 100% field presence for complete stories"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/trajectory_exporter.py (implement TrajectoryExporter class with to_jsonl(filter_dict) method parsing results.tsv and worker logs)",
+        "File to edit: lib/cli_subcommands.sh (register export-trajectory subcommand routing to Python module)",
+        "Test command: uv run pytest tests/test_trajectory_exporter.py::test_trajectory_jsonl_schema_validation -v && zcat .spiral/trajectory/*.jsonl.gz | jq . > /dev/null"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1325",
+      "title": "[Security Test] Config API: verify auth enforcement on POST /api/config",
+      "priority": "high",
+      "description": "Write a pytest security test for the POST /api/config endpoint introduced in US-1214. The test must confirm that unauthenticated requests are rejected with 401 or 403 and that no sensitive runtime values are leaked in error bodies.",
+      "acceptanceCriteria": [
+        "POST /api/config without credentials returns HTTP 401 or 403 (verified by test assertion on response.status_code)",
+        "Error response body contains no token, password, or secret key values (verified by asserting sensitive keys absent from JSON response)",
+        "Authenticated POST /api/config with valid payload returns 200 (smoke-check that auth itself is wired correctly)"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_security_us1214.py \u2014 use httpx or requests with a test client fixture pointing at the spiral-ui backend",
+        "File to reference: lib/spiral_ui_config.py (load_config, save_config) to understand what fields are exposed",
+        "Test command: uv run pytest tests/test_security_us1214.py -v --tb=short"
+      ],
+      "dependencies": [
+        "US-1214"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1326",
+      "title": "[Security Test] Settings Tab: verify config endpoints reject unauthenticated callers",
+      "priority": "high",
+      "description": "Write a pytest security test covering the GET /api/config and POST /api/config endpoints consumed by the SettingsTab component (US-1215). Confirm that both endpoints enforce authentication and do not leak secrets in error responses.",
+      "acceptanceCriteria": [
+        "GET /api/config without credentials returns HTTP 401 or 403 (assert response.status_code in {401, 403})",
+        "POST /api/config without credentials returns HTTP 401 or 403 (same assertion)",
+        "Error response body for both endpoints contains no fields named 'token', 'password', or 'secret' (assert keys absent from parsed JSON)"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_security_us1215.py \u2014 mirror structure of test_security_us1214.py; reuse the test-client fixture",
+        "File to reference: spiral-ui/src/components/SettingsTab.tsx to confirm which endpoints are called",
+        "Test command: uv run pytest tests/test_security_us1215.py -v --tb=short"
+      ],
+      "dependencies": [
+        "US-1215"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1327",
+      "title": "Create lib/federation_graph.py with DAG builder and cycle detector",
+      "priority": "medium",
+      "description": "Implement lib/federation_graph.py providing build_dag(root_prd_path) and detect_cycles(). build_dag resolves prd.include paths recursively and returns a dict adjacency graph; detect_cycles returns (has_cycle: bool, cycle_nodes: list[str]). This is the core library used by the validation test suite.",
+      "acceptanceCriteria": [
+        "build_dag('tests/fixtures/multi-project-prd/project-a/prd.json') returns a non-empty dict with all reachable project paths as keys",
+        "detect_cycles on a graph containing A\u2192B\u2192C\u2192A returns (True, list containing all three node paths)",
+        "detect_cycles on a linear A\u2192B\u2192C graph returns (False, [])"
+      ],
+      "technicalNotes": [
+        "File to create: lib/federation_graph.py (build_dag, detect_cycles, _resolve_includes helper)",
+        "File to create: tests/fixtures/multi-project-prd/project-a/prd.json, project-b/prd.json, project-c/prd.json \u2014 minimal JSON with prd.include fields to form a cycle",
+        "Test command: uv run pytest tests/test_federation_graph.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1328",
+      "title": "Add federation validation test suite: include resolution and story ID uniqueness",
+      "priority": "medium",
+      "description": "Write tests/test_federation_validation.py covering prd.include path resolution and global story ID uniqueness checks across a multi-project topology. Relies on lib/federation_graph.py and the fixtures created alongside it.",
+      "acceptanceCriteria": [
+        "test_all_includes_resolve passes when all prd.include paths in the fixture topology point to existing files (assert no FileNotFoundError from build_dag)",
+        "test_circular_dependency_detection fails fast and reports all three node paths when project-a includes project-b which includes project-c which includes project-a",
+        "test_story_id_uniqueness detects a duplicate US-001 defined in both project-a and project-b and reports both file locations"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_federation_validation.py \u2014 import build_dag, detect_cycles from lib.federation_graph",
+        "File to reference: lib/federation_graph.py (build_dag, detect_cycles) \u2014 must exist before this story runs",
+        "Test command: uv run pytest tests/test_federation_validation.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1329",
+      "title": "Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming",
+      "priority": "medium",
+      "description": "Implement timeout_scope_reducer(story_id, story_obj) in lib/timeout_handler.py. It strips acceptance criteria tagged with @optional from the story dict and delegates to lib/impl/scope_reducer.py. Returns the reduced story dict ready for retry.",
+      "acceptanceCriteria": [
+        "timeout_scope_reducer called with a story containing two @optional ACs returns a story dict with those ACs removed and non-optional ACs intact",
+        "timeout_scope_reducer called with a story containing zero @optional ACs returns the story unchanged",
+        "Reduced story dict passes Phase S JSON schema validation (uv run python lib/prd_schema.py on the output)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/timeout_handler.py (timeout_scope_reducer(story_id, story_obj) \u2192 dict)",
+        "File to create: lib/impl/scope_reducer.py (strip_optional_ac(story_obj) \u2192 dict, detects '@optional' prefix in AC strings)",
+        "Test command: uv run pytest tests/test_timeout_handler.py::test_scope_reducer_strips_optional_ac -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1330",
+      "title": "Wire timeout_scope_reducer into lib/impl/retry.sh before decompose_story()",
+      "priority": "medium",
+      "description": "Modify select_retry_strategy() in lib/impl/retry.sh to call timeout_scope_reducer (via uv run python) when failure type is 'timeout' and the story has @optional ACs. Only fall through to decompose_story() when no optional ACs remain or scope reduction itself times out.",
+      "acceptanceCriteria": [
+        "select_retry_strategy timeout branch invokes lib/timeout_handler.py and writes reduced story JSON to a temp file before calling decompose_story",
+        "Integration test with a fixture story containing @optional AC verifies that the retry path calls scope_reducer output, not the original story (assert reduced file written to disk)",
+        "When the story has no @optional ACs, select_retry_strategy falls through to decompose_story without invoking timeout_handler"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/retry.sh (select_retry_strategy \u2014 timeout branch, ~line where 'timeout' case is handled)",
+        "File to create: tests/fixtures/sample-stories-with-optional-ac.json \u2014 one story with two @optional ACs",
+        "Test command: uv run pytest tests/test_timeout_handler.py::test_timeout_triggers_scope_reduction_not_decompose -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1331",
+      "title": "[Performance Test] spiral-ui config API response time benchmark",
+      "priority": "medium",
+      "description": "Write a pytest performance benchmark for the POST /api/config endpoint backed by lib/spiral_ui_config.py. Measures p95 response time over 50 calls and fails the test if it regresses more than 20% from a recorded baseline of 50ms.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v` exits 0",
+        "Test makes 50 POST /api/config requests via httpx or requests to a locally-started test server and asserts p95 latency < 60ms",
+        "Test asserts that lib/spiral_ui_config.py load_config() returns a dict containing keys SPIRAL_MAX_PENDING, SPIRAL_MODEL_ROUTING, and SPIRAL_VALIDATE_CMD"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_ui_config_perf.py (create new \u2014 add test_us_1214_config_load_perf and test_us_1214_config_keys)",
+        "File to edit: lib/spiral_ui_config.py (import load_config to assert key presence without HTTP overhead)",
+        "Use time.perf_counter() around repeated load_config() calls if HTTP server setup is complex; assert mean < 50ms",
+        "Test command: uv run pytest tests/test_spiral_ui_config_perf.py -k us_1214 -v"
+      ],
+      "dependencies": [
+        "US-1214"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1332",
+      "title": "Phase R: Add research cache to skip redundant Gemini calls for duplicate story titles",
+      "priority": "medium",
+      "description": "Cache Gemini research results by story title hash with 7-day TTL to avoid re-researching stories with identical or very similar titles. Phase R checks cache before calling Gemini API, reducing costs and research latency.",
+      "acceptanceCriteria": [
+        "lib/research_cache.py exports get_research(title_hash) and set_research(title_hash, results) using SQLite backend with TTL column",
+        "Phase R in lib/phases/phase_r.sh checks cache before Gemini API call; uses cached results if TTL > 0, logs cache hit/miss",
+        "Cache expires and triggers fresh Gemini call after 7 days; test with sample story pairs to verify deduplication"
+      ],
+      "technicalNotes": [
+        "File to create: lib/research_cache.py with SQLite table: CREATE TABLE research_cache (title_hash TEXT PRIMARY KEY, results TEXT, cached_at DATETIME, ttl_days INT DEFAULT 7)",
+        "File to modify: lib/phases/phase_r.sh call research_cache.get_research(story_title_hash) before Gemini API, store result via set_research() on success",
+        "Test command: uv run pytest tests/test_research_cache.py::test_cache_hit_within_ttl -v && uv run pytest tests/test_research_cache.py::test_cache_miss_expired -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1333",
+      "title": "WhatsApp notification plugin: Post-iteration summary with pass count and cost",
+      "priority": "medium",
+      "description": "Add plugin that sends WhatsApp message when SPIRAL iteration completes, including story pass/fail count, total token cost, pass-rate delta, and estimated iterations remaining.",
+      "acceptanceCriteria": [
+        "plugins/notify-whatsapp/plugin.toml declares post-phase-G hook; plugin reads .spiral/_checkpoint.json and results.tsv to extract stats",
+        "plugins/notify-whatsapp/notify.sh formats message: 'Iteration N complete: 5/12 stories passed, $2.45 spent, +1 from prev, ~8 iterations left'; sends via SPIRAL_WHATSAPP_API_URL",
+        "Plugin respects SPIRAL_NOTIFICATIONS_ENABLED config flag; gracefully skips if SPIRAL_WHATSAPP_API_URL not set (warning logged)"
+      ],
+      "technicalNotes": [
+        "File to create: plugins/notify-whatsapp/plugin.toml with [plugin] metadata and [[hook]] entry for post-phase-G",
+        "File to create: plugins/notify-whatsapp/notify.sh that parses results.tsv, calculates stats via awk/jq, POSTs to SPIRAL_WHATSAPP_API_URL with formatted JSON body",
+        "Test command: bash tests/test_plugin_whatsapp.bats && uv run pytest tests/test_whatsapp_message_formatter.py::test_format_iteration_message -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1334",
+      "title": "CLI: Add `spiral profile-phases` command to measure and report phase execution time",
+      "priority": "low",
+      "description": "Add CLI subcommand to profile wall-clock time per phase and identify bottlenecks. Outputs sorted table: Phase | Duration | % of Total | Status. Helps product owners and developers optimize SPIRAL runtime.",
+      "acceptanceCriteria": [
+        "spiral.sh logs phase start/end timestamps to .spiral/_phase_timings.jsonl in format {phase: 'R', start_ms: <timestamp>, end_ms: <timestamp>} for each phase execution",
+        "`spiral profile-phases` reads _phase_timings.jsonl, outputs table sorted by duration descending: Phase | Duration (s) | Pct | Status; handles incomplete/missing data",
+        "Includes summary: total runtime, slowest phase, suggestion to investigate phases >30% of total time"
+      ],
+      "technicalNotes": [
+        "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
+        "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
+        "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1335",
+      "title": "[Security Test] history_search.py: validate FTS5 query sanitization and path safety",
+      "priority": "high",
+      "description": "Write security tests for lib/history_search.py introduced by US-1259. Verify that FTS5 queries are parameterized (no SQL injection), that .spiral/history.db is created only inside the project directory, and that find_similar_attempts() never surfaces raw file paths or tokens from results.tsv in its return value.",
+      "acceptanceCriteria": [
+        "Calling find_similar_attempts() with an SQL injection payload (e.g. \"'; DROP TABLE--\") raises no exception and returns an empty list (verified by pytest assert result == [])",
+        "history.db is created at .spiral/history.db and not at any absolute/escaped path (verified by assert Path('.spiral/history.db').exists())",
+        "Return value from find_similar_attempts() contains only fields (story_id, model, outcome, duration, cost) \u2014 no raw file content or token strings (verified by assert all(set(r.keys()) <= {'story_id','model','outcome','duration','cost'} for r in result))"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us_1259_security.py (new file \u2014 create security test suite)",
+        "File to edit: lib/history_search.py (ensure sqlite3 parameterized queries, no string formatting in SQL)",
+        "Test command: uv run pytest tests/test_us_1259_security.py -v"
+      ],
+      "dependencies": [
+        "US-1259"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1336",
+      "title": "CLI: spiral workers kill <worker-id> with safe resource cleanup",
+      "priority": "medium",
+      "description": "Add a CLI subcommand to gracefully kill a specific worker by ID, including cleanup of its git worktree and any running processes. This improves operator control over long-running SPIRAL sessions.",
+      "acceptanceCriteria": [
+        "Command `spiral workers kill <worker-id>` accepts a valid worker ID and terminates the worker process",
+        "Associated git worktree at `.spiral-workers/worker-<id>/` is deleted via `git worktree remove`",
+        "No dangling processes or worktree references remain after kill command completes"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/worker_heartbeat.sh \u2014 add function kill_worker_safe() that sends SIGTERM, waits with timeout, runs git worktree remove, logs cleanup status",
+        "File to edit: lib/cli_subcommands.sh \u2014 add case handler for `spiral workers kill` subcommand",
+        "Test command: uv run pytest tests/test_cli_workers.py::test_kill_worker_cleanup -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1337",
+      "title": "Phase T: Test Failure Classification with Root Cause and Remediation Hint",
+      "priority": "medium",
+      "description": "Enhance Phase T (test synthesis) to classify each test failure into categories: syntax_error, import_error, assertion_failure, timeout, environment_error. Attach remediation hints (e.g., 'missing import: xyz' or 'test timeout \u2014 may need scope reduction') for downstream story generation.",
+      "acceptanceCriteria": [
+        "Phase T runs test scan and classifies each failure snippet by regex patterns (ImportError \u2192 import_error, AssertionError \u2192 assertion_failure, etc.)",
+        "Stores classification in _test_failures.json as {failure_id: {type, hint, snippet, line_number}}",
+        "Stories generated from Phase T failures include _rootCause and _hint fields for Ralph to use in implementation"
+      ],
+      "technicalNotes": [
+        "File to create: lib/test_classifier.py \u2014 function classify_test_failure(snippet) returns {type, hint} dict using regex patterns; supports ImportError, AssertionError, SyntaxError, TimeoutError, EnvironmentError",
+        "File to edit: lib/phases/phase_t.sh \u2014 after test collection, call `python3 lib/test_classifier.py --classify _test_failures.jsonl` to annotate failures",
+        "File to edit: lib/spiral/phase_a.py \u2014 patch story generation from Phase T results to include _rootCause and _hint fields in story JSON",
+        "Test command: uv run pytest tests/test_phase_t.py::test_classify_import_error -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1338",
+      "title": "lib: Create phase_s duplicate_detector with embedding cache",
+      "priority": "high",
+      "description": "Implement lib/phase_s/duplicate_detector.py exporting find_duplicates(stories) using sentence-transformers embeddings with an .jsonl disk cache. Returns List[(story_a, story_b, similarity_score)] for pairs scoring above 0.80. Embedding results are persisted to .spiral/embedding_cache.jsonl to avoid recomputation.",
+      "acceptanceCriteria": [
+        "find_duplicates(stories) returns List[(story_a, story_b, float)] for all pairs with score >0.80",
+        "Second call with same story titles reads from .spiral/embedding_cache.jsonl without re-invoking the model",
+        "uv run pytest tests/test_duplicate_detector.py::test_find_duplicates -v passes with a 5-story fixture containing 2 intentional near-duplicates"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_s/duplicate_detector.py (export find_duplicates; use sentence-transformers all-MiniLM-L6-v2 with cosine similarity fallback to difflib.SequenceMatcher, ~100 lines)",
+        "File to create: lib/phase_s/embedding_cache.py (load_cache/.save_cache reading/writing .spiral/embedding_cache.jsonl keyed by story title hash, ~40 lines)",
+        "File to create: tests/test_duplicate_detector.py (pytest fixture with 5 stories; 2 near-duplicate pairs must appear in results)",
+        "Test command: uv run pytest tests/test_duplicate_detector.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1339",
+      "title": "lib: Wire duplicate_detector into phase_s.sh before merge_stories",
+      "priority": "high",
+      "description": "Integrate the duplicate_detector module into lib/phases/phase_s.sh so Phase S logs near-duplicate story pairs before calling merge_stories. Any pair with similarity >0.85 is emitted as a DUPLICATE_CANDIDATE warning line in the Phase S output.",
+      "acceptanceCriteria": [
+        "phase_s.sh invokes duplicate_detector and echoes 'DUPLICATE_CANDIDATE: <id_a> / <id_b> (<score>)' for pairs >0.85 before merge_stories",
+        "bash tests/bats-core/bin/bats tests/phase_s.bats exits 0 after the integration change"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/phases/phase_s.sh (add 'uv run python -m lib.phase_s.duplicate_detector \"$STORIES_FILE\"' call immediately before the merge_stories invocation; capture output and grep for DUPLICATE_CANDIDATE lines)",
+        "Test command: bash tests/bats-core/bin/bats tests/phase_s.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1340",
+      "title": "spiral-ui: Add TestsTab component with Phase V pass/fail timeline",
+      "priority": "medium",
+      "description": "Create a TestsTab React component in spiral-ui that fetches /api/phase-v-results via a usePhaseVResults hook, renders a chronological pass/fail timeline per story with badge, test_file, and duration, and shows a summary bar with total count, pass rate, and average duration. Wire the tab into App.tsx.",
+      "acceptanceCriteria": [
+        "TestsTab renders a pass/fail badge, story_id, test_file, and duration_s for each record from /api/phase-v-results",
+        "Summary bar displays total tests, pass rate %, and average duration_s",
+        "npm run test -- --reporter=verbose spiral-ui/src/components/TestsTab.test.tsx exits 0"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/TestsTab.tsx (~80 lines; use shadcn/ui Badge for pass/fail colouring)",
+        "File to edit: spiral-ui/src/api/hooks.ts (add usePhaseVResults using TanStack Query useQuery)",
+        "File to edit: spiral-ui/src/App.tsx (add Tests tab entry pointing to TestsTab component)",
+        "File to edit: spiral-ui/src/types/phase.ts (add PhaseVResult interface if not present)",
+        "File to create: spiral-ui/src/components/TestsTab.test.tsx (Vitest + msw mock for /api/phase-v-results)",
+        "Test command: npm run test -- --reporter=verbose spiral-ui/src/components/TestsTab.test.tsx"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1341",
+      "title": "Ralph: Support @spiral:hint-complexity-band marker for scope-aware decomposition",
+      "priority": "medium",
+      "description": "Extend Ralph's story decomposition strategy to read and use complexity hints embedded in prd.json story descriptions. Developers can annotate stories with @spiral:hint-complexity-band:small/medium/large to guide Phase I decomposition logic and inform scope reduction strategies.",
+      "acceptanceCriteria": [
+        "Ralph parses @spiral:hint-complexity-band markers from story.description in prd.json",
+        "Phase I decomposition prompt includes hint context to guide sub-story generation",
+        "Integration test: 3 stories with hints \u2192 decomposed sub-stories reflect hint guidance in output"
+      ],
+      "technicalNotes": [
+        "File to create: lib/parse_story_hints.py (extract @spiral:* markers, ~50 lines)",
+        "File to edit: ralph/CLAUDE.md (document @spiral:hint-complexity-band marker syntax)",
+        "File to edit: lib/impl/decompose.sh (pass hint_context to Ralph invocation)",
+        "Test command: uv run pytest tests/test_parse_story_hints.py::test_extract_complexity_band -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1342",
+      "title": "Worker Heartbeat and Stall Detection: Auto-Restart Failed Workers",
+      "priority": "high",
+      "description": "Implement periodic heartbeat monitoring for Ralph workers. Each worker emits a heartbeat every 30s; the parent process flags and terminates stalled workers (no heartbeat for 60s), logs events to .spiral/worker_crashes.jsonl, and defers the stalled story to the next iteration or a healthy worker based on SPIRAL_STALL_STRATEGY.",
+      "acceptanceCriteria": [
+        "Running `python -c 'from lib.worker_heartbeat_monitor import HeartbeatSender; s = HeartbeatSender(\"US-1\"); s.emit({\"tokens\": 0})'` exits 0 and writes a JSON line to .spiral/worker_heartbeats.jsonl",
+        "Running `uv run pytest tests/test_worker_heartbeat.py::test_stall_detection_and_redirect -v` passes with stall detected after simulated 60s timeout",
+        "After a simulated stall, .spiral/worker_crashes.jsonl contains a JSON entry with keys: timestamp, story_id, worker_pid, reason",
+        "SPIRAL_STALL_STRATEGY=defer causes the stalled story to reappear in prd.json with passes=false; SPIRAL_STALL_STRATEGY=reassign routes it to an active worker slot"
+      ],
+      "technicalNotes": [
+        "File to create: lib/worker_heartbeat_monitor.py (HeartbeatSender.emit(), HeartbeatMonitor.check_all(), _terminate_worker())",
+        "File to edit: lib/run_parallel_ralph.sh (line ~180: spawn `uv run python lib/worker_heartbeat_monitor.py --mode=sender --story=$STORY_ID` per worker; spawn monitor in parent)",
+        "Test command: uv run pytest tests/test_worker_heartbeat.py::test_stall_detection_and_redirect -v",
+        "HeartbeatMonitor reads .spiral/worker_heartbeats.jsonl; uses os.kill(pid, signal.SIGTERM) to terminate stalled PIDs"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1343",
+      "title": "Bootstrap html/ scaffold for sequential project documentation",
+      "priority": "high",
+      "description": "Create the html/ folder scaffold at repo root so any newcomer can read the project end-to-end in sequence. Layout: html/index.html (entry dashboard with reading-order list and progress checkbox tracker), html/pages/01..09-*.html stubs, html/assets/css/custom.css, html/assets/js/nav.js (shared sidebar + dark-mode toggle persisted to localStorage). Use CDN-only stack per html-report skill (Chart.js v4, Mermaid v11, simple-datatables v9). No build step. Reuse templates from $HOME/.claude/skills/html-report/templates if present; otherwise generate from scratch.",
+      "acceptanceCriteria": [
+        "Directory html/ exists at repo root with subfolders pages/, assets/css/, assets/js/",
+        "Opening html/index.html in a browser shows a sidebar with links 01..09 in order plus a Reading Progress checklist that persists checked items to localStorage",
+        "html/assets/js/nav.js contains a working dark-mode toggle that persists across pages via localStorage key 'spiral-html-theme'",
+        "Running `python -c \"import pathlib; print(all((pathlib.Path('html')/p).exists() for p in ['index.html','pages','assets/css/custom.css','assets/js/nav.js']))\"` prints True",
+        "No external network calls at runtime \u2014 all libs loaded via <script> tags from public CDNs"
+      ],
+      "technicalNotes": [
+        "Files to create: html/index.html, html/assets/css/custom.css, html/assets/js/nav.js, html/pages/01-introduction.html ... html/pages/09-troubleshooting.html (stubs are fine for now \u2014 sibling stories will fill content)",
+        "Copy CSS/JS verbatim from C:/Users/Jyue/.claude/skills/html-report/templates/assets/ if present",
+        "Sidebar nav lives in nav.js as a single getNav() function so every page imports it identically \u2014 avoid fetch() because file:// blocks CORS",
+        "Test: open html/index.html in default browser via `start html/index.html` (Windows) and verify sidebar + dark-mode toggle appear"
+      ],
+      "dependencies": [],
+      "filesTouch": [
+        "html/index.html",
+        "html/assets/css/custom.css",
+        "html/assets/js/nav.js",
+        "html/pages/01-introduction.html",
+        "html/pages/02-quick-start.html",
+        "html/pages/03-architecture.html",
+        "html/pages/04-phase-deep-dive.html",
+        "html/pages/05-cli-reference.html",
+        "html/pages/06-configuration.html",
+        "html/pages/07-examples-and-recipes.html",
+        "html/pages/08-glossary.html",
+        "html/pages/09-troubleshooting.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html",
+        "newcomer-friendly"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1344",
+      "title": "Fill html/pages/01-introduction.html \u2014 what SPIRAL is and who it is for",
+      "priority": "high",
+      "description": "Populate the introduction page so a brand-new reader understands SPIRAL in under 5 minutes. Cover: one-paragraph definition (self-iterating PRD research + implementation loop), the problem it solves, who should use it, the 30-second mental model (research \u2192 implement \u2192 validate, repeat), and a short Why-this-is-different section vs plain Claude Code or vs a pure CI pipeline. Source content from README.md and CLAUDE.md. Plain English, no jargon \u2014 define every acronym on first use.",
+      "acceptanceCriteria": [
+        "html/pages/01-introduction.html opens with a hero block (project name + one-line definition + status badge) followed by 4 sections: What is SPIRAL, The Problem, Who Should Use This, How It Works in 30 seconds",
+        "Page contains a Mermaid flowchart node sequence: Research \u2192 Implement \u2192 Validate \u2192 Loop",
+        "Every acronym (PRD, PR, CLI, LLM) is expanded on first mention",
+        "Page links forward to 02-quick-start.html via a 'Next: Quick Start \u2192' button at the bottom",
+        "grep -E 'jargon|TODO|lorem' html/pages/01-introduction.html returns no matches"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/01-introduction.html",
+        "Source content from: README.md (overview), CLAUDE.md (What is SPIRAL section)",
+        "Use Mermaid via <pre class=\"mermaid\">\u2026</pre> \u2014 already wired by nav.js from US-1343"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/01-introduction.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1345",
+      "title": "Fill html/pages/02-quick-start.html \u2014 copy-pasteable first run in under 5 minutes",
+      "priority": "high",
+      "description": "A newcomer should be able to copy-paste 3 commands and see SPIRAL run. Cover: install / setup.sh, minimal prd.json, single command to launch (`bash spiral.sh 5 --gate proceed`), expected output, and where to look at the live dashboard (http://localhost:5299). Include a 'common first-run gotchas' callout (Windows path format, jq missing, claude CLI not in PATH).",
+      "acceptanceCriteria": [
+        "Page contains exactly 3 numbered steps with copy-pasteable code blocks (use <button onclick=\"navigator.clipboard.writeText\u2026\"> for one-click copy)",
+        "A 'Expected Output' section shows a screenshot or trimmed text of a successful first iteration",
+        "A 'Common Gotchas' collapsible <details> block lists at least 4 known first-run issues with fixes",
+        "Forward link to 03-architecture.html at the bottom, back link to 01-introduction.html at the top"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/02-quick-start.html",
+        "Source: setup.sh, README.md Quick Start section, CLAUDE.md Commands section"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/02-quick-start.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1346",
+      "title": "Fill html/pages/03-architecture.html \u2014 high-level system diagram",
+      "priority": "high",
+      "description": "Show the big picture: how spiral.sh, ralph/ralph.sh, lib/run_parallel_ralph.sh, prd.json, spiral-ui, and the worker git worktrees fit together. Use a single Mermaid flowchart as the centerpiece. Below it, a component table (Name | Role | File path | Language). Page must answer 'where does X live?' in under 30 seconds.",
+      "acceptanceCriteria": [
+        "Single Mermaid graph TD diagram with all 6 components and arrows showing data flow",
+        "Below the diagram, a sortable table (simple-datatables) of all top-level components with columns Name / Role / Path / Language",
+        "Every path in the table is a relative link that resolves (e.g. ../../../spiral.sh)",
+        "Page renders with no console errors in Chrome DevTools"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/03-architecture.html",
+        "Source: CLAUDE.md Architecture section",
+        "Mermaid: <pre class=\"mermaid\">graph TD; A[spiral.sh]-->B[ralph.sh]; \u2026</pre>"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/03-architecture.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1347",
+      "title": "Fill html/pages/04-phase-deep-dive.html \u2014 every phase explained with inputs and outputs",
+      "priority": "high",
+      "description": "One section per phase (0, A, R, T, S, E, M, X, I, V, C, L, G). Each section: 1-line summary, inputs, outputs, config vars that change behaviour, and which file implements it. Wrap each phase in a collapsible <details> so the page is scannable. Cross-link to 06-configuration.html anchors for relevant config vars.",
+      "acceptanceCriteria": [
+        "Page contains 12 <details><summary>Phase X \u2014 \u2026</summary>\u2026</details> blocks in the canonical order (0, A, R, T, S, E, M, X, I, V, C, L)",
+        "Each phase block has 4 subsections: Summary / Inputs / Outputs / Config vars",
+        "Every config var name links to #config-<varname> on 06-configuration.html",
+        "A 'jump to phase' dropdown at the top scrolls to the matching <details> block via document.querySelector"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/04-phase-deep-dive.html",
+        "Source: CLAUDE.md Phase Loop section, $HOME/.claude/skills/spiral/SKILL.md Spiral Loop Phases section"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/04-phase-deep-dive.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1348",
+      "title": "Fill html/pages/05-cli-reference.html \u2014 all flags and subcommands in a filterable table",
+      "priority": "medium",
+      "description": "One filterable table for spiral.sh flags and another for main.py subcommands. Use simple-datatables for live search. Each row has Flag / Default / Description, with a one-click copy of an example launch line that uses that flag.",
+      "acceptanceCriteria": [
+        "Two simple-datatables tables on the page with working search box and column sort",
+        "Every flag from SKILL.md CLI Flags Reference appears as a row",
+        "Every main.py subcommand from SKILL.md appears as a row in the second table",
+        "Clicking a row reveals a copy-to-clipboard example command using that flag",
+        "Total flags row count >= 35 (matches the CLI Flags Reference table)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/05-cli-reference.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md CLI Flags Reference and main.py Subcommands sections",
+        "simple-datatables v9 via CDN <link> + <script>"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/05-cli-reference.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1349",
+      "title": "Fill html/pages/06-configuration.html \u2014 every SPIRAL_* env var grouped by category",
+      "priority": "medium",
+      "description": "Mirror the Configurable Options Reference from SKILL.md. Group config vars by category (Loop & Iteration, AI Suggestions, Research, Story Validation, Implementation, Validation, Git & Commits, Memory & Workers, Security, Hooks, Logging, Tool & Inference, Context Injection, Quality & Retry, Observability, Local Fallback, ADR & Self-Review). Each var gets an anchor id=config-<VARNAME> so other pages can deep-link.",
+      "acceptanceCriteria": [
+        "Page has a sticky table-of-contents on the left listing every category as a jump link",
+        "Each config var row has an HTML id of the form id=\"config-SPIRAL_FOO_BAR\"",
+        "Every default value is displayed in a <code> tag",
+        "A search box at the top filters all categories live (matches against var name AND description)",
+        "Anchor #config-SPIRAL_VALIDATE_CMD scrolls to the correct row when navigated to from another page"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/06-configuration.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Configurable Options Reference"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/06-configuration.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1350",
+      "title": "Fill html/pages/07-examples-and-recipes.html \u2014 8 real-world launch scenarios",
+      "priority": "medium",
+      "description": "Recipe cards for common scenarios: 1) First run, 2) Run for 2 hours, 3) Focus on performance, 4) Skip research, 5) Rollback a story, 6) Replay a single story, 7) Parallel workers (with warnings), 8) Cheap haiku-only run. Each card: Goal / Command / What to expect / How long.",
+      "acceptanceCriteria": [
+        "Page renders 8 recipe cards in a CSS grid (2 columns desktop, 1 column mobile)",
+        "Each card includes a copy-to-clipboard button for the command",
+        "Parallel workers card has a visible warning callout about RAM consumption and the 3-worker hard cap",
+        "Each card has an 'Estimated runtime' badge (e.g. ~5 min, ~2 h, instant)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/07-examples-and-recipes.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Example Launch Commands section"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/07-examples-and-recipes.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1351",
+      "title": "Fill html/pages/08-glossary.html \u2014 define every SPIRAL term in one place",
+      "priority": "medium",
+      "description": "An A\u2013Z glossary every other page can deep-link to. Terms: Phase, Iteration, Story, PRD, Ralph, Worker, Worktree, Gate, Decompose, DLQ, Constitution, Focus, Capacity Limit, Model Routing, Episodic Memory, Cost Ceiling, Validate Cmd. Each term: 2-sentence definition + 'See also' cross-links.",
+      "acceptanceCriteria": [
+        "Page has an A\u2013Z index strip at top (each letter links to that letter's section)",
+        "Every term has id=\"term-<kebab-name>\" so other pages can deep-link",
+        "Each term has at least one 'See also' cross-link to another term or another page",
+        "Term count >= 17"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/08-glossary.html",
+        "Source: CLAUDE.md, $HOME/.claude/skills/spiral/SKILL.md"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/08-glossary.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1352",
+      "title": "Fill html/pages/09-troubleshooting.html \u2014 known issues, exit codes, recovery",
+      "priority": "medium",
+      "description": "Self-service troubleshooting page. Three sections: (1) Symptom \u2192 Fix lookup table (live-searchable via simple-datatables), (2) Exit codes reference table, (3) Crash recovery summary (what auto-heals, what needs manual intervention).",
+      "acceptanceCriteria": [
+        "Section 1 has a searchable table with columns Symptom / Cause / Fix derived from the Troubleshooting section in SKILL.md (>= 15 rows)",
+        "Section 2 lists every exit code 0\u201315, 130 with meaning",
+        "Section 3 mirrors the Crash Recovery & Reliability table from SKILL.md",
+        "Page contains an 'Was this helpful?' thumbs-up/down widget that records vote count to localStorage (no backend)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/09-troubleshooting.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Troubleshooting + Exit Codes + Crash Recovery sections"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/09-troubleshooting.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-1353",
+      "title": "html/index.html dashboard \u2014 sequential reading flow with progress tracker",
+      "priority": "high",
+      "description": "Finalize html/index.html so a brand-new reader can click 'Start Reading' and be guided through pages 01\u219209 in order, with their progress saved. Include: hero block, 'Start Reading' CTA jumping to 01, a 9-step progress strip across the top, KPI cards (Total Phases, Total CLI Flags, Total Config Vars, Total Stories Passed pulled from prd.json), and a 'Last updated' timestamp auto-set at generate time.",
+      "acceptanceCriteria": [
+        "Index has a horizontal 9-step progress strip; clicking step N opens pages/0N-*.html",
+        "Reading progress (which steps have been opened) persists across browser refresh via localStorage key 'spiral-html-progress'",
+        "4 KPI cards display real numbers: phase count = 12, flag count parsed from 05-cli-reference.html row count, config var count parsed from 06-configuration.html row count, stories passed read from a generated html/data.js exported from prd.json",
+        "A small script lib/gen_html_data.py exports {storiesTotal, storiesPassed, lastUpdated} from prd.json into html/data.js \u2014 run it as part of the build",
+        "`python lib/gen_html_data.py` exits 0 and produces a valid html/data.js with `window.SPIRAL_DATA = {...};`"
+      ],
+      "technicalNotes": [
+        "Files: html/index.html, html/data.js (generated), lib/gen_html_data.py (new)",
+        "lib/gen_html_data.py reads prd.json, counts passes, writes html/data.js",
+        "Index page reads window.SPIRAL_DATA via inline <script src=\"./data.js\"></script>"
+      ],
+      "dependencies": [
+        "US-1343",
+        "US-1344",
+        "US-1345",
+        "US-1346",
+        "US-1347",
+        "US-1348",
+        "US-1349",
+        "US-1350",
+        "US-1351",
+        "US-1352"
+      ],
+      "filesTouch": [
+        "html/index.html",
+        "html/data.js",
+        "lib/gen_html_data.py"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html",
+        "newcomer-friendly"
+      ],
+      "passes": false
     }
   ]
 }

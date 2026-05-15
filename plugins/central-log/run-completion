@@ -1,0 +1,32 @@
+#!/bin/bash
+# Central log hook — RUN-COMPLETION
+#
+# Reads run summary from environment variables:
+#   - SPIRAL_TOTAL_STORIES, SPIRAL_PASSED_STORIES, SPIRAL_FAILED_STORIES
+#   - SPIRAL_SKIPPED_STORIES, SPIRAL_DURATION_SECONDS, SPIRAL_RUN_ID, SPIRAL_ITER
+#
+# Records run completion into ~/.spiral/central.db.
+
+set -euo pipefail
+
+run_id="${SPIRAL_RUN_ID:-unknown}"
+iteration="${SPIRAL_ITER:-0}"
+total_stories="${SPIRAL_TOTAL_STORIES:-0}"
+passed_stories="${SPIRAL_PASSED_STORIES:-0}"
+failed_stories="${SPIRAL_FAILED_STORIES:-0}"
+skipped_stories="${SPIRAL_SKIPPED_STORIES:-0}"
+duration_seconds="${SPIRAL_DURATION_SECONDS:-0}"
+exit_code="${SPIRAL_EXIT_CODE:-0}"
+
+"${SPIRAL_PYTHON:-python}" "${SPIRAL_HOME:-.}/lib/central_log.py" record-run-end \
+  --run-id "$run_id" \
+  --exit-code "$exit_code" \
+  --iterations "$iteration" \
+  --stories-attempted "$total_stories" \
+  --stories-passed "$passed_stories" \
+  --stories-failed "$failed_stories" \
+  --stories-skipped "$skipped_stories" \
+  --total-duration-sec "$duration_seconds" \
+  2>/dev/null || true
+
+exit 0

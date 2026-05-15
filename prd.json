@@ -2803,7 +2803,8 @@
         "html",
         "newcomer-friendly"
       ],
-      "passes": false
+      "passes": true,
+      "model": "haiku"
     },
     {
       "id": "US-1344",
@@ -2833,7 +2834,8 @@
         "docs",
         "html"
       ],
-      "passes": false
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1345",
@@ -2861,7 +2863,8 @@
         "docs",
         "html"
       ],
-      "passes": false
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1346",
@@ -2890,7 +2893,8 @@
         "docs",
         "html"
       ],
-      "passes": false
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1347",
@@ -2918,7 +2922,8 @@
         "docs",
         "html"
       ],
-      "passes": false
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1348",
@@ -2948,7 +2953,8 @@
         "docs",
         "html"
       ],
-      "passes": false
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1349",
@@ -2977,7 +2983,8 @@
         "docs",
         "html"
       ],
-      "passes": false
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1350",
@@ -3005,7 +3012,8 @@
         "docs",
         "html"
       ],
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-1351",
@@ -3033,7 +3041,8 @@
         "docs",
         "html"
       ],
-      "passes": false
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1352",
@@ -3061,7 +3070,8 @@
         "docs",
         "html"
       ],
-      "passes": false
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1353",
@@ -3103,7 +3113,8 @@
         "html",
         "newcomer-friendly"
       ],
-      "passes": false
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }

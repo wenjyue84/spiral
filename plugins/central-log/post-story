@@ -1,0 +1,76 @@
+#!/bin/bash
+# Central log hook — POST-STORY
+#
+# Receives story context JSON on stdin with fields:
+#   - iteration, spiral_run_id, story_id, timestamp_iso
+#   - story_title (optional), story_passes (optional), retry_count (optional)
+#
+# Records a story attempt into ~/.spiral/central.db by reading the latest
+# matching row from results.tsv for full token/model data.
+
+set -euo pipefail
+
+# Read context from stdin
+context=$(cat)
+
+# Extract fields from JSON
+story_id=$(echo "$context" | jq -r '.story_id // ""' 2>/dev/null || echo "")
+if [[ -z "$story_id" ]]; then
+  exit 0
+fi
+
+run_id="${SPIRAL_RUN_ID:-unknown}"
+project_name=$(basename "${REPO_ROOT:-.}")
+iteration=$(echo "$context" | jq -r '.iteration // 0' 2>/dev/null || echo "0")
+story_title=$(echo "$context" | jq -r '.story_title // ""' 2>/dev/null || echo "")
+story_passes=$(echo "$context" | jq -r '.story_passes // ""' 2>/dev/null || echo "")
+retry_count=$(echo "$context" | jq -r '.retry_count // 0' 2>/dev/null || echo "0")
+
+# Determine status
+status="fail"
+if [[ "$story_passes" == "true" ]]; then
+  status="pass"
+fi
+
+# Try to read the latest matching row from results.tsv for token/model data
+model=""
+duration_sec="0"
+cache_read_tokens="0"
+cache_creation_tokens="0"
+timestamp_iso=""
+
+results_file="${REPO_ROOT:-.}/results.tsv"
+if [[ -f "$results_file" ]]; then
+  # Get the last line matching this story_id (most recent attempt)
+  last_row=$(grep -P "\\t${story_id}\\t" "$results_file" | tail -1 || true)
+  if [[ -n "$last_row" ]]; then
+    # results.tsv columns (0-indexed):
+    # 0:timestamp 1:spiral_iter 2:ralph_iter 3:story_id 4:story_title
+    # 5:status 6:duration_sec 7:model 8:retry_num 9:commit_sha
+    # 10:run_id 11:cache_hit 12:cache_read_tokens 13:cache_creation_tokens
+    # 14:review_tokens 15:wall_seconds ...
+    timestamp_iso=$(echo "$last_row" | cut -f1)
+    model=$(echo "$last_row" | cut -f8)
+    duration_sec=$(echo "$last_row" | cut -f7)
+    cache_read_tokens=$(echo "$last_row" | cut -f13)
+    cache_creation_tokens=$(echo "$last_row" | cut -f14)
+  fi
+fi
+
+# Call Python central_log writer
+"${SPIRAL_PYTHON:-python}" "${SPIRAL_HOME:-.}/lib/central_log.py" record-story \
+  --run-id "$run_id" \
+  --project-name "$project_name" \
+  --story-id "$story_id" \
+  --story-title "$story_title" \
+  --model "${model:-sonnet}" \
+  --duration-sec "${duration_sec:-0}" \
+  --status "$status" \
+  --retry-num "${retry_count:-0}" \
+  --spiral-iter "$iteration" \
+  --timestamp "${timestamp_iso:-}" \
+  --cache-read-tokens "${cache_read_tokens:-0}" \
+  --cache-creation-tokens "${cache_creation_tokens:-0}" \
+  2>/dev/null || true
+
+exit 0

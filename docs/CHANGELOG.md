@@ -8,6 +8,18 @@ Generated automatically by [git-cliff](https://git-cliff.org/).
 
 ### Bug Fixes
 
+- Fix `PHASE_ORDER: bad array subscript` crash when checkpoint phase is empty (continuous mode)
+- Fix trap parse error (`unexpected EOF while looking for matching ')'`) by converting SIGCHLD handler to function-based trap
+- Add `safe_phase` wrapper + circuit breaker for continuous mode resilience (3 consecutive framework errors before halt)
+
+### Features
+
+- Add central log (`~/.spiral/central.db`) — cross-project SQLite telemetry aggregation
+- Add `central-log` plugin (post-story + run-completion hooks)
+- Add `spiral central-log` CLI with 7 query subcommands (summary, projects, models, failures, cost-trend, velocity, runs)
+
+### Bug Fixes (prior)
+
 - Add UTF-8 stdout guard to all Python scripts ([4c1fd2f](4c1fd2f82f6132e41d7ec0143c4244d8c3981005))
 
 
