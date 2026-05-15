@@ -1381,3 +1381,86 @@ Completed: [Regression Test] e2e SPIRAL loop: phase order and final prd.json sta
 ### Git commit
 - 2204dab7: feat: US-1323 - spiral-ui: Add Tests Coverage Tab with file-level heatmap visualization
 
+## Iteration 1 - 2026年05月16日  2:33:14
+Completed: spiral-ui: Add Tests Coverage Tab with file-level heatmap visualization (ID: US-1323) in 4m
+
+
+## Pre-analysis for US-1327 (Gemini 2.5 Pro)
+This is not a Frappe user story. The context is a Python project named "Spiral".
+
+Here is the technical brief for implementing `US-1327`:
+
+**Objective:** Create a new Python module, `lib/federation_graph.py`, to build a Directed Acyclic Graph (DAG) from project dependency files (`prd.json`) and detect cycles within it.
+
+**Files to Create:**
+1.  `lib/federation_graph.py`: For the core graph logic.
+2.  `tests/test_federation_graph.py`: To house the unit tests.
+3.  `tests/fixtures/multi-project-prd/`: Directory for test data, including `project-a/prd.json`, `project-b/prd.json`, etc., to simulate project includes.
+
+**DocTypes/Hooks Involved:**
+*   None. This is a pure Python implementation dealing with JSON files, not a Frappe application.
+
+**Implementation Approach:**
+1.  **`build_dag(root_prd_path)`:**
+    *   Use a queue (BFS) or recursion (DFS) to traverse the `prd.include` paths.
+    *   Read each `prd.json`, parse it, and resolve the relative `include` paths to absolute paths.
+    *   Use a `visited` set to avoid redundant processing.
+    *   Return a `dict` representing the adjacency list (e.g., `{'path/to/A.json': ['path/to/B.json']}`).
+
+2.  **`detect_cycles(graph)`:**
+    *   Implement a standard DFS-based cycle detection algorithm for a directed graph.
+    *   Maintain separate sets for visited nodes in the current recursion stack (`visiting`) and nodes already fully processed (`visited`).
+    *   If a node is encountered that is already in the `visiting` set, a cycle is found.
+    *   Return a tuple: `(True, [nodes_in_cycle])` or `(False, [])`.
+
+**Gotchas:**
+*   Path resolution is critical. All `prd.include` paths are relative to the file they are in, not the current working directory. Use `pathlib` for robust path handling.
+*   Handle `FileNotFoundError` and `json.JSONDecodeError` gracefully.
+
+## Iteration N - Story: US-1327 - Create lib/federation_graph.py with DAG builder and cycle detector
+
+### What was implemented
+- Created lib/federation_graph.py with three core functions:
+  - `build_dag(root_prd_path)`: Recursively resolves prd.include paths and builds adjacency graph
+  - `detect_cycles(graph)`: DFS-based cycle detection returning (has_cycle, cycle_nodes)
+  - `_resolve_includes(prd_path)`: Helper for recursive prd.include resolution
+
+- Created comprehensive test suite (tests/test_federation_graph.py) with 10 tests covering:
+  - build_dag() with cyclic dependencies
+  - build_dag() reachability and edge verification
+  - detect_cycles() on cyclic graphs (A→B→C→A)
+  - detect_cycles() on linear acyclic graphs
+  - Edge cases: empty graphs, single nodes, self-loops, two-node cycles, complex graphs
+
+- Created test fixtures:
+  - tests/fixtures/multi-project-prd/project-a/prd.json (includes project-b)
+  - tests/fixtures/multi-project-prd/project-b/prd.json (includes project-c)
+  - tests/fixtures/multi-project-prd/project-c/prd.json (includes project-a, forming cycle)
+
+### Test execution
+- All 10 tests pass: PASSED (100% pass rate)
+- mypy --strict: no type errors (both lib/federation_graph.py and tests/test_federation_graph.py)
+- ruff check: all linting checks pass (no unused variables, no import issues)
+- ruff format: code properly formatted
+
+### Patterns discovered
+- DFS-based cycle detection works well for directed graphs with visited set for recursion tracking
+- Using absolute paths (Path.resolve()) ensures consistent graph keys across platforms
+- Test fixtures organized in nested directories with relative prd.include paths
+
+### Acceptance criteria met
+- [x] AC1: build_dag('tests/fixtures/multi-project-prd/project-a/prd.json') returns non-empty dict with all reachable projects
+- [x] AC2: detect_cycles on A→B→C→A returns (True, list containing all three node paths)
+- [x] AC3: detect_cycles on linear A→B→C returns (False, [])
+
+### Quality checks
+- ✅ mypy --strict: no type errors
+- ✅ ruff check: all linting checks pass
+- ✅ ruff format: code properly formatted
+- ✅ All 10 tests pass
+
+### Verified end-to-end
+- `uv run pytest tests/test_federation_graph.py -v` exits 0 with all 10 tests passing
+- prd.json marked US-1327 as passes: true
+- Git commit 00599938 with proper message including Story ID and acceptance criteria
+
