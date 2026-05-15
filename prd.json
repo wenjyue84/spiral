@@ -2491,19 +2491,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-05-15T18:55:45Z",
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/timeout_handler.py` and `lib/impl/scope_reducer.py` already exist from a prior attempt\n- `tests/test_timeout_handler.py` exists with 6 comprehensive tests, all passing\n- The story is marked `passes: false` in prd.json because the prior attempt failed the diagnosis-block gate (not a code issue)\n- The code and tests are complete and working\n\n## Problem Identified\nThe story's code implementation is complete and all tests pass. The only reason it failed previously was the diagnosis-block procedural gate. I need to:\n1. Verify the acceptance criteria are all met\n2. Mark the story as `passes: true` in prd.json\n3. Commit\n\n## Planned Changes\n- `prd.json`: Mark US-1329 `passes: true`\n\nLet me verify all three acceptance criteria explicitly.\nAll code is complete and all 6 tests pass. The implementation satisfies all three acceptance criteria:\n\n- **AC1**: `strip_optional_ac` removes @optional ACs, keeps non-optional (tested by `TestScopeReducerStripsOptionalAC`)\n- **AC2**: Story with zero @optional ACs returned unchanged (tested by `TestScopeReducerNoOptionalAC`)\n- **AC3**: Reduced story passes schema validation (tested by `TestReducedStorySchemaValidation`)\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 1\n}\n</plan>\n\nNow I'll mark the story as passed and commit.\nThe test naming uses a class-based format. Let me run the correct test path.\nNow commit.\nUS-1329 is complete. The implementation (`lib/timeout_handler.py`, `lib/impl/scope_reducer.py`, and `tests/test_timeout_handler.py`) was already in place from a prior attempt — all 6 tests pass, all 3 acceptance criteria are met. Committed as `b7db05b4`."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 339,
-        "tokensAfterMasking": 337,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_passedCommit": "5446b438276d776243e7ffc7d33a4426ce20129a"
+      "model": "sonnet"
     },
     {
       "id": "US-1330",
@@ -2523,11 +2511,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-05-15T18:58:40Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`lib/impl/retry.sh` has `select_retry_strategy()` which returns \"decompose\" for timeout failures at retry_count=1. `lib/timeout_handler.py` has `timeout_scope_reducer()` but no CLI/file-based interface. No fixture `tests/fixtures/sample-stories-with-optional-ac.json` exists.\n\n## Problem Identified\nThe timeout retry path doesn't try scope reduction before decomposing. Need to wire `timeout_handler.py` into the retry flow so stories with `@optional` ACs get scope-reduced first.\n\n## Planned Changes\n- `lib/timeout_handler.py` — add `reduce_story_for_timeout(story_file)` function + CLI entry point\n- `lib/impl/retry.sh` — add `try_timeout_scope_reduction <story_file>` function referencing timeout_handler.py\n- `tests/fixtures/sample-stories-with-optional-ac.json` — new fixture\n- `tests/test_timeout_handler.py` — add integration tests for US-1330\n\n<plan>\n{\n  \"files_to_create\": [\"tests/fixtures/sample-stories-with-optional-ac.json\"],\n  \"files_to_modify\": [\"lib/timeout_handler.py\", \"lib/impl/retry.sh\", \"tests/test_timeout_handler.py\"],\n  \"functions_to_add\": [\"reduce_story_for_timeout\", \"try_timeout_scope_reduction\"],\n  \"estimated_loc\": 90\n}\n</plan>\n\nNow executing:\nNow I'll implement all changes. Starting with the fixture file:\nNow update `timeout_handler.py` to add `reduce_story_for_timeout` and a CLI entry point:\nNow add `try_timeout_scope_reduction` to `retry.sh`. I'll add it right after the existing `try_scope_reduction` function (around line 309):\nNow add the integration tests to `test_timeout_handler.py`:\nNow run the specific test to verify it passes:\nAll 8 tests pass. Now run mypy:\nPre-existing errors. I'll fix both while modifying the test file:\nAll 8 tests pass. Now mark the story as passing and commit:\nUS-1330 is complete. Summary of what was implemented:\n\n**`lib/timeout_handler.py`** — Added `reduce_story_for_timeout(story_file: str) -> str` which reads a story JSON, strips `@optional` ACs via `timeout_scope_reducer`, writes the reduced story to a temp file, and returns the path (or `\"\"` if nothing was stripped). Also added a CLI entry point so `retry.sh` can call it via `uv run python`.\n\n**`lib/impl/retry.sh`** — Added `try_timeout_scope_reduction <story_file>` function that calls `timeout_handler.py`, echoes the temp file path if scope was reduced, or `\"\"` + returns 1 if no optional ACs exist. Callers use this before `decompose_story` in the timeout retry path.\n\n**`tests/fixtures/sample-stories-with-optional-ac.json`** — New fixture with 2 required ACs + 2 `@optional` ACs.\n\n**`tests/test_timeout_handler.py`** — Added `test_timeout_triggers_scope_reduction_not_decompose` (asserts reduced temp file written to disk) and `test_no_optional_ac_falls_through_to_decompose` (asserts empty return). All 8 tests pass, mypy strict clean."
-      }
+      "model": "sonnet"
     },
     {
       "id": "US-1331",
@@ -2586,6 +2570,26 @@
         "File to create: plugins/notify-whatsapp/plugin.toml with [plugin] metadata and [[hook]] entry for post-phase-G",
         "File to create: plugins/notify-whatsapp/notify.sh that parses results.tsv, calculates stats via awk/jq, POSTs to SPIRAL_WHATSAPP_API_URL with formatted JSON body",
         "Test command: bash tests/test_plugin_whatsapp.bats && uv run pytest tests/test_whatsapp_message_formatter.py::test_format_iteration_message -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1334",
+      "title": "CLI: Add `spiral profile-phases` command to measure and report phase execution time",
+      "priority": "low",
+      "description": "Add CLI subcommand to profile wall-clock time per phase and identify bottlenecks. Outputs sorted table: Phase | Duration | % of Total | Status. Helps product owners and developers optimize SPIRAL runtime.",
+      "acceptanceCriteria": [
+        "spiral.sh logs phase start/end timestamps to .spiral/_phase_timings.jsonl in format {phase: 'R', start_ms: <timestamp>, end_ms: <timestamp>} for each phase execution",
+        "`spiral profile-phases` reads _phase_timings.jsonl, outputs table sorted by duration descending: Phase | Duration (s) | Pct | Status; handles incomplete/missing data",
+        "Includes summary: total runtime, slowest phase, suggestion to investigate phases >30% of total time"
+      ],
+      "technicalNotes": [
+        "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
+        "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
+        "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -2955,6 +2959,123 @@
       "model": "haiku"
     },
     {
+      "id": "US-1349",
+      "title": "Fill html/pages/06-configuration.html — every SPIRAL_* env var grouped by category",
+      "priority": "medium",
+      "description": "Mirror the Configurable Options Reference from SKILL.md. Group config vars by category (Loop & Iteration, AI Suggestions, Research, Story Validation, Implementation, Validation, Git & Commits, Memory & Workers, Security, Hooks, Logging, Tool & Inference, Context Injection, Quality & Retry, Observability, Local Fallback, ADR & Self-Review). Each var gets an anchor id=config-<VARNAME> so other pages can deep-link.",
+      "acceptanceCriteria": [
+        "Page has a sticky table-of-contents on the left listing every category as a jump link",
+        "Each config var row has an HTML id of the form id=\"config-SPIRAL_FOO_BAR\"",
+        "Every default value is displayed in a <code> tag",
+        "A search box at the top filters all categories live (matches against var name AND description)",
+        "Anchor #config-SPIRAL_VALIDATE_CMD scrolls to the correct row when navigated to from another page"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/06-configuration.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Configurable Options Reference"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/06-configuration.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1350",
+      "title": "Fill html/pages/07-examples-and-recipes.html — 8 real-world launch scenarios",
+      "priority": "medium",
+      "description": "Recipe cards for common scenarios: 1) First run, 2) Run for 2 hours, 3) Focus on performance, 4) Skip research, 5) Rollback a story, 6) Replay a single story, 7) Parallel workers (with warnings), 8) Cheap haiku-only run. Each card: Goal / Command / What to expect / How long.",
+      "acceptanceCriteria": [
+        "Page renders 8 recipe cards in a CSS grid (2 columns desktop, 1 column mobile)",
+        "Each card includes a copy-to-clipboard button for the command",
+        "Parallel workers card has a visible warning callout about RAM consumption and the 3-worker hard cap",
+        "Each card has an 'Estimated runtime' badge (e.g. ~5 min, ~2 h, instant)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/07-examples-and-recipes.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Example Launch Commands section"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/07-examples-and-recipes.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1351",
+      "title": "Fill html/pages/08-glossary.html — define every SPIRAL term in one place",
+      "priority": "medium",
+      "description": "An A–Z glossary every other page can deep-link to. Terms: Phase, Iteration, Story, PRD, Ralph, Worker, Worktree, Gate, Decompose, DLQ, Constitution, Focus, Capacity Limit, Model Routing, Episodic Memory, Cost Ceiling, Validate Cmd. Each term: 2-sentence definition + 'See also' cross-links.",
+      "acceptanceCriteria": [
+        "Page has an A–Z index strip at top (each letter links to that letter's section)",
+        "Every term has id=\"term-<kebab-name>\" so other pages can deep-link",
+        "Each term has at least one 'See also' cross-link to another term or another page",
+        "Term count >= 17"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/08-glossary.html",
+        "Source: CLAUDE.md, $HOME/.claude/skills/spiral/SKILL.md"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/08-glossary.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1352",
+      "title": "Fill html/pages/09-troubleshooting.html — known issues, exit codes, recovery",
+      "priority": "medium",
+      "description": "Self-service troubleshooting page. Three sections: (1) Symptom → Fix lookup table (live-searchable via simple-datatables), (2) Exit codes reference table, (3) Crash recovery summary (what auto-heals, what needs manual intervention).",
+      "acceptanceCriteria": [
+        "Section 1 has a searchable table with columns Symptom / Cause / Fix derived from the Troubleshooting section in SKILL.md (>= 15 rows)",
+        "Section 2 lists every exit code 0–15, 130 with meaning",
+        "Section 3 mirrors the Crash Recovery & Reliability table from SKILL.md",
+        "Page contains an 'Was this helpful?' thumbs-up/down widget that records vote count to localStorage (no backend)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/09-troubleshooting.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Troubleshooting + Exit Codes + Crash Recovery sections"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/09-troubleshooting.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1353",
       "title": "html/index.html dashboard — sequential reading flow with progress tracker",
       "priority": "high",
@@ -2977,7 +3098,11 @@
         "US-1345",
         "US-1346",
         "US-1347",
-        "US-1348"
+        "US-1348",
+        "US-1349",
+        "US-1350",
+        "US-1351",
+        "US-1352"
       ],
       "filesTouch": [
         "html/index.html",
@@ -2991,6 +3116,91 @@
         "newcomer-friendly"
       ],
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1354",
+      "title": "Phase R: Multi-Source Research Aggregation with DuckDuckGo and Bing Fallback",
+      "priority": "medium",
+      "description": "Enhance the research phase to fetch story candidates from DuckDuckGo and Bing in addition to Gemini, deduplicate results by semantic similarity (threshold 0.8), and annotate each story with a sources array. Provides fallback resilience when one search provider is unavailable.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_research_aggregator.py::test_deduplicate_across_sources -v` passes — mock two sources returning overlapping URLs and assert only unique results kept",
+        "Running `uv run pytest tests/test_research_aggregator.py::test_fallback_when_gemini_unavailable -v` passes — DuckDuckGo results returned when Gemini raises an exception",
+        "Each story dict returned by aggregate_sources() contains a 'sources' key listing [{'source_name': str, 'url': str, 'confidence_score': float}]",
+        "spiral.sh Phase R passes --research-sources gemini,duckduckgo to aggregate_sources() and logs source count to .spiral/research_sources.log"
+      ],
+      "technicalNotes": [
+        "File to create: lib/research_aggregator.py (aggregate_sources(sources: list[str], query: str) -> list[dict]; uses sentence-transformers cosine sim for dedup)",
+        "File to edit: spiral.sh (Phase R section ~line 800: replace direct Gemini call with `uv run python lib/research_aggregator.py --sources \"$SPIRAL_RESEARCH_SOURCES\" --query \"$QUERY\"`)",
+        "Test command: uv run pytest tests/test_research_aggregator.py -v",
+        "Use duckduckgo-search PyPI package for DDG; requests + Bing Search API key (read from BING_API_KEY env) for Bing"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1355",
+      "title": "Phase L: Extract Failure Patterns Library from results.tsv",
+      "priority": "medium",
+      "description": "Extend Phase L learning to categorize failed stories from results.tsv by error type (timeout, scope_overflow, syntax_error, context_limit). Output a structured failure_patterns.jsonl file and integrate Phase S to cross-reference incoming stories against high-frequency patterns before implementation.",
+      "acceptanceCriteria": [
+        "uv run python lib/failure_pattern_analyzer.py results.tsv && test -f .spiral/failure_patterns.jsonl exits 0",
+        "cat .spiral/failure_patterns.jsonl | python -c \"import sys,json; data=[json.loads(l) for l in sys.stdin]; assert all(k in data[0] for k in ['pattern_id','error_type','frequency','affected_story_ids','prevention_hint'])\" exits 0",
+        "uv run pytest tests/test_failure_patterns.py::test_timeout_pattern_extraction -v passes",
+        "uv run pytest tests/test_failure_patterns.py::test_phase_s_warning_on_high_risk_story -v passes"
+      ],
+      "technicalNotes": [
+        "File to create: lib/failure_pattern_analyzer.py (analyze_failures(tsv_path) -> list[dict] function that reads results.tsv, groups by error_type, returns pattern dicts)",
+        "File to edit: spiral.sh (~line 1200 in Phase L section — invoke: uv run python lib/failure_pattern_analyzer.py results.tsv > .spiral/failure_patterns.jsonl)",
+        "File to edit: spiral.sh (Phase S section — add cross-reference check: if .spiral/failure_patterns.jsonl exists, compare story title/tags against top-frequency patterns and log WARN)",
+        "Test command: uv run pytest tests/test_failure_patterns.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1356",
+      "title": "SPIRAL - Route Trivial Stories to Local Ollama Before Haiku for Cost Reduction",
+      "priority": "medium",
+      "description": "Extend model routing to use local Ollama llama2 for complexity ≤ 2 stories, saving ~95% per story. Gracefully fallback to haiku if Ollama unavailable. Advances developer experience goal (cost transparency and reduction).",
+      "acceptanceCriteria": [
+        "Add SPIRAL_OLLAMA_ENABLED=true and SPIRAL_OLLAMA_URL=http://localhost:11434 to spiral.config.sh with defaults",
+        "In lib/model_routing.py, classify_complexity(story) returns score ≤ 2 → route to Ollama before haiku escalation chain",
+        "If Ollama socket unreachable, log warning and escalate to haiku without crashing; no user intervention required"
+      ],
+      "technicalNotes": [
+        "File: lib/model_routing.py (extend select_model(story, complexity) function to check SPIRAL_OLLAMA_ENABLED first)",
+        "File: spiral.config.sh (add SPIRAL_OLLAMA_ENABLED=true, SPIRAL_OLLAMA_URL=http://localhost:11434)",
+        "File: setup.sh (add 'ollama pull llama2:latest' to initialization, skip if already installed)",
+        "Test: uv run pytest tests/test_model_routing.py::test_ollama_fallback_to_haiku -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1357",
+      "title": "Phase I: error_context.sh — extract error and code snippet on Ralph failure",
+      "priority": "medium",
+      "description": "Create lib/impl/error_context.sh that parses Ralph worker stdout to extract the failing test file, line number, error message, and ±5-line code snippet. Write the structured result to .spiral/error_context/<story_id>.md.",
+      "acceptanceCriteria": [
+        "extract_error_context() parses Ralph stdout and outputs test_file, line_num, error_text, and a ±5-line code_snippet",
+        ".spiral/error_context/<story_id>.md is created with error classification label (syntax/type/import/timeout/oom)",
+        "bash tests/test_error_context.bats exits 0 with all cases passing"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/error_context.sh (new file; define extract_error_context function)",
+        "File to edit: tests/test_error_context.bats (new bats test file with fixture stdout samples)",
+        "Test command: bash tests/test_error_context.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     }
   ]

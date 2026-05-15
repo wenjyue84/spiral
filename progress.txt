@@ -1580,3 +1580,6 @@ This brief outlines the implementation plan for handling story timeouts by first
 - [x] select_retry_strategy timeout branch: try_timeout_scope_reduction() in retry.sh invokes timeout_handler.py and writes reduced story to temp file before decompose_story
 - [x] Integration test with fixture story verifies reduced file written to disk
 - [x] Story with no @optional ACs: reduce_story_for_timeout returns '' (no temp file, falls through)
+## Iteration 3 - 2026年05月16日  3:11:36
+Completed: Wire timeout_scope_reducer into lib/impl/retry.sh before decompose_story() (ID: US-1330) in 12m
+
