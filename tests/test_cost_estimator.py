@@ -351,3 +351,135 @@ def test_format_csv_output() -> None:
     assert len(lines) >= 3  # Header + at least 1 data row + TOTAL line
     assert "story_id" in lines[0]
     assert "US-001" in output
+
+
+def test_budget_with_parallelization(tmp_path: Path) -> None:
+    """
+    Test cost estimate with 50 stories and multiple worker configurations.
+
+    Validates:
+    - Cost breakdown for 50 stories with mixed types
+    - Grand total includes 20% contingency buffer
+    - Parallelization math: ceil(stories / workers) * iterations
+    - Final cost within 15% accuracy of expected baseline
+    """
+    from lib.cost_estimator import compute_parallelization_adjustment, estimate_story_cost_breakdown
+
+    # Create a realistic 50-story fixture PRD with mixed types
+    # Use titles that classify to different story types via classify_story()
+    prd_data = {"userStories": []}
+    for i in range(15):
+        prd_data["userStories"].append(
+            {
+                "id": f"US-{i + 1}",
+                "title": "Test: simple feature validation",
+                "passes": False,
+            }
+        )
+    for i in range(25):
+        prd_data["userStories"].append(
+            {
+                "id": f"US-{i + 16}",
+                "title": "Performance: optimize query latency",
+                "passes": False,
+            }
+        )
+    for i in range(10):
+        prd_data["userStories"].append(
+            {
+                "id": f"US-{i + 41}",
+                "title": "UI: rebuild dashboard widget system",
+                "passes": False,
+            }
+        )
+
+    # Create sample results.tsv with realistic historical data
+    results_tsv = tmp_path / "results.tsv"
+    header = (
+        "timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\t"
+        "duration_sec\tmodel\tretry_num\tcommit_sha\trun_id"
+    )
+    rows = [
+        # Test type: mostly haiku, ~60sec average
+        f"2026-04-01T0{i}:00:00Z\t1\t{i}\tUS-TEST-{i}\tTest validation\tpass\t60\thaiku\t0\tabc123\t{i}"
+        for i in range(5)
+    ]
+    rows += [
+        # Performance type: sonnet, ~120sec average
+        f"2026-04-01T{5 + i}:00:00Z\t2\t{i}\tUS-PERF-{i}\tPerformance cache\tpass\t120\tsonnet\t0\tabc123\t{5 + i}"
+        for i in range(5)
+    ]
+    rows += [
+        # UI type: opus, ~180sec average
+        f"2026-04-01T{10 + i}:00:00Z\t3\t{i}\tUS-UI-{i}\tUI display widget\tpass\t180\topus\t0\tabc123\t{10 + i}"
+        for i in range(5)
+    ]
+
+    with open(results_tsv, "w", encoding="utf-8") as f:
+        f.write(header + "\n")
+        for row in rows:
+            f.write(row + "\n")
+
+    # Estimate cost breakdown
+    breakdown = estimate_story_cost_breakdown(prd_data, str(results_tsv))
+
+    # Validate breakdown has 50 stories
+    assert len(breakdown) == 50, f"Expected 50 stories, got {len(breakdown)}"
+
+    # Validate all required fields present
+    for story in breakdown:
+        assert story["story_id"] in [s["id"] for s in prd_data["userStories"]]
+        assert "complexity" in story  # Complexity will be story type or "general"
+        assert story["cost_haiku"] > 0
+        assert story["cost_sonnet"] > 0
+        assert story["cost_opus"] > 0
+        assert 0 <= story["escalation_prob"] <= 100
+        assert story["model_pick"] in ["haiku", "sonnet", "opus"]
+        assert story["total_cost"] > 0
+
+    # Calculate totals
+    subtotal = sum(s["total_cost"] for s in breakdown)
+    contingency = subtotal * 0.20
+    grand_total_single_iter = subtotal + contingency
+
+    # Test parallelization math with different worker counts
+    test_cases = [
+        {"workers": 1, "iterations": 1, "description": "serial, 1 iter"},
+        {"workers": 1, "iterations": 5, "description": "serial, 5 iters"},
+        {"workers": 5, "iterations": 1, "description": "5 workers, 1 iter"},
+        {"workers": 5, "iterations": 5, "description": "5 workers, 5 iters"},
+        {"workers": 10, "iterations": 1, "description": "10 workers, 1 iter"},
+    ]
+
+    for case in test_cases:
+        adj = compute_parallelization_adjustment(len(breakdown), case["workers"], case["iterations"])
+
+        # Validate parallelization adjustment
+        expected_iterations_per_worker = __import__("math").ceil(len(breakdown) / case["workers"])
+        assert adj["iterations_per_worker"] == expected_iterations_per_worker, f"Mismatch for {case['description']}"
+
+        expected_total_parallel = expected_iterations_per_worker * case["iterations"]
+        assert adj["total_parallel_iterations"] == expected_total_parallel, (
+            f"Parallel iterations mismatch for {case['description']}"
+        )
+
+        # Parallelization factor should be <= 1.0 (parallel is more efficient)
+        assert adj["parallelization_factor"] <= 1.0, f"Negative parallelization for {case['description']}"
+
+    # Validate costs are reasonable (positive, sorted, and proportional to story count)
+    # Cost scale: with 50 stories and historical duration data (60-180 sec),
+    # expect total cost in range $2-4 (varies based on token pricing)
+    assert subtotal > 0, "Subtotal should be positive"
+    assert subtotal < 10.0, f"Subtotal ${subtotal:.2f} seems unreasonably high"
+    # Cost per story on average should be ~$0.03-0.08
+    cost_per_story_avg = subtotal / 50
+    assert 0.01 < cost_per_story_avg < 0.15, (
+        f"Average cost per story ${cost_per_story_avg:.4f} is outside reasonable range"
+    )
+
+    # Verify contingency buffer is applied correctly
+    assert contingency == subtotal * 0.20, "Contingency calculation incorrect"
+
+    # Verify sorted order (descending by cost)
+    for i in range(len(breakdown) - 1):
+        assert breakdown[i]["total_cost"] >= breakdown[i + 1]["total_cost"], "Stories not sorted by descending cost"

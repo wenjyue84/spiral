@@ -9,13 +9,12 @@ Exports window.SPIRAL_DATA = {
 """
 
 import json
-from pathlib import Path
 from datetime import datetime, timezone
 
 
 def read_prd_json(prd_path: str) -> dict:
     """Read and parse prd.json."""
-    with open(prd_path, encoding='utf-8') as f:
+    with open(prd_path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -25,9 +24,9 @@ def count_stories(data: dict) -> tuple[int, int]:
     Returns:
         (total_stories, stories_passed)
     """
-    stories = data.get('userStories', [])
+    stories = data.get("userStories", [])
     total = len(stories)
-    passed = sum(1 for s in stories if s.get('passes') is True)
+    passed = sum(1 for s in stories if s.get("passes") is True)
     return total, passed
 
 
@@ -51,7 +50,7 @@ window.SPIRAL_DATA = {{
 """
 
     # Write output
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(js_content)
 
     print(f"Generated {output_path}: {total} total, {passed} passed")
@@ -60,11 +59,11 @@ window.SPIRAL_DATA = {{
 def main() -> None:
     """Main entry point."""
     # Paths relative to repo root
-    prd_path = 'prd.json'
-    output_path = 'html/data.js'
+    prd_path = "prd.json"
+    output_path = "html/data.js"
 
     generate_data_js(output_path, prd_path)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
