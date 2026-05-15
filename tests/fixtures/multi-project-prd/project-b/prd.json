@@ -1,0 +1,10 @@
+{
+  "title": "Project B",
+  "prd.include": ["../project-c/prd.json"],
+  "userStories": [
+    {
+      "id": "B-001",
+      "title": "Project B Story 1"
+    }
+  ]
+}
