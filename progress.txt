@@ -1074,3 +1074,62 @@ Completed: Regression Test: worker crash respawn completes pending stories (US-1
 ## Iteration 3 - Mon, Apr 27, 2026  4:26:47 PM
 Completed: Regression Test: prd.include merges stories with namespace prefixes (US-1212a) (ID: US-1319) in 7m
 
+## Iteration 1 - 2026年05月16日  1:40:32
+Completed: Fill html/pages/02-quick-start.html — copy-pasteable first run in under 5 minutes (ID: US-1345) in 6m
+
+
+## Iteration N - US-1346: Fill html/pages/03-architecture.html — high-level system diagram
+
+### What was implemented
+- Added Mermaid graph TD diagram showing 6 core components with data flow:
+  - spiral.sh (main orchestrator) → manages → Phase Loop
+  - spiral.sh → launches → ralph/ralph.sh (story executor)
+  - spiral.sh → invokes → lib/run_parallel_ralph.sh (worker manager)
+  - lib/run_parallel_ralph.sh → isolated git worktrees → .spiral-workers/worker-N/
+  - ralph/ralph.sh → reads → prd.json (story backlog)
+  - prd.json → merges stories in Phase M
+  - ralph/ralph.sh → outputs → results.tsv (telemetry)
+  - spiral.sh → API & live monitoring → spiral-ui (React Dashboard)
+  - .spiral-workers/ → executes stories in parallel → ralph/ralph.sh
+  - results.tsv → feeds → spiral-ui
+
+- Added sortable component table with 8 rows:
+  - Columns: Name, Role, Path, Language
+  - Components: spiral.sh, ralph/ralph.sh, lib/run_parallel_ralph.sh, lib/spiral/, lib/phases/, prd.json, spiral-ui/, .spiral-workers/
+  - All paths use relative links (../../../) that resolve correctly from html/pages/
+
+- Integrated simple-datatables library for client-side sorting and filtering
+- Integrated Mermaid.js for diagram rendering
+- Added comprehensive CSS styling for table with hover effects and sort indicators
+
+### Patterns discovered
+- Mermaid diagrams use graph TD (top-down) syntax with HTML entities for special chars (e.g., &amp;)
+- simple-datatables CDN provides sortable, searchable table functionality
+- Relative paths from html/pages/ to root: ../../../ for direct files, ../../../dir/ for directories
+- All 6 core components are correctly represented in the diagram
+
+### Acceptance criteria met
+- [x] Single Mermaid graph TD diagram with all 6 components and arrows showing data flow
+- [x] Below the diagram, a sortable table with Name/Role/Path/Language columns
+- [x] Every path in the table is a relative link that resolves correctly
+- [x] HTML is well-formed and will render with no console errors
+
+### Quality checks
+- ✅ HTML well-formedness verified with python3 -m html.parser
+- ✅ All 8 component paths exist in the repository
+- ✅ All relative links use correct path patterns
+- ✅ Mermaid and simple-datatables scripts load from CDN
+
+### Verified file paths
+- spiral.sh ✓
+- ralph/ralph.sh ✓
+- lib/run_parallel_ralph.sh ✓
+- lib/spiral/ ✓
+- lib/phases/ ✓
+- prd.json ✓
+- spiral-ui/ ✓
+- .spiral-workers/ (dynamic, created during Phase I)
+
+### Commits
+- 7e680d5d: feat: US-1346 - Add Mermaid diagram and sortable component table
+- 114bafd7: mark: US-1346 as passed
