@@ -2366,12 +2366,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-15T18:28:20Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/coverage_analyzer.py` exists with `generate_coverage_matrix()` function\n- Tests in `tests/test_coverage_analyzer.py` exist with 10 test cases\n- `spiral-ui/src/components/TestsCoverageTab.tsx` React component exists and fully implements:\n  - Coverage summary stats display\n  - Horizontal bar chart visualization with color coding\n  - Expandable table with detailed line coverage per file\n- API endpoint `/api/tests/coverage` at `lib/dashboard/api.py:1130-1148` reads `.spiral/coverage.json` and returns formatted coverage matrix\n- Component is imported and registered in `ProjectDashboard.tsx`\n\n## Problem Identified\nStory US-1323 requires verification that all acceptance criteria are met and working end-to-end:\n- AC1: Tab renders coverage data ✓ (component and API exist)\n- AC2: Heatmap visualization with color coding ✓ (bar chart with red/yellow/green)\n- AC3: Click to show covered/uncovered lines ✓ (expandable detail view)\n\nNeed to: 1) Verify tests pass, 2) Verify the component renders correctly in the dashboard\n\n## Planned Changes\n1. Run `uv run pytest tests/test_coverage_analyzer.py -v` to verify backend tests\n2. Run TypeScript type checks on the React component\n3. Verify the component integration in the dashboard\n4. Mark story as `passes: true` in prd.json\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 2\n}\n</plan>\nPerfect! All components are in place and working correctly. Let me verify everything one more time and then mark the story as complete.\n## Summary"
-      },
-      "_passedCommit": "73a03a561aed0bd5f68b5d6039c4e3d8ac556fb9"
+      "model": "haiku"
     },
     {
       "id": "US-1324",
@@ -2456,12 +2451,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-15T18:33:16Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe Spiral repository has a federated PRD system with `prd.include` field for loading sub-project PRDs. I can see `federated_search.py` already implements recursive prd.include resolution with cycle detection using a visited set. Now I need to build a core library for DAG creation and cycle detection.\n\n## Problem Identified\n\nStory US-1327 requires a foundational `lib/federation_graph.py` module that:\n1. Builds a directed acyclic graph (DAG) from prd.include relationships\n2. Detects cycles in the dependency graph\n3. Serves as the core library for story federation validation tests\n\nCurrently, these utilities don't exist as a standalone module that the test suite can depend on.\n\n## Planned Changes\n\n- **Create:** `lib/federation_graph.py` with `build_dag()`, `detect_cycles()`, and `_resolve_includes()` helper\n- **Create:** Test fixture files under `tests/fixtures/multi-project-prd/` (project-a, project-b, project-c with cycle A→B→C→A)\n- **Create:** `tests/test_federation_graph.py` with comprehensive tests covering all acceptance criteria\n\n<plan>\n{\n  \"files_to_create\": [\n    \"lib/federation_graph.py\",\n    \"tests/test_federation_graph.py\",\n    \"tests/fixtures/multi-project-prd/project-a/prd.json\",\n    \"tests/fixtures/multi-project-prd/project-b/prd.json\",\n    \"tests/fixtures/multi-project-prd/project-c/prd.json\"\n  ],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\n    \"build_dag\",\n    \"detect_cycles\",\n    \"_resolve_includes\"\n  ],\n  \"estimated_loc\": 165\n}\n</plan>\n\nNow let me implement the solution:\n## ✅ Story US-1327 Complete"
-      },
-      "_passedCommit": "bf04086de1a2d382c27cbc64947e5b561c0a252c"
+      "model": "haiku"
     },
     {
       "id": "US-1328",
@@ -2481,11 +2471,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-15T18:40:49Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- lib/federation_graph.py exists with build_dag() and detect_cycles() functions (implemented in US-1327)\n- Test fixtures exist: tests/fixtures/multi-project-prd/{project-a,b,c}/prd.json with circular dependency A → B → C → A\n- Fixtures currently have unique story IDs: A-001, B-001, C-001\n\n## Problem Identified\nNeed to create tests/test_federation_validation.py with three acceptance criteria:\n1. test_all_includes_resolve: Verify prd.include paths resolve without FileNotFoundError\n2. test_circular_dependency_detection: Verify circular dependency (A→B→C→A) is detected with all three nodes reported\n3. test_story_id_uniqueness: Detect duplicate story IDs (US-001) defined in both project-a and project-b\n\n## Planned Changes\n1. Update fixtures: Add duplicate US-001 story ID to projects A and B (for story ID uniqueness test)\n2. Create tests/test_federation_validation.py with:\n   - Helper function to collect story IDs from DAG\n   - test_all_includes_resolve(): Call build_dag(), assert no exceptions and graph populated\n   - test_circular_dependency_detection(): Call detect_cycles(), verify cycle detected with all 3 node paths\n   - test_story_id_uniqueness(): Traverse DAG, collect story IDs, verify duplicate US-001 in both projects\n\n<plan>\n{\n  \"files_to_create\": [\n    \"tests/test_federation_validation.py\"\n  ],\n  \"files_to_modify\": [\n    \"tests/fixtures/multi-project-prd/project-a/prd.json\",\n    \"tests/fixtures/multi-project-prd/project-b/prd.json\"\n  ],\n  \"functions_to_add\": [\n    \"test_all_includes_resolve\",\n    \"test_circular_dependency_detection\",\n    \"test_story_id_uniqueness\",\n    \"_collect_story_ids_from_dag\"\n  ],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow executing the implementation plan:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1329",
@@ -2584,6 +2570,26 @@
         "File to create: plugins/notify-whatsapp/plugin.toml with [plugin] metadata and [[hook]] entry for post-phase-G",
         "File to create: plugins/notify-whatsapp/notify.sh that parses results.tsv, calculates stats via awk/jq, POSTs to SPIRAL_WHATSAPP_API_URL with formatted JSON body",
         "Test command: bash tests/test_plugin_whatsapp.bats && uv run pytest tests/test_whatsapp_message_formatter.py::test_format_iteration_message -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1334",
+      "title": "CLI: Add `spiral profile-phases` command to measure and report phase execution time",
+      "priority": "low",
+      "description": "Add CLI subcommand to profile wall-clock time per phase and identify bottlenecks. Outputs sorted table: Phase | Duration | % of Total | Status. Helps product owners and developers optimize SPIRAL runtime.",
+      "acceptanceCriteria": [
+        "spiral.sh logs phase start/end timestamps to .spiral/_phase_timings.jsonl in format {phase: 'R', start_ms: <timestamp>, end_ms: <timestamp>} for each phase execution",
+        "`spiral profile-phases` reads _phase_timings.jsonl, outputs table sorted by duration descending: Phase | Duration (s) | Pct | Status; handles incomplete/missing data",
+        "Includes summary: total runtime, slowest phase, suggestion to investigate phases >30% of total time"
+      ],
+      "technicalNotes": [
+        "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
+        "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
+        "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -2690,6 +2696,50 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1340",
+      "title": "spiral-ui: Add TestsTab component with Phase V pass/fail timeline",
+      "priority": "medium",
+      "description": "Create a TestsTab React component in spiral-ui that fetches /api/phase-v-results via a usePhaseVResults hook, renders a chronological pass/fail timeline per story with badge, test_file, and duration, and shows a summary bar with total count, pass rate, and average duration. Wire the tab into App.tsx.",
+      "acceptanceCriteria": [
+        "TestsTab renders a pass/fail badge, story_id, test_file, and duration_s for each record from /api/phase-v-results",
+        "Summary bar displays total tests, pass rate %, and average duration_s",
+        "npm run test -- --reporter=verbose spiral-ui/src/components/TestsTab.test.tsx exits 0"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/TestsTab.tsx (~80 lines; use shadcn/ui Badge for pass/fail colouring)",
+        "File to edit: spiral-ui/src/api/hooks.ts (add usePhaseVResults using TanStack Query useQuery)",
+        "File to edit: spiral-ui/src/App.tsx (add Tests tab entry pointing to TestsTab component)",
+        "File to edit: spiral-ui/src/types/phase.ts (add PhaseVResult interface if not present)",
+        "File to create: spiral-ui/src/components/TestsTab.test.tsx (Vitest + msw mock for /api/phase-v-results)",
+        "Test command: npm run test -- --reporter=verbose spiral-ui/src/components/TestsTab.test.tsx"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1341",
+      "title": "Ralph: Support @spiral:hint-complexity-band marker for scope-aware decomposition",
+      "priority": "medium",
+      "description": "Extend Ralph's story decomposition strategy to read and use complexity hints embedded in prd.json story descriptions. Developers can annotate stories with @spiral:hint-complexity-band:small/medium/large to guide Phase I decomposition logic and inform scope reduction strategies.",
+      "acceptanceCriteria": [
+        "Ralph parses @spiral:hint-complexity-band markers from story.description in prd.json",
+        "Phase I decomposition prompt includes hint context to guide sub-story generation",
+        "Integration test: 3 stories with hints → decomposed sub-stories reflect hint guidance in output"
+      ],
+      "technicalNotes": [
+        "File to create: lib/parse_story_hints.py (extract @spiral:* markers, ~50 lines)",
+        "File to edit: ralph/CLAUDE.md (document @spiral:hint-complexity-band marker syntax)",
+        "File to edit: lib/impl/decompose.sh (pass hint_context to Ralph invocation)",
+        "Test command: uv run pytest tests/test_parse_story_hints.py::test_extract_complexity_band -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "sonnet"
     },
     {
@@ -2878,6 +2928,154 @@
       "model": "haiku"
     },
     {
+      "id": "US-1348",
+      "title": "Fill html/pages/05-cli-reference.html — all flags and subcommands in a filterable table",
+      "priority": "medium",
+      "description": "One filterable table for spiral.sh flags and another for main.py subcommands. Use simple-datatables for live search. Each row has Flag / Default / Description, with a one-click copy of an example launch line that uses that flag.",
+      "acceptanceCriteria": [
+        "Two simple-datatables tables on the page with working search box and column sort",
+        "Every flag from SKILL.md CLI Flags Reference appears as a row",
+        "Every main.py subcommand from SKILL.md appears as a row in the second table",
+        "Clicking a row reveals a copy-to-clipboard example command using that flag",
+        "Total flags row count >= 35 (matches the CLI Flags Reference table)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/05-cli-reference.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md CLI Flags Reference and main.py Subcommands sections",
+        "simple-datatables v9 via CDN <link> + <script>"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/05-cli-reference.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1349",
+      "title": "Fill html/pages/06-configuration.html — every SPIRAL_* env var grouped by category",
+      "priority": "medium",
+      "description": "Mirror the Configurable Options Reference from SKILL.md. Group config vars by category (Loop & Iteration, AI Suggestions, Research, Story Validation, Implementation, Validation, Git & Commits, Memory & Workers, Security, Hooks, Logging, Tool & Inference, Context Injection, Quality & Retry, Observability, Local Fallback, ADR & Self-Review). Each var gets an anchor id=config-<VARNAME> so other pages can deep-link.",
+      "acceptanceCriteria": [
+        "Page has a sticky table-of-contents on the left listing every category as a jump link",
+        "Each config var row has an HTML id of the form id=\"config-SPIRAL_FOO_BAR\"",
+        "Every default value is displayed in a <code> tag",
+        "A search box at the top filters all categories live (matches against var name AND description)",
+        "Anchor #config-SPIRAL_VALIDATE_CMD scrolls to the correct row when navigated to from another page"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/06-configuration.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Configurable Options Reference"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/06-configuration.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1350",
+      "title": "Fill html/pages/07-examples-and-recipes.html — 8 real-world launch scenarios",
+      "priority": "medium",
+      "description": "Recipe cards for common scenarios: 1) First run, 2) Run for 2 hours, 3) Focus on performance, 4) Skip research, 5) Rollback a story, 6) Replay a single story, 7) Parallel workers (with warnings), 8) Cheap haiku-only run. Each card: Goal / Command / What to expect / How long.",
+      "acceptanceCriteria": [
+        "Page renders 8 recipe cards in a CSS grid (2 columns desktop, 1 column mobile)",
+        "Each card includes a copy-to-clipboard button for the command",
+        "Parallel workers card has a visible warning callout about RAM consumption and the 3-worker hard cap",
+        "Each card has an 'Estimated runtime' badge (e.g. ~5 min, ~2 h, instant)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/07-examples-and-recipes.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Example Launch Commands section"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/07-examples-and-recipes.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1351",
+      "title": "Fill html/pages/08-glossary.html — define every SPIRAL term in one place",
+      "priority": "medium",
+      "description": "An A–Z glossary every other page can deep-link to. Terms: Phase, Iteration, Story, PRD, Ralph, Worker, Worktree, Gate, Decompose, DLQ, Constitution, Focus, Capacity Limit, Model Routing, Episodic Memory, Cost Ceiling, Validate Cmd. Each term: 2-sentence definition + 'See also' cross-links.",
+      "acceptanceCriteria": [
+        "Page has an A–Z index strip at top (each letter links to that letter's section)",
+        "Every term has id=\"term-<kebab-name>\" so other pages can deep-link",
+        "Each term has at least one 'See also' cross-link to another term or another page",
+        "Term count >= 17"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/08-glossary.html",
+        "Source: CLAUDE.md, $HOME/.claude/skills/spiral/SKILL.md"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/08-glossary.html"
+      ],
+      "estimatedComplexity": "small",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1352",
+      "title": "Fill html/pages/09-troubleshooting.html — known issues, exit codes, recovery",
+      "priority": "medium",
+      "description": "Self-service troubleshooting page. Three sections: (1) Symptom → Fix lookup table (live-searchable via simple-datatables), (2) Exit codes reference table, (3) Crash recovery summary (what auto-heals, what needs manual intervention).",
+      "acceptanceCriteria": [
+        "Section 1 has a searchable table with columns Symptom / Cause / Fix derived from the Troubleshooting section in SKILL.md (>= 15 rows)",
+        "Section 2 lists every exit code 0–15, 130 with meaning",
+        "Section 3 mirrors the Crash Recovery & Reliability table from SKILL.md",
+        "Page contains an 'Was this helpful?' thumbs-up/down widget that records vote count to localStorage (no backend)"
+      ],
+      "technicalNotes": [
+        "File to edit: html/pages/09-troubleshooting.html",
+        "Source: $HOME/.claude/skills/spiral/SKILL.md Troubleshooting + Exit Codes + Crash Recovery sections"
+      ],
+      "dependencies": [
+        "US-1343"
+      ],
+      "filesTouch": [
+        "html/pages/09-troubleshooting.html"
+      ],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "docs",
+        "html"
+      ],
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1353",
       "title": "html/index.html dashboard — sequential reading flow with progress tracker",
       "priority": "high",
@@ -2899,7 +3097,12 @@
         "US-1344",
         "US-1345",
         "US-1346",
-        "US-1347"
+        "US-1347",
+        "US-1348",
+        "US-1349",
+        "US-1350",
+        "US-1351",
+        "US-1352"
       ],
       "filesTouch": [
         "html/index.html",
@@ -2913,6 +3116,28 @@
         "newcomer-friendly"
       ],
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1354",
+      "title": "Phase R: Multi-Source Research Aggregation with DuckDuckGo and Bing Fallback",
+      "priority": "medium",
+      "description": "Enhance the research phase to fetch story candidates from DuckDuckGo and Bing in addition to Gemini, deduplicate results by semantic similarity (threshold 0.8), and annotate each story with a sources array. Provides fallback resilience when one search provider is unavailable.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_research_aggregator.py::test_deduplicate_across_sources -v` passes — mock two sources returning overlapping URLs and assert only unique results kept",
+        "Running `uv run pytest tests/test_research_aggregator.py::test_fallback_when_gemini_unavailable -v` passes — DuckDuckGo results returned when Gemini raises an exception",
+        "Each story dict returned by aggregate_sources() contains a 'sources' key listing [{'source_name': str, 'url': str, 'confidence_score': float}]",
+        "spiral.sh Phase R passes --research-sources gemini,duckduckgo to aggregate_sources() and logs source count to .spiral/research_sources.log"
+      ],
+      "technicalNotes": [
+        "File to create: lib/research_aggregator.py (aggregate_sources(sources: list[str], query: str) -> list[dict]; uses sentence-transformers cosine sim for dedup)",
+        "File to edit: spiral.sh (Phase R section ~line 800: replace direct Gemini call with `uv run python lib/research_aggregator.py --sources \"$SPIRAL_RESEARCH_SOURCES\" --query \"$QUERY\"`)",
+        "Test command: uv run pytest tests/test_research_aggregator.py -v",
+        "Use duckduckgo-search PyPI package for DDG; requests + Bing Search API key (read from BING_API_KEY env) for Bing"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     }
   ]
