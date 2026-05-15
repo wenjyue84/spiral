@@ -1338,3 +1338,46 @@ This user story is for a Python/Pytest project, not a Frappe application. Here i
 ## Iteration 2 - 2026年05月16日  2:17:52
 Completed: [Regression Test] e2e SPIRAL loop: phase order and final prd.json state (ID: US-1322) in 7m
 
+
+## Iteration N - Story: US-1323 - spiral-ui: Add Tests Coverage Tab with file-level heatmap visualization
+
+### What was implemented
+- Verified complete implementation of coverage metrics dashboard:
+  - `lib/coverage_analyzer.py`: `generate_coverage_matrix()` function parses coverage.json and generates file-level heatmap data
+  - `lib/dashboard/api.py`: `/api/tests/coverage` endpoint reads `.spiral/coverage.json` and returns formatted coverage matrix
+  - `spiral-ui/src/components/TestsCoverageTab.tsx`: React component with coverage visualization
+  - `spiral-ui/src/components/ProjectDashboard.tsx`: Component properly imported and registered in coverage tab
+
+### Component features
+- **Summary Stats**: Overall status badge, average coverage %, files covered count, total files
+- **Bar Chart**: Horizontal bar chart showing coverage distribution for top 20 files
+- **Expandable Table**: Full file list with coverage %, status indicator, covered/uncovered line counts
+- **Detail View**: Click to expand and see detailed line coverage metrics per file
+- **Color Coding**: Red (<50%), Yellow (50-80%), Green (>80%)
+
+### Test results
+- All 10 `test_coverage_analyzer.py` tests passing (100% success rate)
+- TypeScript compilation: No errors
+- Pre-commit checks: All passing
+- prd.json schema validation: Valid (fixed US-1353 dependency references)
+
+### Acceptance criteria met
+- [x] AC1: Tab renders coverage data from .spiral/coverage.json
+- [x] AC2: Heatmap shows files color-coded by coverage (red/yellow/green)
+- [x] AC3: Clicking a file shows covered/uncovered lines (expandable detail view)
+
+### Patterns discovered
+- Coverage data flows: .spiral/coverage.json → lib/coverage_analyzer.py → /api/tests/coverage endpoint → React component
+- Color status mapping: red='#ef4444', yellow='#eab308', green='#22c55e'
+- Bar chart uses Recharts BarChart with Cell elements for per-file color coding
+- File details shown in expandable rows with grid layout (File Details + Status Breakdown)
+
+### Verified end-to-end
+- Component is imported in ProjectDashboard.tsx (line 17)
+- Tab registered in DASH_TABS with id='coverage', slug='coverage' (line 36)
+- Rendered conditionally at line 274: `{activeTab === 'coverage' && <TestsCoverageTab />}`
+- API endpoint returns proper CoverageMatrix structure with files list and summary
+
+### Git commit
+- 2204dab7: feat: US-1323 - spiral-ui: Add Tests Coverage Tab with file-level heatmap visualization
+
