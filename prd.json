@@ -2669,7 +2669,16 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-05-17T21:02:20Z"
+      "last_attempted": "2026-05-17T21:02:20Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/spiral/phase_t.py` has `categorize_test_failure()` returning a string (no hints)\n- `lib/research/synthesize_tests.py` generates stories from test failures but without `_rootCause`/`_hint`\n- `lib/test_classifier.py` doesn't exist\n- `tests/test_phase_t.py` doesn't exist (but the test command needs it)\n\n## Problem Identified\nUS-1337 requires: (1) a `classify_test_failure()` function returning `{type, hint}` dict with remediation hints, (2) story generation enriched with `_rootCause` and `_hint` fields, (3) a test `test_classify_import_error`.\n\n## Planned Changes\n- Create `lib/test_classifier.py` with `classify_test_failure(snippet)` returning `{type, hint}` for 5 error types\n- Create `tests/test_phase_t.py` with `test_classify_import_error` (and other classification tests)\n- Modify `lib/research/synthesize_tests.py` to enrich stories with `_rootCause` and `_hint` using the classifier\n\n<plan>\n{\n  \"files_to_create\": [\"lib/test_classifier.py\", \"tests/test_phase_t.py\"],\n  \"files_to_modify\": [\"lib/research/synthesize_tests.py\"],\n  \"functions_to_add\": [\"classify_test_failure\", \"test_classify_import_error\", \"test_classify_assertion_failure\", \"test_classify_syntax_error\", \"test_classify_timeout_error\", \"test_classify_environment_error\"],\n  \"estimated_loc\": 120\n}\n</plan>\nThe required test passes. Now let me enrich the story generation in `synthesize_tests.py` to add `_rootCause` and `_hint` fields (AC3):\nNow run all the tests to verify nothing is broken:\nAll tests pass. Let me run the pre-commit checks and type checking:\nNow mark the story as passing and commit:\nUS-1337 is complete.\n\n**Summary:**\n- Created `lib/test_classifier.py` — `classify_test_failure(snippet)` returns `{type, hint}` dict covering all 5 error types (import_error, assertion_failure, syntax_error, timeout, environment_error) with actionable remediation hints\n- Created `tests/test_phase_t.py` — 7 tests including the required `test_classify_import_error`\n- Patched `lib/research/synthesize_tests.py` to add `_rootCause` and `_hint` fields to Phase T stories via the classifier (with graceful degradation if module unavailable)"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 18,
+        "tokensAfterMasking": 18,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1338",
