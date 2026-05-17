@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AgentTelemetryTable, PhaseTimingBars, PhaseTimelineChart, StoriesListAccordion, RecentActivityFeed, CollapsibleSection, FailureRetryDashboard, StuckStoriesPanel, CumulativeCostChart, ModelCostDonut } from './analytics';
 import StoryDetailPanel, { type StoryForPanel, type StoryAttempt } from './StoryDetailPanel';
+import PhaseTimeline from './PhaseTimeline';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -351,6 +352,11 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
       {/* ── TIER 2b: Phase Duration Timeline (bottleneck identification) ──── */}
       {phaseTimings.length > 0 && (
         <PhaseTimelineChart timings={phaseTimings} />
+      )}
+
+      {/* ── TIER 2b2: Phase Timeline Waterfall (US-1368) ─────────────────── */}
+      {phaseTimings.length > 0 && (
+        <PhaseTimeline timings={phaseTimings} />
       )}
 
       {/* ── TIER 2c: Cumulative Cost & Stories Passed Trend Chart ────────── */}
