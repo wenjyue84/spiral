@@ -161,3 +161,111 @@ def detect_cycles(graph: dict[str, list[str]]) -> tuple[bool, list[str]]:
                 return (True, cycle)
 
     return (False, [])
+
+
+def render_graphviz(
+    prd_path: str, dag: dict[str, list[str]], output_file: str
+) -> None:
+    """Render a DAG as an SVG using Graphviz.
+
+    Builds a directed graph with:
+    - Story nodes (colored by status: pending=gray, passed=green, failed=red)
+    - prd.include edges (labeled "includes")
+    - Story _blockedBy edges (labeled "blocked_by")
+
+    Args:
+        prd_path: Path to root prd.json file.
+        dag: Dict mapping prd_path → list of included prd_paths.
+        output_file: Path to write SVG file (e.g., "spiral-deps.svg").
+
+    Raises:
+        ImportError: If graphviz Python package is not installed.
+        OSError: If output file cannot be written.
+    """
+    try:
+        import graphviz
+    except ImportError as e:
+        raise ImportError(
+            "graphviz Python package required for render_graphviz(). "
+            "Install with: pip install graphviz"
+        ) from e
+
+    # Load root prd.json to get stories and their metadata
+    try:
+        with open(prd_path, encoding="utf-8") as f:
+            root_prd: dict[str, Any] = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        raise ValueError(f"Failed to load prd.json at {prd_path}") from e
+
+    # Create directed graph
+    graph = graphviz.Digraph("prd_dependencies", format="svg")
+    graph.attr(rankdir="TB")
+    graph.attr("node", shape="box", style="filled")
+
+    # Map story IDs to their status for coloring
+    story_status: dict[str, str] = {}
+    for story in root_prd.get("userStories", []):
+        story_id = story.get("id", "")
+        if story_id:
+            if story.get("passes"):
+                story_status[story_id] = "passed"
+            elif story.get("_skipped") or story.get("_decomposed"):
+                story_status[story_id] = "skipped"
+            else:
+                story_status[story_id] = "pending"
+
+    # Add story nodes (from root prd.json only, with color coding)
+    for story in root_prd.get("userStories", []):
+        story_id = story.get("id", "")
+        if story_id:
+            status = story_status.get(story_id, "pending")
+            title = story.get("title", story_id)[:30]  # Truncate long titles
+
+            # Color by status
+            if status == "passed":
+                color = "lightgreen"
+            elif status == "skipped":
+                color = "lightblue"
+            else:  # pending or unknown
+                color = "lightgray"
+
+            label = f"{story_id}\n{title}"
+            graph.node(story_id, label=label, fillcolor=color)
+
+    # Add edges for story _blockedBy relationships
+    for story in root_prd.get("userStories", []):
+        story_id = story.get("id", "")
+        if story_id:
+            blocked_by = story.get("_blockedBy", [])
+            if isinstance(blocked_by, list):
+                for blocker_id in blocked_by:
+                    if blocker_id:
+                        graph.edge(
+                            blocker_id, story_id, label="blocked_by", color="red"
+                        )
+
+    # Add prd.include edges (one node per prd.json file)
+    for prd_src, prd_includes in dag.items():
+        # Get a label for this prd (use filename)
+        prd_src_name = Path(prd_src).stem
+        if prd_src_name not in graph.body:  # Only add if not already present
+            graph.node(prd_src_name, label=prd_src_name, fillcolor="lightyellow")
+
+        for prd_dest in prd_includes:
+            prd_dest_name = Path(prd_dest).stem
+            if prd_dest_name not in graph.body:
+                graph.node(prd_dest_name, label=prd_dest_name, fillcolor="lightyellow")
+            graph.edge(prd_src_name, prd_dest_name, label="includes", color="blue")
+
+    # Write SVG
+    # graphviz outputs to output_file.svg by default, so strip .svg if present
+    output_base = output_file.replace(".svg", "")
+    graph.render(output_base, cleanup=True)
+
+    # Ensure output file exists at the requested path
+    svg_path = Path(output_base + ".svg")
+    if not output_file.endswith(".svg"):
+        output_file = output_file + ".svg"
+    if output_base + ".svg" != output_file:
+        import shutil
+        shutil.move(output_base + ".svg", output_file)

@@ -162,6 +162,8 @@ SEARCH_FORMAT="table"                        # output format: table|json|csv
 SEARCH_PROJECT=""                            # optional sub-project filter
 SEARCH_MIN_SCORE=30                          # minimum fuzzy score (0-100)
 SKILLS_MODE=0                                # 1 = run skills subcommand and exit (skills)
+GRAPH_MODE=0                                 # 1 = render dependency graph and exit (--graph)
+GRAPH_OUTPUT="spiral-deps.svg"              # output file path for graph (--output)
 SKILLS_SUBCOMMAND=""                         # list | install
 SKILLS_URL=""                                # URL for skills install
 METRICS_MODE=0                               # 1 = run metrics subcommand and exit (metrics)
@@ -487,6 +489,20 @@ while [[ $# -gt 0 ]]; do
         esac
       done
       ;;
+    --graph)
+      GRAPH_MODE=1
+      shift
+      # Parse optional --output flag
+      while [[ $# -gt 0 ]] && [[ "$1" == --output ]]; do
+        case $1 in
+          --output)
+            GRAPH_OUTPUT="${2:-spiral-deps.svg}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
     skills)
       SKILLS_MODE=1
       SKILLS_SUBCOMMAND="${2:-list}"
@@ -690,6 +706,8 @@ while [[ $# -gt 0 ]]; do
       echo "  --show-flaky-tests         Print tests failing <50% across last 5 iterations (excluded from Phase T) and exit"
       echo "  --calibration-report       Print actual vs estimated complexity calibration data and exit"
       echo "  --show-patterns            Display learned retry patterns (0-retry vs 3+ retry stories) and exit"
+      echo "  --graph                    Render PRD dependency graph to SVG and exit"
+      echo "    --output FILE              Output file path (default: spiral-deps.svg)"
       echo "  --query stories            Query prd.json stories with optional filters and exit"
       echo "    --status pass|fail|pending  Filter by story status"
       echo "    --complexity small|medium|large  Filter by complexity"

@@ -3240,12 +3240,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-17T22:53:10Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe spiral-ui project has React components using TypeScript and Tailwind CSS. There's already a PhaseTimelineChart component that uses custom SVG. The AnalyticsTab imports and uses phaseTimings data from an API endpoint. The spiral_events.jsonl file exists but currently contains only error events; the story expects phase_entered/phase_exited events to be parsed.\n\n## Problem Identified\n\nNeed to create a PhaseTimeline component that visualizes phase execution as a horizontal waterfall chart, parsing phase timing events and displaying color-coded phases with metrics for the 3 slowest phases. This component should integrate into the dashboard.\n\n## Planned Changes\n\n1. **Create `spiral-ui/src/components/PhaseTimeline.tsx`** - React component using recharts HorizontalBarChart to display:\n   - Horizontal bars for each phase with duration color-coding (green <60s, yellow 60-300s, red >300s)\n   - Hover tooltips showing phase name, duration, stories processed\n   - Bottom section listing top 3 slowest phases with detailed metrics\n\n2. **Create `spiral-ui/src/components/PhaseTimeline.test.tsx`** - Unit tests for component rendering and metrics calculation\n\n3. **Modify `spiral-ui/src/components/AnalyticsTab.tsx`** - Import and mount PhaseTimeline widget in analytics view\n\n4. **Add/extend API endpoint** - Ensure `/api/analytics` endpoint returns parsed phase data from spiral_events.jsonl\n\n<plan>\n{\n  \"files_to_create\": [\"spiral-ui/src/components/PhaseTimeline.tsx\", \"spiral-ui/src/components/PhaseTimeline.test.tsx\"],\n  \"files_to_modify\": [\"spiral-ui/src/components/AnalyticsTab.tsx\"],\n  \"functions_to_add\": [\"PhaseTimeline\", \"calculatePhaseMetrics\", \"getColorForDuration\"],\n  \"estimated_loc\": 280\n}\n</plan>\n\nProceeding with implementation...\nNow I'll create the PhaseTimeline component:\n## Summary"
-      },
-      "_passedCommit": "c00cf258f3606a98f4444ea332fd374366c8a2ff"
+      "model": "haiku"
     },
     {
       "id": "US-1369",
@@ -3269,11 +3264,7 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-17T23:01:08Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nLooking at the codebase, I can see:\n- `tests/test_spiral_e2e_integration.py` already exists with some E2E tests\n- `tests/conftest.py` has various fixtures but no `tmp_workspace`\n- `tests/fixtures/mock_claude_api.py` provides MockClaudeAPI for mocking subprocess.run\n- The story requires two specific test functions with specific names\n\n## Problem Identified\n\nThe story US-1369 requires:\n1. `test_full_loop_phase_order()` - must record all 11 phases (A→R→T→S→E→M→X→G→I→V→C) in execution order\n2. `test_prd_final_state()` - must verify at least one story has status 'done' after loop\n3. Both tests should use monkeypatched subprocess.run without real API calls\n4. Need a `tmp_workspace` fixture for test isolation\n\n## Planned Changes\n\n1. **conftest.py**: Add `tmp_workspace` fixture\n2. **test_spiral_e2e_integration.py**: Add `test_full_loop_phase_order()` and `test_prd_final_state()` methods\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/conftest.py\", \"tests/test_spiral_e2e_integration.py\"],\n  \"functions_to_add\": [\"tmp_workspace\", \"test_full_loop_phase_order\", \"test_prd_final_state\"],\n  \"estimated_loc\": 100\n}\n</plan>\n\nNow let me implement the tests. First, I'll add the `tmp_workspace` fixture to conftest.py:\nNow let me add the two required test functions to the test file. I'll add them to the TestSpiralE2EIntegration class:\nNow let me run the tests to verify they pass:\nLet me check if these type issues are pre-existing by running pre-commit:\nPerfect! Both tests pass. Now let me mark the story as complete in prd.json:\nPerfect! Story US-1369 is now complete. Here's a summary:\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1370",
@@ -3294,6 +3285,28 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1334",
+      "title": "CLI: Add `spiral profile-phases` command to measure and report phase execution time",
+      "priority": "low",
+      "description": "Add CLI subcommand to profile wall-clock time per phase and identify bottlenecks. Outputs sorted table: Phase | Duration | % of Total | Status. Helps product owners and developers optimize SPIRAL runtime.",
+      "acceptanceCriteria": [
+        "spiral.sh logs phase start/end timestamps to .spiral/_phase_timings.jsonl in format {phase: 'R', start_ms: <timestamp>, end_ms: <timestamp>} for each phase execution",
+        "`spiral profile-phases` reads _phase_timings.jsonl, outputs table sorted by duration descending: Phase | Duration (s) | Pct | Status; handles incomplete/missing data",
+        "Includes summary: total runtime, slowest phase, suggestion to investigate phases >30% of total time"
+      ],
+      "technicalNotes": [
+        "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
+        "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
+        "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku",
+      "_skipped": true,
+      "_failureReason": "Chronic timeout. Permanently skipped."
     },
     {
       "id": "US-1340",
@@ -3488,6 +3501,91 @@
       "model": "haiku"
     },
     {
+      "id": "US-1354",
+      "title": "Phase R: Multi-Source Research Aggregation with DuckDuckGo and Bing Fallback",
+      "priority": "medium",
+      "description": "Enhance the research phase to fetch story candidates from DuckDuckGo and Bing in addition to Gemini, deduplicate results by semantic similarity (threshold 0.8), and annotate each story with a sources array. Provides fallback resilience when one search provider is unavailable.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_research_aggregator.py::test_deduplicate_across_sources -v` passes — mock two sources returning overlapping URLs and assert only unique results kept",
+        "Running `uv run pytest tests/test_research_aggregator.py::test_fallback_when_gemini_unavailable -v` passes — DuckDuckGo results returned when Gemini raises an exception",
+        "Each story dict returned by aggregate_sources() contains a 'sources' key listing [{'source_name': str, 'url': str, 'confidence_score': float}]",
+        "spiral.sh Phase R passes --research-sources gemini,duckduckgo to aggregate_sources() and logs source count to .spiral/research_sources.log"
+      ],
+      "technicalNotes": [
+        "File to create: lib/research_aggregator.py (aggregate_sources(sources: list[str], query: str) -> list[dict]; uses sentence-transformers cosine sim for dedup)",
+        "File to edit: spiral.sh (Phase R section ~line 800: replace direct Gemini call with `uv run python lib/research_aggregator.py --sources \"$SPIRAL_RESEARCH_SOURCES\" --query \"$QUERY\"`)",
+        "Test command: uv run pytest tests/test_research_aggregator.py -v",
+        "Use duckduckgo-search PyPI package for DDG; requests + Bing Search API key (read from BING_API_KEY env) for Bing"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1355",
+      "title": "Phase L: Extract Failure Patterns Library from results.tsv",
+      "priority": "medium",
+      "description": "Extend Phase L learning to categorize failed stories from results.tsv by error type (timeout, scope_overflow, syntax_error, context_limit). Output a structured failure_patterns.jsonl file and integrate Phase S to cross-reference incoming stories against high-frequency patterns before implementation.",
+      "acceptanceCriteria": [
+        "uv run python lib/failure_pattern_analyzer.py results.tsv && test -f .spiral/failure_patterns.jsonl exits 0",
+        "cat .spiral/failure_patterns.jsonl | python -c \"import sys,json; data=[json.loads(l) for l in sys.stdin]; assert all(k in data[0] for k in ['pattern_id','error_type','frequency','affected_story_ids','prevention_hint'])\" exits 0",
+        "uv run pytest tests/test_failure_patterns.py::test_timeout_pattern_extraction -v passes",
+        "uv run pytest tests/test_failure_patterns.py::test_phase_s_warning_on_high_risk_story -v passes"
+      ],
+      "technicalNotes": [
+        "File to create: lib/failure_pattern_analyzer.py (analyze_failures(tsv_path) -> list[dict] function that reads results.tsv, groups by error_type, returns pattern dicts)",
+        "File to edit: spiral.sh (~line 1200 in Phase L section — invoke: uv run python lib/failure_pattern_analyzer.py results.tsv > .spiral/failure_patterns.jsonl)",
+        "File to edit: spiral.sh (Phase S section — add cross-reference check: if .spiral/failure_patterns.jsonl exists, compare story title/tags against top-frequency patterns and log WARN)",
+        "Test command: uv run pytest tests/test_failure_patterns.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1356",
+      "title": "SPIRAL - Route Trivial Stories to Local Ollama Before Haiku for Cost Reduction",
+      "priority": "medium",
+      "description": "Extend model routing to use local Ollama llama2 for complexity ≤ 2 stories, saving ~95% per story. Gracefully fallback to haiku if Ollama unavailable. Advances developer experience goal (cost transparency and reduction).",
+      "acceptanceCriteria": [
+        "Add SPIRAL_OLLAMA_ENABLED=true and SPIRAL_OLLAMA_URL=http://localhost:11434 to spiral.config.sh with defaults",
+        "In lib/model_routing.py, classify_complexity(story) returns score ≤ 2 → route to Ollama before haiku escalation chain",
+        "If Ollama socket unreachable, log warning and escalate to haiku without crashing; no user intervention required"
+      ],
+      "technicalNotes": [
+        "File: lib/model_routing.py (extend select_model(story, complexity) function to check SPIRAL_OLLAMA_ENABLED first)",
+        "File: spiral.config.sh (add SPIRAL_OLLAMA_ENABLED=true, SPIRAL_OLLAMA_URL=http://localhost:11434)",
+        "File: setup.sh (add 'ollama pull llama2:latest' to initialization, skip if already installed)",
+        "Test: uv run pytest tests/test_model_routing.py::test_ollama_fallback_to_haiku -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1357",
+      "title": "Phase I: error_context.sh — extract error and code snippet on Ralph failure",
+      "priority": "medium",
+      "description": "Create lib/impl/error_context.sh that parses Ralph worker stdout to extract the failing test file, line number, error message, and ±5-line code snippet. Write the structured result to .spiral/error_context/<story_id>.md.",
+      "acceptanceCriteria": [
+        "extract_error_context() parses Ralph stdout and outputs test_file, line_num, error_text, and a ±5-line code_snippet",
+        ".spiral/error_context/<story_id>.md is created with error classification label (syntax/type/import/timeout/oom)",
+        "bash tests/test_error_context.bats exits 0 with all cases passing"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/error_context.sh (new file; define extract_error_context function)",
+        "File to edit: tests/test_error_context.bats (new bats test file with fixture stdout samples)",
+        "Test command: bash tests/test_error_context.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1375",
       "title": "[Integration Test] html/ scaffold: file structure and nav.js dark-mode persist",
       "priority": "high",
@@ -3536,6 +3634,69 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1377",
+      "title": "Phase A: Add story complexity auto-estimation by acceptance criteria analysis",
+      "priority": "medium",
+      "description": "Automatically classify each AI-suggested story into complexity bands (trivial/simple/medium/complex) based on acceptance criteria word count, keyword density (async, integration, auth, database, migration), and explicit dependency mentions. Store band in story._metadata.complexityBand for Phase I model routing to use when selecting Claude tier.",
+      "acceptanceCriteria": [
+        "phase_a_complexity_scorer.estimate_complexity(story_dict) analyzes story['acceptanceCriteria'] and returns {band: 'simple', score: 72, keywords: ['database', 'auth']}",
+        "Integration test validates 5 sample stories: trivial ACs (single line) → band='trivial'; complex ACs (async+database+auth) → band='complex'",
+        "Phase A handler calls estimate_complexity() and stores result in prd.json story._metadata.complexityBand before Phase S merge"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_a_complexity_scorer.py (~120 lines) with estimate_complexity(story) returning complexity band 0-100 score + keywords detected",
+        "File to edit: spiral.sh Phase A section to import and call phase_a_complexity_scorer estimate_complexity() function",
+        "Test command: uv run pytest tests/test_phase_a_complexity_scorer.py::test_complexity_estimation_bands -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "opus"
+    },
+    {
+      "id": "US-1378",
+      "title": "Phase V: Add granular verification failure reporting showing which AC and test failed",
+      "priority": "medium",
+      "description": "When a story fails verification in Phase V, parse test output to generate a detailed report showing which specific acceptance criterion failed, which test file and assertion, and captured error message. Store failure details in story._verificationFailure for Phase I to use when planning decomposition or retry strategy.",
+      "acceptanceCriteria": [
+        "phase_v_failure_reporter.extract_failure_details(story_id, pytest_json_output) returns {failedAC: 2, testFile: 'tests/test_login.py::test_password_reset', message: 'AssertionError: token not found'}",
+        "Integration test mocks pytest JSON output (FAILED tests/test_X.py::test_Y) and verifies reporter correctly maps to AC index and error message",
+        "story._verificationFailure is populated and accessible to Phase I; spiral explain <story-id> displays failure details formatted as 'AC #2 failed: ...' if present"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_v_failure_reporter.py (~140 lines) with extract_failure_details(story_id, test_output) parsing pytest JSON or stdout",
+        "File to edit: lib/phases/phase_v.sh to call failure_reporter.extract_failure_details() when test verification fails, store result in story JSON",
+        "Test command: uv run pytest tests/test_phase_v_failure_reporter.py::test_extract_failure_from_pytest_output -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1379",
+      "title": "CLI: Add spiral cleanup --remove-stale-workers to garbage-collect zombie worker processes",
+      "priority": "low",
+      "description": "Scan .spiral-workers/ directory for orphaned git worktrees (no active worker process, last modified > 2 hours ago). Safely remove stale worktree directories using git worktree remove and clean up git state. Report number of workers cleaned and disk space freed.",
+      "acceptanceCriteria": [
+        "spiral cleanup --remove-stale-workers identifies stale workers: no active process via ps/tasklist AND last-modified timestamp > 2 hours old",
+        "For each stale worker, runs git worktree remove .spiral-workers/worker-N, confirms deletion, accumulates freed disk space estimate",
+        "Exit with summary message: 'Cleaned 3 stale workers, freed 450 MB' or 'No stale workers found. All workers active.' Exit code 0 always."
+      ],
+      "technicalNotes": [
+        "File to create: lib/worker_cleanup.sh (~100 lines) with functions: find_stale_workers(), remove_worker_worktree(), estimate_freed_space()",
+        "File to edit: lib/cli_subcommands.sh to add cleanup case statement dispatching to lib/worker_cleanup.sh",
+        "Test command: tests/bats-core/bin/bats tests/test_worker_cleanup.bats -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
       "model": "haiku"
     }
   ]

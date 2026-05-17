@@ -573,3 +573,28 @@ if [[ "$PROFILE_MODE" -eq 1 ]]; then
     exit 1
   fi
 fi
+
+# ── --graph: render PRD dependency graph to SVG and exit ────────────────────
+if [[ "$GRAPH_MODE" -eq 1 ]]; then
+  _GRAPH_ARGS=("$PRD_FILE" "${GRAPH_OUTPUT}")
+  "$SPIRAL_PYTHON" - "${_GRAPH_ARGS[@]}" <<'GRAPH_PY'
+import sys
+import json
+from pathlib import Path
+
+prd_path = sys.argv[1]
+output_file = sys.argv[2]
+
+sys.path.insert(0, "lib")
+from federation_graph import build_dag, render_graphviz
+
+try:
+    dag = build_dag(prd_path)
+    render_graphviz(prd_path, dag, output_file)
+    print(f"[spiral] Graph rendered to {output_file}")
+except Exception as e:
+    print(f"[spiral] ERROR: {e}", file=sys.stderr)
+    sys.exit(1)
+GRAPH_PY
+  exit $?
+fi

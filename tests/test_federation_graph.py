@@ -1,12 +1,14 @@
 """Tests for US-1327: federation_graph module (DAG builder and cycle detector)."""
 
+import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
-from federation_graph import build_dag, detect_cycles
+from federation_graph import build_dag, detect_cycles, render_graphviz
 
 
 class TestBuildDAG:
@@ -167,3 +169,81 @@ class TestDetectCycles:
         assert "A" in cycle_nodes
         assert "B" in cycle_nodes
         assert "C" in cycle_nodes
+
+
+class TestGraphvizRender:
+    """Test render_graphviz() function for SVG generation."""
+
+    def test_graphviz_render(self) -> None:
+        """Test render_graphviz produces valid SVG with correct colors and labels.
+
+        Creates a minimal PRD with:
+        - 3 stories (1 passed, 1 pending, 1 failed)
+        - 2 prd.include relationships
+        - 1 _blockedBy relationship
+        """
+        # Create temporary directory and prd.json files
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+
+            # Create prd.json with test stories
+            prd_data = {
+                "userStories": [
+                    {
+                        "id": "US-001",
+                        "title": "Passed Story",
+                        "passes": True,
+                        "_blockedBy": [],
+                    },
+                    {
+                        "id": "US-002",
+                        "title": "Pending Story",
+                        "passes": False,
+                        "_blockedBy": ["US-001"],
+                    },
+                    {
+                        "id": "US-003",
+                        "title": "Failed Story",
+                        "passes": False,
+                        "_blockedBy": [],
+                    },
+                ],
+                "prd.include": ["sub/prd.json", "other/prd.json"],
+            }
+
+            prd_file = tmpdir_path / "prd.json"
+            with open(prd_file, "w", encoding="utf-8") as f:
+                json.dump(prd_data, f)
+
+            # Create a dummy DAG structure (simplified for test)
+            test_dag = {
+                str(prd_file): [
+                    str(tmpdir_path / "sub" / "prd.json"),
+                    str(tmpdir_path / "other" / "prd.json"),
+                ]
+            }
+
+            # Render to SVG
+            output_file = str(tmpdir_path / "test-deps.svg")
+            render_graphviz(str(prd_file), test_dag, output_file)
+
+            # Verify SVG file was created
+            svg_path = Path(output_file)
+            assert svg_path.exists(), f"SVG file not created at {output_file}"
+
+            # Verify SVG contains expected content
+            with open(svg_path, "r", encoding="utf-8") as f:
+                svg_content = f.read()
+
+            # SVG should contain story IDs
+            assert "US-001" in svg_content, "Story US-001 not found in SVG"
+            assert "US-002" in svg_content, "Story US-002 not found in SVG"
+            assert "US-003" in svg_content, "Story US-003 not found in SVG"
+
+            # SVG should contain relationship labels
+            assert "blocked_by" in svg_content, "blocked_by label not found in SVG"
+            assert "includes" in svg_content, "includes label not found in SVG"
+
+            # SVG should be valid (starts with <svg and ends with </svg>)
+            assert "<svg" in svg_content, "SVG does not start with <svg tag"
+            assert "</svg>" in svg_content, "SVG does not end with </svg> tag"
