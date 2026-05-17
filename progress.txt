@@ -1,3 +1,38 @@
+## Iteration N - Sun, May 18, 2026 - Story US-1381 Completed
+Completed: [Test] HealthWidget: polling interval, exponential back-off, and no sensitive data in output (ID: US-1381) in ~10m
+
+### What was implemented
+- Implemented exponential back-off retry logic in HealthWidget component
+  - Added retry delay calculation: 2^retryCount * 1000ms (1s, 2s, 4s, 8s...)
+  - Added retryTimeoutRef to track and cancel pending retries
+  - Added pollIntervalRef for proper cleanup of polling interval on unmount
+  - Resets retry count to 0 on successful fetch
+
+- Added three comprehensive test cases to HealthWidget.test.tsx:
+  - **Polling interval test**: Uses vi.useFakeTimers() to verify fetch called after 5 seconds
+  - **Exponential back-off test**: Mocks fetch failures and verifies retry delays double (1s→2s→4s)
+    - Mocked setInterval to prevent polling from interfering with test timing
+  - **Data leakage test**: Verifies rendered output contains no Bearer or sk- token patterns
+
+### Key Patterns Discovered
+- React fake timers with setInterval require spying/mocking to prevent background timers from interfering
+- Exponential back-off formula: `Math.pow(2, retryCount) * 1000` ms creates 1s, 2s, 4s sequence
+- Testing async React components with fake timers requires proper use of vi.waitFor() and act() boundaries
+
+### Gotchas Encountered
+- Initial test failed with "called 5 times instead of 4" because polling interval at 5000ms fired during test
+- Solution: Spy on global.setInterval and clearInterval to prevent background polling
+- React act() warnings are warnings only; tests still pass with proper timer cleanup
+
+### Test Results
+- All 11 HealthWidget tests passing (3 new + 8 existing)
+- No TypeScript or lint errors
+- All acceptance criteria met:
+  - [x] Polling interval test passing with fake timers
+  - [x] Exponential back-off test with retry delays doubling
+  - [x] Data leakage test asserting no token patterns
+  - [x] All HealthWidget tests green
+
 ## Iteration 5 - Sun, May 18, 2026  8:00:00 AM
 Completed: [Security Test] Settings tab config save blocked without auth (ID: US-1380) in 2m
 
