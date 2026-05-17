@@ -3244,7 +3244,8 @@
       "last_attempted": "2026-05-17T22:53:10Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe spiral-ui project has React components using TypeScript and Tailwind CSS. There's already a PhaseTimelineChart component that uses custom SVG. The AnalyticsTab imports and uses phaseTimings data from an API endpoint. The spiral_events.jsonl file exists but currently contains only error events; the story expects phase_entered/phase_exited events to be parsed.\n\n## Problem Identified\n\nNeed to create a PhaseTimeline component that visualizes phase execution as a horizontal waterfall chart, parsing phase timing events and displaying color-coded phases with metrics for the 3 slowest phases. This component should integrate into the dashboard.\n\n## Planned Changes\n\n1. **Create `spiral-ui/src/components/PhaseTimeline.tsx`** - React component using recharts HorizontalBarChart to display:\n   - Horizontal bars for each phase with duration color-coding (green <60s, yellow 60-300s, red >300s)\n   - Hover tooltips showing phase name, duration, stories processed\n   - Bottom section listing top 3 slowest phases with detailed metrics\n\n2. **Create `spiral-ui/src/components/PhaseTimeline.test.tsx`** - Unit tests for component rendering and metrics calculation\n\n3. **Modify `spiral-ui/src/components/AnalyticsTab.tsx`** - Import and mount PhaseTimeline widget in analytics view\n\n4. **Add/extend API endpoint** - Ensure `/api/analytics` endpoint returns parsed phase data from spiral_events.jsonl\n\n<plan>\n{\n  \"files_to_create\": [\"spiral-ui/src/components/PhaseTimeline.tsx\", \"spiral-ui/src/components/PhaseTimeline.test.tsx\"],\n  \"files_to_modify\": [\"spiral-ui/src/components/AnalyticsTab.tsx\"],\n  \"functions_to_add\": [\"PhaseTimeline\", \"calculatePhaseMetrics\", \"getColorForDuration\"],\n  \"estimated_loc\": 280\n}\n</plan>\n\nProceeding with implementation...\nNow I'll create the PhaseTimeline component:\n## Summary"
-      }
+      },
+      "_passedCommit": "c00cf258f3606a98f4444ea332fd374366c8a2ff"
     },
     {
       "id": "US-1369",
@@ -3267,8 +3268,9 @@
         "US-1210"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-05-17T23:01:08Z"
     },
     {
       "id": "US-1370",

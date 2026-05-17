@@ -2,12 +2,11 @@
 
 import json
 import re
-from pathlib import Path
-
-import pytest
 
 # Import the module under test
 import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 from gen_html_data import generate_data_js
 

@@ -587,6 +587,39 @@ def mock_prd_fixture(tmp_path: Path) -> str:
 
 
 @pytest.fixture
+def tmp_workspace(tmp_path: Path) -> Path:
+    """Fixture: Create an isolated temporary SPIRAL workspace with prd.json.
+
+    Yields:
+        Path: Path to the temporary workspace directory
+    """
+    # Create minimal prd.json with one pending story
+    prd: dict[str, Any] = {
+        "schemaVersion": 1,
+        "productName": "TestSPIRAL",
+        "branchName": "main",
+        "overview": "Test workspace for SPIRAL phase order validation",
+        "goals": ["Test SPIRAL loop execution"],
+        "userStories": [
+            {
+                "id": "US-TEST-001",
+                "title": "Test Story for Phase Order",
+                "priority": "high",
+                "description": "Story for testing SPIRAL phase execution order",
+                "acceptanceCriteria": ["Phases execute in correct order"],
+                "technicalNotes": [],
+                "dependencies": [],
+                "estimatedComplexity": "small",
+                "passes": False,
+            }
+        ],
+    }
+    (tmp_path / "prd.json").write_text(json.dumps(prd, indent=2), encoding="utf-8")
+
+    yield tmp_path
+
+
+@pytest.fixture
 def mock_api_repo(tmp_path: Path):
     """Fixture: tmp git repo with minimal constitution.md and prd.json + MockClaudeAPI active.
 

@@ -158,3 +158,35 @@ Completed: [spiral-ui] Phase Timeline Visualization - Interactive execution wate
 - Color coding verified for all three thresholds
 - Metrics calculation accurate (stories/min, tokens/hour)
 
+## Iteration 1 - Mon, May 18, 2026  7:01:05 AM
+Completed: spiral-ui: Phase Timeline Visualization - Interactive execution waterfall chart (ID: US-1368) in 7m
+
+
+## Pre-analysis for US-1369 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-1369.
+
+**Subject:** Technical Brief for US-1369: E2E SPIRAL Loop Regression Test
+
+**1. Python Files to Modify:**
+*   `tests/test_spiral_e2e_integration.py`: Create this new file to house the regression tests.
+*   `tests/fixtures/mock_claude_api.py`: Extend this file to provide mocked `subprocess.run` return values for each of the 11 SPIRAL phases.
+*   `tests/conftest.py`: Add a `tmp_workspace` fixture to ensure tests run in an isolated environment.
+
+**2. Frappe/Framework Involvement:**
+*   None. Despite the prompt's context, the user story is for a pure Python project using the `pytest` framework. No Frappe DocTypes or hooks are involved.
+
+**3. Recommended Implementation Approach:**
+1.  Define a `tmp_workspace` fixture in `conftest.py` to create a clean directory for each test run.
+2.  In `test_spiral_e2e_integration.py`, create the main test `test_full_loop_phase_order`.
+3.  Use `pytest`'s `monkeypatch` fixture to replace `subprocess.run` with a custom mock function.
+4.  This mock must be stateful, using a counter to return different `CompletedProcess` objects simulating the CLI output for each sequential phase (A→R→T→S→E→M→X→G→I→V→C).
+5.  The mock should also record the phase being executed into a list on each call.
+6.  Invoke the main SPIRAL loop entry point from within the test.
+7.  After the loop, assert the recorded phase list matches the correct 11-phase order.
+8.  Add a second test, `test_prd_final_state`, to load the final `prd.json` from the temporary workspace and verify at least one story has the status "done".
+
+**4. Edge Cases & Gotchas:**
+*   The `subprocess.run` mock must be designed to handle multiple calls and return a different, phase-appropriate `stdout` each time.
+*   Ensure the test environment is fully isolated by the `tmp_workspace` fixture to prevent state leakage.
+*   The test needs to correctly identify and call the main Python function that initiates the full SPIRAL loop.
+

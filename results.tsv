@@ -202,3 +202,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-17T22:30:13Z	37	1	US-1375	[Integration Test] html/ scaffold: file structure and nav.js dark-mode persist	keep	232	haiku	0	f6096f270af294a47e5a79b09ad922bd3c5abaca	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-17T22:39:00Z	37	2	US-1376	[Integration Test] html/index.html dashboard: KPI cards and progress strip data	keep	495	haiku	0	733b926d9e6ee066fc8d647f28a7eab9c61cbdd4	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-17T22:45:09Z	37	3	US-1367	[Regression Test] Retry escalation and worker crash recovery guard (US-1211)	keep	345	haiku	0	70f17f0572662b5fd6559f7431ff97ee286c2c81	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-17T23:01:05Z	38	1	US-1368	spiral-ui: Phase Timeline Visualization - Interactive execution waterfall chart	keep	446	haiku	0	c00cf258f3606a98f4444ea332fd374366c8a2ff	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				

@@ -7,7 +7,6 @@ progress tracking, and data binding for KPI display.
 import re
 from pathlib import Path
 
-import pytest
 from bs4 import BeautifulSoup
 
 
