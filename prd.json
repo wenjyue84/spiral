@@ -3551,7 +3551,7 @@
         "US-1366"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
       "model": "haiku",
       "last_attempted": "2026-05-17T23:24:47Z"
