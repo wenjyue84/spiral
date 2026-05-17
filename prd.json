@@ -3058,7 +3058,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         "tests/conftest.py",
@@ -3069,7 +3069,114 @@
         "testFiles": [
           "tests/test_mock_claude_api.py"
         ]
-      }
+      },
+      "_dlq": true,
+      "_dlqMetadata": {
+        "timestamp": "2026-05-17T16:05:01.129936+00:00",
+        "retryCount": 4,
+        "reason": "Exhausted 4 retries (SPIRAL_MAX_RETRIES=3)"
+      },
+      "_skipped": true,
+      "_failureReason": "Already committed (f4e8fe6c); skipped to break Phase I picker idempotency loop on passes:true story"
+    },
+    {
+      "id": "US-1371",
+      "title": "Integration test: SPIRAL loop with MockClaudeAPI and failure injection scenarios",
+      "priority": "high",
+      "description": "Create a comprehensive integration test that runs the full SPIRAL loop (2 iterations) using a configurable MockClaudeAPI fixture simulating success, retry escalation (haiku fail→sonnet pass), and timeout-induced scope reduction. This enables testing Phase I retry logic, Phase V result aggregation, and worker robustness without hitting the real Claude API.",
+      "acceptanceCriteria": [
+        "MockClaudeAPI fixture patches subprocess.run() to simulate: (1) haiku success 50% of calls, (2) haiku timeout 25% (triggers scope reduction), (3) sonnet escalation success 90%",
+        "Integration test runs SPIRAL for 2 iterations with 5-story PRD, verifying Phase M merge produces _merged_stories.json, Phase I creates retry-marked stories, Phase V writes results.tsv with correct escalation entries",
+        "Test asserts results.tsv has exactly 2 rows per story (2 iterations) and final pass/fail distribution matches injected failure rates (±10%)"
+      ],
+      "technicalNotes": [
+        "Use MockClaudeAPI fixture to run a minimal SPIRAL loop (1 iter, 1 story). Inject failures to test retry/decompose paths. Assert prd.json state after."
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet",
+      "filesTouch": [
+        "tests/test_spiral_integration.py"
+      ],
+      "verification": {
+        "testFiles": [
+          "tests/test_spiral_integration.py"
+        ]
+      },
+      "last_attempted": "2026-05-17T10:36:40Z",
+      "_skipped": true
+    },
+    {
+      "id": "US-1372",
+      "title": "Phase G: Implement git-cliff-based CHANGELOG.md Generator",
+      "priority": "high",
+      "description": "Auto-generate CHANGELOG.md from story commits during Phase G using git-cliff for semantic commit parsing and changelog templating, supporting story-based grouping and release notes.",
+      "acceptanceCriteria": [
+        "lib/changelog_generator.py contains generate_changelog(start_commit, end_commit, output_path, config_path) function that parses commits via git-cliff and returns rendered markdown changelog grouped by story ID (US-NNNN) and category (Feature/Fix/Test)",
+        ".cliff.toml configuration file specifies commit message parsing rules with story ID prefix pattern matching and changelog Jinja2 template with sections for each story ID",
+        "Phase G invokes changelog_generator.py after final story commit, validates CHANGELOG.md (non-empty, contains ≥2 unique story IDs), commits with message 'phase-g: auto-generate CHANGELOG.md', and logs generation metrics to spiral_events.jsonl"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/changelog_generator.py (new, ~90 lines), .cliff.toml (new config), lib/phases/phase_g.sh (add 8-line invocation block), tests/test_changelog_generator.py (new, ~70 lines)",
+        "Test command: uv run pytest tests/test_changelog_generator.py::test_generates_changelog_with_git_cliff -v",
+        "Depends on: git-cliff installed globally or vendored; test fixture creates temporary git repo with commit history and validates output structure",
+        "Integration: Phase G outputs timing and success/failure status to spiral_events.jsonl; spiral-ui displays generated CHANGELOG link in Phase G summary"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        "lib/changelog_generator.py",
+        ".cliff.toml",
+        "tests/test_changelog_generator.py"
+      ]
+    },
+    {
+      "id": "US-1373",
+      "title": "Phase I: Inject Learned-Lessons Hints from Phase L into Story Decomposition Prompts",
+      "priority": "medium",
+      "description": "Integrate Phase L episodic learning output (learning.md) into Phase I decomposition prompts so future story decomposition benefits from successful patterns and documented failure modes for same complexity band.",
+      "acceptanceCriteria": [
+        "lib/decompose_story.py loads learning.md, extracts patterns matching story complexity_band (small/medium/large) and categorizes by failure_type (syntax/logic/scope/timeout); returns dict {complexity: [patterns]}",
+        "Ralph decomposition prompt (ralph/CLAUDE.md) includes sidecar injection: 'Learned Patterns for [complexity]: [2-3 pattern bullets extracted from learning.md]; avoid: [antipatterns]'; example: 'For medium stories: narrow scope to 1 feature, verify test file pre-implementation, avoid async complexity'",
+        "Decomposition quality improves: story sub-components fail Phase T retries ≥15% less often (measured via retry_count distribution in results.tsv over 10-iteration baseline)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/decompose_story.py (add load_learned_lessons_for_complexity(complexity_band, learning_path) ~35 lines), ralph/CLAUDE.md (inject {{learned_patterns}} sidecar into system prompt, ~5 lines), lib/phases/phase_i.sh (call load function and pass to ralph, ~3 lines), tests/test_decompose_story.py (new, ~50 lines)",
+        "Test command: uv run pytest tests/test_decompose_story.py::test_injects_learned_lessons_into_prompt -v",
+        "learning.md format (existing): ## Small Stories | Syntax Errors | Successfully avoided X by checking Y before implementation",
+        "Telemetry: track 'lessons_injected_count' in spiral_events.jsonl; measure 'retry_reduction_pct' by comparing results.tsv retry_count distribution before/after feature"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1374",
+      "title": "CLI: spiral profile --export-trace for Execution Timeline Analysis and Phase Bottleneck Detection",
+      "priority": "medium",
+      "description": "Add CLI command to export SPIRAL execution traces (phase timings, worker heartbeats, model routing decisions, API latencies) as structured JSONL for offline analysis, identifying phase bottlenecks, model escalation patterns, and cost-per-phase breakdown.",
+      "acceptanceCriteria": [
+        "spiral profile --export-trace outputs JSONL file (e.g., trace_2026-05-17_iter3.jsonl) with entries: {iteration, phase, worker_id, start_unix_ms, duration_ms, status, model, tokens_in, tokens_out, api_latency_ms, escalation_count, error_category}",
+        "CLI flags: --from-iteration N (start), --to-iteration M (end), --filter-phase [A-L] (optional phase filter), --output PATH (custom output file); outputs to stdout if no --output specified",
+        "spiral profile --analyze-trace TRACE.jsonl outputs ASCII table with stats per phase: count, median duration, p95 latency, total tokens, total cost, escalation rate; highlights slowest phase and highest-cost phase"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_subcommands.sh (add profile command routing, ~25 lines), lib/profile_trace.py (new, ~110 lines for export + analysis logic), lib/spiral_events_reader.py (new, ~60 lines to parse spiral_events.jsonl + results.tsv + worker logs into unified trace format), tests/test_profile_trace.py (new, ~60 lines)",
+        "Test command: uv run pytest tests/test_profile_trace.py::test_exports_trace_with_all_phases -v",
+        "Data sources: spiral_events.jsonl (phase transitions + model + tokens), results.tsv (story attempts + retry_count + escalation), .spiral/worker-N.log (worker timings) — merge and normalize to millisecond precision",
+        "Example: spiral profile --export-trace --from-iteration 1 --to-iteration 5 --filter-phase R --output analysis/phase_r_trace.jsonl && spiral profile --analyze-trace analysis/phase_r_trace.jsonl"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-1366",
@@ -3174,97 +3281,6 @@
         "File to edit: lib/federation_graph.py (add render_graphviz(dag: DAG, output_file: str) method using graphviz.Digraph and DAG structure)",
         "File to edit: lib/cli_subcommands.sh (add 'graph' subcommand handler with --output flag parsing and .cliff.toml template invocation)",
         "Test command: uv run pytest tests/test_federation_graph.py::test_graphviz_render -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1371",
-      "title": "Integration test: SPIRAL loop with MockClaudeAPI and failure injection scenarios",
-      "priority": "high",
-      "description": "Create a comprehensive integration test that runs the full SPIRAL loop (2 iterations) using a configurable MockClaudeAPI fixture simulating success, retry escalation (haiku fail→sonnet pass), and timeout-induced scope reduction. This enables testing Phase I retry logic, Phase V result aggregation, and worker robustness without hitting the real Claude API.",
-      "acceptanceCriteria": [
-        "MockClaudeAPI fixture patches subprocess.run() to simulate: (1) haiku success 50% of calls, (2) haiku timeout 25% (triggers scope reduction), (3) sonnet escalation success 90%",
-        "Integration test runs SPIRAL for 2 iterations with 5-story PRD, verifying Phase M merge produces _merged_stories.json, Phase I creates retry-marked stories, Phase V writes results.tsv with correct escalation entries",
-        "Test asserts results.tsv has exactly 2 rows per story (2 iterations) and final pass/fail distribution matches injected failure rates (±10%)"
-      ],
-      "technicalNotes": [
-        "Use MockClaudeAPI fixture to run a minimal SPIRAL loop (1 iter, 1 story). Inject failures to test retry/decompose paths. Assert prd.json state after."
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet",
-      "filesTouch": [
-        "tests/test_spiral_integration.py"
-      ],
-      "verification": {
-        "testFiles": [
-          "tests/test_spiral_integration.py"
-        ]
-      },
-      "_failureReason": "Depends on US-1365 (MockClaudeAPI) which is permanently skipped",
-      "last_attempted": "2026-05-17T16:01:24Z",
-      "_skipped": true
-    },
-    {
-      "id": "US-1372",
-      "title": "CLI: Add `spiral debug story <id>` for Ralph execution reconstruction",
-      "priority": "medium",
-      "description": "Implement a debug subcommand that reconstructs the full execution context for a given story: the exact PRD slice, Ralph's system prompt with @spiral hints, worker logs, Claude API response (if cached), and Phase V validation result. This improves debugging of failed stories and supports integration test validation.",
-      "acceptanceCriteria": [
-        "`spiral debug story US-1234` outputs JSON containing: story_id, prd_slice (full story object), system_prompt_with_hints, worker_log_excerpt (last 50 lines), phase_v_result, retry_count, model_escalations",
-        "Command searches .spiral/worker-N/logs/ for story_id and .spiral/results.tsv for row match; returns error if story not found",
-        "Output includes timestamps, token_count, total_cost, and any error messages from Phase I decompose.sh or Phase V evidence aggregator"
-      ],
-      "technicalNotes": [
-        "File to create: lib/debug_story_reconstructor.py with reconstruct_story_context(story_id, spiral_home_dir) returning dict with all fields",
-        "File to modify: lib/cli_subcommands.sh to add debug story subcommand routing to debug_story_reconstructor.py with --json output",
-        "File to create: tests/test_debug_story_reconstructor.py with fixtures (sample results.tsv, .spiral/worker-0/logs/story.log, prd.json)",
-        "Test command: uv run pytest tests/test_debug_story_reconstructor.py::test_reconstructs_story_context_from_logs -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1373",
-      "title": "CLI: Add `spiral shortcuts` command with keyboard bindings reference",
-      "priority": "low",
-      "description": "Implement a new CLI subcommand that displays keyboard shortcuts for common spiral-ui operations (phase navigation, worker control, settings edit, test re-run). This improves UX discoverability and satisfies the focus area for spiral-ui UX polish.",
-      "acceptanceCriteria": [
-        "`spiral shortcuts --list` displays keyboard bindings in an ASCII table with columns: Shortcut, Action, Context (Dashboard/Settings/Workers/Tests/Graph)",
-        "`spiral shortcuts --search <keyword>` filters bindings by action name (e.g., `spiral shortcuts --search phase` returns only phase-related shortcuts)",
-        "Keyboard bindings are defined in spiral-ui/keybindings.yaml and loaded by the CLI; unsupported on platforms without spiral-ui running"
-      ],
-      "technicalNotes": [
-        "File to create: spiral-ui/keybindings.yaml with YAML array [{shortcut: 'Ctrl+P', action: 'phase-jump', context: 'Dashboard'}, ...]",
-        "File to modify: lib/cli_subcommands.sh to add shortcuts subcommand with --list and --search using jq filtering",
-        "File to create: lib/format_shortcuts_table.py with format_table(keybindings_yaml) returning ASCII table string",
-        "Test command: uv run pytest lib/test_format_shortcuts_table.py::test_filters_by_keyword -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1374",
-      "title": "spiral-ui - Health Check Endpoint and Real-Time Status Badge on Dashboard",
-      "priority": "medium",
-      "description": "Add /api/health endpoint that monitors SPIRAL system vitals (current phase, worker count, last story completion, stall detection). Display a status badge on the Dashboard that auto-updates every 5 seconds, showing healthy (green) or unhealthy (red) with reason and remediation suggestion.",
-      "acceptanceCriteria": [
-        "GET /api/health endpoint returns JSON: {status: 'healthy'|'unhealthy', current_phase, worker_count, uptime_seconds, last_activity_timestamp, stall_reason_if_unhealthy}",
-        "Status marked unhealthy if: no phase progress in >8 minutes OR worker_count < 1 OR last_activity > 10 minutes old",
-        "Dashboard renders <StatusBadge/> in top-right corner; refreshes every 5 seconds via fetch polling; displays reason (e.g., 'Phase I stalled for 9m') on hover"
-      ],
-      "technicalNotes": [
-        "File to create: spiral-ui/server/routes/health.ts with endpoint checking .spiral/_checkpoint.json modification time and worker process count (ls .spiral-workers/worker-*/)",
-        "File to create: spiral-ui/src/components/StatusBadge.tsx with useEffect(fetch every 5s) and color based on status; integrate into Dashboard header",
-        "Test command: npm run test -- spiral-ui/src/components/__tests__/StatusBadge.test.tsx && npm run test -- spiral-ui/server/__tests__/routes/health.test.ts"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
