@@ -75,3 +75,38 @@ Completed: [Integration Test] html/index.html dashboard: KPI cards and progress 
   - test_data_js_fields: Validates data.js numeric fields ✓
   - test_start_reading_link: Validates Start Reading navigation ✓
   - test_nine_step_progress_strip: Validates 9 progress steps ✓
+## Iteration 2 - Mon, May 18, 2026  6:39:00 AM
+Completed: [Integration Test] html/index.html dashboard: KPI cards and progress strip data (ID: US-1376) in 8m
+
+
+## Pre-analysis for US-1367 (Gemini 2.5 Pro)
+This user story is for the Spiral project, a Python-based AI development loop, not a Frappe application. The goal is to add regression tests for its resiliency features.
+
+Here is the technical brief for implementing US-1367:
+
+**1. Files to Modify:**
+*   **`tests/test_spiral_e2e_integration.py`**: Add two new test functions, `test_us1211_retry_escalation` and `test_us1211_worker_crash_recovery`.
+*   **`spiral/worker.py`**: This is the most likely module where model execution and story implementation occur. It will be the primary target for mocking/patching to simulate failures.
+*   **`spiral/run.py`**: Contains the main loop logic that orchestrates workers. Its behavior (respawning) will be observed in the crash recovery test.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This project does not use the Frappe framework. The tests will interact with the file system (e.g., `prd.json`, `results.tsv`) and subprocesses managed by the Spiral application.
+
+**3. Recommended Implementation Approach:**
+*   **For `test_us1211_retry_escalation`**:
+    1.  Use `pytest.monkeypatch` to replace the core model-calling function within `spiral/worker.py`.
+    2.  Create a mock that fails on the first invocation (simulating a `haiku` model failure) but succeeds on the second.
+    3.  Run the Spiral main loop against a minimal `prd.json`.
+    4.  After execution, parse the `results.tsv` file and assert that it contains a `failed` entry for `haiku` followed by a `passed` entry for `sonnet` for the same story ID.
+*   **For `test_us1211_worker_crash_recovery`**:
+    1.  Use `monkeypatch` to force an unhandled exception (e.g., `raise SystemExit(1)`) early in the `spiral.worker.run_story` function to simulate a worker process crash.
+    2.  Invoke the main Spiral loop.
+    3.  Assert that the main process detects the failure, respawns the worker, and successfully completes the story.
+    4.  Verify the final `prd.json` shows the story as `passes: true` and `results.tsv` has a `passed` entry.
+
+**4. Edge Cases & Gotchas:**
+*   **Mock Target Identification**: The exact function for making the LLM call in `spiral/worker.py` must be correctly identified and patched. An incorrect patch target will result in the mock not being used.
+*   **State Management**: Ensure tests run in isolated temporary directories (using `tmp_path` fixture) to prevent `prd.json` and `results.tsv` from one test interfering with another.
+*   **Process-Safety**: Since workers run in separate processes, mocks must be applied correctly to affect the child process, not just the parent pytest process. `monkeypatch` is generally effective for this if applied before the child process is spawned.
+*   **Observability**: The main loop may not expose worker respawns directly. The test may need to rely on observing the final successful outcome as evidence of recovery.
+

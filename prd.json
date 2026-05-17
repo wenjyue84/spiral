@@ -3219,7 +3219,8 @@
       ],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-17T22:39:02Z"
     },
     {
       "id": "US-1368",
@@ -3449,7 +3450,8 @@
       "last_attempted": "2026-05-17T22:30:15Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n- **lib/gen_html_data.py** generates `html/data.js` with `window.SPIRAL_DATA = { storiesTotal, storiesPassed, lastUpdated }`\n- **html/index.html** contains a button labeled \"Start Reading\" that calls `startReading()`, a `progress-strip` div (filled dynamically with 9 pages), and KPI cards\n- **html/data.js** currently has sample data with the expected structure\n\n## Problem Identified\nNeed to write integration tests for US-1353 that verify:\n1. `gen_html_data.py` correctly generates numeric fields in `html/data.js`\n2. `html/index.html` contains a \"Start Reading\" link to the first documentation page\n3. `html/index.html` embeds exactly 9 progress-step elements\n\n## Planned Changes\n- Create `tests/test_gen_html_data.py` — unit tests for the gen_html_data.py script\n- Create `tests/test_integration_us1353.py` — HTML structure integration tests\n- Use `tmp_path` fixture for gen_html_data tests with minimal prd.json stub\n- Use BeautifulSoup for HTML parsing\n\n<plan>\n{\n  \"files_to_create\": [\n    \"tests/test_gen_html_data.py\",\n    \"tests/test_integration_us1353.py\"\n  ],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\n    \"test_data_js_fields\",\n    \"test_start_reading_link\",\n    \"test_nine_step_progress_strip\"\n  ],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me check if BeautifulSoup is available:\nNow let me create the first test file:\nNow let me create the integration test file:\nNow let me run the tests to verify they work:\nI need to fix the test to handle JavaScript object notation (unquoted keys). Let me update the test:\nNow let me run the test again:\nLet me take a simpler approach to parse the JavaScript object:\nNow let me run the test again:\nGreat! Now let me run the integration tests:\nI need to install BeautifulSoup4. Let me check the dependencies:\nLet me install BeautifulSoup4:\nNow let me run the integration test again:\nI need to fix the test to properly detect the button implementation. Let me update it:\nNow let me run the test again:\nI need to update the test to properly verify that the startReading function navigates to the right page by checking the PAGES array:\nNow let me run the test again:\nExcellent! Now let me run the third test:\nPerfect! All tests pass. Let me run all tests together to verify:\nExcellent! All tests pass. Now let me run pre-commit checks:\nLet me check what changes ruff made to my test files:\nNow let me update prd.json to mark the story as passed:\nNow let me document the learnings in progress.txt:\nNow let me commit the changes:\nPerfect! Let me run the tests one final time to confirm everything is working:\nPerfect! Let me verify the prd.json update:\nPerfect! Story **US-1376** is now complete. Here's the summary:\n\n## Implementation Complete ✅"
-      }
+      },
+      "_passedCommit": "733b926d9e6ee066fc8d647f28a7eab9c61cbdd4"
     }
   ]
 }

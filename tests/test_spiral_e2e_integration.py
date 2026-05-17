@@ -126,11 +126,11 @@ class TestSpiralE2EIntegration:
         assert ut001 is not None, "UT-001 must exist in prd.json after run"
         assert ut001.get("status") == "done", f"UT-001 status must be 'done', got: {ut001.get('status')}"
 
-    def test_us1211_model_escalation(self, tmp_path: Path) -> None:  # noqa: ARG002
+    def test_us_1211_retry_escalation(self, tmp_path: Path) -> None:  # noqa: ARG002
         """Regression test for US-1211: model escalation haiku→sonnet on story failure.
 
         Acceptance Criteria:
-        - test_us1211_model_escalation passes
+        - test_us_1211_retry_escalation passes
         - results.tsv contains two rows for same story_id with models haiku then sonnet
         - Test fails if escalation logic is removed/disabled
         """
@@ -164,11 +164,11 @@ class TestSpiralE2EIntegration:
         assert rows[1][1] == "sonnet", f"Row 1 model should be sonnet, got {rows[1][1]}"
         assert rows[1][2] == "pass", f"Row 1 status should be pass, got {rows[1][2]}"
 
-    def test_us_1211_crash_recovery(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_us_1211_worker_crash_recovery(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Regression test for US-1211: worker crash detection and respawn.
 
         Acceptance Criteria (US-1362):
-        - uv run pytest tests/test_spiral_e2e_integration.py -k us_1211_crash_recovery -v exits 0
+        - uv run pytest tests/test_spiral_e2e_integration.py -k us_1211_worker_crash_recovery -v exits 0
         - Test asserts the worker process is spawned at least twice (initial + respawn) by inspecting mock call counts
         - After respawn, prd.json story status equals 'done' in the isolated tmp_path fixture
         """
