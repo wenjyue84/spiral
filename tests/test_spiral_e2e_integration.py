@@ -256,19 +256,13 @@ class TestSpiralE2EIntegration:
         prd_path.write_text(json.dumps(mock_prd, indent=2), encoding="utf-8")
 
         # AC3: Verify all stories are done after respawn
-        final_prd: dict[str, object] = json.loads(
-            prd_path.read_text(encoding="utf-8")
-        )
+        final_prd: dict[str, object] = json.loads(prd_path.read_text(encoding="utf-8"))
         final_stories = final_prd.get("userStories")
         if isinstance(final_stories, list):
             for story in final_stories:
                 if isinstance(story, dict):
-                    assert (
-                        story.get("status") == "done"
-                    ), f"Story {story.get('id')} should be done after respawn"
-                    assert story.get("passes") is True, (
-                        f"Story {story.get('id')} should pass after respawn"
-                    )
+                    assert story.get("status") == "done", f"Story {story.get('id')} should be done after respawn"
+                    assert story.get("passes") is True, f"Story {story.get('id')} should pass after respawn"
 
     def test_full_spiral_phase_order_e2e(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Regression test for US-1322: Full SPIRAL loop phase order validation.

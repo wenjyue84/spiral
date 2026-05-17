@@ -79,6 +79,7 @@ class MockClaudeAPI:
                 raise subprocess.CalledProcessError(1, args, stderr=b"Worker crashed")
             # Subsequent calls: success
             import json as _json
+
             return subprocess.CompletedProcess(
                 args=args, returncode=0, stdout=_json.dumps({}).encode("utf-8"), stderr=b""
             )

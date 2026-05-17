@@ -1759,3 +1759,31 @@ Completed: Phase T: Test Failure Classification with Root Cause and Remediation 
 ## Iteration 3 - Mon, May 18, 2026  5:16:05 AM
 Completed: spiral-ui Backend: GET /api/iterations/<iter>/detail endpoint with story and phase metrics (ID: US-1361) in 6m
 
+## Iteration 1 - Mon, May 18, 2026  5:30:08 AM
+Completed: Add regression test: worker crash triggers respawn and story completion (ID: US-1362) in 4m
+
+
+## Pre-analysis for US-1363 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1363.
+
+**Project:** Spiral (Python Application)
+**Objective:** Implement a story compatibility matrix to enable safe parallel batching.
+**Note:** The user story is for the Spiral Python project, not a Frappe application. Frappe DocTypes and hooks are not relevant.
+
+**1. Files to Modify:**
+*   **Create:** `lib/story_compatibility.py`
+*   **Create:** `tests/test_story_compatibility.py`
+*   **Edit:** `lib/merge_stories.py`
+
+**2. Implementation Approach:**
+*   In `lib/story_compatibility.py`, define the `CompatibilityMatrix` class.
+*   Implement `compute_score(a, b)` using set intersection/union on the `filesTouch` lists of the story objects to calculate the Jaccard index.
+*   For `validate_dag()`, build a directed graph from story dependencies (e.g., using `networkx` or a simple dict adjacency list) and use a DFS-based cycle detection algorithm. Raise `ValueError` if a cycle is found.
+*   For `suggest_batches()`, model incompatibility as a graph where an edge exists if `compute_score` > 0 or a dependency exists. Find connected components; each component is a group of conflicting stories. Independent batches are sets of stories from different components.
+*   In `lib/merge_stories.py`, import and instantiate `CompatibilityMatrix`. Call `validate_dag()` early. Then, call `suggest_batches()` and log its output before the main merge loop.
+*   Create `tests/test_story_compatibility.py` with mock story data to validate the scoring, cycle detection, and batching logic.
+
+**3. Gotchas & Edge Cases:**
+*   Ensure the `validate_dag` error message clearly lists the story IDs forming the circular dependency.
+*   The batch suggestion algorithm must handle stories with no file overlap or dependencies correctly, grouping them into a single "safe" batch.
+*   The input `stories` data structure must be consistent, providing `id`, `filesTouch`, and `dependencies` for each story.

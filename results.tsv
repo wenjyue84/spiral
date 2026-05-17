@@ -193,4 +193,5 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-17T18:44:57Z	28	1	US-1333	WhatsApp notification plugin: Post-iteration summary with pass count and cost	reject	342	sonnet	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-17T20:46:02Z	33	2	US-1336	CLI: spiral workers kill <worker-id> with safe resource cleanup	reject	692	sonnet	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-17T21:08:54Z	34	2	US-1337	Phase T: Test Failure Classification with Root Cause and Remediation Hint	keep	371	sonnet	1	bb4507b56fc275ba8efd52cbb5ff793bbb7c96f7	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0	unknown
-2026-05-17T21:16:05Z	34	3	US-1361	spiral-ui Backend: GET /api/iterations/<iter>/detail endpoint with story and phase metrics	keep	403	haiku	0	cd20999021e8cad19dd1a56471d8f49aa4026fc7	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0	unknown			
+2026-05-17T21:16:05Z	34	3	US-1361	spiral-ui Backend: GET /api/iterations/<iter>/detail endpoint with story and phase metrics	keep	403	haiku	0	cd20999021e8cad19dd1a56471d8f49aa4026fc7	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0	unknown
+2026-05-17T21:30:08Z	35	1	US-1362	Add regression test: worker crash triggers respawn and story completion	keep	260	haiku	0	810133d440a1b1e5ce6f63667801624dd803a745	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
