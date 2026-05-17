@@ -1,0 +1,77 @@
+## Iteration 1 - Mon, May 18, 2026  6:30:13 AM
+Completed: [Integration Test] html/ scaffold: file structure and nav.js dark-mode persist (ID: US-1375) in 3m
+
+
+## Pre-analysis for US-1376 (Gemini 2.5 Pro)
+Here is the technical brief for Claude based on the user story.
+
+***
+
+**Project:** Spiral (Python)
+**User Story:** US-1376 - Create integration tests for the `html/index.html` dashboard.
+
+**Objective:**
+Implement Pytest tests to verify data generation and HTML structure as per US-1353. This is a pure Python/Pytest task; no Frappe DocTypes or hooks are involved.
+
+**Files to Create:**
+1.  `tests/test_gen_html_data.py`: To unit test the `gen_html_data.py` script.
+2.  `tests/test_integration_us1353.py`: To test the `html/index.html` file structure.
+
+**Implementation Plan:**
+
+1.  **In `tests/test_gen_html_data.py`:**
+    *   Create a test using the `tmp_path` fixture to simulate the environment.
+    *   Write a minimal `prd.json` file within the test.
+    *   Execute the `gen_html_data.py` logic against the test `prd.json`.
+    *   Read the output `html/data.js`, parse the JavaScript to extract the data object, and assert that `totalPhases`, `totalStories`, and `lastUpdated` are present and numeric.
+
+2.  **In `tests/test_integration_us1353.py`:**
+    *   Write a test that reads `html/index.html` and parses it using a library like BeautifulSoup4.
+    *   Assert that an `<a>` tag exists with `href="html/pages/01-introduction.html"` and text "Start Reading".
+    *   Write a second test to find all elements with a progress-related class (e.g., `.progress-step`) and assert the count is exactly 9.
+
+**Test Command:**
+*   `uv run pytest tests/test_gen_html_data.py tests/test_integration_us1353.py -v`
+
+**Gotchas:**
+*   The `html/data.js` file contains JavaScript, not pure JSON. You will need to strip the `var data = ` prefix before parsing.
+*   Ensure the `html/index.html` path is correctly located for the integration test.
+
+## Iteration 1 - Story US-1376 Completed
+Completed: [Integration Test] html/index.html dashboard: KPI cards and progress strip data (ID: US-1376) in ~5m
+
+### What was implemented
+- Created `tests/test_gen_html_data.py` with unit test for gen_html_data.py
+  - Uses tmp_path fixture to create minimal prd.json (2 stories) 
+  - Calls generate_data_js() to produce html/data.js
+  - Parses JavaScript object format (unquoted keys) with regex
+  - Verifies storiesTotal, storiesPassed, lastUpdated fields are present and numeric
+  
+- Created `tests/test_integration_us1353.py` with HTML structure tests
+  - Parses html/index.html with BeautifulSoup4
+  - Tests for "Start Reading" button/link that navigates to introduction page
+  - Counts PAGES array entries in JavaScript to verify exactly 9 progress steps
+  - Validates progress-strip div exists with correct CSS class
+
+### Key Patterns Discovered
+- JavaScript object notation (unquoted keys) can't be parsed as JSON directly
+  - Solution: Use regex to add quotes around unquoted keys: `(\w+):` → `"\1":`
+  - For ISO timestamps with timezone offset (+00:00), use targeted regex extraction
+  
+- Button with onclick="startReading()" is implementation of "Start Reading" link
+  - Function navigates via constructed path: pages/01-introduction.html
+  - Test verifies startReading function exists + PAGES array has Introduction first entry
+  
+- PAGES array has 9 entries (1-9 chapters) matching 9 progress-step elements rendered dynamically
+
+### Gotchas Encountered
+- BeautifulSoup4 not in default dependencies - had to install separately
+- Initial approach trying to parse JS as JSON failed on unquoted keys and timezone offset
+- "Start Reading" is a button, not anchor - needed to verify via onclick handler + script content
+- HTML has dynamic progress-step rendering - test counts from PAGES array instead
+
+### Test Results
+- All 3 acceptance criteria tests pass:
+  - test_data_js_fields: Validates data.js numeric fields ✓
+  - test_start_reading_link: Validates Start Reading navigation ✓
+  - test_nine_step_progress_strip: Validates 9 progress steps ✓
