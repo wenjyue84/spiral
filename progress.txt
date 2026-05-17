@@ -1870,3 +1870,54 @@ Completed: Create MockClaudeRunner fixture class and phase response JSON files (
 - [x] ralph/CLAUDE.md documents the learned patterns feature
 - [x] lib/impl/decompose.sh passes --learning-path to decompose_story.py
 - [x] test_injects_learned_lessons_into_prompt passes
+## Iteration 2 - Mon, May 18, 2026  6:02:16 AM
+Completed: Phase I: Inject Learned-Lessons Hints from Phase L into Story Decomposition Prompts (ID: US-1373) in 8m
+
+## Iteration N - Story: US-1374 - CLI: spiral profile --export-trace for Execution Timeline Analysis
+
+### What was implemented
+- **lib/cli_subcommands.sh** (~40 lines): Added `profile` subcommand routing for `--export-trace` and `--analyze-trace` flags
+- **lib/spiral_events_reader.py** (~110 lines): New module to parse spiral_events.jsonl, results.tsv, and worker logs into unified trace format
+  - `read_spiral_events()`: Parse spiral_events.jsonl (future extensibility)
+  - `read_results_tsv()`: Parse results.tsv with proper type coercion for numeric fields
+  - `read_worker_logs()`: Parse .spiral/worker-N.log files
+  - `unify_trace_data()`: Merge sources with iteration/phase filtering
+- **lib/profile_trace.py** (~180 lines): Main trace analysis module
+  - `export_trace()`: Export filtered trace entries as JSONL (stdout or file)
+  - `analyze_trace()`: Parse JSONL and output ASCII table with phase statistics (count, median duration, p95 latency, token count, cost, escalation rate)
+  - Highlights slowest phase and highest-cost phase
+- **tests/test_profile_trace.py** (~160 lines): Comprehensive test suite (8 tests)
+  - Tests for reading/parsing results.tsv
+  - Tests for unifying trace data from multiple sources
+  - Tests for export with iteration/phase filters
+  - Tests for analyze output with actual data
+
+### Test execution
+- All 8 tests passing (100% success rate)
+- mypy --strict: no type errors in new files
+- ruff check: all linting checks pass (fixed import sorting, removed unused imports)
+- pre-commit: shellcheck, shfmt, trailing whitespace all pass
+
+### Patterns discovered
+- CLI subcommand pattern: check flag → build args array → call Python module → exit
+- Data source integration: results.tsv has comprehensive story attempt data with timings and tokens
+- Type handling in TSV: numeric fields require explicit int/float conversion, defaults to 0
+- Fixture data generation: test fixtures create results.tsv and worker log files inline for isolation
+
+### Acceptance criteria met
+- [x] AC1: spiral profile --export-trace outputs JSONL with iteration, phase, duration_ms, model, tokens, escalation_count, etc.
+- [x] AC2: CLI flags work: --from-iteration, --to-iteration, --filter-phase, --output (defaults to stdout)
+- [x] AC3: spiral profile --analyze-trace outputs ASCII table with phase stats: count, median, p95, tokens, cost, escalation rate
+
+### Developer experience improvements
+- Users can now export execution traces for offline analysis
+- Identifies phase bottlenecks and cost hotspots at a glance
+- Supports iteration range filtering for focused analysis
+- ASCII table output is easy to read and share in reports
+
+### Verified end-to-end
+- All tests passing with proper isolation (tmp_path fixtures)
+- git commit c9964dff with full message including Story ID and acceptance criteria
+- prd.json marked US-1374 as passes: true
+- Code follows existing patterns (CLI routing, Python module structure)
+
