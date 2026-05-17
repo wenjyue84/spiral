@@ -22,6 +22,8 @@ export default function HealthWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -43,6 +45,14 @@ export default function HealthWidget() {
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           setError(String(err));
+          // Implement exponential back-off: 1s, 2s, 4s, 8s...
+          const delayMs = Math.pow(2, retryCountRef.current) * 1000;
+          retryCountRef.current += 1;
+
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+          }
+          retryTimeoutRef.current = setTimeout(fetchHealth, delayMs);
         }
       } finally {
         setLoading(false);
@@ -53,10 +63,11 @@ export default function HealthWidget() {
     fetchHealth();
 
     // Set up regular polling every 5 seconds
-    const pollInterval = setInterval(fetchHealth, 5000);
+    pollIntervalRef.current = setInterval(fetchHealth, 5000);
 
     return () => {
-      clearInterval(pollInterval);
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
       abortControllerRef.current?.abort();
     };
   }, []);

@@ -216,3 +216,29 @@ Here is the technical brief for user story US-1369.
 
 ## Iteration 2 - Mon, May 18, 2026  7:08:27 AM
 Completed: [Regression Test] Full SPIRAL loop executes all phases in order (mocked CLI) (ID: US-1369) in 6m
+## Iteration 1 - Mon, May 18, 2026  7:24:45 AM
+Completed: [Security Test] Settings tab config save blocked without auth (US-1215) (ID: US-1380) in 3m
+
+
+## Pre-analysis for US-1381 (Gemini 2.5 Pro)
+This is a frontend testing story for a React component, not a Frappe/Python task. Here is the technical brief based on the provided JSON:
+
+**Objective:** Implement Vitest tests for the `HealthWidget` React component to verify its polling mechanism, error handling, and security.
+
+**Files to Modify:**
+*   **Primary:** `spiral_ui/frontend/HealthWidget.test.tsx` (create or extend this file).
+*   **Reference:** `spiral_ui/frontend/HealthWidget.tsx` (the component under test).
+
+**Frappe Context:**
+*   **DocTypes/Hooks:** None. This is a frontend-only task.
+*   The backend API endpoint `GET /api/health` will be mocked using Vitest's `vi.spyOn` or `vi.fn()` on the global `fetch`.
+
+**Implementation Approach:**
+1.  **Polling Test:** Use `vi.useFakeTimers()` to control the clock. Mock a successful `fetch` response. Render the component, advance the timer by 5 seconds (`vi.advanceTimersByTime(5000)`), and assert that `fetch` was called again.
+2.  **Exponential Back-off Test:** Mock `fetch` to repeatedly reject. Use `vi.advanceTimersByTime` to verify that the delay between retry attempts doubles (e.g., 1s, 2s, 4s).
+3.  **Data Leakage Test:** Render the component with a mock response and assert that the rendered output does not contain sensitive patterns like "Bearer" or "sk-...". Use `screen.queryByText(/Bearer|sk-[a-zA-Z0-9]+/)` and assert the result is `null`.
+
+**Gotchas:**
+*   Ensure proper test isolation. Reset mocks and restore real timers (`vi.useRealTimers()`) in an `afterEach` block to prevent tests from interfering with each other.
+*   The component's retry logic might have a maximum number of attempts or a cap on the delay; the test should account for this.
+

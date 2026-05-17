@@ -3526,7 +3526,8 @@
       "last_attempted": "2026-05-17T23:18:55Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe test file `tests/test_security_us1215.py` exists with passing tests, but the function names don't match the acceptance criteria requirements.\n\n## Problem Identified\nThe acceptance criteria require these specific test function names:\n- `test_settings_save_unauthenticated` (for POST /api/config)\n- `test_settings_error_no_secret_leak` (for error response)\n- `test_settings_fetch_unauthenticated` (for GET /api/config)\n\nThe current test file has generic names that need to be renamed to match.\n\n## Planned Changes\nRename the test functions in `tests/test_security_us1215.py`:\n1. `test_post_config_no_auth_returns_401_or_403` → `test_settings_save_unauthenticated`\n2. `test_post_config_error_response_contains_no_secrets` → `test_settings_error_no_secret_leak`\n3. `test_get_config_no_auth_returns_401_or_403` → `test_settings_fetch_unauthenticated`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_security_us1215.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 10\n}\n</plan>\n\nNow let me execute the plan by renaming the test functions:\nNow let me verify that the renamed tests pass with the correct function names:\nPerfect! All three required tests pass. Let me run the full test file to ensure nothing is broken:\nExcellent! All tests pass. Let me run pre-commit checks to ensure code quality:\nGood! Pre-commit fixed some formatting issues. Let me verify the tests still pass:\nPerfect! All acceptance criteria tests pass. Now let me commit the changes:\nNow let me update prd.json to mark the story as complete:\nNow let me update progress.txt to document the completed work:\nLet me verify the final status with one more test run to confirm all acceptance criteria are met:\nPerfect! **Story US-1380 is now complete.** All three acceptance criteria tests pass:\n\n✅ **Acceptance Criteria Met:**\n- `test_settings_save_unauthenticated` — POST /api/config with no credentials returns 401 or 403\n- `test_settings_error_no_secret_leak` — Error body contains no sensitive strings  \n- `test_settings_fetch_unauthenticated` — GET /api/config with no credentials returns 401 or 403\n\n**Changes Made:**\n- Renamed test functions in `tests/test_security_us1215.py` to match acceptance criteria requirements\n- All 6 tests in the file pass (3 required + 3 additional validation tests)\n- Committed to git with appropriate messages\n- Updated `prd.json` to mark story as `passes: true`\n- Documented completion in `progress.txt`\n\nThe Settings tab config save endpoint is now properly tested for authentication enforcement and secret leak prevention, aligning with the iteration focus on spiral-ui dashboard UX improvements."
-      }
+      },
+      "_passedCommit": "de75108276a6e33c7314a1d91fc13ceb743d6757"
     },
     {
       "id": "US-1381",
@@ -3552,7 +3553,8 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-17T23:24:47Z"
     },
     {
       "id": "US-1382",
