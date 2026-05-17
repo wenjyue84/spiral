@@ -2642,7 +2642,12 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        "lib/cli_subcommands.sh",
+        "lib/worker_heartbeat.sh",
+        "tests/test_cli_workers.py"
+      ]
     },
     {
       "id": "US-1337",
