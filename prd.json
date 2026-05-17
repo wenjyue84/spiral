@@ -3047,7 +3047,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-05-17T21:48:44Z"
+      "last_attempted": "2026-05-17T21:48:44Z",
+      "_phaseI": {
+        "diagnosisBlock": "### Current State\nI can see that `MockClaudeRunner` and the fixture JSON files have been created, but the test `test_unknown_phase_raises` is failing. The class has a fallback logic that defaults to the first available phase when no phase key is found, instead of raising a `ValueError` for unrecognized phases.\n\n### Problem Identified\nThe `MockClaudeRunner.__call__` method currently:\n1. Searches for any argument in the cmd list that exists in `self._fixtures`\n2. If no match is found, defaults to the first available phase instead of raising an error\n3. This causes `test_unknown_phase_raises` to fail because it expects a `ValueError` for \"unknown_phase\"\n\n### Planned Changes\n- Fix the `MockClaudeRunner.__call__` method to extract the phase key deterministically (last argument) and raise `ValueError` if not found in fixtures\n- Ensure all three acceptance criteria pass with updated logic\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/fixtures/mock_claude.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 20\n}\n</plan>\n\nNow I'll fix the `MockClaudeRunner` class to properly raise `ValueError` for unknown phases:\nPerfect! All 6 tests pass. Let me verify the specific acceptance criteria:\nPerfect! **US-1364 is complete.** \n\n## Summary"
+      }
     },
     {
       "id": "US-1365",
