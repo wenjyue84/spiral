@@ -18,21 +18,21 @@ def _auth(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPIRAL_DASHBOARD_API_KEY", _KEY)
 
 
-def test_post_config_no_auth_returns_401_or_403() -> None:
+def test_settings_save_unauthenticated() -> None:
     """POST /api/config with no auth header must be rejected."""
     client = TestClient(app, raise_server_exceptions=False)
     r = client.post("/api/config", json={"SPIRAL_MAX_PENDING": "5"})
     assert r.status_code in (401, 403)
 
 
-def test_get_config_no_auth_returns_401_or_403() -> None:
+def test_settings_fetch_unauthenticated() -> None:
     """GET /api/config with no auth header must be rejected."""
     client = TestClient(app, raise_server_exceptions=False)
     r = client.get("/api/config")
     assert r.status_code in (401, 403)
 
 
-def test_post_config_error_response_contains_no_secrets() -> None:
+def test_settings_error_no_secret_leak() -> None:
     """Error body from POST /api/config must not leak sensitive keywords."""
     client = TestClient(app, raise_server_exceptions=False)
     body = client.post("/api/config", json={}).text.lower()
