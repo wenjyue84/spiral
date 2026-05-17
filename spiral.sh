@@ -163,7 +163,7 @@ SEARCH_PROJECT=""                            # optional sub-project filter
 SEARCH_MIN_SCORE=30                          # minimum fuzzy score (0-100)
 SKILLS_MODE=0                                # 1 = run skills subcommand and exit (skills)
 GRAPH_MODE=0                                 # 1 = render dependency graph and exit (--graph)
-GRAPH_OUTPUT="spiral-deps.svg"              # output file path for graph (--output)
+GRAPH_OUTPUT="spiral-deps.svg"               # output file path for graph (--output)
 SKILLS_SUBCOMMAND=""                         # list | install
 SKILLS_URL=""                                # URL for skills install
 METRICS_MODE=0                               # 1 = run metrics subcommand and exit (metrics)

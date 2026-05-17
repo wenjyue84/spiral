@@ -163,9 +163,7 @@ def detect_cycles(graph: dict[str, list[str]]) -> tuple[bool, list[str]]:
     return (False, [])
 
 
-def render_graphviz(
-    prd_path: str, dag: dict[str, list[str]], output_file: str
-) -> None:
+def render_graphviz(prd_path: str, dag: dict[str, list[str]], output_file: str) -> None:
     """Render a DAG as an SVG using Graphviz.
 
     Builds a directed graph with:
@@ -186,8 +184,7 @@ def render_graphviz(
         import graphviz
     except ImportError as e:
         raise ImportError(
-            "graphviz Python package required for render_graphviz(). "
-            "Install with: pip install graphviz"
+            "graphviz Python package required for render_graphviz(). Install with: pip install graphviz"
         ) from e
 
     # Load root prd.json to get stories and their metadata
@@ -240,9 +237,7 @@ def render_graphviz(
             if isinstance(blocked_by, list):
                 for blocker_id in blocked_by:
                     if blocker_id:
-                        graph.edge(
-                            blocker_id, story_id, label="blocked_by", color="red"
-                        )
+                        graph.edge(blocker_id, story_id, label="blocked_by", color="red")
 
     # Add prd.include edges (one node per prd.json file)
     for prd_src, prd_includes in dag.items():
@@ -268,4 +263,5 @@ def render_graphviz(
         output_file = output_file + ".svg"
     if output_base + ".svg" != output_file:
         import shutil
+
         shutil.move(output_base + ".svg", output_file)

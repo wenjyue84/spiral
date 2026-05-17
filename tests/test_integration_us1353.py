@@ -108,5 +108,4 @@ def test_nine_step_progress_strip() -> None:
     # Also verify the progress-strip element exists in the HTML
     progress_strip = soup.find("div", {"id": "progressStrip"})
     assert progress_strip is not None, "progress-strip div not found in HTML"
-    assert "progress-strip" in progress_strip.get("class", []), \
-        "progress-strip div missing expected CSS class"
+    assert "progress-strip" in progress_strip.get("class", []), "progress-strip div missing expected CSS class"

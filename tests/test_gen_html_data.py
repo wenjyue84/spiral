@@ -22,16 +22,8 @@ def test_data_js_fields(tmp_path: Path) -> None:
     # Create a minimal prd.json with 2 stories for testing
     prd_data = {
         "userStories": [
-            {
-                "id": "US-001",
-                "title": "Test story 1",
-                "passes": True
-            },
-            {
-                "id": "US-002",
-                "title": "Test story 2",
-                "passes": False
-            }
+            {"id": "US-001", "title": "Test story 1", "passes": True},
+            {"id": "US-002", "title": "Test story 2", "passes": False},
         ]
     }
 
