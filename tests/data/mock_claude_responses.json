@@ -1,0 +1,32 @@
+{
+  "test-fix": {
+    "pass_response": {
+      "returncode": 0,
+      "stdout": "Story implemented successfully.\n{\"id\": \"US-001\", \"passes\": true, \"_source\": \"test-fix\"}"
+    },
+    "fail_response": {
+      "returncode": 1,
+      "stdout": "Story implementation failed: test assertion error.\n{\"id\": \"US-001\", \"passes\": false, \"_source\": \"test-fix\"}"
+    }
+  },
+  "research": {
+    "pass_response": {
+      "returncode": 0,
+      "stdout": "Research story implemented successfully.\n{\"id\": \"US-002\", \"passes\": true, \"_source\": \"research\"}"
+    },
+    "fail_response": {
+      "returncode": 1,
+      "stdout": "Research story implementation failed: type error.\n{\"id\": \"US-002\", \"passes\": false, \"_source\": \"research\"}"
+    }
+  },
+  "ai-example": {
+    "pass_response": {
+      "returncode": 0,
+      "stdout": "AI example story implemented successfully.\n{\"id\": \"US-003\", \"passes\": true, \"_source\": \"ai-example\"}"
+    },
+    "fail_response": {
+      "returncode": 1,
+      "stdout": "AI example story implementation failed: missing acceptance criteria.\n{\"id\": \"US-003\", \"passes\": false, \"_source\": \"ai-example\"}"
+    }
+  }
+}

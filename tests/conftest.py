@@ -15,7 +15,8 @@ from hypothesis import strategies as st
 # Ensure lib/ and project root are importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-
+# ── US-1360: MockClaudeCLI fixture (importable via conftest) ─────────────────
+from tests.fixtures.mock_claude_cli import mock_claude_cli  # noqa: E402, F401
 
 # ── Common settings for suppressing slow-generation health checks ──────────
 # The PRD strategy is inherently composite; suppress slow/large warnings.
