@@ -3070,12 +3070,6 @@
           "tests/test_mock_claude_api.py"
         ]
       },
-      "_dlq": true,
-      "_dlqMetadata": {
-        "timestamp": "2026-05-17T16:05:01.129936+00:00",
-        "retryCount": 4,
-        "reason": "Exhausted 4 retries (SPIRAL_MAX_RETRIES=3)"
-      },
       "_skipped": true,
       "_failureReason": "Already committed (f4e8fe6c); skipped to break Phase I picker idempotency loop on passes:true story"
     },
