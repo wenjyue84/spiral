@@ -6940,3 +6940,26 @@
 {"ts": "2026-05-17T21:48:38.167351+00:00", "type": "route_story_assigned", "story_id": "US-1355", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-05-17T21:48:38.167661+00:00", "type": "route_story_assigned", "story_id": "US-1356", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-05-17T21:48:38.167974+00:00", "type": "route_story_assigned", "story_id": "US-1357", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-05-17T22:19:21.815493+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1411\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"timestamp": "2026-05-17T22:23:22.128892+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Phase T: Add flakiness_detector.py to identify non-deterministic tests and skip them", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-05-17T22:23:22.129450+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "spiral-ui: Add Dependency Graph tab visualizing story blockers and critical path", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-05-17T22:23:22.129772+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "spiral-ui Dashboard: Add cost-burn widget tracking rolling-window spend per phase ($USD)", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-05-17T22:23:22.130127+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Phase S: Add federation_validator.py to detect circular includes and missing sub-project files", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"ts": "2026-05-17T22:25:52.795063+00:00", "type": "route_story_assigned", "story_id": "US-1367", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.795486+00:00", "type": "route_story_assigned", "story_id": "US-1368", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.795860+00:00", "type": "route_story_assigned", "story_id": "US-1369", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.796203+00:00", "type": "route_story_assigned", "story_id": "US-1370", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.796536+00:00", "type": "route_story_assigned", "story_id": "US-1334", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.796857+00:00", "type": "route_story_assigned", "story_id": "US-1340", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.797184+00:00", "type": "route_story_assigned", "story_id": "US-1341", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.797519+00:00", "type": "route_story_assigned", "story_id": "US-1348", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.797853+00:00", "type": "route_story_assigned", "story_id": "US-1349", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.798180+00:00", "type": "route_story_assigned", "story_id": "US-1350", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.798521+00:00", "type": "route_story_assigned", "story_id": "US-1351", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.798844+00:00", "type": "route_story_assigned", "story_id": "US-1352", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.799165+00:00", "type": "route_story_assigned", "story_id": "US-1354", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.799481+00:00", "type": "route_story_assigned", "story_id": "US-1355", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.799798+00:00", "type": "route_story_assigned", "story_id": "US-1356", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.800128+00:00", "type": "route_story_assigned", "story_id": "US-1357", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.800446+00:00", "type": "route_story_assigned", "story_id": "US-1375", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T22:25:52.800763+00:00", "type": "route_story_assigned", "story_id": "US-1376", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
