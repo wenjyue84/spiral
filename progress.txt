@@ -110,3 +110,6 @@ Here is the technical brief for implementing US-1367:
 *   **Process-Safety**: Since workers run in separate processes, mocks must be applied correctly to affect the child process, not just the parent pytest process. `monkeypatch` is generally effective for this if applied before the child process is spawned.
 *   **Observability**: The main loop may not expose worker respawns directly. The test may need to rely on observing the final successful outcome as evidence of recovery.
 
+## Iteration 3 - Mon, May 18, 2026  6:45:09 AM
+Completed: [Regression Test] Retry escalation and worker crash recovery guard (US-1211) (ID: US-1367) in 5m
+
