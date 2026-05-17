@@ -24,9 +24,7 @@ def _load_canned_responses() -> dict[str, Any]:
     return result
 
 
-def _make_completed_process(
-    response: dict[str, Any], args: list[str]
-) -> subprocess.CompletedProcess[bytes]:
+def _make_completed_process(response: dict[str, Any], args: list[str]) -> subprocess.CompletedProcess[bytes]:
     """Build a CompletedProcess from a canned response dict."""
     stdout_text = response.get("stdout", "")
     stdout = stdout_text.encode("utf-8") if isinstance(stdout_text, str) else stdout_text
@@ -64,9 +62,7 @@ def mock_claude_cli() -> MagicMock:
     # Save the original before patching to avoid recursion on non-claude calls
     _original_run = subprocess.run
 
-    def _side_effect(
-        args: Any, *pargs: Any, **kwargs: Any
-    ) -> subprocess.CompletedProcess[bytes]:
+    def _side_effect(args: Any, *pargs: Any, **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
         if isinstance(args, (list, tuple)) and args and str(args[0]) == "claude":
             return _make_completed_process(default_response, list(args))
         return _original_run(args, *pargs, **kwargs)

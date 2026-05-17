@@ -184,11 +184,12 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-15T18:17:52Z	5	2	US-1322	[Regression Test] e2e SPIRAL loop: phase order and final prd.json state	keep	435	haiku	0	bf74dc54812a79158d8e6e18adbae5b56ea9c6ab	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-15T18:33:14Z	6	1	US-1323	spiral-ui: Add Tests Coverage Tab with file-level heatmap visualization	keep	263	haiku	0	73a03a561aed0bd5f68b5d6039c4e3d8ac556fb9	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-15T18:40:46Z	6	2	US-1327	Create lib/federation_graph.py with DAG builder and cycle detector	keep	418	haiku	0	bf04086de1a2d382c27cbc64947e5b561c0a252c	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
-2026-05-15T18:46:11Z	6	3	US-1328	Add federation validation test suite: include resolution and story ID uniqueness	keep	303	haiku	0	2aa65f0900fd5528585d55c760777a4e8dddd1f5	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-15T18:55:42Z	7	1	US-1329	Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming	reject	207	sonnet	1		6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-15T18:58:37Z	7	2	US-1329	Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming	keep	134	opus	1	5446b438276d776243e7ffc7d33a4426ce20129a	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-15T19:11:36Z	7	3	US-1330	Wire timeout_scope_reducer into lib/impl/retry.sh before decompose_story()	keep	734	sonnet	0	1abe876bda5f994268a55ddafc5cdf2cb452b4fa	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-17T16:01:20Z	19	5	US-1371	Integration test: SPIRAL loop with MockClaudeAPI and failure injection scenarios	reject	254	opus	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-17T18:15:09Z	26	2	US-1365	Add MockClaudeAPI fixture, conftest wiring, and --mock-api flag to spiral.sh	reject	403	sonnet	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-17T18:44:57Z	28	1	US-1333	WhatsApp notification plugin: Post-iteration summary with pass count and cost	reject	342	sonnet	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-17T20:46:02Z	33	2	US-1336	CLI: spiral workers kill <worker-id> with safe resource cleanup	reject	692	sonnet	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-15T18:46:11Z	6	3	US-1328	Add federation validation test suite: include resolution and story ID uniqueness	keep	303	haiku	0	2aa65f0900fd5528585d55c760777a4e8dddd1f5	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-15T18:55:42Z	7	1	US-1329	Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming	reject	207	sonnet	1		6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-15T18:58:37Z	7	2	US-1329	Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming	keep	134	opus	1	5446b438276d776243e7ffc7d33a4426ce20129a	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-15T19:11:36Z	7	3	US-1330	Wire timeout_scope_reducer into lib/impl/retry.sh before decompose_story()	keep	734	sonnet	0	1abe876bda5f994268a55ddafc5cdf2cb452b4fa	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-17T16:01:20Z	19	5	US-1371	Integration test: SPIRAL loop with MockClaudeAPI and failure injection scenarios	reject	254	opus	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-17T18:15:09Z	26	2	US-1365	Add MockClaudeAPI fixture, conftest wiring, and --mock-api flag to spiral.sh	reject	403	sonnet	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-17T18:44:57Z	28	1	US-1333	WhatsApp notification plugin: Post-iteration summary with pass count and cost	reject	342	sonnet	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-17T20:46:02Z	33	2	US-1336	CLI: spiral workers kill <worker-id> with safe resource cleanup	reject	692	sonnet	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-17T21:08:54Z	34	2	US-1337	Phase T: Test Failure Classification with Root Cause and Remediation Hint	keep	371	sonnet	1	bb4507b56fc275ba8efd52cbb5ff793bbb7c96f7	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0	unknown

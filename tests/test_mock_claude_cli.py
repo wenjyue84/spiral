@@ -4,10 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock
-
-import pytest
 
 from tests.fixtures.mock_claude_cli import _load_canned_responses, mock_claude_cli  # noqa: F401
 

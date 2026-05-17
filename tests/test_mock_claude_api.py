@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import subprocess
 
-import pytest
-
 from tests.fixtures.mock_claude_api import MockClaudeAPI
 
 
@@ -28,9 +26,7 @@ def test_inject_failure_stored_and_retrieved() -> None:
 def test_context_manager_patches_subprocess_run() -> None:
     """MockClaudeAPI as context manager intercepts claude subprocess calls."""
     with MockClaudeAPI() as mock:
-        result = subprocess.run(
-            ["claude", "--print", "hello"], capture_output=True
-        )
+        result = subprocess.run(["claude", "--print", "hello"], capture_output=True)
         assert result.returncode == 0
         assert len(mock.call_log) == 1
         assert mock.call_log[0][0] == "claude"
@@ -42,9 +38,7 @@ def test_inject_response_returned_as_stdout() -> None:
 
     with MockClaudeAPI() as mock:
         mock.inject_response("I", "US-042", {"status": "pass"})
-        result = subprocess.run(
-            ["claude", "--story", "US-042"], capture_output=True
-        )
+        result = subprocess.run(["claude", "--story", "US-042"], capture_output=True)
         assert result.returncode == 0
         parsed = json.loads(result.stdout.decode("utf-8"))
         assert parsed == {"status": "pass"}
@@ -54,18 +48,14 @@ def test_inject_failure_returncode_exits_nonzero() -> None:
     """inject_failure('returncode') causes subprocess to return exit code 1."""
     with MockClaudeAPI() as mock:
         mock.inject_failure("I", "returncode")
-        result = subprocess.run(
-            ["claude", "--story", "US-001"], capture_output=True
-        )
+        result = subprocess.run(["claude", "--story", "US-001"], capture_output=True)
         assert result.returncode == 1
 
 
 def test_non_claude_calls_pass_through() -> None:
     """Non-claude subprocess calls are not intercepted."""
     with MockClaudeAPI() as _mock:
-        result = subprocess.run(
-            ["python", "--version"], capture_output=True
-        )
+        result = subprocess.run(["python", "--version"], capture_output=True)
         assert result.returncode == 0
 
 

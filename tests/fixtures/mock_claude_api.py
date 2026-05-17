@@ -63,9 +63,7 @@ class MockClaudeAPI:
     def _make_side_effect(self) -> Any:
         _original = subprocess.run
 
-        def _side_effect(
-            args: Any, *pargs: Any, **kwargs: Any
-        ) -> subprocess.CompletedProcess[bytes]:
+        def _side_effect(args: Any, *pargs: Any, **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
             arg_list = list(args) if isinstance(args, (list, tuple)) else [str(args)]
             is_claude = arg_list and str(arg_list[0]) in {"claude", "claude.exe"}
 
@@ -77,9 +75,7 @@ class MockClaudeAPI:
             # Check for phase-level failure (wildcard story)
             for phase, error_type in self._failures.items():
                 if error_type == "returncode":
-                    return subprocess.CompletedProcess(
-                        args=arg_list, returncode=1, stdout=b"", stderr=b""
-                    )
+                    return subprocess.CompletedProcess(args=arg_list, returncode=1, stdout=b"", stderr=b"")
                 raise subprocess.CalledProcessError(1, arg_list, stderr=b"mock error")
 
             # Check for matching response
@@ -87,14 +83,10 @@ class MockClaudeAPI:
                 import json as _json
 
                 stdout = _json.dumps(response).encode("utf-8")
-                return subprocess.CompletedProcess(
-                    args=arg_list, returncode=0, stdout=stdout, stderr=b""
-                )
+                return subprocess.CompletedProcess(args=arg_list, returncode=0, stdout=stdout, stderr=b"")
 
             # Default: success with empty output
-            return subprocess.CompletedProcess(
-                args=arg_list, returncode=0, stdout=b"", stderr=b""
-            )
+            return subprocess.CompletedProcess(args=arg_list, returncode=0, stdout=b"", stderr=b"")
 
         return _side_effect
 

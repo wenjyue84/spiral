@@ -64,32 +64,34 @@ fi
 results_file="${SPIRAL_HOME}/results.tsv"
 passed=0
 total=0
-cost_cents=0  # track cost in cents to avoid float arithmetic in bash
+cost_cents=0 # track cost in cents to avoid float arithmetic in bash
 
 if [[ -f "$results_file" ]]; then
   while IFS=$'\t' read -r _ts iter_num _ralph _sid _stitle status _dur _model _retry \
-      _sha _run _chit r_tok c_tok _rest; do
-    [[ "$iter_num" == "spiral_iter" ]] && continue  # header row
-    [[ "$iter_num" != "$iteration" ]] && continue   # different iteration
+    _sha _run _chit r_tok c_tok _rest; do
+    [[ "$iter_num" == "spiral_iter" ]] && continue # header row
+    [[ "$iter_num" != "$iteration" ]] && continue  # different iteration
     total=$((total + 1))
     if [[ "$status" == "pass" || "$status" == "passed" ]]; then
       passed=$((passed + 1))
     fi
     # Approx cost: $0.003/1K read tokens + $0.015/1K creation tokens
-    r="${r_tok:-0}"; [[ -z "$r" || "$r" =~ [^0-9] ]] && r=0
-    c="${c_tok:-0}"; [[ -z "$c" || "$c" =~ [^0-9] ]] && c=0
-    cost_cents=$(( cost_cents + (r * 3) / 1000 + (c * 15) / 1000 ))
-  done < "$results_file"
+    r="${r_tok:-0}"
+    [[ -z "$r" || "$r" =~ [^0-9] ]] && r=0
+    c="${c_tok:-0}"
+    [[ -z "$c" || "$c" =~ [^0-9] ]] && c=0
+    cost_cents=$((cost_cents + (r * 3) / 1000 + (c * 15) / 1000))
+  done <"$results_file"
 fi
 
 # Format cost as dollars
-cost_dollars=$(( cost_cents / 100 ))
-cost_frac=$(( cost_cents % 100 ))
+cost_dollars=$((cost_cents / 100))
+cost_frac=$((cost_cents % 100))
 cost_str="${cost_dollars}.$(printf '%02d' "$cost_frac")"
 
 # Calculate delta vs previous iteration
 prev_passed=0
-prev_iter=$(( iteration - 1 ))
+prev_iter=$((iteration - 1))
 if [[ -f "$results_file" && "$prev_iter" -ge 1 ]]; then
   while IFS=$'\t' read -r _ts iter_num _ralph _sid _stitle status _rest; do
     [[ "$iter_num" == "spiral_iter" ]] && continue
@@ -97,10 +99,10 @@ if [[ -f "$results_file" && "$prev_iter" -ge 1 ]]; then
     if [[ "$status" == "pass" || "$status" == "passed" ]]; then
       prev_passed=$((prev_passed + 1))
     fi
-  done < "$results_file"
+  done <"$results_file"
 fi
 
-delta=$(( passed - prev_passed ))
+delta=$((passed - prev_passed))
 if [[ "$delta" -ge 0 ]]; then
   delta_str="+${delta}"
 else
@@ -115,7 +117,7 @@ if [[ -f "$prd_file" && "$delta" -gt 0 ]]; then
   pending="${pending//[^0-9]/}"
   pending="${pending:-0}"
   if [[ "$pending" -ge 0 ]]; then
-    remaining_est=$(( (pending + delta - 1) / delta ))
+    remaining_est=$(((pending + delta - 1) / delta))
   fi
 fi
 
@@ -131,7 +133,7 @@ curl -s -X POST "${SPIRAL_WHATSAPP_API_URL}" \
   -H 'Content-Type: application/json' \
   --data "$payload" \
   --max-time 10 \
-  >/dev/null 2>&1 || \
+  >/dev/null 2>&1 ||
   echo "  [whatsapp-notify] WARNING: Failed to send notification to ${SPIRAL_WHATSAPP_API_URL}" >&2
 
 exit 0

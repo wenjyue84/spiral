@@ -552,6 +552,82 @@ app.post('/api/tests/rerun/:testId', (req, res) => {
   setTimeout(sendMessage, 100);
 });
 
+// Iteration detail endpoint with caching (US-1361)
+interface CacheEntry {
+  data: any;
+  expiry: number;
+}
+
+const iterationCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+app.get('/api/iterations/:iter/detail', (req, res) => {
+  const { iter } = req.params;
+  const { status, worker } = req.query as { status?: string; worker?: string };
+
+  try {
+    const iterNum = parseInt(iter, 10);
+    if (isNaN(iterNum)) {
+      return res.status(400).json({ error: 'Invalid iteration number' });
+    }
+
+    // Check cache
+    const cacheKey = `iter_${iterNum}_${status || 'all'}_${worker || 'all'}`;
+    const cached = iterationCache.get(cacheKey);
+    if (cached && cached.expiry > Date.now()) {
+      return res.json(cached.data);
+    }
+
+    // Call Python aggregator function
+    const { execSync } = require('child_process');
+    const resultsPath = join(resolve('.'), 'results.tsv');
+    const eventsPath = join(resolve('.'), 'spiral_events.jsonl');
+
+    const pythonScript = `
+import sys, json
+sys.path.insert(0, '.')
+from lib.iteration_detail_aggregator import aggregate_iteration_metrics
+
+result = aggregate_iteration_metrics(
+    iteration_num=${iterNum},
+    results_tsv_path=r'${resultsPath}',
+    events_jsonl_path=r'${eventsPath}',
+    status_filter=${status ? `'${status}'` : 'None'},
+    worker_filter=${worker ? parseInt(worker) : 'None'}
+)
+print(json.dumps(result))
+`;
+
+    const output = execSync(`python -c "${pythonScript.replace(/"/g, '\\"')}"`, {
+      encoding: 'utf-8',
+      timeout: 5000
+    });
+
+    const result = JSON.parse(output);
+
+    // Cache the result
+    iterationCache.set(cacheKey, {
+      data: result,
+      expiry: Date.now() + CACHE_TTL_MS
+    });
+
+    // Clean old cache entries periodically
+    if (iterationCache.size > 100) {
+      const now = Date.now();
+      for (const [key, entry] of iterationCache.entries()) {
+        if (entry.expiry <= now) {
+          iterationCache.delete(key);
+        }
+      }
+    }
+
+    res.json(result);
+  } catch (e) {
+    console.error('[iterations/detail] Error aggregating iteration metrics:', e);
+    res.status(500).json({ error: 'Failed to aggregate iteration metrics' });
+  }
+});
+
 // Start server
 server.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] SPIRAL WebSocket server listening on port ${PORT}`);

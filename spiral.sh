@@ -1618,87 +1618,87 @@ print(len(completed))
     echo '{"stories":[]}' >"$AI_SUGGEST_OUTPUT"
     echo '[]' >"$TEST_STORY_CANDIDATES"
   else
-  print_phase_banner "A" "AI SUGGESTIONS — generating per-iteration story candidates..."
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/ai_suggest.py" \
-    --prd "$PRD_FILE" \
-    --queue "$AI_QUEUE_FILE" \
-    --out "$AI_SUGGEST_OUTPUT" \
-    --focus "${SPIRAL_FOCUS:-}" \
-    --max-suggest "$SPIRAL_MAX_AI_SUGGEST" \
-    --pending "$PENDING" \
-    --max-pending "$SPIRAL_MAX_PENDING" \
-    --history-limit "$SPIRAL_AI_SUGGEST_HISTORY_LIMIT" \
-    --clear-queue || true
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/generate_test_stories.py" \
-    --prd "$PRD_FILE" \
-    --out "$TEST_STORY_CANDIDATES" \
-    --min-complexity "$SPIRAL_TEST_STORY_MIN_COMPLEXITY" || true
-
-  # ── Phase A: Quality scoring filter (US-790) ────────────────────────────────
-  # Filter AI-generated stories by constitution alignment and production value.
-  # In end-game mode (>90% complete), pass --endgame to elevate Tier 4 infra
-  # story scores so the pipeline doesn't dry up near project completion.
-  AI_SUGGEST_FILTERED="$SCRATCH_DIR/_ai_suggest_filtered.json"
-  TEST_STORIES_FILTERED="$SCRATCH_DIR/_test_story_candidates_filtered.json"
-  AI_QUALITY_LOG="$SCRATCH_DIR/_ai_suggest_quality_filter.log"
-  prd_stats # ensure DONE/TOTAL are current
-  _ENDGAME_FLAG=""
-  if [[ "${TOTAL:-0}" -gt 0 ]] && awk "BEGIN { exit !(${DONE:-0} / ${TOTAL:-1} > 0.90) }"; then
-    _ENDGAME_FLAG="--endgame"
-  fi
-  if [[ -f "$AI_SUGGEST_OUTPUT" ]]; then
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_quality_scorer.py" \
+    print_phase_banner "A" "AI SUGGESTIONS — generating per-iteration story candidates..."
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/ai_suggest.py" \
       --prd "$PRD_FILE" \
-      --input "$AI_SUGGEST_OUTPUT" \
-      --output "$AI_SUGGEST_FILTERED" \
-      --min-score "$SPIRAL_AI_SUGGEST_MIN_SCORE" \
-      --constitution "$SPIRAL_HOME/.specify/memory/constitution.md" \
-      --log "$AI_QUALITY_LOG" \
-      ${_ENDGAME_FLAG} || true
-    # Use filtered output if it exists and has content, else use original
-    if [[ -f "$AI_SUGGEST_FILTERED" ]] && [[ -s "$AI_SUGGEST_FILTERED" ]]; then
-      cp "$AI_SUGGEST_FILTERED" "$AI_SUGGEST_OUTPUT"
-    fi
-  fi
-  if [[ -f "$TEST_STORY_CANDIDATES" ]]; then
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_quality_scorer.py" \
+      --queue "$AI_QUEUE_FILE" \
+      --out "$AI_SUGGEST_OUTPUT" \
+      --focus "${SPIRAL_FOCUS:-}" \
+      --max-suggest "$SPIRAL_MAX_AI_SUGGEST" \
+      --pending "$PENDING" \
+      --max-pending "$SPIRAL_MAX_PENDING" \
+      --history-limit "$SPIRAL_AI_SUGGEST_HISTORY_LIMIT" \
+      --clear-queue || true
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/generate_test_stories.py" \
       --prd "$PRD_FILE" \
-      --input "$TEST_STORY_CANDIDATES" \
-      --output "$TEST_STORIES_FILTERED" \
-      --min-score "$SPIRAL_AI_SUGGEST_MIN_SCORE" \
-      --constitution "$SPIRAL_HOME/.specify/memory/constitution.md" \
-      ${_ENDGAME_FLAG} || true
-    if [[ -f "$TEST_STORIES_FILTERED" ]] && [[ -s "$TEST_STORIES_FILTERED" ]]; then
-      cp "$TEST_STORIES_FILTERED" "$TEST_STORY_CANDIDATES"
-    fi
-  fi
+      --out "$TEST_STORY_CANDIDATES" \
+      --min-complexity "$SPIRAL_TEST_STORY_MIN_COMPLEXITY" || true
 
-  # ── Phase A: Cross-iteration dedup filter (US-771) ────────────────────────────
-  # Skip AI-generated and test story candidates that match previously rejected
-  # patterns (>80% Jaccard similarity). Reduces wasted API calls and validation cycles.
-  REJECTED_PATTERNS_CACHE="$SPIRAL_HOME/.spiral/rejected_patterns.json"
-  AI_SUGGEST_DEDUP="$SCRATCH_DIR/_ai_suggest_dedup.json"
-  TEST_STORIES_DEDUP="$SCRATCH_DIR/_test_story_candidates_dedup.json"
-  if [[ -f "$AI_SUGGEST_OUTPUT" ]]; then
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/filter_rejected_patterns.py" \
-      --candidates "$AI_SUGGEST_OUTPUT" \
-      --cache "$REJECTED_PATTERNS_CACHE" \
-      --output "$AI_SUGGEST_DEDUP" \
-      --threshold 0.8 || true
-    if [[ -f "$AI_SUGGEST_DEDUP" ]] && [[ -s "$AI_SUGGEST_DEDUP" ]]; then
-      cp "$AI_SUGGEST_DEDUP" "$AI_SUGGEST_OUTPUT"
+    # ── Phase A: Quality scoring filter (US-790) ────────────────────────────────
+    # Filter AI-generated stories by constitution alignment and production value.
+    # In end-game mode (>90% complete), pass --endgame to elevate Tier 4 infra
+    # story scores so the pipeline doesn't dry up near project completion.
+    AI_SUGGEST_FILTERED="$SCRATCH_DIR/_ai_suggest_filtered.json"
+    TEST_STORIES_FILTERED="$SCRATCH_DIR/_test_story_candidates_filtered.json"
+    AI_QUALITY_LOG="$SCRATCH_DIR/_ai_suggest_quality_filter.log"
+    prd_stats # ensure DONE/TOTAL are current
+    _ENDGAME_FLAG=""
+    if [[ "${TOTAL:-0}" -gt 0 ]] && awk "BEGIN { exit !(${DONE:-0} / ${TOTAL:-1} > 0.90) }"; then
+      _ENDGAME_FLAG="--endgame"
     fi
-  fi
-  if [[ -f "$TEST_STORY_CANDIDATES" ]]; then
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/filter_rejected_patterns.py" \
-      --candidates "$TEST_STORY_CANDIDATES" \
-      --cache "$REJECTED_PATTERNS_CACHE" \
-      --output "$TEST_STORIES_DEDUP" \
-      --threshold 0.8 || true
-    if [[ -f "$TEST_STORIES_DEDUP" ]] && [[ -s "$TEST_STORIES_DEDUP" ]]; then
-      cp "$TEST_STORIES_DEDUP" "$TEST_STORY_CANDIDATES"
+    if [[ -f "$AI_SUGGEST_OUTPUT" ]]; then
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_quality_scorer.py" \
+        --prd "$PRD_FILE" \
+        --input "$AI_SUGGEST_OUTPUT" \
+        --output "$AI_SUGGEST_FILTERED" \
+        --min-score "$SPIRAL_AI_SUGGEST_MIN_SCORE" \
+        --constitution "$SPIRAL_HOME/.specify/memory/constitution.md" \
+        --log "$AI_QUALITY_LOG" \
+        ${_ENDGAME_FLAG} || true
+      # Use filtered output if it exists and has content, else use original
+      if [[ -f "$AI_SUGGEST_FILTERED" ]] && [[ -s "$AI_SUGGEST_FILTERED" ]]; then
+        cp "$AI_SUGGEST_FILTERED" "$AI_SUGGEST_OUTPUT"
+      fi
     fi
-  fi
+    if [[ -f "$TEST_STORY_CANDIDATES" ]]; then
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_quality_scorer.py" \
+        --prd "$PRD_FILE" \
+        --input "$TEST_STORY_CANDIDATES" \
+        --output "$TEST_STORIES_FILTERED" \
+        --min-score "$SPIRAL_AI_SUGGEST_MIN_SCORE" \
+        --constitution "$SPIRAL_HOME/.specify/memory/constitution.md" \
+        ${_ENDGAME_FLAG} || true
+      if [[ -f "$TEST_STORIES_FILTERED" ]] && [[ -s "$TEST_STORIES_FILTERED" ]]; then
+        cp "$TEST_STORIES_FILTERED" "$TEST_STORY_CANDIDATES"
+      fi
+    fi
+
+    # ── Phase A: Cross-iteration dedup filter (US-771) ────────────────────────────
+    # Skip AI-generated and test story candidates that match previously rejected
+    # patterns (>80% Jaccard similarity). Reduces wasted API calls and validation cycles.
+    REJECTED_PATTERNS_CACHE="$SPIRAL_HOME/.spiral/rejected_patterns.json"
+    AI_SUGGEST_DEDUP="$SCRATCH_DIR/_ai_suggest_dedup.json"
+    TEST_STORIES_DEDUP="$SCRATCH_DIR/_test_story_candidates_dedup.json"
+    if [[ -f "$AI_SUGGEST_OUTPUT" ]]; then
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/filter_rejected_patterns.py" \
+        --candidates "$AI_SUGGEST_OUTPUT" \
+        --cache "$REJECTED_PATTERNS_CACHE" \
+        --output "$AI_SUGGEST_DEDUP" \
+        --threshold 0.8 || true
+      if [[ -f "$AI_SUGGEST_DEDUP" ]] && [[ -s "$AI_SUGGEST_DEDUP" ]]; then
+        cp "$AI_SUGGEST_DEDUP" "$AI_SUGGEST_OUTPUT"
+      fi
+    fi
+    if [[ -f "$TEST_STORY_CANDIDATES" ]]; then
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/filter_rejected_patterns.py" \
+        --candidates "$TEST_STORY_CANDIDATES" \
+        --cache "$REJECTED_PATTERNS_CACHE" \
+        --output "$TEST_STORIES_DEDUP" \
+        --threshold 0.8 || true
+      if [[ -f "$TEST_STORIES_DEDUP" ]] && [[ -s "$TEST_STORIES_DEDUP" ]]; then
+        cp "$TEST_STORIES_DEDUP" "$TEST_STORY_CANDIDATES"
+      fi
+    fi
   fi # end drain-mode guard
 
   # ── Record goals hash before Phase R (US-323: goal-hijack detection) ──────

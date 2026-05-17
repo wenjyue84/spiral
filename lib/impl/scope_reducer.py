@@ -22,7 +22,5 @@ def strip_optional_ac(story_obj: dict[str, object]) -> dict[str, object]:
     result: dict[str, object] = copy.deepcopy(story_obj)
     acs = result.get("acceptanceCriteria", [])
     if isinstance(acs, list):
-        result["acceptanceCriteria"] = [
-            ac for ac in acs if not (isinstance(ac, str) and ac.startswith("@optional"))
-        ]
+        result["acceptanceCriteria"] = [ac for ac in acs if not (isinstance(ac, str) and ac.startswith("@optional"))]
     return result

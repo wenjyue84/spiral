@@ -8,9 +8,7 @@ Verifies that kill_worker_safe():
 
 from __future__ import annotations
 
-import os
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -94,16 +92,12 @@ def test_kill_worker_cleanup(tmp_path: Path) -> None:
     wh_lib_str = _to_bash_path(wh_lib)
     repo_str = _to_bash_path(repo)
 
-    script = (
-        f'source "{wh_lib_str}" && '
-        f'kill_worker_safe "1" "{repo_str}"'
-    )
+    script = f'source "{wh_lib_str}" && kill_worker_safe "1" "{repo_str}"'
     result = _run_bash(script, cwd=str(repo))
 
     # ── Assert: worktree directory is gone ────────────────────────────────────
     assert not worker_dir.exists(), (
-        f"Worktree directory was NOT removed.\n"
-        f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        f"Worktree directory was NOT removed.\nstdout: {result.stdout}\nstderr: {result.stderr}"
     )
 
     # ── Assert: no dangling git worktree references remain ────────────────────
@@ -114,12 +108,9 @@ def test_kill_worker_cleanup(tmp_path: Path) -> None:
         text=True,
         check=True,
     )
-    assert "worker-1" not in wt_list.stdout, (
-        f"Stale worktree reference found:\n{wt_list.stdout}"
-    )
+    assert "worker-1" not in wt_list.stdout, f"Stale worktree reference found:\n{wt_list.stdout}"
 
     # ── Assert: cleanup completed without error ────────────────────────────────
     assert result.returncode == 0, (
-        f"kill_worker_safe exited {result.returncode}\n"
-        f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        f"kill_worker_safe exited {result.returncode}\nstdout: {result.stdout}\nstderr: {result.stderr}"
     )

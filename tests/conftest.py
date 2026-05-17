@@ -17,9 +17,9 @@ from hypothesis import strategies as st
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 # ── US-1360: MockClaudeCLI fixture (importable via conftest) ─────────────────
-from tests.fixtures.mock_claude_cli import mock_claude_cli  # noqa: E402, F401
 # ── US-1365: MockClaudeAPI fixture (subprocess-level interceptor) ─────────────
 from tests.fixtures.mock_claude_api import MockClaudeAPI as _MockClaudeAPI  # noqa: E402
+from tests.fixtures.mock_claude_cli import mock_claude_cli  # noqa: E402, F401
 
 # ── Common settings for suppressing slow-generation health checks ──────────
 # The PRD strategy is inherently composite; suppress slow/large warnings.
@@ -595,14 +595,8 @@ def mock_api_repo(tmp_path: Path):
     """
     # Minimal git repo
     subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@spiral"],
-        check=True, capture_output=True, cwd=str(tmp_path)
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"],
-        check=True, capture_output=True, cwd=str(tmp_path)
-    )
+    subprocess.run(["git", "config", "user.email", "test@spiral"], check=True, capture_output=True, cwd=str(tmp_path))
+    subprocess.run(["git", "config", "user.name", "Test"], check=True, capture_output=True, cwd=str(tmp_path))
 
     # Minimal constitution.md
     (tmp_path / "constitution.md").write_text(
