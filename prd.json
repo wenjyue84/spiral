@@ -3204,7 +3204,10 @@
         "testFiles": [
           "tests/test_spiral_integration.py"
         ]
-      }
+      },
+      "_failureReason": "Depends on US-1365 (MockClaudeAPI) which is permanently skipped",
+      "last_attempted": "2026-05-17T16:01:24Z",
+      "_skipped": true
     },
     {
       "id": "US-1372",
