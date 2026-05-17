@@ -2563,7 +2563,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         "lib/research/research_cache.py",
