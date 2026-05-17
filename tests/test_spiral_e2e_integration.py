@@ -8,7 +8,6 @@ import csv
 import json
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -229,13 +228,13 @@ class TestSpiralE2EIntegration:
         # Simulate the worker respawn scenario:
         # First subprocess.run call crashes (raises CalledProcessError)
         try:
-            subprocess.run(["mock-worker"], capture_output=True, text=True)  # type: ignore[arg-type]
+            subprocess.run(["mock-worker"], capture_output=True, text=True)
             assert False, "First subprocess.run should have raised CalledProcessError"
         except subprocess.CalledProcessError:
             pass  # Expected: worker crashed on first invocation
 
         # Second subprocess.run call succeeds (simulating respawn)
-        result = subprocess.run(["mock-worker"], capture_output=True, text=True)  # type: ignore[arg-type]
+        result = subprocess.run(["mock-worker"], capture_output=True, text=True)
         assert result.returncode == 0, "Second subprocess.run should succeed after respawn"
 
         # AC2: Verify subprocess.run was called at least twice (initial + respawn)
