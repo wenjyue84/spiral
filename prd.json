@@ -3162,7 +3162,8 @@
       "last_attempted": "2026-05-17T21:53:27Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n- `lib/workers/decompose_story.py` already has `build_lessons_section()` using `.spiral/learned_lessons.jsonl` (JSONL). The story wants an additional `load_learned_lessons_for_complexity(complexity_band, learning_path)` that reads `learning.md` (markdown format, e.g. `## Small Stories\\n- [syntax] pattern...`).\n- `lib/impl/decompose.sh` calls `decompose_story.py` but doesn't pass a `--learning-path`.\n- `ralph/CLAUDE.md` has no mention of learned patterns.\n\n## Problem Identified\nUS-1373: Add `load_learned_lessons_for_complexity()` to parse `learning.md` by complexity band, inject patterns into the decomposition prompt, update `ralph/CLAUDE.md` with documentation, and test it.\n\n## Planned Changes\n- `lib/workers/decompose_story.py`: Add `load_learned_lessons_for_complexity()`, add `{learned_patterns}` to `DECOMPOSE_PROMPT`, add `--learning-path` CLI arg, wire in `main()`\n- `lib/impl/decompose.sh`: Pass `--learning-path` to `decompose_story.py`\n- `ralph/CLAUDE.md`: Add ~5 lines documenting the learned patterns sidecar\n- `tests/test_decompose_story.py`: Add `test_injects_learned_lessons_into_prompt`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"lib/workers/decompose_story.py\",\n    \"lib/impl/decompose.sh\",\n    \"ralph/CLAUDE.md\",\n    \"tests/test_decompose_story.py\"\n  ],\n  \"functions_to_add\": [\"load_learned_lessons_for_complexity\"],\n  \"estimated_loc\": 90\n}\n</plan>\nNow update the `main()` to add `--learning-path` arg and wire `load_learned_lessons_for_complexity`:\nNow update `main()` to resolve `learning_path` and build `learned_patterns`:\nNow update `lib/impl/decompose.sh` to pass `--learning-path`:\nNow add the 5-line note to `ralph/CLAUDE.md`:\nNow add the test to `tests/test_decompose_story.py`:\nNow run the specific test:\nTest passes. Now run the full test file to make sure I didn't break anything:\nAll 20 tests pass. Now run mypy and pre-commit checks:\nThe mypy errors are all pre-existing in other files (not my changes). Let me verify the reformatted file still passes tests:\nNow mark story as passes and commit:\nUS-1373 is complete. Here's a summary of what was implemented:\n\n**`load_learned_lessons_for_complexity(complexity_band, learning_path)`** added to `lib/workers/decompose_story.py`:\n- Parses `learning.md` markdown with `## Small/Medium/Large Stories` sections and `- [failure_type] pattern` bullets\n- Returns `dict[str, list[str]]` mapping failure_type → patterns for the given complexity band\n- Handles missing file gracefully (returns `{}`)\n\n**`DECOMPOSE_PROMPT` updated** with `{learned_patterns}` placeholder — filled with a `<learned_patterns complexity='...'>` XML block when patterns exist.\n\n**`lib/impl/decompose.sh`** — now passes `--learning-path $spiral_home/.spiral/learning.md` automatically.\n\n**`ralph/CLAUDE.md`** — 5-line documentation section added explaining the learned patterns sidecar.\n\n**Test** `test_injects_learned_lessons_into_prompt` passes — verifies `learned_patterns` XML and pattern content appear in dry-run prompt output."
-      }
+      },
+      "_passedCommit": "3d97f7e39618dc22c1b569587c4d7bc579706df1"
     },
     {
       "id": "US-1374",
@@ -3182,9 +3183,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-17T22:02:18Z"
     },
     {
       "id": "US-1366",
