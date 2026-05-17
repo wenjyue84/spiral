@@ -2563,7 +2563,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         "lib/research/research_cache.py",
@@ -2590,7 +2590,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         "plugins/whatsapp_notify/plugin.toml",
@@ -2642,7 +2642,12 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        "lib/cli_subcommands.sh",
+        "lib/worker_heartbeat.sh",
+        "tests/test_cli_workers.py"
+      ]
     },
     {
       "id": "US-1337",
@@ -3119,7 +3124,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [

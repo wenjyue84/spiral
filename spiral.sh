@@ -190,6 +190,8 @@ EXPORT_TRAJECTORY_MODE=0                     # 1 = export JSONL training data an
 EXPORT_TRAJECTORY_OUTPUT=""                  # output .jsonl.gz path (default: timestamped)
 EXPORT_TRAJECTORY_FILTER=""                  # filter as key=value (e.g. model=sonnet)
 PROFILE_PHASES_MODE=0                        # 1 = read phase timings and print profiling report (profile-phases)
+WORKERS_KILL_MODE=0                          # 1 = kill a specific worker by ID and exit (workers kill)
+WORKERS_KILL_ID=""                           # worker ID to kill (numeric)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -606,6 +608,16 @@ while [[ $# -gt 0 ]]; do
           *) break ;;
         esac
       done
+      ;;
+    workers)
+      if [[ "${2:-}" == "kill" ]]; then
+        WORKERS_KILL_MODE=1
+        WORKERS_KILL_ID="${3:-}"
+        shift 3
+      else
+        echo "[spiral] Unknown workers subcommand: ${2:-}" >&2
+        exit "$ERR_BAD_USAGE"
+      fi
       ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case

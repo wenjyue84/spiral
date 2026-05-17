@@ -228,5 +228,63 @@ requeue_stale_stories() {
   return $?
 }
 
+# ── Operator-side: Gracefully kill a specific worker with full cleanup ────────
+# Usage: kill_worker_safe <worker_id> [repo_root] [kill_timeout_secs]
+# Sends SIGTERM, waits for exit (SIGKILL if needed), removes git worktree,
+# and deletes heartbeat files. Safe to run on a worker that is already dead.
+kill_worker_safe() {
+  local worker_id="${1:-}"
+  local repo_root="${2:-$(pwd)}"
+  local kill_timeout="${3:-10}"
+
+  if [[ -z "$worker_id" ]]; then
+    echo "[kill_worker] ERROR: worker_id is required" >&2
+    return 1
+  fi
+
+  local worktree_dir="$repo_root/.spiral-workers/worker-${worker_id}"
+  # Heartbeat file lives inside the worker's own HEARTBEAT_DIR
+  local hb_dir="$worktree_dir"
+  local hb_file="$hb_dir/.heartbeat"
+
+  # Step 1: Find worker PID from heartbeat file and send SIGTERM
+  local worker_pid=""
+  if [[ -f "$hb_file" ]]; then
+    worker_pid=$(grep -o '"pid":[0-9]*' "$hb_file" 2>/dev/null | cut -d: -f2 | head -1 || echo "")
+  fi
+
+  if [[ -n "$worker_pid" ]] && [[ "$worker_pid" -gt 0 ]] 2>/dev/null; then
+    echo "[kill_worker] Sending SIGTERM to worker-${worker_id} (PID: $worker_pid)"
+    kill -TERM "$worker_pid" 2>/dev/null || true
+    local waited=0
+    while kill -0 "$worker_pid" 2>/dev/null && [[ $waited -lt $kill_timeout ]]; do
+      sleep 1
+      waited=$((waited + 1))
+    done
+    if kill -0 "$worker_pid" 2>/dev/null; then
+      echo "[kill_worker] Worker $worker_id still alive after ${kill_timeout}s, sending SIGKILL" >&2
+      kill -KILL "$worker_pid" 2>/dev/null || true
+    fi
+    echo "[kill_worker] Worker-${worker_id} process terminated"
+  else
+    echo "[kill_worker] No active PID found for worker-${worker_id}, skipping process kill"
+  fi
+
+  # Step 2: Remove git worktree
+  if [[ -d "$worktree_dir" ]]; then
+    echo "[kill_worker] Removing worktree at $worktree_dir"
+    git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null ||
+      rm -rf "$worktree_dir" 2>/dev/null || true
+    # Prune dangling worktree references
+    git -C "$repo_root" worktree prune 2>/dev/null || true
+    echo "[kill_worker] Worktree for worker-${worker_id} removed"
+  else
+    echo "[kill_worker] No worktree found at $worktree_dir (already clean)"
+  fi
+
+  echo "[kill_worker] Worker-${worker_id} cleanup complete"
+  return 0
+}
+
 # Export functions for subshells
-export -f worker_heartbeat_start worker_heartbeat_stop check_stale_heartbeats requeue_stale_stories
+export -f worker_heartbeat_start worker_heartbeat_stop check_stale_heartbeats requeue_stale_stories kill_worker_safe

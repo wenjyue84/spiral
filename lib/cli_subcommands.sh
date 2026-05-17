@@ -502,6 +502,25 @@ if [[ "$EXPORT_TRAJECTORY_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── workers kill: terminate a worker by ID with safe resource cleanup ─────────
+WORKERS_KILL_MODE="${WORKERS_KILL_MODE:-0}"
+WORKERS_KILL_ID="${WORKERS_KILL_ID:-}"
+if [[ "$WORKERS_KILL_MODE" -eq 1 ]]; then
+  if [[ -z "$WORKERS_KILL_ID" ]]; then
+    echo "[spiral] ERROR: Usage: spiral workers kill <worker-id>" >&2
+    exit 1
+  fi
+  _WH_LIB="$SPIRAL_HOME/lib/worker_heartbeat.sh"
+  if [[ ! -f "$_WH_LIB" ]]; then
+    echo "[spiral] ERROR: lib/worker_heartbeat.sh not found (SPIRAL_HOME=$SPIRAL_HOME)" >&2
+    exit 1
+  fi
+  # shellcheck source=lib/worker_heartbeat.sh
+  source "$_WH_LIB"
+  kill_worker_safe "$WORKERS_KILL_ID" "$REPO_ROOT"
+  exit $?
+fi
+
 # ── dedup-suggestions: find duplicate stories using TF-IDF similarity ─────────
 DEDUP_MODE="${DEDUP_MODE:-0}"
 if [[ "$DEDUP_MODE" -eq 1 ]]; then

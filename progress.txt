@@ -1655,3 +1655,6 @@ This user story is for the Spiral project, not a Frappe application. It involves
 ## Iteration 1 - Mon, May 18, 2026  2:44:57 AM
 FAILED file-gate: WhatsApp notification plugin: Post-iteration summary with pass count and cost (ID: US-1333) — no feature code written — attempt 1/3
 
+## Iteration 2 - Mon, May 18, 2026  4:46:02 AM
+FAILED file-gate: CLI: spiral workers kill <worker-id> with safe resource cleanup (ID: US-1336) — no feature code written — attempt 1/3
+

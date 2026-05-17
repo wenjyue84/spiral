@@ -2641,7 +2641,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         "lib/cli_subcommands.sh",
