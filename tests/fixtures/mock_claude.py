@@ -121,7 +121,12 @@ class MockClaudeRunner:
     def _load_fixtures(self) -> None:
         """Load all phase_*.json fixture files from fixture directory."""
         for fixture_file in self.fixture_dir.glob("phase_*.json"):
-            phase_key = fixture_file.stem.replace("phase_", "").replace("_responses", "").replace("_failures", "").replace("_research", "")
+            phase_key = (
+                fixture_file.stem.replace("phase_", "")
+                .replace("_responses", "")
+                .replace("_failures", "")
+                .replace("_research", "")
+            )
             with open(fixture_file, encoding="utf-8") as f:
                 self._fixtures[phase_key] = json.load(f)
 
@@ -129,7 +134,7 @@ class MockClaudeRunner:
         """Mock subprocess.run call.
 
         Args:
-            cmd: Command list (e.g., ['claude', 'api', ...])
+            cmd: Command list (e.g., ['claude', 'api', '<phase_key>'])
             *args: Additional positional args (ignored)
             **kwargs: Additional keyword args (ignored)
 
@@ -142,18 +147,9 @@ class MockClaudeRunner:
         if not cmd or not isinstance(cmd, list):
             raise TypeError(f"Expected list, got {type(cmd)}")
 
-        # Extract phase key from command (assume it's in the command args)
-        # For now, we'll look for a phase-like argument in the command
-        phase_key = None
-        for arg in cmd:
-            if isinstance(arg, str) and arg in self._fixtures:
-                phase_key = arg
-                break
-
-        # If no phase key found in args, check the first argument after 'claude'
-        if phase_key is None:
-            # Default to first available phase for testing
-            phase_key = next(iter(self._fixtures)) if self._fixtures else None
+        # Extract phase key from the last argument in the command
+        # This is the explicit phase identifier passed to the mock
+        phase_key = cmd[-1] if len(cmd) > 0 else None
 
         if phase_key is None or phase_key not in self._fixtures:
             raise ValueError(f"Unknown phase key: {phase_key}. Available phases: {list(self._fixtures.keys())}")
