@@ -1921,3 +1921,36 @@ Completed: Phase I: Inject Learned-Lessons Hints from Phase L into Story Decompo
 - prd.json marked US-1374 as passes: true
 - Code follows existing patterns (CLI routing, Python module structure)
 
+## Iteration 3 - Mon, May 18, 2026  6:09:53 AM
+Completed: CLI: spiral profile --export-trace for Execution Timeline Analysis and Phase Bottleneck Detection (ID: US-1374) in 7m
+
+
+## Pre-analysis for US-1366 (Gemini 2.5 Pro)
+This user story is for a **React/TypeScript frontend** task, not a Frappe/Python one. The goal is to build a UI widget for the `spiral-ui` application.
+
+Here is the technical brief for an agent implementing **US-1366**:
+
+**1. Files to Modify/Create:**
+*   **Create:** `spiral_ui/frontend/HealthWidget.tsx` (Main component)
+*   **Create:** `spiral_ui/frontend/HealthWidget.test.tsx` (Tests for the component)
+*   **Modify:** `spiral_ui/frontend/Dashboard.tsx` (To integrate the widget)
+
+**2. Frappe DocTypes / APIs Involved:**
+*   This component will consume the `GET /api/health` endpoint.
+*   No Frappe DocTypes or server-side hooks are involved in this task.
+
+**3. Recommended Implementation Approach:**
+*   In `HealthWidget.tsx`, create a functional React component.
+*   Use a `useEffect` hook to initiate polling via `setInterval`.
+*   Inside the interval callback, fetch data from `/api/health`. Use an `AbortController` to cancel the fetch request in the `useEffect` cleanup function.
+*   Use `useState` to manage component state: `data`, `loading`, and `error`.
+*   Implement an exponential back-off retry mechanism within the `catch` block of your fetch logic for network resilience.
+*   For the sparkline, use a simple inline SVG or a lightweight library if one is already present in the project.
+*   In `Dashboard.tsx`, import and place the `<HealthWidget />` component into the existing layout.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the `useEffect` cleanup function properly cancels the interval and any pending API requests to prevent memory leaks and race conditions.
+*   The component must render a clear loading state on initial mount.
+*   Gracefully handle API responses that are not successful (e.g., status 500) by displaying an error message and triggering the retry logic.
+*   Mock `fetch` in `HealthWidget.test.tsx` to test success, error, and loading states independently of the network.
+

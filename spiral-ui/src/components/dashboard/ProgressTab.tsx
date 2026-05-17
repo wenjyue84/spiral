@@ -6,6 +6,7 @@ import { pct } from './types';
 import ActiveStoryBanner from './ActiveStoryBanner';
 import RecentlyCompletedFeed from './RecentlyCompletedFeed';
 import ThroughputMetrics from '../ThroughputMetrics';
+import HealthWidget from '../HealthWidget';
 
 export default function ProgressTab({ data, projectName, onRefresh, activeStory, isRunning }: { data: ProjectData; projectName: string; onRefresh: () => void; activeStory: ActiveStoryInfo | null; isRunning: boolean }) {
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -119,6 +120,9 @@ export default function ProgressTab({ data, projectName, onRefresh, activeStory,
 
       {/* ThroughputMetrics widget (US-1298) */}
       <ThroughputMetrics isRunning={isRunning} />
+
+      {/* HealthWidget for SPIRAL health metrics (US-1366) */}
+      <HealthWidget />
 
       {/* Recently Completed feed (US-314) */}
       <div>
