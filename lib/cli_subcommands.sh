@@ -540,3 +540,36 @@ if [[ "$DEDUP_MERGE_MODE" -eq 1 ]]; then
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/dedup_confidence.py" merge "$PRD_FILE" "$DEDUP_MERGE_ID1" "$DEDUP_MERGE_ID2"
   exit $?
 fi
+
+# ── profile: export execution traces and analyze phase bottlenecks ────────────────
+PROFILE_MODE="${PROFILE_MODE:-0}"
+PROFILE_SUBCOMMAND="${PROFILE_SUBCOMMAND:-}"
+PROFILE_FROM_ITERATION="${PROFILE_FROM_ITERATION:-}"
+PROFILE_TO_ITERATION="${PROFILE_TO_ITERATION:-}"
+PROFILE_FILTER_PHASE="${PROFILE_FILTER_PHASE:-}"
+PROFILE_OUTPUT="${PROFILE_OUTPUT:-}"
+PROFILE_TRACE_FILE="${PROFILE_TRACE_FILE:-}"
+if [[ "$PROFILE_MODE" -eq 1 ]]; then
+  _PROFILE_ARGS=()
+  if [[ "$PROFILE_SUBCOMMAND" == "export-trace" ]]; then
+    _PROFILE_ARGS+=("export-trace")
+    [[ -n "$PROFILE_FROM_ITERATION" ]] && _PROFILE_ARGS+=("--from-iteration" "$PROFILE_FROM_ITERATION")
+    [[ -n "$PROFILE_TO_ITERATION" ]] && _PROFILE_ARGS+=("--to-iteration" "$PROFILE_TO_ITERATION")
+    [[ -n "$PROFILE_FILTER_PHASE" ]] && _PROFILE_ARGS+=("--filter-phase" "$PROFILE_FILTER_PHASE")
+    [[ -n "$PROFILE_OUTPUT" ]] && _PROFILE_ARGS+=("--output" "$PROFILE_OUTPUT")
+    _PROFILE_ARGS+=("--project-root" "$REPO_ROOT")
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/profile_trace.py" "${_PROFILE_ARGS[@]}"
+    exit $?
+  elif [[ "$PROFILE_SUBCOMMAND" == "analyze-trace" ]]; then
+    if [[ -z "$PROFILE_TRACE_FILE" ]]; then
+      echo "[spiral] ERROR: Usage: spiral profile analyze-trace <trace.jsonl>" >&2
+      exit 1
+    fi
+    _PROFILE_ARGS+=("analyze-trace" "$PROFILE_TRACE_FILE")
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/profile_trace.py" "${_PROFILE_ARGS[@]}"
+    exit $?
+  else
+    echo "[spiral] ERROR: Usage: spiral profile [export-trace|analyze-trace]" >&2
+    exit 1
+  fi
+fi
