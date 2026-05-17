@@ -3218,7 +3218,7 @@
         "US-1211"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "last_attempted": "2026-05-17T22:39:02Z"
     },
