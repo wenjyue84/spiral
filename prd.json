@@ -2668,18 +2668,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-17T21:02:20Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/spiral/phase_t.py` has `categorize_test_failure()` returning a string (no hints)\n- `lib/research/synthesize_tests.py` generates stories from test failures but without `_rootCause`/`_hint`\n- `lib/test_classifier.py` doesn't exist\n- `tests/test_phase_t.py` doesn't exist (but the test command needs it)\n\n## Problem Identified\nUS-1337 requires: (1) a `classify_test_failure()` function returning `{type, hint}` dict with remediation hints, (2) story generation enriched with `_rootCause` and `_hint` fields, (3) a test `test_classify_import_error`.\n\n## Planned Changes\n- Create `lib/test_classifier.py` with `classify_test_failure(snippet)` returning `{type, hint}` for 5 error types\n- Create `tests/test_phase_t.py` with `test_classify_import_error` (and other classification tests)\n- Modify `lib/research/synthesize_tests.py` to enrich stories with `_rootCause` and `_hint` using the classifier\n\n<plan>\n{\n  \"files_to_create\": [\"lib/test_classifier.py\", \"tests/test_phase_t.py\"],\n  \"files_to_modify\": [\"lib/research/synthesize_tests.py\"],\n  \"functions_to_add\": [\"classify_test_failure\", \"test_classify_import_error\", \"test_classify_assertion_failure\", \"test_classify_syntax_error\", \"test_classify_timeout_error\", \"test_classify_environment_error\"],\n  \"estimated_loc\": 120\n}\n</plan>\nThe required test passes. Now let me enrich the story generation in `synthesize_tests.py` to add `_rootCause` and `_hint` fields (AC3):\nNow run all the tests to verify nothing is broken:\nAll tests pass. Let me run the pre-commit checks and type checking:\nNow mark the story as passing and commit:\nUS-1337 is complete.\n\n**Summary:**\n- Created `lib/test_classifier.py` — `classify_test_failure(snippet)` returns `{type, hint}` dict covering all 5 error types (import_error, assertion_failure, syntax_error, timeout, environment_error) with actionable remediation hints\n- Created `tests/test_phase_t.py` — 7 tests including the required `test_classify_import_error`\n- Patched `lib/research/synthesize_tests.py` to add `_rootCause` and `_hint` fields to Phase T stories via the classifier (with graceful degradation if module unavailable)"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 18,
-        "tokensAfterMasking": 18,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_passedCommit": "bb4507b56fc275ba8efd52cbb5ff793bbb7c96f7"
+      "model": "haiku"
     },
     {
       "id": "US-1338",
@@ -2990,11 +2979,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-17T21:08:57Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nI can see the spiral-ui backend is a TypeScript/Node.js Express server (server.ts) that exposes REST endpoints for the dashboard. The results.tsv file contains test results with iteration, story, status, model, retry info, etc.\n\n## Problem Identified\n\nNeed to implement GET `/api/iterations/<iter>/detail` endpoint that:\n1. Aggregates iteration data from results.tsv and spiral_events.jsonl\n2. Returns stories array with status, model, retries, tokens\n3. Returns phases array with timing and story counts\n4. Supports filtering by status and worker\n5. Implements 60s in-memory cache for performance\n\n## Planned Changes\n\n1. **Create `lib/iteration_detail_aggregator.py`** (~90 lines)\n   - `aggregate_iteration_metrics()` function to parse TSV and JSONL files\n   - Extract story data, phase timing, cost calculation\n   - Support status and worker filtering\n\n2. **Modify `spiral-ui/server.ts`** (~50 lines)\n   - Add GET `/api/iterations/<iter>/detail` endpoint handler\n   - Implement 60s TTL in-memory cache\n   - Support query parameters\n\n3. **Create `tests/test_iterations_api.py`** (~80 lines)\n   - Test the aggregator function with sample data\n   - Verify story and phase parsing\n\n<plan>\n{\n  \"files_to_create\": [\"lib/iteration_detail_aggregator.py\", \"tests/test_iterations_api.py\"],\n  \"files_to_modify\": [\"spiral-ui/server.ts\"],\n  \"functions_to_add\": [\"aggregate_iteration_metrics\", \"test_get_iteration_detail_aggregates_metrics\"],\n  \"estimated_loc\": 220\n}\n</plan>\n\nLet me now implement the solution. First, I'll create the aggregator module:\nNow I'll add the endpoint to server.ts. Let me first find the right location:\nNow I'll create the test file:\nLet me run the tests to verify the implementation:\nGreat! All tests pass. Now let me check type safety and formatting:\nLet me verify the test that was specified in the story passes:\nPerfect! The main test passes. Now let me verify the implementation covers all acceptance criteria by checking the endpoint implementation:\nExcellent! The implementation is complete and meets all acceptance criteria:\n\n✅ **Acceptance Criteria Met:**\n\n1. **Aggregates results.tsv and spiral_events.jsonl** - `lib/iteration_detail_aggregator.py` parses both files and extracts:\n   - iteration number\n   - totalTime_ms (sum of story durations)\n   - totalCost_usd (calculated from token counts)\n   - stories array (id, status, model, retries, tokens_used)\n   - phases array (name, duration_ms, story_count)\n\n2. **Supports query parameters** - `?status=passed|failed|skipped` and `?worker=1|2|3` are processed in both the aggregator and server\n\n3. **60s in-memory cache with TTL** - Implemented in `server.ts` with automatic cleanup of expired entries\n\nLet me verify the total diff size is within limits:\nPerfect! The implementation is within the diff budget (story implementation is ~300 lines, with tests being comprehensive). Now let me commit the changes:\nNow let me run the final test command specified in the story requirements:\nExcellent! All tests pass. Now let me mark the story as complete in prd.json:\nLet me run a quick verification to ensure I haven't broken any existing tests:\nPerfect! Let me verify the final state:\nPerfect! 🎉 **US-1361 is now complete and passing.**\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1362",

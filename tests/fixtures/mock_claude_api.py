@@ -60,6 +60,31 @@ class MockClaudeAPI:
         """List of args lists from intercepted subprocess.run calls."""
         return self._call_log
 
+    def crash_then_succeed(self) -> Any:
+        """Return a side effect function that crashes on first call, succeeds on second.
+
+        This helper creates a stateful side effect for testing worker respawn scenarios.
+        First invocation: raises CalledProcessError
+        Second+ invocations: returns successful CompletedProcess
+
+        Returns:
+            A callable that can be used as subprocess_mock.side_effect
+        """
+        call_count: dict[str, int] = {"value": 0}
+
+        def side_effect(args: Any, **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+            call_count["value"] += 1
+            if call_count["value"] == 1:
+                # First call: simulate worker crash
+                raise subprocess.CalledProcessError(1, args, stderr=b"Worker crashed")
+            # Subsequent calls: success
+            import json as _json
+            return subprocess.CompletedProcess(
+                args=args, returncode=0, stdout=_json.dumps({}).encode("utf-8"), stderr=b""
+            )
+
+        return side_effect
+
     def _make_side_effect(self) -> Any:
         _original = subprocess.run
 

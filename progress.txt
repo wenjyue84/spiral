@@ -1727,3 +1727,6 @@ Completed: Phase T: Test Failure Classification with Root Cause and Remediation 
 - Modified files: 1 (spiral-ui/server.ts: +76 lines for endpoint)
 - Total: 600 lines added (net 565 after cleanup)
 
+## Iteration 3 - Mon, May 18, 2026  5:16:05 AM
+Completed: spiral-ui Backend: GET /api/iterations/<iter>/detail endpoint with story and phase metrics (ID: US-1361) in 6m
+
