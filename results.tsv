@@ -196,4 +196,5 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-17T21:16:05Z	34	3	US-1361	spiral-ui Backend: GET /api/iterations/<iter>/detail endpoint with story and phase metrics	keep	403	haiku	0	cd20999021e8cad19dd1a56471d8f49aa4026fc7	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0	unknown
 2026-05-17T21:30:08Z	35	1	US-1362	Add regression test: worker crash triggers respawn and story completion	keep	260	haiku	0	810133d440a1b1e5ce6f63667801624dd803a745	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-17T21:39:09Z	35	2	US-1363	Phase M: Story compatibility matrix for safe parallel batching	keep	498	haiku	0	f19781d063a435484e3c752cf5066151bc621574	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
-2026-05-17T21:53:25Z	36	1	US-1364	Create MockClaudeRunner fixture class and phase response JSON files	keep	260	haiku	0	e8465e6911df414a8e588a8adeeaae4fab0808f1	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-17T21:53:25Z	36	1	US-1364	Create MockClaudeRunner fixture class and phase response JSON files	keep	260	haiku	0	e8465e6911df414a8e588a8adeeaae4fab0808f1	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-17T22:02:16Z	36	2	US-1373	Phase I: Inject Learned-Lessons Hints from Phase L into Story Decomposition Prompts	keep	503	sonnet	0	3d97f7e39618dc22c1b569587c4d7bc579706df1	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
