@@ -1,3 +1,27 @@
+## Iteration 5 - Sun, May 18, 2026  8:00:00 AM
+Completed: [Security Test] Settings tab config save blocked without auth (ID: US-1380) in 2m
+
+### What was implemented
+- Renamed test functions in `tests/test_security_us1215.py` to match acceptance criteria:
+  - `test_post_config_no_auth_returns_401_or_403` → `test_settings_save_unauthenticated`
+  - `test_post_config_error_response_contains_no_secrets` → `test_settings_error_no_secret_leak`
+  - `test_get_config_no_auth_returns_401_or_403` → `test_settings_fetch_unauthenticated`
+
+### Key Patterns Discovered
+- Security test functions use FastAPI TestClient with `raise_server_exceptions=False` to test error conditions
+- Auth mechanism: `X-API-Key` header validates against `SPIRAL_DASHBOARD_API_KEY` env var
+- Error response leak checking: Test lowers entire response body and checks for sensitive keywords (password, secret, token, api_key, anthropic, private_key)
+
+### Acceptance Criteria Met
+- [x] POST /api/config with no credentials returns 401 or 403 (test_settings_save_unauthenticated)
+- [x] Error body contains no sensitive strings (test_settings_error_no_secret_leak)
+- [x] GET /api/config with no credentials returns 401 or 403 (test_settings_fetch_unauthenticated)
+
+### Testing
+- All 3 required tests passing
+- All 6 tests in file passing (includes valid key tests for comprehensive coverage)
+- Pre-commit checks passed (formatting fixed for progress.txt)
+
 ## Iteration 1 - Mon, May 18, 2026  6:30:13 AM
 Completed: [Integration Test] html/ scaffold: file structure and nav.js dark-mode persist (ID: US-1375) in 3m
 
@@ -42,11 +66,11 @@ Completed: [Integration Test] html/index.html dashboard: KPI cards and progress 
 
 ### What was implemented
 - Created `tests/test_gen_html_data.py` with unit test for gen_html_data.py
-  - Uses tmp_path fixture to create minimal prd.json (2 stories) 
+  - Uses tmp_path fixture to create minimal prd.json (2 stories)
   - Calls generate_data_js() to produce html/data.js
   - Parses JavaScript object format (unquoted keys) with regex
   - Verifies storiesTotal, storiesPassed, lastUpdated fields are present and numeric
-  
+
 - Created `tests/test_integration_us1353.py` with HTML structure tests
   - Parses html/index.html with BeautifulSoup4
   - Tests for "Start Reading" button/link that navigates to introduction page
@@ -57,11 +81,11 @@ Completed: [Integration Test] html/index.html dashboard: KPI cards and progress 
 - JavaScript object notation (unquoted keys) can't be parsed as JSON directly
   - Solution: Use regex to add quotes around unquoted keys: `(\w+):` → `"\1":`
   - For ISO timestamps with timezone offset (+00:00), use targeted regex extraction
-  
+
 - Button with onclick="startReading()" is implementation of "Start Reading" link
   - Function navigates via constructed path: pages/01-introduction.html
   - Test verifies startReading function exists + PAGES array has Introduction first entry
-  
+
 - PAGES array has 9 entries (1-9 chapters) matching 9 progress-step elements rendered dynamically
 
 ### Gotchas Encountered
@@ -123,11 +147,11 @@ Completed: [spiral-ui] Phase Timeline Visualization - Interactive execution wate
   - Uses recharts BarChart with layout="vertical" for horizontal waterfall
   - Color-coding by duration: green (<60s), yellow (60-300s), red (>300s)
   - Tooltip shows duration on hover
-  
+
 - Created `spiral-ui/src/components/PhaseTimeline.test.tsx` with comprehensive unit tests
   - 8 tests covering empty state, rendering, color coding, metrics display
   - All tests passing with 100% success rate
-  
+
 - Integrated PhaseTimeline into AnalyticsTab.tsx
   - Added import and mounted component in analytics view
   - Component receives phaseTimings data from existing API
@@ -141,7 +165,7 @@ Completed: [spiral-ui] Phase Timeline Visualization - Interactive execution wate
 - phaseTimings data is calculated from spiral_events.jsonl by analyticsApi.ts
   - Parses phase_start and phase_end events
   - Extracts durations and matches by phase name
-  
+
 - Component uses useMemo to calculate metrics (color, stories/min, tokensPerHour)
   - Prevents unnecessary recalculations on re-render
 
@@ -192,4 +216,3 @@ Here is the technical brief for user story US-1369.
 
 ## Iteration 2 - Mon, May 18, 2026  7:08:27 AM
 Completed: [Regression Test] Full SPIRAL loop executes all phases in order (mocked CLI) (ID: US-1369) in 6m
-
