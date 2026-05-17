@@ -1652,3 +1652,6 @@ This user story is for the Spiral project, not a Frappe application. It involves
 *   The mock's state should be managed per-test to avoid test interference; using it as a yielded fixture helps.
 *   The `spiral.sh` argument parsing should be robust and not break existing functionality. `shellcheck` must pass.
 
+## Iteration 1 - Mon, May 18, 2026  2:44:57 AM
+FAILED file-gate: WhatsApp notification plugin: Post-iteration summary with pass count and cost (ID: US-1333) — no feature code written — attempt 1/3
+

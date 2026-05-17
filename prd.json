@@ -2590,7 +2590,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         "plugins/whatsapp_notify/plugin.toml",

@@ -1,0 +1,17 @@
+[plugin]
+name = "whatsapp-notify"
+version = "1.0.0"
+description = "Sends post-iteration WhatsApp notification with pass count and cost summary"
+hooks = ["post-phase"]
+allowed_env = ["SPIRAL_WHATSAPP_API_URL", "SPIRAL_NOTIFICATIONS_ENABLED"]
+tags = ["notification", "whatsapp", "webhook", "iteration-summary"]
+inputs = ["iteration", "spiral_run_id"]
+outputs = ["whatsapp_message_id"]
+
+# Configuration:
+#  - Set SPIRAL_WHATSAPP_API_URL env var to your WhatsApp webhook endpoint
+#  - Set SPIRAL_NOTIFICATIONS_ENABLED=true to enable (disabled by default)
+#
+# Example:
+#  export SPIRAL_WHATSAPP_API_URL="http://localhost:3000/send"
+#  export SPIRAL_NOTIFICATIONS_ENABLED=true
