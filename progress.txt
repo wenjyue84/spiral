@@ -1,3 +1,32 @@
+## Iteration N - Story: US-1362 - Add regression test: worker crash triggers respawn and story completion
+
+### What was implemented
+- Verified existing test `test_us_1211_crash_recovery` in `tests/test_spiral_e2e_integration.py` already implements all AC
+- Cleaned up test file: removed unused MagicMock import (F401 linting error)
+- Removed two unused `# type: ignore` comments (mypy strict errors)
+- MockClaudeAPI.crash_then_succeed() method already exists in tests/fixtures/mock_claude_api.py
+
+### Test execution
+- All 5 tests in test_spiral_e2e_integration.py pass (100% success rate)
+- Test filter `-k us_1211_crash_recovery` correctly matches test_us_1211_crash_recovery
+- mypy --strict: no type errors in test file
+- ruff check: all linting checks pass
+
+### Patterns discovered
+- Regression tests for crash recovery scenarios use monkeypatch.setattr with call counters
+- MockClaudeAPI context manager provides subprocess.run interceptor pattern
+- crash_then_succeed() pattern: raise CalledProcessError on first call, succeed on subsequent calls
+
+### Acceptance criteria met
+- [x] AC1: `uv run pytest tests/test_spiral_e2e_integration.py -k us_1211_crash_recovery -v` exits 0
+- [x] AC2: Test asserts worker process spawned at least twice (call_count["value"] >= 2)
+- [x] AC3: After respawn, prd.json story status equals 'done' in isolated tmp_path fixture
+
+### Verified end-to-end
+- Test passes with proper assertions for crash detection and respawn
+- prd.json marked US-1362 as passes: true
+- Git commit 05dcba2d with proper message including Story ID and acceptance criteria
+
 ## Iteration N - Story: US-1328 - Add federation validation test suite: include resolution and story ID uniqueness
 
 ### What was implemented
