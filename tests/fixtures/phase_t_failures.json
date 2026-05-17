@@ -1,0 +1,8 @@
+[
+  {
+    "test_file": "tests/test_example.py",
+    "test_name": "test_example_fails",
+    "error_type": "AssertionError",
+    "message": "assertion failed: expected 1 == 2"
+  }
+]

@@ -1787,3 +1787,32 @@ Here is the technical brief for implementing user story US-1363.
 *   Ensure the `validate_dag` error message clearly lists the story IDs forming the circular dependency.
 *   The batch suggestion algorithm must handle stories with no file overlap or dependencies correctly, grouping them into a single "safe" batch.
 *   The input `stories` data structure must be consistent, providing `id`, `filesTouch`, and `dependencies` for each story.
+## Iteration 2 - Mon, May 18, 2026  5:39:09 AM
+Completed: Phase M: Story compatibility matrix for safe parallel batching (ID: US-1363) in 8m
+
+
+## Pre-analysis for US-1364 (Gemini 2.5 Pro)
+**Technical Brief for Claude: US-1364**
+
+**Project Context Correction:** This story is for the **Spiral** project's internal test infrastructure, not the `lhdn_payroll_integration` Frappe app. It involves no Frappe DocTypes or hooks. The goal is to create a mock runner to test Spiral's AI phases offline.
+
+**1. Python Files to Create/Modify:**
+*   `tests/fixtures/mock_claude.py` (New): Will contain the `MockClaudeRunner` class.
+*   `tests/test_mock_claude_runner.py` (New): Will contain unit tests for `MockClaudeRunner`.
+*   `tests/fixtures/phase_a_responses.json` (New): Mock AI response for the suggestion phase.
+*   `tests/fixtures/phase_t_failures.json` (New): Mock test failure output for the test phase.
+*   `tests/fixtures/phase_r_research.json` (New): Mock research results for the research phase.
+
+**2. Implementation Approach:**
+1.  In `mock_claude.py`, define `class MockClaudeRunner`.
+2.  The `__init__(self, fixture_dir)` should find and load all `.json` files in `fixture_dir`, storing their contents in a dictionary keyed by filename (e.g., `'phase_a_responses'`).
+3.  Implement `__call__(self, cmd, **kwargs)` to mimic the `subprocess.run` signature.
+4.  Inside `__call__`, parse the `cmd` list to find the phase identifier (e.g., from a `--phase-name` argument) to use as a lookup key for the fixture dictionary.
+5.  Return a `subprocess.CompletedProcess` or `MagicMock` object where `stdout` is the loaded JSON string and `returncode` is 0.
+6.  In `test_mock_claude_runner.py`, use `unittest.mock.patch('subprocess.run', new_callable=...)` to replace the real `subprocess.run` with an instance of `MockClaudeRunner`.
+
+**3. Edge Cases & Gotchas:**
+*   **Return Type:** The mock must return a `CompletedProcess`-like object with `stdout`, `stderr`, and `returncode` attributes, not just a raw string, to correctly simulate `subprocess.run`.
+*   **Key Parsing:** The logic to extract the phase key from the `cmd` argument list must be robust.
+*   **Error Handling:** If the parsed phase key is not found in the loaded fixtures, the runner must raise a `ValueError` as per the acceptance criteria.
+

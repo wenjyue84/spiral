@@ -1,0 +1,11 @@
+[
+  {
+    "id": "US-TEST-001",
+    "title": "Test story from phase A",
+    "description": "Minimal test story for phase A fixture",
+    "priority": "medium",
+    "acceptanceCriteria": [
+      "Test passes"
+    ]
+  }
+]
