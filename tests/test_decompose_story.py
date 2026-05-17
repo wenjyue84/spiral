@@ -182,3 +182,36 @@ class TestMainDryRun:
         )
         rc = main()
         assert rc == 1
+
+    def test_injects_learned_lessons_into_prompt(self, tmp_path, monkeypatch, capsys):
+        """Learned patterns from learning.md appear in the decompose dry-run prompt."""
+        learning_md = tmp_path / "learning.md"
+        learning_md.write_text(
+            "## Small Stories\n"
+            "- [syntax] Check imports before writing implementation\n"
+            "- [scope] Limit each sub-story to one function\n",
+            encoding="utf-8",
+        )
+        prd_path = tmp_path / "prd.json"
+        _write_prd(prd_path, [_story("US-001", estimatedComplexity="small")])
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "decompose_story.py",
+                "--story-id",
+                "US-001",
+                "--prd",
+                str(prd_path),
+                "--learning-path",
+                str(learning_md),
+                "--dry-run",
+            ],
+        )
+        rc = main()
+        assert rc == 0
+
+        captured = capsys.readouterr()
+        assert "learned_patterns" in captured.out
+        assert "syntax" in captured.out or "scope" in captured.out

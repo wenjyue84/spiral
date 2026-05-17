@@ -52,6 +52,65 @@ def build_lessons_section(lessons_path: str, story: dict[str, Any], top_k: int =
     return "\n".join(lines)
 
 
+_FAILURE_TYPE_ALIASES: dict[str, str] = {
+    "syntax": "syntax",
+    "logic": "logic",
+    "scope": "scope",
+    "timeout": "timeout",
+    "type": "syntax",
+    "import": "syntax",
+    "test": "logic",
+    "size": "scope",
+    "complexity": "scope",
+    "perf": "timeout",
+    "performance": "timeout",
+}
+
+
+def load_learned_lessons_for_complexity(
+    complexity_band: str,
+    learning_path: str,
+) -> dict[str, list[str]]:
+    """Parse learning.md for patterns matching the given complexity_band.
+
+    Expected format::
+
+        ## Small Stories
+        - [syntax] Check imports before writing implementation
+        - [scope] Limit each sub-story to one function
+
+    Returns dict mapping failure_type -> [pattern strings] for the given band.
+    Returns empty dict when the file is missing or band has no entries.
+    """
+    if not os.path.isfile(learning_path):
+        return {}
+    try:
+        with open(learning_path, encoding="utf-8") as f:
+            content = f.read()
+    except OSError:
+        return {}
+
+    band = complexity_band.lower().strip()
+    section_header = f"## {band.capitalize()} Stories"
+    result: dict[str, list[str]] = {}
+    in_section = False
+
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("##"):
+            in_section = stripped.lower() == section_header.lower()
+            continue
+        if not in_section:
+            continue
+        m = re.match(r"^[-*]\s+\[(\w+)\]\s+(.+)$", stripped)
+        if m:
+            raw_ft = m.group(1).lower()
+            ft = _FAILURE_TYPE_ALIASES.get(raw_ft, raw_ft)
+            result.setdefault(ft, []).append(m.group(2).strip())
+
+    return result
+
+
 DECOMPOSE_PROMPT = """\
 You are decomposing a failed user story into 2-{max_sub} smaller, independent sub-stories.
 
@@ -67,7 +126,7 @@ You are decomposing a failed user story into 2-{max_sub} smaller, independent su
 <failure_context>
 {failure_context}
 </failure_context>
-
+{learned_patterns}
 Rules:
 1. Sub-stories must be completable in one AI agent turn (~15 mins).
 2. Together, sub-stories must fully cover the parent's acceptance criteria.
@@ -204,6 +263,7 @@ def main() -> int:
     parser.add_argument("--story-id", required=True, help="Story ID to decompose (e.g. US-005)")
     parser.add_argument("--progress", default="progress.txt", help="Path to progress.txt")
     parser.add_argument("--lessons", default=".spiral/learned_lessons.jsonl", help="Path to lessons JSONL")
+    parser.add_argument("--learning-path", default="", help="Path to learning.md for complexity-band hints")
     parser.add_argument("--model", default="sonnet", help="Claude model (default: sonnet)")
     parser.add_argument("--max-substories", type=int, default=4, help="Max sub-stories (default: 4)")
     parser.add_argument("--dry-run", action="store_true", help="Print prompt without modifying prd.json")
@@ -249,6 +309,21 @@ def main() -> int:
     # Extract failure context
     failure_context = extract_failure_context(args.progress, args.story_id)
 
+    # Build learned-patterns sidecar from learning.md
+    learning_md = args.learning_path or os.path.join(
+        os.path.dirname(os.path.abspath(args.prd)), ".spiral", "learning.md"
+    )
+    band = parent.get("estimatedComplexity", "small")
+    lp = load_learned_lessons_for_complexity(band, learning_md)
+    if lp:
+        bullets = []
+        for ft in ("syntax", "logic", "scope", "timeout"):
+            for p in lp.get(ft, [])[:2]:
+                bullets.append(f"  - [{ft}] {p}")
+        lp_text = f"\n<learned_patterns complexity='{band}'>\n" + "\n".join(bullets[:6]) + "\n</learned_patterns>\n"
+    else:
+        lp_text = ""
+
     # Build prompt
     parent_ac_string = "\n".join(f"    - {ac}" for ac in parent.get("acceptanceCriteria", []))
     prompt = DECOMPOSE_PROMPT.format(
@@ -258,6 +333,7 @@ def main() -> int:
         parent_ac=parent_ac_string,
         failure_context=failure_context,
         max_sub=args.max_substories,
+        learned_patterns=lp_text,
     )
     prompt += build_lessons_section(args.lessons, parent)
 

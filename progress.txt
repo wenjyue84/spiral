@@ -1841,3 +1841,32 @@ Completed: Phase M: Story compatibility matrix for safe parallel batching (ID: U
 *   **Return Type:** The mock must return a `CompletedProcess`-like object with `stdout`, `stderr`, and `returncode` attributes, not just a raw string, to correctly simulate `subprocess.run`.
 *   **Key Parsing:** The logic to extract the phase key from the `cmd` argument list must be robust.
 *   **Error Handling:** If the parsed phase key is not found in the loaded fixtures, the runner must raise a `ValueError` as per the acceptance criteria.
+## Iteration 1 - Mon, May 18, 2026  5:53:25 AM
+Completed: Create MockClaudeRunner fixture class and phase response JSON files (ID: US-1364) in 4m
+
+
+## Iteration N - Story: US-1373 - Phase I: Inject Learned-Lessons Hints from Phase L into Story Decomposition Prompts
+
+### What was implemented
+- Added load_learned_lessons_for_complexity(complexity_band, learning_path) to lib/workers/decompose_story.py
+  - Parses learning.md markdown: ## Small/Medium/Large Stories sections, - [failure_type] pattern bullets
+  - Returns dict[str, list[str]] mapping failure_type -> [patterns] for the given band
+  - Supported failure_type aliases: syntax/logic/scope/timeout + common aliases (import, type, size, etc.)
+- Added {learned_patterns} placeholder to DECOMPOSE_PROMPT template in decompose_story.py
+- Added --learning-path CLI arg to decompose_story.py
+- Wired load_learned_lessons_for_complexity in main() — builds <learned_patterns> XML block injected into prompt
+- Updated lib/impl/decompose.sh to pass --learning-path $spiral_home/.spiral/learning.md
+- Added 5-line documentation section to ralph/CLAUDE.md explaining the learned patterns sidecar
+- Added test_injects_learned_lessons_into_prompt to tests/test_decompose_story.py
+
+### Patterns discovered
+- DECOMPOSE_PROMPT uses Python .format() with {{}} for JSON braces — add {learned_patterns} as normal placeholder
+- build_lessons_section uses learned_lessons.jsonl; new function uses learning.md — they are complementary
+- lp_text is appended in the DECOMPOSE_PROMPT template (via format), not after like build_lessons_section
+
+### Acceptance criteria met
+- [x] load_learned_lessons_for_complexity loads learning.md and returns dict {failure_type: [patterns]}
+- [x] DECOMPOSE_PROMPT includes <learned_patterns> XML sidecar injection
+- [x] ralph/CLAUDE.md documents the learned patterns feature
+- [x] lib/impl/decompose.sh passes --learning-path to decompose_story.py
+- [x] test_injects_learned_lessons_into_prompt passes

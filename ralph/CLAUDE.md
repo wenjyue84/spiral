@@ -335,6 +335,13 @@ If FAIL → re-dispatch Implementer with findings (max 1 re-dispatch)
 
 **Token management:** After each subagent completes, summarize its output to 1-2 lines (status + key finding). Never accumulate raw subagent responses in your context.
 
+## Learned Patterns (Decomposition Aid)
+
+When stories are decomposed, `.spiral/learning.md` patterns (complexity-band hints from Phase L) are
+injected into the decomposition prompt as a `<learned_patterns>` XML block. These patterns cover
+failure types: syntax, logic, scope, timeout. Ralph workers receive these hints inline — no extra
+action required.
+
 ## Remember
 
 - You are ONE iteration in an autonomous loop

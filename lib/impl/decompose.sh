@@ -118,11 +118,13 @@ decompose_story() {
     return 1
   fi
 
+  local learning_path="${spiral_home}/.spiral/learning.md"
   "$python" "$decompose_script" \
     --story-id "$story_id" \
     --prd "$prd_file" \
     --model "$model" \
-    --progress "$progress_file"
+    --progress "$progress_file" \
+    --learning-path "$learning_path"
 }
 
 # validate_plan <plan_json> <story_id> [files_to_touch]
