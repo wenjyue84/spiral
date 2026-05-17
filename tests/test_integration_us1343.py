@@ -73,9 +73,7 @@ def test_index_links_all_pages() -> None:
     ]
 
     for link in page_links:
-        assert (
-            link in parser.hrefs
-        ), f"Expected link not found in index.html: {link}\nFound links: {parser.hrefs}"
+        assert link in parser.hrefs, f"Expected link not found in index.html: {link}\nFound links: {parser.hrefs}"
 
 
 def test_nav_js_localstorage() -> None:
@@ -86,6 +84,4 @@ def test_nav_js_localstorage() -> None:
     assert nav_js.exists(), f"nav.js not found: {nav_js}"
 
     content = nav_js.read_text(encoding="utf-8")
-    assert (
-        "localStorage" in content
-    ), "nav.js does not contain 'localStorage' reference for dark-mode persistence"
+    assert "localStorage" in content, "nav.js does not contain 'localStorage' reference for dark-mode persistence"
