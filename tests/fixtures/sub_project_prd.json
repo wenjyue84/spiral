@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "productName": "SubProject",
+  "branchName": "main",
+  "overview": "Sub-project with duplicate story IDs (different namespace)",
+  "goals": ["Implement sub-project features"],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Sub-project feature (same ID as main)",
+      "priority": "high",
+      "description": "This is a story in the sub-project with same ID as main project",
+      "acceptanceCriteria": ["Sub story criterion 1", "Sub story criterion 2"],
+      "technicalNotes": ["Sub implementation note"],
+      "filesTouch": ["sub/module1.py", "sub/module2.ts"],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "US-002",
+      "title": "Sub-project bug (same ID as main)",
+      "priority": "medium",
+      "description": "Sub-project bug with same ID",
+      "acceptanceCriteria": ["Sub bug fixed"],
+      "technicalNotes": ["Debug trace added"],
+      "filesTouch": ["sub/debug.py"],
+      "dependencies": ["US-001"],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-fix",
+      "_decomposed": false
+    },
+    {
+      "id": "US-003",
+      "title": "Sub-project optimization",
+      "priority": "low",
+      "description": "Optimize sub-project module",
+      "acceptanceCriteria": ["Query time < 100ms"],
+      "technicalNotes": ["Add indexes", "Use query plan"],
+      "filesTouch": ["sub/query.sql", "sub/optimize.py"],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "research"
+    }
+  ]
+}

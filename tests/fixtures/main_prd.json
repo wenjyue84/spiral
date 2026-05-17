@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "productName": "MainProject",
+  "branchName": "main",
+  "overview": "Main project with federated sub-project includes",
+  "goals": ["Complete federated PRD merge"],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Feature in main project",
+      "priority": "high",
+      "description": "This is a story in the main project",
+      "acceptanceCriteria": ["Main story criterion 1", "Main story criterion 2"],
+      "technicalNotes": ["Implementation note 1"],
+      "filesTouch": ["main/file1.py", "main/file2.ts"],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "seed"
+    },
+    {
+      "id": "US-002",
+      "title": "Bug fix in main",
+      "priority": "medium",
+      "description": "Main project bug fix",
+      "acceptanceCriteria": ["Main bug fixed"],
+      "technicalNotes": [],
+      "filesTouch": ["main/bugfix.py"],
+      "dependencies": ["US-001"],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "seed"
+    },
+    {
+      "id": "US-003",
+      "title": "Performance improvement in main",
+      "priority": "low",
+      "description": "Speed up main module",
+      "acceptanceCriteria": ["Module runs 20% faster"],
+      "technicalNotes": ["Use caching"],
+      "filesTouch": ["main/perf.py"],
+      "dependencies": [],
+      "estimatedComplexity": "large",
+      "passes": false,
+      "_source": "research"
+    }
+  ],
+  "prd": {
+    "include": ["sub_project_prd.json"]
+  }
+}
