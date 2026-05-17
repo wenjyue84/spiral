@@ -189,3 +189,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-15T18:58:37Z	7	2	US-1329	Create lib/timeout_handler.py and lib/impl/scope_reducer.py for optional-AC trimming	keep	134	opus	1	5446b438276d776243e7ffc7d33a4426ce20129a	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-15T19:11:36Z	7	3	US-1330	Wire timeout_scope_reducer into lib/impl/retry.sh before decompose_story()	keep	734	sonnet	0	1abe876bda5f994268a55ddafc5cdf2cb452b4fa	6a0756a5254f	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-17T16:01:20Z	19	5	US-1371	Integration test: SPIRAL loop with MockClaudeAPI and failure injection scenarios	reject	254	opus	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-17T18:15:09Z	26	2	US-1365	Add MockClaudeAPI fixture, conftest wiring, and --mock-api flag to spiral.sh	reject	403	sonnet	1		6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				

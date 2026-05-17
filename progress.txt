@@ -1616,3 +1616,39 @@ This user story requires creating a `pytest`-based integration test for the SPIR
 *   The test must run in a clean, isolated directory (`tmp_path`) to prevent side effects.
 *   Statistical assertions can be flaky; use a reasonable tolerance (e.g., `pytest.approx` with `rel=0.1`).
 
+## Iteration 2 - Mon, May 18, 2026  2:15:09 AM
+FAILED file-gate: Add MockClaudeAPI fixture, conftest wiring, and --mock-api flag to spiral.sh (ID: US-1365) — no feature code written — attempt 1/3
+
+
+## Pre-analysis for US-1365 (Gemini 2.5 Pro)
+Here is the technical brief based on the provided user story:
+
+**Project:** Spiral
+**User Story:** US-1365 - Implement Mock Claude API for testing
+
+**Technical Implementation Brief:**
+
+This user story is for the Spiral project, not a Frappe application. It involves creating a Python-based test fixture to mock subprocess calls to a "Claude CLI".
+
+**1. Files to Modify:**
+*   `spiral.sh`: To add a new command-line flag.
+*   `tests/fixtures/mock_claude_api.py`: (New file) To house the core mock class.
+*   `tests/conftest.py`: To wire the mock into pytest as a fixture.
+*   `tests/test_mock_claude_api.py`: (New file) For unit testing the mock itself.
+
+**2. Involved Components:**
+*   **Pytest Fixtures:** A new `mock_api_repo` fixture is required in `conftest.py`.
+*   **Shell Scripting:** `spiral.sh` needs modification to handle arguments.
+*   **Python Mocking:** The `MockClaudeAPI` will likely use `unittest.mock.patch` to intercept `subprocess.run` or a similar function.
+
+**3. Implementation Approach:**
+1.  **`spiral.sh`:** Add logic to detect a `--mock-api` flag. If present, export the environment variable `SPIRAL_MOCK_API=1`.
+2.  **`mock_claude_api.py`:** Create `MockClaudeAPI` as a context manager (`__enter__`, `__exit__`). It should patch the subprocess call target. Implement `inject_response` and `inject_failure` methods to populate an internal dictionary that the patched function will use to return data or raise errors.
+3.  **`conftest.py`:** Define the `mock_api_repo` fixture. This fixture should set up a temporary git repository with dummy `prd.json` and `constitution.md` files, then yield an instance of the `MockClaudeAPI`.
+4.  **`test_mock_claude_api.py`:** Add unit tests to validate that the `MockClaudeAPI` correctly returns injected responses and raises specified failures when the target subprocess is called.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the `subprocess` patch targets the correct function/module where the external CLI call is made.
+*   The mock's state should be managed per-test to avoid test interference; using it as a yielded fixture helps.
+*   The `spiral.sh` argument parsing should be robust and not break existing functionality. `shellcheck` must pass.
+

@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -17,6 +18,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 # ── US-1360: MockClaudeCLI fixture (importable via conftest) ─────────────────
 from tests.fixtures.mock_claude_cli import mock_claude_cli  # noqa: E402, F401
+# ── US-1365: MockClaudeAPI fixture (subprocess-level interceptor) ─────────────
+from tests.fixtures.mock_claude_api import MockClaudeAPI as _MockClaudeAPI  # noqa: E402
 
 # ── Common settings for suppressing slow-generation health checks ──────────
 # The PRD strategy is inherently composite; suppress slow/large warnings.
@@ -578,3 +581,53 @@ def mock_prd_fixture(tmp_path: Path) -> str:
         }
         tmp_mock_prd.write_text(json.dumps(mock_prd_data, indent=2))
         yield str(tmp_mock_prd)
+
+
+# ── US-1365: mock_api_repo fixture ────────────────────────────────────────────
+
+
+@pytest.fixture
+def mock_api_repo(tmp_path: Path):
+    """Fixture: tmp git repo with minimal constitution.md and prd.json + MockClaudeAPI active.
+
+    Yields:
+        Tuple of (MockClaudeAPI instance, Path to tmp repo root)
+    """
+    # Minimal git repo
+    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@spiral"],
+        check=True, capture_output=True, cwd=str(tmp_path)
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"],
+        check=True, capture_output=True, cwd=str(tmp_path)
+    )
+
+    # Minimal constitution.md
+    (tmp_path / "constitution.md").write_text(
+        "# Constitution\n\n## Core Invariants\n- Test only\n",
+        encoding="utf-8",
+    )
+
+    # Minimal prd.json
+    prd: dict[str, Any] = {
+        "schemaVersion": 1,
+        "productName": "MockRepo",
+        "branchName": "main",
+        "userStories": [
+            {
+                "id": "US-001",
+                "title": "Mock story",
+                "priority": "high",
+                "description": "For testing",
+                "acceptanceCriteria": ["It works"],
+                "dependencies": [],
+                "passes": False,
+            }
+        ],
+    }
+    (tmp_path / "prd.json").write_text(json.dumps(prd, indent=2), encoding="utf-8")
+
+    with _MockClaudeAPI() as mock_api:
+        yield mock_api, tmp_path

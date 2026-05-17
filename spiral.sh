@@ -114,6 +114,7 @@ SPIRAL_CLI_FOCUS=""                          # explicit --focus override
 SPIRAL_FOCUS_TAGS=""                         # comma-separated tags filter (--focus-tags)
 TIME_LIMIT_MINS=0                            # 0 = no limit; >0 = stop after N minutes (--time-limit or --until)
 DRY_RUN=0                                    # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
+MOCK_API=0                                   # 1 = export SPIRAL_MOCK_API=1 for test interception of Claude CLI calls
 SKIP_CONFLICT_PREFLIGHT=0                    # 1 = bypass pre-flight cross-story conflict detection (--skip-conflict-preflight)
 ALLOW_UNSAFE_STORIES=0                       # 1 = log injection warnings but do not block stories (--allow-unsafe-stories)
 ALLOW_EXEC_WRITES=0                          # 1 = allow LLM to write executable files outside src/ and tests/ (--allow-exec-writes)
@@ -269,6 +270,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dry-run)
       DRY_RUN=1
+      shift
+      ;;
+    --mock-api)
+      MOCK_API=1
       shift
       ;;
     --skip-conflict-preflight)
@@ -962,6 +967,9 @@ validate_config() {
   echo "[config] OK — SPIRAL_PYTHON=$SPIRAL_PYTHON SPIRAL_VALIDATE_CMD=$SPIRAL_VALIDATE_CMD"
 }
 validate_config
+
+# ── --mock-api: export SPIRAL_MOCK_API before phase loop ─────────────────────
+[[ "$MOCK_API" -eq 1 ]] && export SPIRAL_MOCK_API=1
 
 # ── US-264: Startup env var schema validation ─────────────────────────────────
 # Reads env_schema.json, validates all SPIRAL env vars, prints colour-coded
