@@ -30,6 +30,7 @@ from llm_models import ResearchOutput, log_validation_error
 from merge_results_tsv import HEADER as RESULTS_HEADER
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
+from story_compatibility import CompatibilityMatrix
 from story_helpers import priority_key
 from txn_journal import TxnJournal
 
@@ -721,6 +722,19 @@ def main() -> int:
 
     # ── US-1180: Build token index once for all candidate loops (O(n) not O(n²)) ──
     token_index: dict[str, set[str]] = _build_token_index(seen_titles)
+
+    # ── US-1363: Story compatibility matrix for safe parallel batching ───────────
+    try:
+        compatibility = CompatibilityMatrix(existing_stories)
+        compatibility.validate_dag()
+        batches = compatibility.suggest_batches()
+        if batches:
+            batch_strs = [f"[{','.join(b)}]" for b in batches]
+            print(f"[merge] Compatibility matrix: {len(batches)} independent batch(es) suggested")
+            for i, batch in enumerate(batches):
+                print(f"[merge]   Batch {i + 1}: {len(batch)} story/stories")
+    except ValueError as e:
+        print(f"[merge] WARNING: Dependency validation failed: {e}")
 
     # ── Tag test candidates with source if not already set ────────────────────
     for story in test_candidates:
