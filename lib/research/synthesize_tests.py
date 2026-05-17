@@ -27,6 +27,13 @@ except ImportError:
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from flaky_detector import is_flaky_test
+
+try:
+    from test_classifier import classify_test_failure as _classify_failure
+
+    _HAS_CLASSIFIER = True
+except ImportError:
+    _HAS_CLASSIFIER = False
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
 from test_failure_clustering import cluster_failures
@@ -253,7 +260,7 @@ def result_to_story(result: dict[str, Any], repo_root: str | None = None) -> dic
         if source:
             tech_notes.append(f"Failing test source:\n```python\n{source}\n```")
 
-    return {
+    story: dict[str, Any] = {
         "title": title,
         "priority": priority,
         "description": (
@@ -267,6 +274,16 @@ def result_to_story(result: dict[str, Any], repo_root: str | None = None) -> dic
         "estimatedComplexity": "small",
         "_source": f"test-synthesis:{test_id}",
     }
+
+    # US-1337: Enrich stories with root cause classification and remediation hint
+    if _HAS_CLASSIFIER:
+        snippet = error.get("message") or error.get("type") or ""
+        if snippet:
+            classification = _classify_failure(snippet)
+            story["_rootCause"] = classification["type"]
+            story["_hint"] = classification["hint"]
+
+    return story
 
 
 def _filter_none(d: dict[str, Any]) -> dict[str, Any]:

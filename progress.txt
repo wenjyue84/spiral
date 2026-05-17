@@ -1658,3 +1658,26 @@ FAILED file-gate: WhatsApp notification plugin: Post-iteration summary with pass
 ## Iteration 2 - Mon, May 18, 2026  4:46:02 AM
 FAILED file-gate: CLI: spiral workers kill <worker-id> with safe resource cleanup (ID: US-1336) — no feature code written — attempt 1/3
 
+
+
+## Iteration N - Story: US-1337 - Phase T: Test Failure Classification with Root Cause and Remediation Hint
+
+### What was implemented
+- Created lib/test_classifier.py with classify_test_failure(snippet) returning {type, hint} dict
+  - Classifies: import_error, assertion_failure, syntax_error, timeout, environment_error
+  - Extracts specific details (e.g., missing module name) for actionable hints
+  - CLI mode: python lib/test_classifier.py --classify failures.jsonl
+- Created tests/test_phase_t.py with 7 tests including required test_classify_import_error
+- Modified lib/research/synthesize_tests.py to enrich stories with _rootCause and _hint fields
+  - Uses try/except import guard so it degrades gracefully if classifier unavailable
+
+### Patterns discovered
+- synthesize_tests.py uses sys.path.insert to import local modules; follow the same pattern for new imports
+- Guard new feature imports with try/except + _HAS_X flag to avoid breaking Phase T if module missing
+- result_to_story() is the right place to add _rootCause and _hint enrichment
+
+### Acceptance criteria met
+- [x] Phase T classifies each failure snippet by regex patterns (ImportError → import_error, etc.)
+- [x] classify_test_failure returns {type, hint} dict for all 5 error types
+- [x] Stories from Phase T failures include _rootCause and _hint fields
+- [x] uv run pytest tests/test_phase_t.py::test_classify_import_error -v passes
