@@ -3006,7 +3006,8 @@
       "last_attempted": "2026-05-17T21:23:44Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe test `test_us_1211_crash_recovery` is already fully implemented and passes all acceptance criteria. However, there are two unused `# type: ignore` comments causing mypy strict errors.\n\n## Problem Identified\nTwo `# type: ignore` comments at lines 232 and 238 are unused and must be removed for mypy compliance.\n\n## Planned Changes\n- Remove unused `# type: ignore` comments from lines 232 and 238\n- Mark story US-1362 as `passes: true` in prd.json\n- Verify all checks pass\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_spiral_e2e_integration.py\", \"prd.json\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\nNow let me update prd.json to mark US-1362 as passing:\nPerfect! **Story US-1362 is now complete**. Here's the summary:\n\n## Summary"
-      }
+      },
+      "_passedCommit": "810133d440a1b1e5ce6f63667801624dd803a745"
     },
     {
       "id": "US-1363",
@@ -3026,8 +3027,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-05-17T21:30:10Z"
     },
     {
       "id": "US-1364",
