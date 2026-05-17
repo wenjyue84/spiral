@@ -277,3 +277,43 @@ This is a frontend testing story for a React component, not a Frappe/Python task
 *   Ensure proper test isolation. Reset mocks and restore real timers (`vi.useRealTimers()`) in an `afterEach` block to prevent tests from interfering with each other.
 *   The component's retry logic might have a maximum number of attempts or a cap on the delay; the test should account for this.
 
+## Iteration 2 - Mon, May 18, 2026  7:32:38 AM
+Completed: [Test] HealthWidget: polling interval, exponential back-off, and no sensitive data in output (ID: US-1381) in 7m
+
+## Iteration N+1 - Sun, May 18, 2026 - Story US-1382 Completed
+Completed: [Integration Test] Federated PRD Merge with Namespace Isolation and Collision Detection (ID: US-1382) in ~8m
+
+### What was implemented
+- Created comprehensive integration tests for federated PRD merge functionality
+  - tests/test_federation_merge_integration.py with 4 test cases covering:
+    1. **Namespace isolation**: Main and sub-project stories with identical IDs coexist without collision (main:US-001 vs sub_project:US-001)
+    2. **Collision detection**: Multiple sub-projects with same IDs are properly namespaced (sub_project_a:US-100 vs sub_project_b:US-100)
+    3. **Field preservation**: All story fields survive merge (title, acceptanceCriteria, filesTouch, _source, _decomposed, priority, estimatedComplexity, dependencies, technicalNotes)
+    4. **Nested includes**: Complex multi-level includes (main → sub_a → sub_b) with proper cascading namespacing
+
+- Created test fixtures with realistic federated PRD structure:
+  - tests/fixtures/main_prd.json: Main project (US-001/002/003) with prd.include directive
+  - tests/fixtures/sub_project_prd.json: Sub-project (US-001/002/003) with identical story IDs for testing namespace isolation
+
+### Key Patterns Discovered
+- Namespace extraction from filename: "sub_project_web_prd.json" → "sub_project_web" prefix
+- Story ID collision prevention via namespace prefixing: same canonical ID becomes "namespace:US-001"
+- load_with_includes() function in merge_stories.py handles circular include detection automatically
+- Nested includes are processed recursively with namespace prefixes accumulated through levels
+
+### Acceptance Criteria Met
+- [x] Test creates main prd.json (US-001/002/003) + sub_project/prd.json (US-001/002/003) with prd.include field
+- [x] Merged prd.json contains unique story IDs: main-US-001, subproj-US-001; detects and prevents collisions
+- [x] Verify all story fields preserved: title, acceptanceCriteria, filesTouch, _source, _decomposed (no data loss or truncation)
+
+### Test Results
+- All 4 tests passing: test_namespace_isolation_main_and_subproject, test_collision_detection_same_namespace, test_story_field_preservation_on_merge, test_federation_merge_with_complex_includes
+- MyPy strict mode: Success (no type errors)
+- Pre-commit checks: All passing (ruff, shellcheck, shfmt, formatting)
+- 0 regressions: All existing federation tests (test_federated_prd.py) still passing
+
+### Implementation Notes
+- Tests use load_with_includes() directly (not Phase M merge_stories.py main() function) as it's the integration point for federation
+- Test fixtures use realistic story data with complete required fields
+- Tests verify field-by-field preservation for critical properties (acceptanceCriteria, filesTouch, dependencies, etc.)
+- Custom pytest mark used (federation_integration) for easy filtering of federation tests
