@@ -7007,3 +7007,25 @@
 {"ts": "2026-05-17T23:18:49.887120+00:00", "type": "route_story_assigned", "story_id": "US-1380", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-05-17T23:18:49.887427+00:00", "type": "route_story_assigned", "story_id": "US-1381", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-05-17T23:18:49.887741+00:00", "type": "route_story_assigned", "story_id": "US-1382", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-05-17T23:39:31.813776+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1456\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"timestamp": "2026-05-17T23:42:47.791327+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Phase S: Validate Story Acceptance Criteria Completeness and Quality Score", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-05-17T23:42:47.791948+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "CLI: spiral federation --export to Generate Federated PRD Composition Report", "rejection_reason": "too_simple: only 0 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-05-17T23:42:47.792317+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "spiral-ui: Model Escalation Heatmap Component on Dashboard", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-05-17T23:42:47.792634+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Phase G: CHANGELOG Deduplication to Skip Already-Committed Stories on Regeneration", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"ts": "2026-05-17T23:45:59.326204+00:00", "type": "route_story_assigned", "story_id": "US-1370", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.326615+00:00", "type": "route_story_assigned", "story_id": "US-1334", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.326948+00:00", "type": "route_story_assigned", "story_id": "US-1340", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.327269+00:00", "type": "route_story_assigned", "story_id": "US-1341", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.327585+00:00", "type": "route_story_assigned", "story_id": "US-1348", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.327899+00:00", "type": "route_story_assigned", "story_id": "US-1349", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.328213+00:00", "type": "route_story_assigned", "story_id": "US-1350", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.328523+00:00", "type": "route_story_assigned", "story_id": "US-1351", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.328833+00:00", "type": "route_story_assigned", "story_id": "US-1352", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.329144+00:00", "type": "route_story_assigned", "story_id": "US-1354", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.329456+00:00", "type": "route_story_assigned", "story_id": "US-1355", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.329768+00:00", "type": "route_story_assigned", "story_id": "US-1356", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.330106+00:00", "type": "route_story_assigned", "story_id": "US-1357", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.330420+00:00", "type": "route_story_assigned", "story_id": "US-1377", "complexity_score": 85, "model_tier": "opus", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.330731+00:00", "type": "route_story_assigned", "story_id": "US-1378", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.331043+00:00", "type": "route_story_assigned", "story_id": "US-1379", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-17T23:45:59.331355+00:00", "type": "route_story_assigned", "story_id": "US-1383", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
