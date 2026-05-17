@@ -1683,3 +1683,47 @@ FAILED file-gate: CLI: spiral workers kill <worker-id> with safe resource cleanu
 - [x] uv run pytest tests/test_phase_t.py::test_classify_import_error -v passes
 ## Iteration 2 - Mon, May 18, 2026  5:08:54 AM
 Completed: Phase T: Test Failure Classification with Root Cause and Remediation Hint (ID: US-1337) in 6m
+
+## Iteration N - Story: US-1361 - spiral-ui Backend: GET /api/iterations/<iter>/detail endpoint with metrics
+
+### What was implemented
+- Created `lib/iteration_detail_aggregator.py` with `aggregate_iteration_metrics()` function that:
+  - Parses results.tsv and spiral_events.jsonl for a target iteration
+  - Extracts story metrics: status, model, retries, tokens_used, duration
+  - Calculates phase timing and story counts per phase
+  - Computes total cost in USD based on token counts and model rates
+  - Supports optional filtering by status (passed/failed/skipped) and worker ID
+  - Returns structured JSON with iteration analytics
+
+- Added GET `/api/iterations/:iter/detail` REST endpoint in `spiral-ui/server.ts`:
+  - Accepts iteration number as URL parameter
+  - Supports query parameters: ?status=... and ?worker=...
+  - Implements 60-second in-memory TTL cache with automatic cleanup
+  - Calls Python aggregator via subprocess with proper argument passing
+  - Returns JSON with full iteration metrics and phase breakdown
+  - Handles errors gracefully with 500 response
+
+- Created `tests/test_iterations_api.py` with comprehensive test coverage:
+  - `test_get_iteration_detail_aggregates_metrics`: Validates end-to-end aggregation with TSV/JSONL parsing
+  - `test_filter_by_status`: Verifies status filtering works correctly
+  - `test_empty_files`: Confirms graceful handling of missing/empty files
+  - `test_cost_estimation_by_model`: Validates cost calculations for different models
+
+### Patterns discovered
+- Python subprocess execution in TypeScript: Use execSync with timeout and proper path handling
+- TSV parsing pattern: Use csv.DictReader with encoding='utf-8' and \t delimiter
+- JSONL event parsing: Handle malformed JSON gracefully with try/except blocks
+- Cost estimation reuses existing formulas from lib/spiral/dashboard/aggregator.py (haiku: $0.25/1M, sonnet: $3.0/1M, opus: $15/1M)
+
+### Acceptance criteria met
+- [x] Aggregates results.tsv and spiral_events.jsonl for target iteration
+- [x] Returns JSON with: iteration number, totalTime_ms, totalCost_usd, stories array (id, status, model, retries, tokens_used), phases array (name, duration_ms, story_count)
+- [x] Supports query params: ?status=passed|failed|skipped and ?worker=1|2|3
+- [x] Implements 60s TTL in-memory cache for <300ms response time on 50-story iterations
+- [x] Test command passes: uv run pytest tests/test_iterations_api.py::test_get_iteration_detail_aggregates_metrics -v
+
+### Total changes
+- New files: 2 (lib/iteration_detail_aggregator.py: 221 lines, tests/test_iterations_api.py: 303 lines)
+- Modified files: 1 (spiral-ui/server.ts: +76 lines for endpoint)
+- Total: 600 lines added (net 565 after cleanup)
+
