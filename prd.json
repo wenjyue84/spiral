@@ -4279,7 +4279,11 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-05-18T13:31:35Z"
+      "last_attempted": "2026-05-18T13:46:24Z",
+      "_failureReason": "oversized_diff: produced 2236 lines but limit is 800. Keep total insertions+deletions under 800 lines.",
+      "_antiPatterns": [
+        "oversized_diff: produced 2236 lines but limit is 800. Keep total insertions+deletions under 800 lines."
+      ]
     },
     {
       "id": "US-1413",
