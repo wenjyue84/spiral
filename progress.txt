@@ -1201,3 +1201,77 @@ This story involves creating a static HTML documentation page, not modifying a F
 ### Gotchas
 - Previous attempt (haiku) failed — reason not recorded. Sonnet attempt succeeded cleanly.
 - Term count exactly 17 satisfies ">=17" criteria
+## Iteration 9 - Mon, May 18, 2026 10:12:03 AM
+Completed: Fill html/pages/08-glossary.html — define every SPIRAL term in one place (ID: US-1351) in 2m
+
+
+## Pre-analysis for US-1352 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-1352.
+
+***
+
+**Subject: Technical Brief for US-1352: HTML Troubleshooting Page**
+
+**Project Context:** This is a static HTML and JavaScript task. It does not involve Python or the Frappe framework.
+
+**1. Files to Modify:**
+*   **Primary Target:** `html/pages/09-troubleshooting.html`
+*   **Content Source:** Read and parse troubleshooting sections from the `SKILL.md` file.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This task is confined to the static `html/` directory.
+
+**3. Implementation Approach:**
+*   Structure `09-troubleshooting.html` with three main sections using `<h2>` headers.
+*   **Section 1 (Known Issues):** Convert the "Symptom / Cause / Fix" data from `SKILL.md` into an HTML `<table>`. Initialize `simple-datatables` on this table to make it searchable.
+*   **Section 2 (Exit Codes):** Create a static HTML `<table>` listing all specified exit codes and their descriptions as found in the source file.
+*   **Section 3 (Crash Recovery):** Replicate the "Crash Recovery & Reliability" table from `SKILL.md` into a standard HTML `<table>`.
+*   **Feedback Widget:** Add a simple widget with "thumbs up/down" buttons. Use a `<script>` tag to add event listeners that update a vote counter in `window.localStorage`.
+
+**4. Edge Cases & Gotchas:**
+*   **Markdown to HTML:** The content in `SKILL.md` is in Markdown format; it must be manually translated into HTML `<table>` syntax.
+*   **Datatables:** Verify that the `simple-datatables` CSS and JS assets are properly linked and that the script is initialized correctly for the table in section 1.
+*   **LocalStorage:** Ensure the feedback widget script gracefully handles being clicked multiple times and that the vote count persists across page reloads.
+
+
+## Iteration N+8 - Sun, May 18, 2026 - Story US-1352 Completed
+Completed: Fill html/pages/09-troubleshooting.html with known issues, exit codes, and recovery (ID: US-1352) in ~15m
+
+### What was implemented
+- Created comprehensive troubleshooting page with three sections:
+  - Section 1: 20 searchable issues (Symptom/Cause/Fix) with simple-datatables v9 live search
+  - Section 2: 16 exit codes (0-15, 130) reference table with meanings from SKILL.md
+  - Section 3: 16 crash recovery scenarios with auto-healing mechanisms
+
+- Implemented interactive feedback widget:
+  - Thumbs up/down buttons (👍👎) for helpfulness voting
+  - localStorage-based vote persistence (no backend required)
+  - Vote count display with auto-pluralization
+  - Active button state styling for user feedback
+
+- Integrated with existing SPIRAL documentation system:
+  - Styled consistently with config.html and cli-reference.html
+  - Uses CSS variables for theme support (dark/light mode)
+  - Follows sidebar navigation and page layout patterns
+  - Responsive table design with hover effects
+
+### Key Patterns Discovered
+- simple-datatables v9 configuration: perPage, search layout, bottom pager
+- localStorage API for persistent widget state (key structure: 'storageKey' + '_total')
+- CSS classes .issue-code for monospace exit code styling
+- Feedback button toggle pattern: check savedVote, add/remove .active class
+
+### Acceptance Criteria Met
+- [x] Section 1 has searchable table with 20 rows (>= 15 minimum) with Symptom/Cause/Fix columns
+- [x] Section 2 lists all exit codes 0, 2-15, 130 with complete descriptions from SKILL.md
+- [x] Section 3 mirrors all 16 crash recovery scenarios from SKILL.md
+- [x] Feedback widget with thumbs up/down buttons records vote count to localStorage
+
+### Testing
+- HTML structure verified: 3 sections, 20+16+16 table rows, feedback widget present
+- simple-datatables v9 initialized on #issuesTable with search box and pagination
+- localStorage vote persistence tested (vote tracked, count increments)
+- Pre-commit checks passed (whitespace, EOF fixes)
+- All 16 exit codes present (0, 2-15, 130)
+- All 20 issues extracted from SKILL.md Troubleshooting section
+
