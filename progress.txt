@@ -459,3 +459,79 @@ This brief outlines the implementation for creating a `/api/costs/breakdown` end
 *   **Zero Division:** When calculating the `spend_rate_per_story`, protect against a `ZeroDivisionError` in case the story count is zero.
 *   **Path Resolution:** The path to `results.tsv` must be correctly resolved relative to the application's runtime location.
 
+## Iteration 1 - Mon, May 18, 2026  8:15:42 AM
+Completed: spiral-ui: Add TestsTab component with Phase V pass/fail timeline (ID: US-1340) in 10m
+
+
+## Pre-analysis for US-1384 (Gemini 2.5 Pro)
+Here is the technical brief for the development agent:
+
+**Subject: Technical Brief for US-1384: API Endpoint for Cost Breakdown**
+
+This brief outlines the implementation for creating a `/api/costs/breakdown` endpoint in the `spiral-ui` Python backend.
+
+**1. Python Files to Modify/Create:**
+
+*   **Create:** `spiral-ui-backend/routes/costs.py` - This new file will contain the parsing logic and the API endpoint definition.
+*   **Create:** `tests/test_costs_api.py` - A new test file to validate the functionality.
+*   **Modify:** `spiral-ui-backend/app.py` - To import and register the new `costs` API router.
+
+**2. Frappe DocTypes / Hooks Involved:**
+
+*   This story does not involve Frappe. It targets a standalone Python web application (likely FastAPI or Flask).
+*   The primary component is a new REST API endpoint: `GET /api/costs/breakdown`.
+
+**3. Recommended Implementation Approach:**
+
+1.  In `spiral-ui-backend/routes/costs.py`, define a new router/blueprint.
+2.  Create a core function `parse_costs_from_results_tsv(path)` that reads the `results.tsv` file using Python's `csv` module (with `delimiter='\t'`).
+3.  This function should iterate through the TSV, summing up token and USD costs for each unique phase, and return a dictionary.
+4.  Define the `GET /api/costs/breakdown` route. It will call the parsing function and structure the response to include `phases`, `total_tokens`, `total_cost_usd`, and other required metrics as per the acceptance criteria.
+5.  In `spiral-ui-backend/app.py`, import the newly created router and register it with the main application instance.
+6.  In `tests/test_costs_api.py`, add specific unit tests for `parse_costs_from_results_tsv` using a mock TSV string, and another test to verify the endpoint's JSON response.
+
+**4. Edge Cases & Gotchas to Watch For:**
+
+*   **File Handling:** The implementation must be resilient. If `results.tsv` is missing, empty, or corrupted, the endpoint should not crash but return a valid default state (e.g., empty lists/zero values), as specified in the acceptance criteria.
+*   **Data Integrity:** Ensure robust type conversion for numeric data (costs, tokens) read from the TSV to prevent errors during calculations.
+*   **Zero Division:** When calculating the `spend_rate_per_story`, protect against a `ZeroDivisionError` in case the story count is zero.
+*   **Path Resolution:** The path to `results.tsv` must be correctly resolved relative to the application's runtime location.
+
+
+## Iteration 1 - Sun, May 18, 2026 - Story US-1384 Completed
+Completed: spiral-ui: Add /api/costs/breakdown endpoint parsing results.tsv (ID: US-1384) in ~3m
+
+### What was implemented
+- Verified existing implementation of `/api/costs/breakdown` endpoint in lib/dashboard/api.py
+  - GET endpoint returns JSON with: phases, total_tokens, total_cost_usd, spend_rate_per_story, iteration_count
+  - Parses results.tsv using parse_costs_from_results_tsv() from lib/dashboard/routes/costs.py
+  - Gracefully handles missing/empty/malformed results.tsv files (returns defaults)
+
+- Verified parse_costs_from_results_tsv() function implementation in lib/dashboard/routes/costs.py
+  - Parses TSV with tab delimiter
+  - Extracts cache_read_tokens, cache_creation_tokens, review_tokens columns
+  - Computes cost using model-specific token rates (haiku: 2.5e-7, sonnet: 3e-6, opus: 1.5e-5)
+  - Tracks unique spiral_iter values for iteration count
+  - Returns empty/zero values for missing/invalid files without raising exceptions
+
+- Verified comprehensive test coverage in tests/test_costs_api.py
+  - TestParseCostsFromResultsTsv: 5 tests covering valid data, empty files, missing files, malformed columns, non-numeric values
+  - TestCostsBreakdownEndpoint: 2 tests covering endpoint structure and response consistency
+  - All 7 tests passing (100% success)
+
+### Key Patterns Discovered
+- FastAPI application at lib/dashboard/api.py (not spiral-ui-backend/app.py as story suggested)
+- parse_costs_from_results_tsv() returns dict with phases={} since results.tsv lacks phase column
+- Cost calculated as (tokens / 1000) * rate, where rate varies by model
+- Spend rate per story = total_cost_usd / story_count (protected against zero division)
+
+### Acceptance Criteria Met
+- [x] GET /api/costs/breakdown returns JSON with required keys: phases, total_tokens, total_cost_usd, spend_rate_per_story, iteration_count
+- [x] parse_costs_from_results_tsv() handles missing/empty results.tsv without raising exceptions
+- [x] Endpoint registered in lib/dashboard/api.py (grep -q 'costs' exits 0)
+- [x] Tests pass: uv run pytest tests/test_costs_api.py -v (7/7 passing)
+
+### Testing
+- All 7 tests in test_costs_api.py passing (100% success)
+- MyPy strict type checking: Success (no type errors)
+- Pre-commit checks ready (no changes to lint-critical files)
