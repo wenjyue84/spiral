@@ -233,3 +233,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T11:12:54Z	16	1	US-1409	[Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365	reject	501	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-18T11:15:55Z	16	2	US-1409	[Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365	keep	144	sonnet	1	d51a231c7b4f1e437fe7ea46902dd661ec0e8053	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-18T11:20:39Z	16	3	US-1410	[Security Test] 06-configuration.html: verify no secret values rendered in config reference page	keep	259	haiku	0	a92d839725c9ba06f7d250e0ed79fbabd2bd5480	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-18T11:24:02Z	16	4	US-1414	Create MockClaudeAPI class with response injection and failure simulation	reject	199	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				

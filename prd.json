@@ -4210,7 +4210,16 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-05-18T11:24:04Z"
+      "last_attempted": "2026-05-18T11:24:04Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n`tests/fixtures/mock_claude_api.py` already contains a complete `MockClaudeAPI` class with `inject_response()`, `inject_failure()`, context manager support, and `crash_then_succeed()`. `tests/test_mock_claude_api.py` already contains 12 tests covering all acceptance criteria.\n\n## Problem Identified\nThe previous attempt failed only because the diagnosis block was missing — not due to implementation issues. All 12 tests already pass (confirmed above: `12 passed`).\n\n## Planned Changes\n- No code changes needed — implementation is already complete and passing\n- Update `prd.json` to mark US-1414 as `passes: true` and remove `_skipped: true`\n- Append to `progress.txt`\n- Commit\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\", \"progress.txt\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nAll 12 tests pass. Now marking the story complete.\nStory **US-1414** is now marked `passes: true`. All 12 tests pass — the implementation was already complete from US-1365. The previous attempt failed only because the diagnosis block was missing before file edits."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 356,
+        "tokensAfterMasking": 355,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1415",
