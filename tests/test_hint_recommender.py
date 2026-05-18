@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from hint_recommender import (
     analyze_story_cohort,
     enrich_stories_with_hints,
+    get_hints,
     suggest_hints_from_history,
 )
 
@@ -277,3 +278,93 @@ class TestDecompositionSuggestion:
 
         assert hints["decomposition_suggested"] is True
         assert hints["recommended_retries"] >= 3
+
+
+class TestGetHintsFromLearningMd:
+    """Test get_hints() function that reads learning.md."""
+
+    def test_get_hints_missing_file(self, tmp_path: Path) -> None:
+        """Test that get_hints returns [] when learning.md is absent."""
+        learning_path = tmp_path / "learning.md"
+        hints = get_hints("small", str(learning_path))
+        assert hints == []
+
+    def test_get_hints_empty_file(self, tmp_path: Path) -> None:
+        """Test that get_hints returns [] for empty learning.md."""
+        learning_path = tmp_path / "learning.md"
+        learning_path.write_text("# Learning Patterns\n\n## Successful Patterns\n\n", encoding="utf-8")
+        hints = get_hints("small", str(learning_path))
+        assert hints == []
+
+    def test_get_hints_matching_band(self, tmp_path: Path) -> None:
+        """Test that get_hints returns tips matching complexity band."""
+        learning_path = tmp_path / "learning.md"
+        learning_content = """# Learning Patterns
+
+## Successful Patterns
+
+- story_id: US-100, model_used: haiku, title: small complexity fix - quick win
+- story_id: US-101, model_used: sonnet, title: medium refactoring task
+- story_id: US-102, model_used: haiku, title: small bugfix with test
+
+## Failure Recovery
+"""
+        learning_path.write_text(learning_content, encoding="utf-8")
+
+        hints = get_hints("small", str(learning_path))
+
+        # Should return 1-2 tips containing "small"
+        assert len(hints) <= 2
+        assert len(hints) > 0
+        assert all("small" in hint.lower() for hint in hints)
+
+    def test_get_hints_no_matching_band(self, tmp_path: Path) -> None:
+        """Test that get_hints returns [] when no tips match band."""
+        learning_path = tmp_path / "learning.md"
+        learning_content = """# Learning Patterns
+
+## Successful Patterns
+
+- story_id: US-100, model_used: haiku, title: large scale refactoring
+- story_id: US-101, model_used: sonnet, title: medium complexity enhancement
+
+## Failure Recovery
+"""
+        learning_path.write_text(learning_content, encoding="utf-8")
+
+        hints = get_hints("small", str(learning_path))
+
+        # Should return [] since no tips mention "small"
+        assert hints == []
+
+    def test_get_hints_max_two_tips(self, tmp_path: Path) -> None:
+        """Test that get_hints returns at most 2 tips."""
+        learning_path = tmp_path / "learning.md"
+        learning_content = """# Learning Patterns
+
+## Successful Patterns
+
+- story_id: US-100, model_used: haiku, title: small fix 1
+- story_id: US-101, model_used: sonnet, title: small fix 2
+- story_id: US-102, model_used: haiku, title: small fix 3
+- story_id: US-103, model_used: sonnet, title: small fix 4
+
+## Failure Recovery
+"""
+        learning_path.write_text(learning_content, encoding="utf-8")
+
+        hints = get_hints("small", str(learning_path))
+
+        # Should return at most 2 tips
+        assert len(hints) <= 2
+
+    def test_get_hints_invalid_file(self, tmp_path: Path) -> None:
+        """Test that get_hints gracefully handles invalid encoding."""
+        learning_path = tmp_path / "learning.md"
+        # Write invalid UTF-8
+        learning_path.write_bytes(b"\x80\x81\x82")
+
+        hints = get_hints("small", str(learning_path))
+
+        # Should return [] on encoding error
+        assert hints == []

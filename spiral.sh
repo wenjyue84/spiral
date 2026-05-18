@@ -1324,6 +1324,7 @@ source "$SPIRAL_HOME/lib/phases/phase_0_clarify.sh"
 source "$SPIRAL_HOME/lib/phases/phase_m_merge.sh"
 source "$SPIRAL_HOME/lib/phases/phase_i_implement.sh"
 source "$SPIRAL_HOME/lib/phases/phase_v_validate.sh"
+source "$SPIRAL_HOME/lib/phases/phase_l.sh"
 source "$SPIRAL_HOME/lib/phases/phase_p_push.sh"
 source "$SPIRAL_HOME/lib/phases/phase_c_check_done.sh"
 source "$SPIRAL_HOME/lib/phases/phase_l_learn.sh"
@@ -1875,6 +1876,10 @@ PYEOF
   fi
 
   safe_phase run_phase_validate || continue
+
+  if [[ "${SPIRAL_EPISODIC_MEMORY:-false}" == "true" ]]; then
+    safe_phase run_phase_learn || true
+  fi
 
   run_phase_push
 

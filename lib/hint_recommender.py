@@ -171,6 +171,59 @@ def enrich_stories_with_hints(stories: list[dict[str, Any]], results: list[dict[
     return enriched
 
 
+def get_hints(complexity_band: str, learning_md_path: str = ".spiral/learning.md") -> list[str]:
+    """
+    Extract tips from learning.md for a given complexity band.
+
+    Reads learning.md and returns 1-2 matching tips for the complexity band.
+    Returns empty list if learning.md is absent or doesn't contain matching tips.
+
+    Args:
+        complexity_band: Complexity band (small, medium, large)
+        learning_md_path: Path to learning.md (default: .spiral/learning.md)
+
+    Returns:
+        List of 0-2 tip strings matching the complexity band
+    """
+    from pathlib import Path
+
+    learning_path = Path(learning_md_path)
+    if not learning_path.exists():
+        return []
+
+    try:
+        content = learning_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+
+    # Extract pattern entries from successful patterns section
+    tips: list[str] = []
+
+    # Look for entries like: "- story_id: US-XXX, model_used: haiku, title: ..."
+    # Filter by complexity band if encoded in title
+    lines = content.split("\n")
+    in_successful_patterns = False
+
+    for line in lines:
+        if "## Successful Patterns" in line:
+            in_successful_patterns = True
+            continue
+        if line.startswith("##") and in_successful_patterns:
+            # Reached next section
+            break
+
+        if in_successful_patterns and line.strip().startswith("-"):
+            # This is a pattern entry
+            # Extract relevant info (title usually contains complexity hints)
+            if complexity_band.lower() in line.lower():
+                # Complexity band found in the entry
+                tips.append(line.strip()[2:])  # Remove "- " prefix
+                if len(tips) >= 2:
+                    break
+
+    return tips
+
+
 def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Analyze story attempt history and recommend hints for implementation")
