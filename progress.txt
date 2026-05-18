@@ -1169,3 +1169,26 @@ Completed: [Security Test] Auth/permission integration test for US-1371 MockClau
 ## Iteration 1 - Tue, May 19, 2026  2:33:43 AM
 Completed: [Security Test] HealthWidget /api/health endpoint auth/permission checks (ID: US-1440) in 7m
 
+
+## Iteration [N] - Story: US-1441 Phase R research cache invalidation integration test
+
+### What was implemented
+- Added 7 functions to `lib/phase_r_cache.py` for story-level cache management:
+  - `cache_key_from_story`: sha256(title) → stable cache key
+  - `check_cache_validity`: compares title hash; returns False if invalidated_at present
+  - `cache_story_research`: writes entry to `.spiral/research_cache.json` with title hash
+  - `invalidate_story_cache_if_stale`: marks stale entries (same story_id, diff hash) with invalidated_at
+  - Internal helpers: `_get_story_cache_file`, `_load_story_cache`, `_save_story_cache`
+- Created `tests/integration/test_phase_r_cache_invalidation.py` with 4 tests
+  - Primary: `test_cache_invalidated_on_title_change` covers AC1+AC2 end-to-end
+
+### Patterns discovered
+- Story-level cache (research_cache.json) is separate from query-level cache (research-cache/*.json)
+- `cache_path` param allows tests to use tmp_path without env var hacks
+- Pre-existing mypy errors in 9 lib files do not block new clean code
+
+### Acceptance criteria met
+- [x] AC1: title change → cache_key changes → old entry invalidated_at set
+- [x] AC2: research_cache.json contains both old (invalidated_at) and new (fresh) entries
+- [x] AC3: check_cache_validity returns False for changed title (cache miss simulation)
+- [x] uv run pytest tests/integration/test_phase_r_cache_invalidation.py::test_cache_invalidated_on_title_change -v -s → PASSED

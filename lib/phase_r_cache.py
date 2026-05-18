@@ -162,3 +162,145 @@ def clear_cache() -> int:
             pass
 
     return count
+
+
+# ---------------------------------------------------------------------------
+# Story-level cache: tracks research by story title hash for invalidation
+# ---------------------------------------------------------------------------
+
+
+def cache_key_from_story(story: dict[str, Any]) -> str:
+    """Generate a stable cache key from story title using sha256.
+
+    Args:
+        story: Story dict with 'title' key
+
+    Returns:
+        sha256 hex digest of the story title
+    """
+    title = story.get("title", "")
+    return hashlib.sha256(title.encode("utf-8")).hexdigest()
+
+
+def _get_story_cache_file(cache_path: str | None = None) -> Path:
+    """Get the story-level research_cache.json file path."""
+    if cache_path:
+        p = Path(cache_path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return p
+    cache_dir = Path(os.environ.get("SPIRAL_HOME", ".spiral"))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir / "research_cache.json"
+
+
+def _load_story_cache(cache_path: str | None = None) -> dict[str, Any]:
+    """Load the story-level research cache from disk."""
+    cache_file = _get_story_cache_file(cache_path)
+    if not cache_file.exists():
+        return {}
+    try:
+        with open(cache_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_story_cache(cache: dict[str, Any], cache_path: str | None = None) -> None:
+    """Save the story-level research cache atomically."""
+    cache_file = _get_story_cache_file(cache_path)
+    temp_file = cache_file.parent / f"{cache_file.name}.tmp"
+    try:
+        with open(temp_file, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=2)
+        if cache_file.exists():
+            cache_file.unlink()
+        temp_file.rename(cache_file)
+    except OSError:
+        if temp_file.exists():
+            try:
+                temp_file.unlink()
+            except OSError:
+                pass
+
+
+def check_cache_validity(story: dict[str, Any], cache_data: dict[str, Any]) -> bool:
+    """Check if a cache entry is still valid for the current story.
+
+    Compares the sha256 hash of the current story title against the hash
+    stored in the cache entry. Returns False if the title has changed or
+    the entry was previously invalidated.
+
+    Args:
+        story: Current story dict (must have 'title' key)
+        cache_data: Cache entry dict (must have 'story_title_hash' key)
+
+    Returns:
+        True if cache is valid (title unchanged), False if stale
+    """
+    if "invalidated_at" in cache_data:
+        return False
+    current_hash = cache_key_from_story(story)
+    return cache_data.get("story_title_hash") == current_hash
+
+
+def cache_story_research(
+    story: dict[str, Any],
+    results: dict[str, Any],
+    cache_path: str | None = None,
+) -> str:
+    """Cache research results for a story with title hash for invalidation detection.
+
+    Args:
+        story: Story dict with 'id' and 'title'
+        results: Research results dict to store
+        cache_path: Optional override for cache file path (useful in tests)
+
+    Returns:
+        Cache key (title hash) used for this entry
+    """
+    title_hash = cache_key_from_story(story)
+    cache = _load_story_cache(cache_path)
+    cache[title_hash] = {
+        "story_id": story.get("id", "unknown"),
+        "story_title": story.get("title", ""),
+        "story_title_hash": title_hash,
+        "results": results,
+        "timestamp_created": _get_now_utc(),
+    }
+    _save_story_cache(cache, cache_path)
+    return title_hash
+
+
+def invalidate_story_cache_if_stale(
+    story: dict[str, Any],
+    cache_path: str | None = None,
+) -> bool:
+    """Invalidate cache entries whose story_id matches but title hash differs.
+
+    Marks stale entries with an 'invalidated_at' timestamp. Leaves valid
+    entries and already-invalidated entries untouched.
+
+    Args:
+        story: Current story dict (with updated title)
+        cache_path: Optional override for cache file path (useful in tests)
+
+    Returns:
+        True if any entries were invalidated, False otherwise
+    """
+    story_id = story.get("id", "")
+    current_hash = cache_key_from_story(story)
+    cache = _load_story_cache(cache_path)
+    invalidated = False
+    for key, entry in cache.items():
+        if (
+            isinstance(entry, dict)
+            and entry.get("story_id") == story_id
+            and key != current_hash
+            and "invalidated_at" not in entry
+        ):
+            entry["invalidated_at"] = _get_now_utc()
+            invalidated = True
+    if invalidated:
+        _save_story_cache(cache, cache_path)
+    return invalidated
