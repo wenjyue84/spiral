@@ -2641,7 +2641,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         "lib/cli_subcommands.sh",
@@ -2667,7 +2667,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -2978,7 +2978,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -3001,7 +3001,7 @@
         "US-1211"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -3022,7 +3022,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -3045,7 +3045,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -3151,7 +3151,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet"
     },
@@ -3173,7 +3173,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -3195,7 +3195,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -3218,7 +3218,7 @@
         "US-1211"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -3239,7 +3239,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -3263,7 +3263,7 @@
         "US-1210"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -3283,30 +3283,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1334",
-      "title": "CLI: Add `spiral profile-phases` command to measure and report phase execution time",
-      "priority": "low",
-      "description": "Add CLI subcommand to profile wall-clock time per phase and identify bottlenecks. Outputs sorted table: Phase | Duration | % of Total | Status. Helps product owners and developers optimize SPIRAL runtime.",
-      "acceptanceCriteria": [
-        "spiral.sh logs phase start/end timestamps to .spiral/_phase_timings.jsonl in format {phase: 'R', start_ms: <timestamp>, end_ms: <timestamp>} for each phase execution",
-        "`spiral profile-phases` reads _phase_timings.jsonl, outputs table sorted by duration descending: Phase | Duration (s) | Pct | Status; handles incomplete/missing data",
-        "Includes summary: total runtime, slowest phase, suggestion to investigate phases >30% of total time"
-      ],
-      "technicalNotes": [
-        "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
-        "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
-        "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
-      "_skipped": true,
-      "_failureReason": "Chronic timeout. Permanently skipped."
+      "last_attempted": "2026-05-17T23:46:05Z"
     },
     {
       "id": "US-1340",
@@ -3545,44 +3524,125 @@
       "model": "haiku"
     },
     {
-      "id": "US-1356",
-      "title": "SPIRAL - Route Trivial Stories to Local Ollama Before Haiku for Cost Reduction",
-      "priority": "medium",
-      "description": "Extend model routing to use local Ollama llama2 for complexity ≤ 2 stories, saving ~95% per story. Gracefully fallback to haiku if Ollama unavailable. Advances developer experience goal (cost transparency and reduction).",
+      "id": "US-1375",
+      "title": "[Integration Test] html/ scaffold: file structure and nav.js dark-mode persist",
+      "priority": "high",
+      "description": "Write integration tests verifying that the html/ scaffold created by US-1343 has the correct file structure, that index.html links to all 9 page stubs, and that nav.js dark-mode preference is written to localStorage. Tests run purely from the file system — no build step required.",
       "acceptanceCriteria": [
-        "Add SPIRAL_OLLAMA_ENABLED=true and SPIRAL_OLLAMA_URL=http://localhost:11434 to spiral.config.sh with defaults",
-        "In lib/model_routing.py, classify_complexity(story) returns score ≤ 2 → route to Ollama before haiku escalation chain",
-        "If Ollama socket unreachable, log warning and escalate to haiku without crashing; no user intervention required"
+        "All expected files exist on disk: `uv run pytest tests/test_integration_us1343.py::test_scaffold_files_exist -v`",
+        "html/index.html contains href links to all pages 01 through 09: `uv run pytest tests/test_integration_us1343.py::test_index_links_all_pages -v`",
+        "html/assets/js/nav.js source contains 'localStorage' reference for dark-mode persistence: `uv run pytest tests/test_integration_us1343.py::test_nav_js_localstorage -v`"
       ],
       "technicalNotes": [
-        "File: lib/model_routing.py (extend select_model(story, complexity) function to check SPIRAL_OLLAMA_ENABLED first)",
-        "File: spiral.config.sh (add SPIRAL_OLLAMA_ENABLED=true, SPIRAL_OLLAMA_URL=http://localhost:11434)",
-        "File: setup.sh (add 'ollama pull llama2:latest' to initialization, skip if already installed)",
-        "Test: uv run pytest tests/test_model_routing.py::test_ollama_fallback_to_haiku -v"
+        "File to edit: tests/test_integration_us1343.py (new file — create integration test module)",
+        "File to edit: html/index.html (source under test)",
+        "Test command: uv run pytest tests/test_integration_us1343.py -v",
+        "Use pathlib.Path to check file existence; parse html/index.html with Python's html.parser to extract <a href> links",
+        "Expected page filenames: 01-introduction.html through 09-troubleshooting.html"
       ],
-      "dependencies": [],
+      "dependencies": [
+        "US-1343"
+      ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
+      "_source": "test-story",
       "model": "haiku"
     },
     {
-      "id": "US-1357",
-      "title": "Phase I: error_context.sh — extract error and code snippet on Ralph failure",
-      "priority": "medium",
-      "description": "Create lib/impl/error_context.sh that parses Ralph worker stdout to extract the failing test file, line number, error message, and ±5-line code snippet. Write the structured result to .spiral/error_context/<story_id>.md.",
+      "id": "US-1376",
+      "title": "[Integration Test] html/index.html dashboard: KPI cards and progress strip data",
+      "priority": "high",
+      "description": "Write integration tests for US-1353 verifying that gen_html_data.py correctly reads prd.json and writes html/data.js with the expected KPI values, and that html/index.html embeds a 9-step progress strip and a 'Start Reading' link pointing to 01-introduction.html.",
       "acceptanceCriteria": [
-        "extract_error_context() parses Ralph stdout and outputs test_file, line_num, error_text, and a ±5-line code_snippet",
-        ".spiral/error_context/<story_id>.md is created with error classification label (syntax/type/import/timeout/oom)",
-        "bash tests/test_error_context.bats exits 0 with all cases passing"
+        "gen_html_data.py produces html/data.js with numeric fields totalPhases, totalStories, lastUpdated: `uv run pytest tests/test_gen_html_data.py::test_data_js_fields -v`",
+        "html/index.html contains an anchor with href to html/pages/01-introduction.html labeled 'Start Reading': `uv run pytest tests/test_integration_us1353.py::test_start_reading_link -v`",
+        "html/index.html contains exactly 9 progress-step elements (CSS class or data attribute): `uv run pytest tests/test_integration_us1353.py::test_nine_step_progress_strip -v`"
       ],
       "technicalNotes": [
-        "File to edit: lib/impl/error_context.sh (new file; define extract_error_context function)",
-        "File to edit: tests/test_error_context.bats (new bats test file with fixture stdout samples)",
-        "Test command: bash tests/test_error_context.bats"
+        "File to edit: tests/test_gen_html_data.py (new file — unit tests for lib/gen_html_data.py)",
+        "File to edit: tests/test_integration_us1353.py (new file — HTML structure tests)",
+        "File to edit: lib/gen_html_data.py (source under test)",
+        "Test command: uv run pytest tests/test_gen_html_data.py tests/test_integration_us1353.py -v",
+        "Use tmp_path fixture with a minimal prd.json stub (2 stories) to test gen_html_data.py in isolation",
+        "Parse html/index.html with html.parser; count elements with class containing 'step' or 'progress'"
+      ],
+      "dependencies": [
+        "US-1353"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1380",
+      "title": "[Security Test] Settings tab config save blocked without auth (US-1215)",
+      "priority": "high",
+      "description": "Write security tests confirming that the POST /api/config backend route used by the SettingsTab component (US-1215) denies unauthenticated callers and never leaks secrets in its error body. Tests mirror the similar US-1282 file structure.",
+      "acceptanceCriteria": [
+        "POST /api/config with no credentials returns 401 or 403: `uv run pytest tests/test_security_us1215.py::test_settings_save_unauthenticated -v` passes",
+        "Error body from unauthenticated POST /api/config contains no sensitive strings: `uv run pytest tests/test_security_us1215.py::test_settings_error_no_secret_leak -v` passes",
+        "GET /api/config with no credentials also returns 401 or 403: `uv run pytest tests/test_security_us1215.py::test_settings_fetch_unauthenticated -v` passes"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us1215.py (new file — create test_settings_save_unauthenticated, test_settings_error_no_secret_leak, test_settings_fetch_unauthenticated)",
+        "Test command: uv run pytest tests/test_security_us1215.py -v",
+        "Reference pattern: spiral-ui/src/components/SettingsTab.tsx calls GET /api/config on mount and POST /api/config on Save",
+        "Use same httpx or Flask test_client approach as US-1214 security test; assert status in (401, 403) for both GET and POST without auth header"
+      ],
+      "dependencies": [
+        "US-1215"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1381",
+      "title": "[Test] HealthWidget: polling interval, exponential back-off, and no sensitive data in output",
+      "priority": "high",
+      "description": "Write tests for the HealthWidget React component from US-1366. Tests verify 5-second polling of GET /api/health, correct metric rendering, exponential back-off on network errors, and that no sensitive data (tokens, keys) appears in rendered output or console.",
+      "acceptanceCriteria": [
+        "npx vitest run spiral_ui/frontend/HealthWidget.test.tsx exits 0 with polling-interval test passing using fake timers",
+        "npx vitest run spiral_ui/frontend/HealthWidget.test.tsx exits 0 with exponential back-off test passing on simulated fetch error",
+        "npx vitest run spiral_ui/frontend/HealthWidget.test.tsx exits 0 with assertion that rendered output contains no Bearer/sk- token patterns",
+        "npx vitest run spiral_ui/frontend/ exits 0 with all HealthWidget tests green"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral_ui/frontend/HealthWidget.test.tsx (create or extend — add polling, back-off, and data-leakage tests)",
+        "Test command: npx vitest run spiral_ui/frontend/HealthWidget.test.tsx",
+        "Use vi.useFakeTimers() to advance clock by 5s and assert fetch was called again without real waiting",
+        "Mock fetch to return a network error; assert retry delay doubles each attempt (1s→2s→4s)",
+        "Assert screen.queryByText(/Bearer|sk-[a-zA-Z0-9]+/) returns null after rendering with a mock /api/health response"
+      ],
+      "dependencies": [
+        "US-1366"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1382",
+      "title": "Integration Test: Federated PRD Merge with Namespace Isolation and Collision Detection",
+      "priority": "high",
+      "description": "Add regression test validating federated PRD merge correctly applies namespace prefixes, detects story ID collisions, and preserves all story data across sub-project boundaries.",
+      "acceptanceCriteria": [
+        "Test creates main prd.json (US-001/002/003) + sub_project/prd.json (US-001/002/003 with prd.include) and merges via Phase M",
+        "Merged prd.json contains unique story IDs: main-US-001, subproj-US-001; detects and rejects collisions if both have same canonical ID",
+        "Verify all story fields preserved: title, acceptanceCriteria, filesTouch, _source, _decomposed; no data loss or truncation"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_federation_merge_integration.py invoking merge_stories.py::merge_federated_prd(main_prd, includes=[sub_prd])",
+        "File to create: tests/fixtures/main_prd.json and tests/fixtures/sub_project_prd.json with prd.include field for fixture data",
+        "Test command: uv run pytest tests/test_federation_merge_integration.py::test_namespace_collision_prevention -v"
       ],
       "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
       "model": "haiku"
     }
   ]
