@@ -1512,3 +1512,29 @@ Completed: Create lib/learning_extractor.py: parse results.tsv and append to lea
 *   The implementation should not fail if `learning.md` is empty or malformed.
 *   Ensure the file paths are correct, as the project has a deep `lib/` structure.
 
+
+## Pre-analysis for US-1398 (Gemini 2.5 Pro)
+**Project:** Spiral (Self-Improving Software Development Framework)
+**Objective:** Integrate a new learning phase (Phase L) to close the feedback loop, allowing the system to learn from past successes.
+
+**1. Python & Shell Files to Modify/Create:**
+*   **Create:** `tests/test_hint_recommender.py` - To test the new hint-reading logic.
+*   **Create:** `lib/phases/phase_l.sh` - A new shell script to trigger the learning extraction process.
+*   **Modify:** `lib/hint_recommender.py` - Update the `get_hints` function to read from `learning.md`.
+*   **Modify:** `spiral.sh` - The main orchestrator script; will invoke `phase_l.sh`.
+*   **Note:** The story implies the existence of `lib/learning_extractor.py`, which is called by `phase_l.sh`.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is a Python/shell-based developer tool, not a Frappe application. The context provided in the prompt was incorrect.
+
+**3. Recommended Implementation Approach:**
+1.  **TDD:** Start by creating `tests/test_hint_recommender.py`. Add tests for `get_hints()` that cover cases where `learning.md` exists (with/without matching tips) and when it's absent.
+2.  **Hint Recommender:** Modify `get_hints(complexity_band)` in `lib/hint_recommender.py`. Implement logic to read `learning.md`, filter its content by the `complexity_band`, and return 1-2 relevant tips. Use a `try-except` block to gracefully handle cases where `learning.md` does not exist, returning an empty list.
+3.  **Phase L Script:** Create a simple `lib/phases/phase_l.sh` script that contains the command to execute the learning extractor: `uv run python lib/learning_extractor.py`.
+4.  **Main Workflow:** In `spiral.sh`, add a conditional block after the "Phase V" execution (~line 1380) to call the new script: `if [[ "$SPIRAL_EPISODIC_MEMORY" == "true" ]]; then bash lib/phases/phase_l.sh; fi`.
+
+**4. Edge Cases & Gotchas:**
+*   The format of `learning.md` isn't defined; the implementation must assume a simple, parsable structure (e.g., `[band]: tip text`) and be robust.
+*   The implementation should not fail if `learning.md` is empty or malformed.
+*   Ensure the file paths are correct, as the project has a deep `lib/` structure.
+

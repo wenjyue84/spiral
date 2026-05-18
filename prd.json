@@ -3921,7 +3921,10 @@
       "_source": "ai-example",
       "model": "haiku",
       "_decomposedFrom": "US-1394",
-      "last_attempted": "2026-05-18T09:51:51Z"
+      "last_attempted": "2026-05-18T09:51:51Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/learning_extractor.py` exists and extracts patterns from results.tsv to learning.md\n- `templates/learning.md` exists with section headers\n- `lib/hint_recommender.py` exists with functions for historical hints but no `get_hints(complexity_band)` function that reads learning.md\n- `tests/test_hint_recommender.py` exists but doesn't test learning.md reading\n- `lib/phases/phase_l_learn.sh` exists (uses pattern_analyzer.py)\n- Phase L needs to be wired into spiral.sh after Phase V\n\n## Problem Identified\nStory US-1398 requires:\n1. Create `lib/phases/phase_l.sh` wrapping learning_extractor.py invocation\n2. Wire Phase L into spiral.sh after Phase V (guarded by SPIRAL_EPISODIC_MEMORY)\n3. Add `get_hints(complexity_band)` function to hint_recommender.py that reads learning.md\n4. Add tests for this new function\n\n## Planned Changes\n1. **lib/phases/phase_l.sh** — Create thin wrapper calling learning_extractor.py\n2. **spiral.sh** — Add Phase L invocation after Phase V (~line 1878)\n3. **lib/hint_recommender.py** — Add `get_hints(complexity_band)` function\n4. **tests/test_hint_recommender.py** — Add tests for learning.md reading\n\n<plan>\n{\n  \"files_to_create\": [\"lib/phases/phase_l.sh\"],\n  \"files_to_modify\": [\"spiral.sh\", \"lib/hint_recommender.py\", \"tests/test_hint_recommender.py\"],\n  \"functions_to_add\": [\"get_hints\", \"run_phase_learn\"],\n  \"estimated_loc\": 140\n}\n</plan>\n\nNow let me implement:\nPerfect! I have successfully implemented story **US-1398**. Here's a summary of what was done:\n\n## Implementation Summary"
+      }
     },
     {
       "id": "US-1399",
