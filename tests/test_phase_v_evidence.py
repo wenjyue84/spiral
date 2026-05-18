@@ -7,8 +7,10 @@ import os
 import sys
 import tempfile
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from lib.phase_v_evidence import aggregate_evidence, main
+from lib.phase_v_evidence import aggregate_evidence, aggregate_phase_v_summary, main, write_evidence_json
 
 
 def test_aggregate_basic() -> None:
@@ -81,3 +83,74 @@ def test_aggregator_parses_test_output() -> None:
         data = json.loads(open(out, encoding="utf-8").read())
         assert data["story_id"] == "US-999"
         assert len(data["failing_tests"]) == 2
+
+
+def test_write_evidence_json() -> None:
+    """Per-story evidence file has required schema fields."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out = write_evidence_json(
+            story_id="US-1434",
+            test_file="tests/test_phase_v_evidence.py",
+            test_marker="phase_v",
+            passed=True,
+            duration_ms=1234,
+            evidence_dir=tmp,
+        )
+        assert os.path.isfile(out)
+        data = json.loads(open(out, encoding="utf-8").read())
+        assert data["testFile"] == "tests/test_phase_v_evidence.py"
+        assert data["testMarker"] == "phase_v"
+        assert data["passed"] is True
+        assert data["duration_ms"] == 1234
+        assert "timestamp" in data
+        # ISO8601 format: ends with Z
+        assert data["timestamp"].endswith("Z")
+
+
+def test_aggregate_phase_v_summary() -> None:
+    """Summary JSON has correct schema and computed stats."""
+    with tempfile.TemporaryDirectory() as tmp:
+        evidence_dir = os.path.join(tmp, "evidence")
+        summary_path = os.path.join(tmp, "phase_v_summary.json")
+        # Write two evidence files
+        write_evidence_json("US-1", "", "", passed=True, duration_ms=500, evidence_dir=evidence_dir)
+        write_evidence_json("US-2", "", "", passed=False, duration_ms=200, evidence_dir=evidence_dir)
+        write_evidence_json("US-3", "", "", passed=True, duration_ms=900, evidence_dir=evidence_dir)
+
+        summary = aggregate_phase_v_summary(evidence_dir=evidence_dir, out_path=summary_path)
+
+        assert summary["total_stories"] == 3
+        assert summary["pass_count"] == 2
+        assert summary["fail_count"] == 1
+        assert summary["pass_rate_percent"] == pytest.approx(66.7, abs=0.1)
+        assert isinstance(summary["slowest_tests"], list)
+        assert summary["slowest_tests"][0]["duration_ms"] == 900
+
+        # Verify file was written
+        assert os.path.isfile(summary_path)
+        on_disk = json.loads(open(summary_path, encoding="utf-8").read())
+        assert on_disk["total_stories"] == 3
+
+
+def test_main_per_story_flag() -> None:
+    """--per-story writes evidence files and summary."""
+    with tempfile.TemporaryDirectory() as tmp:
+        prd_path = os.path.join(tmp, "prd.json")
+        evidence_dir = os.path.join(tmp, "evidence")
+        summary_path = os.path.join(tmp, "phase_v_summary.json")
+        prd = {
+            "userStories": [
+                {"id": "US-10", "passes": True},
+                {"id": "US-11", "passes": False},
+            ]
+        }
+        with open(prd_path, "w", encoding="utf-8") as f:
+            json.dump(prd, f)
+        rc = main(["--prd", prd_path, "--per-story", "--evidence-dir", evidence_dir, "--summary-out", summary_path])
+        assert rc == 0
+        assert os.path.isfile(os.path.join(evidence_dir, "US-10.json"))
+        assert os.path.isfile(os.path.join(evidence_dir, "US-11.json"))
+        assert os.path.isfile(summary_path)
+        summary = json.loads(open(summary_path, encoding="utf-8").read())
+        assert summary["pass_count"] == 1
+        assert summary["fail_count"] == 1

@@ -69,6 +69,27 @@ phase_gen_changelog() {
     return 1
   fi
 
+  # ── Embed verification badge from Phase V summary (US-1434) ──────────
+  local _summary_file="${spiral_home}/.spiral/phase_v_summary.json"
+  if [[ -f "$_summary_file" ]]; then
+    local _badge_line
+    _badge_line=$(python3 -c "
+import json, sys
+try:
+    d = json.load(open('$_summary_file', encoding='utf-8'))
+    pr = d.get('pass_rate_percent', 0)
+    pc = d.get('pass_count', 0)
+    tc = d.get('total_stories', 0)
+    print(f'> **Verification Status**: {pc}/{tc} stories verified ({pr}%)')
+except Exception as e:
+    sys.exit(1)
+" 2>/dev/null) || true
+    if [[ -n "$_badge_line" ]]; then
+      printf '\n\n---\n\n%s\n' "$_badge_line" >>"$output_file"
+      echo "[phase-g] Verification badge embedded in CHANGELOG.md"
+    fi
+  fi
+
   return 0
 }
 

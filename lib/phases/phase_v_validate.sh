@@ -798,6 +798,13 @@ PYEOF
       --prd "$PRD_FILE" \
       --out "$SCRATCH_DIR/evidence.json" 2>/dev/null || true
 
+    # ── Per-story evidence + phase summary (US-1434) ────────────────────
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/phase_v_evidence.py" \
+      --prd "$PRD_FILE" \
+      --per-story \
+      --evidence-dir "$SCRATCH_DIR/evidence" \
+      --summary-out "$SCRATCH_DIR/phase_v_summary.json" 2>/dev/null || true
+
     # ── Granular verification evidence (US-1406) ─────────────────────────
     if [[ -f "$_TEST_OUTPUT_FILE" && -s "$_TEST_OUTPUT_FILE" ]]; then
       "$SPIRAL_PYTHON" -c "

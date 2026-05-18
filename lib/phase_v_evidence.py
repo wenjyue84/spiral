@@ -14,6 +14,7 @@ import json
 import os
 import re
 import sys
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -69,6 +70,78 @@ class TestEvidenceAggregator:
         return out_path
 
 
+def write_evidence_json(
+    story_id: str,
+    test_file: str,
+    test_marker: str,
+    passed: bool,
+    duration_ms: int,
+    evidence_dir: str = ".spiral/evidence",
+) -> str:
+    """Write per-story evidence JSON to <evidence_dir>/<story_id>.json.
+
+    Schema: {testFile, testMarker, passed, duration_ms, timestamp}
+    """
+    os.makedirs(evidence_dir, exist_ok=True)
+    out_path = os.path.join(evidence_dir, f"{story_id}.json")
+    payload: dict[str, Any] = {
+        "testFile": test_file,
+        "testMarker": test_marker,
+        "passed": passed,
+        "duration_ms": duration_ms,
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+    return out_path
+
+
+def aggregate_phase_v_summary(
+    evidence_dir: str = ".spiral/evidence",
+    out_path: str = ".spiral/phase_v_summary.json",
+) -> dict[str, Any]:
+    """Read all per-story evidence files and compute aggregate stats.
+
+    Returns summary with total_stories, pass_count, fail_count,
+    pass_rate_percent, slowest_tests: [{story_id, duration_ms}].
+    """
+    records: list[dict[str, Any]] = []
+    if os.path.isdir(evidence_dir):
+        for fname in sorted(os.listdir(evidence_dir)):
+            if not fname.endswith(".json"):
+                continue
+            fpath = os.path.join(evidence_dir, fname)
+            try:
+                with open(fpath, encoding="utf-8") as f:
+                    rec = json.load(f)
+                rec.setdefault("story_id", fname[:-5])
+                records.append(rec)
+            except (OSError, json.JSONDecodeError):
+                pass
+
+    total = len(records)
+    pass_count = sum(1 for r in records if r.get("passed", False))
+    fail_count = total - pass_count
+    pass_rate = round(pass_count / total * 100, 1) if total > 0 else 0.0
+    slowest = sorted(records, key=lambda r: int(r.get("duration_ms", 0)), reverse=True)[:5]
+    slowest_list = [{"story_id": r.get("story_id", ""), "duration_ms": int(r.get("duration_ms", 0))} for r in slowest]
+
+    summary: dict[str, Any] = {
+        "total_stories": total,
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+        "pass_rate_percent": pass_rate,
+        "slowest_tests": slowest_list,
+    }
+
+    out_dir = os.path.dirname(out_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
+    return summary
+
+
 def aggregate_evidence(prd: dict[str, Any]) -> dict[str, dict[str, str]]:
     """Return {story_id: {"target": "PASS"|"FAIL"}} for every story."""
     evidence: dict[str, dict[str, str]] = {}
@@ -83,7 +156,10 @@ def aggregate_evidence(prd: dict[str, Any]) -> dict[str, dict[str, str]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Phase V evidence aggregator")
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json")
-    parser.add_argument("--out", default=".spiral/evidence.json", help="Output path")
+    parser.add_argument("--out", default=".spiral/evidence.json", help="Output path for aggregate evidence")
+    parser.add_argument("--per-story", action="store_true", help="Write per-story evidence JSONs from prd.json")
+    parser.add_argument("--evidence-dir", default=".spiral/evidence", help="Directory for per-story evidence files")
+    parser.add_argument("--summary-out", default=".spiral/phase_v_summary.json", help="Path for phase_v_summary.json")
     args = parser.parse_args(argv)
 
     try:
@@ -92,6 +168,27 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, json.JSONDecodeError) as exc:
         print(f"ERROR: Cannot read {args.prd}: {exc}", file=sys.stderr)
         return 1
+
+    if args.per_story:
+        written = 0
+        for story in prd.get("userStories", []):
+            sid = story.get("id", "")
+            if not sid:
+                continue
+            verification = story.get("verification") or {}
+            test_files: list[str] = verification.get("testFiles") or []
+            test_file = test_files[0] if test_files else ""
+            test_marker: str = verification.get("testMarker") or ""
+            passed = bool(story.get("passes"))
+            write_evidence_json(sid, test_file, test_marker, passed, 0, args.evidence_dir)
+            written += 1
+        summary = aggregate_phase_v_summary(args.evidence_dir, args.summary_out)
+        print(
+            f"  [V] Evidence: {written} stories → {args.evidence_dir}/; "
+            f"summary: {summary['pass_count']}/{summary['total_stories']} pass "
+            f"({summary['pass_rate_percent']}%) → {args.summary_out}"
+        )
+        return 0
 
     evidence = aggregate_evidence(prd)
 
