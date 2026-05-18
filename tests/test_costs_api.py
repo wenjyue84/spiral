@@ -9,6 +9,7 @@ Tests:
 
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -317,3 +318,113 @@ class TestCostsBreakdownEndpoint:
         data = response.json()
         assert "detail" in data, "Error response should include detail message"
         assert "results.tsv" in data["detail"], "Error message should reference missing file"
+
+    def test_costs_breakdown_unauthorized_access(self, monkeypatch: Any) -> None:
+        """Test that unauthorized access is blocked when auth is enabled (US-1401).
+
+        Verifies endpoint returns 401 when SPIRAL_DASHBOARD_API_KEY is set
+        and no X-API-Key header is provided.
+        """
+        # Enable auth by setting env var
+        monkeypatch.setenv("SPIRAL_DASHBOARD_API_KEY", "test-secret-key")
+
+        client = TestClient(app)
+        response = client.get("/api/costs/breakdown")
+
+        # Assert 401 Unauthorized (no X-API-Key header)
+        assert response.status_code == 401, "Missing API key should return 401"
+        data = response.json()
+        assert "detail" in data
+        assert "Authentication" in data["detail"] or "required" in data["detail"].lower()
+
+    def test_costs_breakdown_invalid_api_key(self, monkeypatch: Any) -> None:
+        """Test that invalid API key is rejected (US-1401).
+
+        Verifies endpoint returns 403 when SPIRAL_DASHBOARD_API_KEY is set
+        and wrong X-API-Key header is provided.
+        """
+        # Enable auth by setting env var
+        monkeypatch.setenv("SPIRAL_DASHBOARD_API_KEY", "correct-secret-key")
+
+        client = TestClient(app)
+        response = client.get(
+            "/api/costs/breakdown",
+            headers={"X-API-Key": "wrong-secret-key"},
+        )
+
+        # Assert 403 Forbidden (wrong API key)
+        assert response.status_code == 403, "Invalid API key should return 403"
+        data = response.json()
+        assert "detail" in data
+
+    def test_costs_breakdown_no_credential_leak(self, monkeypatch: Any) -> None:
+        """Test that environment variables never leak in response (US-1401).
+
+        Monkeypatches ANTHROPIC_API_KEY and verifies it does not appear
+        in endpoint responses or error messages.
+        """
+        # Set dummy API key and enable optional auth
+        dummy_key = "sk-ant-v0-test-secret-1234567890abcdef"
+        monkeypatch.setenv("ANTHROPIC_API_KEY", dummy_key)
+        monkeypatch.setenv("SPIRAL_DASHBOARD_API_KEY", "auth-secret")
+
+        client = TestClient(app)
+
+        # Test 1: Unauthenticated request (401 error response must not leak ANTHROPIC_API_KEY)
+        response = client.get("/api/costs/breakdown")
+        response_text = json.dumps(response.json())
+        assert dummy_key not in response_text, (
+            f"ANTHROPIC_API_KEY must not appear in 401 response body: {response_text}"
+        )
+        assert "sk-ant-" not in response_text, (
+            f"Anthropic key pattern (sk-ant-*) must not appear in 401 response: {response_text}"
+        )
+
+        # Test 2: Authenticated request (200 success response must not leak ANTHROPIC_API_KEY)
+        response = client.get(
+            "/api/costs/breakdown",
+            headers={"X-API-Key": "auth-secret"},
+        )
+        if response.status_code == 200:
+            response_text = json.dumps(response.json())
+            assert dummy_key not in response_text, (
+                f"ANTHROPIC_API_KEY must not appear in 200 response body: {response_text}"
+            )
+            assert "sk-ant-" not in response_text, (
+                f"Anthropic key pattern (sk-ant-*) must not appear in success response: {response_text}"
+            )
+
+    def test_costs_breakdown_malformed_input_no_leak(self, monkeypatch: Any) -> None:
+        """Test that malformed input errors never leak credentials (US-1401).
+
+        Monkeypatches ANTHROPIC_API_KEY and sends malformed TSV data,
+        verifying no secrets appear in error response.
+        """
+        dummy_key = "sk-ant-malformed-test-1234567890abcdef"
+        monkeypatch.setenv("ANTHROPIC_API_KEY", dummy_key)
+
+        # Create temp results.tsv with malformed data (missing required columns)
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".tsv", delete=False, encoding="utf-8"
+        ) as f:
+            # Write header without required cache columns
+            f.write("invalid_header\tno_cache_columns\n")
+            f.write("some_data\tmore_data\n")
+            tsv_path = f.name
+
+        try:
+            # Parse the malformed file (should return defaults without leaking secrets)
+            result = parse_costs_from_results_tsv(tsv_path)
+            result_text = json.dumps(result)
+
+            assert dummy_key not in result_text, (
+                f"ANTHROPIC_API_KEY must not appear in error handling: {result_text}"
+            )
+            assert "sk-ant-" not in result_text, (
+                f"Anthropic key pattern (sk-ant-*) must not appear in error handling: {result_text}"
+            )
+            # Verify graceful degradation to defaults
+            assert result["total_tokens"] == 0
+            assert result["total_cost_usd"] == 0.0
+        finally:
+            Path(tsv_path).unlink()

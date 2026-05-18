@@ -3920,12 +3920,7 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "_decomposedFrom": "US-1394",
-      "last_attempted": "2026-05-18T09:51:51Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/learning_extractor.py` exists and extracts patterns from results.tsv to learning.md\n- `templates/learning.md` exists with section headers\n- `lib/hint_recommender.py` exists with functions for historical hints but no `get_hints(complexity_band)` function that reads learning.md\n- `tests/test_hint_recommender.py` exists but doesn't test learning.md reading\n- `lib/phases/phase_l_learn.sh` exists (uses pattern_analyzer.py)\n- Phase L needs to be wired into spiral.sh after Phase V\n\n## Problem Identified\nStory US-1398 requires:\n1. Create `lib/phases/phase_l.sh` wrapping learning_extractor.py invocation\n2. Wire Phase L into spiral.sh after Phase V (guarded by SPIRAL_EPISODIC_MEMORY)\n3. Add `get_hints(complexity_band)` function to hint_recommender.py that reads learning.md\n4. Add tests for this new function\n\n## Planned Changes\n1. **lib/phases/phase_l.sh** — Create thin wrapper calling learning_extractor.py\n2. **spiral.sh** — Add Phase L invocation after Phase V (~line 1878)\n3. **lib/hint_recommender.py** — Add `get_hints(complexity_band)` function\n4. **tests/test_hint_recommender.py** — Add tests for learning.md reading\n\n<plan>\n{\n  \"files_to_create\": [\"lib/phases/phase_l.sh\"],\n  \"files_to_modify\": [\"spiral.sh\", \"lib/hint_recommender.py\", \"tests/test_hint_recommender.py\"],\n  \"functions_to_add\": [\"get_hints\", \"run_phase_learn\"],\n  \"estimated_loc\": 140\n}\n</plan>\n\nNow let me implement:\nPerfect! I have successfully implemented story **US-1398**. Here's a summary of what was done:\n\n## Implementation Summary"
-      },
-      "_passedCommit": "5c5607cf077c10b515358122ffac4e9d253c59ef"
+      "_decomposedFrom": "US-1394"
     },
     {
       "id": "US-1399",
@@ -3951,12 +3946,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "haiku",
-      "last_attempted": "2026-05-18T09:58:12Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `tests/test_gen_html_data.py` has 1 test: `test_data_js_fields` (happy path)\n- US-1353 dependency is complete (passes: true)\n- `lib/gen_html_data.py` is complete with proper functions\n\n## Problem Identified\nThe test file needs:\n1. At least 2 tests total (currently has 1)\n2. Error handling tests for missing/malformed prd.json\n3. Test discovery via `us_1353` keyword\n\n## Planned Changes\nI'll add 2 error-handling tests to `tests/test_gen_html_data.py`:\n1. `test_us_1353_missing_prd_json` - verify FileNotFoundError when prd.json missing\n2. `test_us_1353_malformed_prd_json` - verify JSONDecodeError when prd.json is invalid JSON\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_gen_html_data.py\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 40\n}\n</plan>\n\nNow I'll implement the tests:\nPerfect! **US-1399** is now complete. Here's the summary:\n\n## Implementation Summary"
-      },
-      "_passedCommit": "8dbcbdbc9b95b1c0ced7c0bcc95c3830111a1eb6"
+      "model": "haiku"
     },
     {
       "id": "US-1400",
@@ -3984,11 +3974,7 @@
       "_source": "test-story",
       "model": "haiku",
       "_skipped": true,
-      "_failureReason": "dependency US-1371 was skipped",
-      "last_attempted": "2026-05-18T10:06:08Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\n- US-1400 depends on US-1371 (which has `passes: true` ✓)\n- MockClaudeAPI fixture exists and can inject failures/timeouts\n- `tests/test_spiral_integration.py` does not exist\n- retry.sh contains `select_retry_strategy()` which maps timeout → decompose, escalate_model for generic failures\n\n## Problem Identified\n\nThe story requires 2+ integration tests that verify:\n1. **Retry escalation**: haiku failure followed by sonnet success produces a passing story result\n2. **Timeout scope reduction**: timeout injection triggers decomposition or deferral logic\n\nTests must use MockClaudeAPI to avoid real Claude API calls and be discoverable via `pytest -k us_1371`.\n\n## Planned Changes\n\n**File to create:** `tests/test_spiral_integration.py`\n- `test_retry_escalation_on_haiku_failure`: Mock haiku Phase I failure, verify sonnet escalation succeeds\n- `test_timeout_triggers_scope_reduction`: Mock timeout Phase I failure, verify story is decomposed or marked deferred\n- Both tests use MockClaudeAPI fixture with injected failures\n- Both tests discoverable via `us_1371` or `us_1400` keywords\n- Keep subprocess iterations minimal (iterations=1) for fast test execution\n\n<plan>\n{\n  \"files_to_create\": [\n    \"tests/test_spiral_integration.py\"\n  ],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\n    \"test_retry_escalation_on_haiku_failure\",\n    \"test_timeout_triggers_scope_reduction\"\n  ],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow I'll implement the tests. Let me first check the conftest.py to understand how fixtures are set up:\nNow I'll create the integration tests. Let me write `tests/test_spiral_integration.py`:\nNow let me run the tests to verify they pass:\nI see the issue. The MockClaudeAPI's failure check happens before response check, so the second call still sees the injected failure. Let me fix the first test to use a stateful side effect instead:\nPerfect! All 4 tests pass. Now let me verify they're discoverable via the us_1371 keyword:\nExcellent! All 4 tests pass. Now let me run quality checks:\nPerfect! All tests pass and mypy is happy. Let me run pre-commit hooks to check formatting and linting:\nExcellent! Pre-commit passes for my test file. Now let me mark the story as complete and commit:\nPerfect! Story **US-1400** has been successfully implemented. Here's a summary:\n\n## Implementation Complete ✓"
-      }
+      "_failureReason": "dependency US-1371 was skipped"
     },
     {
       "id": "US-1401",
@@ -4060,6 +4046,29 @@
       "model": "haiku"
     },
     {
+      "id": "US-1404",
+      "title": "CLI: spiral export-results Command for CSV/JSON Analytics Export",
+      "priority": "medium",
+      "description": "Add CLI command to export results.jsonl and computed iteration metrics (per-phase durations, model usage, cost breakdown) as CSV or JSON. Enables external spreadsheet analysis, historical tracking across runs, and integration with business intelligence tools.",
+      "acceptanceCriteria": [
+        "CLI command `spiral export-results --format csv` outputs CSV with columns: iteration, story_id, model, tokens_input, tokens_output, cost_usd, duration_sec, status (pass|fail|timeout), phase, date_completed; no headers for piping, proper CSV escaping",
+        "CLI command `spiral export-results --format json` outputs newline-delimited JSON with same fields plus nested object phase_times: {phase_name: duration_sec}; includes metadata object at first line with timestamp, iteration_count, total_cost_usd",
+        "CLI command includes `--since <ISO8601>` flag to filter results after timestamp; `--status <pass|fail|timeout>` to filter by story status; `--output <filepath>` to write to file (defaults to stdout)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/results_exporter.py (ResultsExporter class with export_csv(results_file, filters) and export_json(results_file, filters) methods)",
+        "File to edit: lib/cli_subcommands.sh (add export-results subcommand with --format, --since, --status, --output flags)",
+        "File to create: schema/results_export.json (JSON Schema for export format validation)",
+        "File to create: tests/test_results_exporter.py with fixture results.jsonl (5 stories, mixed statuses)",
+        "Test command: uv run pytest tests/test_results_exporter.py::test_export_csv_escaping -v",
+        "Test command: uv run pytest tests/test_results_exporter.py::test_export_json_valid_schema -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1405",
       "title": "[Integration Test] MockClaudeAPI fixture: intercept, inject, and failure paths",
       "priority": "high",
@@ -4085,6 +4094,46 @@
       "model": "haiku",
       "_skipped": true,
       "_failureReason": "dependency US-1365 was skipped"
+    },
+    {
+      "id": "US-1406",
+      "title": "Phase V: Create granular verification evidence aggregator for detailed failure reports",
+      "priority": "medium",
+      "description": "Implement lib/phase_v_evidence.py to parse test output and file presence checks, generating detailed JSON evidence reports showing which acceptance criteria and tests failed per story",
+      "acceptanceCriteria": [
+        "Create lib/phase_v_evidence.py with TestEvidenceAggregator class that parses test stdout/stderr for AC status markers and file-presence assertions",
+        "Phase V generates .spiral/verification_evidence/<story-id>.json with failed AC list, failing test file, and line number references",
+        "Test: uv run pytest tests/test_phase_v_evidence.py::test_aggregator_parses_test_output verifies AC extraction and JSON schema"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral.sh (Phase V section ~line 850) to invoke phase_v_evidence.TestEvidenceAggregator().aggregate(test_stdout, story_id)",
+        "File to create: lib/phase_v_evidence.py (~150 lines) with regex patterns for @spiral:ac test markers",
+        "Test command: uv run pytest tests/test_phase_v_evidence.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1407",
+      "title": "Phase R: Research quality scorer to detect and skip low-value sources before synthesis",
+      "priority": "medium",
+      "description": "Implement lib/research_quality.py to score research results by source credibility (domain authority, snippet relevance, spam detection), filter low-scoring results before Gemini synthesis, and log filtering decisions",
+      "acceptanceCriteria": [
+        "Create lib/research_quality.py with score_research_result(url, snippet_text) returning 0-100 score; .edu/.gov/.org baseline >70, marketing/ad domains <30",
+        "Phase R filters results with score <40 before synthesis; logs skipped URLs, scores, and reason to .spiral/research_quality.jsonl",
+        "Test: uv run pytest tests/test_research_quality.py::test_score_academic_sources confirms educational domains >60, ad/spam <40"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/phases/phase_r.py (integrate scoring loop, ~30 lines) to call score_research_result() for each result",
+        "File to create: lib/research_quality.py (~120 lines) with domain whitelist/blacklist and snippet keyword analysis",
+        "Test command: uv run pytest tests/test_research_quality.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1408",
@@ -4160,6 +4209,69 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1411",
+      "title": "CLI: Add spiral benchmark-model Command to Establish Per-Model Cost Baselines",
+      "priority": "medium",
+      "description": "Create a new CLI command that runs a single story across multiple model tiers (haiku, sonnet, opus) sequentially, capturing cost and timing baselines for budget forecasting and model selection.",
+      "acceptanceCriteria": [
+        "Command `spiral benchmark-model <story-id>` runs the story with each model and outputs CSV with columns: [model, tokens_used, cost_usd, duration_sec, exit_code]",
+        "Results stored in .spiral/model_baselines.json (append to history) for use in cost estimation and model selection",
+        "`spiral benchmark-model --list` shows previously benchmarked stories with average cost per model and total count"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_subcommands.sh (add benchmark-model subcommand handler routing to benchmark_runner.py)",
+        "File to edit: lib/benchmark_runner.py (new file, create run_benchmark_story(story_id, models=['haiku','sonnet','opus']) returning results dict)",
+        "Test command: uv run pytest tests/test_benchmark_runner.py::test_benchmark_multi_model -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1412",
+      "title": "Phase L: Analyze Learned-Pattern Trends Across Iterations for Evolution Tracking",
+      "priority": "medium",
+      "description": "Extend Phase L to analyze how learned patterns change over iterations (which patterns appeared early vs late, which models they helped), extracting temporal evolution metrics for insight into SPIRAL's learning curve.",
+      "acceptanceCriteria": [
+        "Phase L parses results.tsv and .spiral/learned_patterns.jsonl to compute [pattern_type, first_iteration, last_iteration, frequency, model_affinity_rank]",
+        "Temporal metrics appended to .spiral/pattern_evolution.jsonl with one JSON object per pattern type capturing when pattern was most effective",
+        "`spiral explain-learning <pattern-type>` CLI command shows timeline graph (iteration vs effectiveness) and recommendations for when to apply"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/learning_extractor.py (add extract_pattern_evolution(results_tsv, learned_patterns_jsonl) function returning list of EvolutionMetric)",
+        "File to edit: lib/cli_subcommands.sh (add explain-learning subcommand that reads .spiral/pattern_evolution.jsonl and formats output)",
+        "Test command: uv run pytest tests/test_learning_extractor.py::test_pattern_evolution_analysis -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1413",
+      "title": "Phase V: Auto-Extract Verifiable Assertions from Story Acceptance Criteria",
+      "priority": "medium",
+      "description": "Create a Python module that parses acceptance criteria text to extract verifiable assertions (test cases), supporting automatic test generation for stories without explicit verification contracts.",
+      "acceptanceCriteria": [
+        "lib/assertion_extractor.py parses AC text with regex patterns to identify assertions: 'assert X', 'must have Y', 'should return Z', 'contains [item]'",
+        "Returns list of [assertion_type, subject, expected_value, confidence_score] structured for Phase V verification engine to validate",
+        "Stories without explicit testFiles or testMarker get auto-generated pytest assertions written to .spiral/auto_assertions/<story-id>.py"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/assertion_extractor.py (new file, create extract_assertions(ac_text: str) -> List[Assertion] with typed Assertion namedtuple)",
+        "File to edit: lib/phases/phase_v.sh (integrate assertion_extractor call for stories where verification.testFiles is null)",
+        "Test command: uv run pytest tests/test_assertion_extractor.py::test_extract_assertions_from_ac_text -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
       "model": "haiku"
     }
   ]

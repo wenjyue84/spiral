@@ -1643,3 +1643,30 @@ Completed: Integration tests for SPIRAL retry escalation and timeout scope-reduc
 - Redefining variables in same scope violates mypy strict mode; must scope with try/except or use different names
 - Pre-commit mypy check excludes tests/ by default; test files are only checked for direct pytest execution
 
+## Iteration 3 - Mon, May 18, 2026  6:18:59 PM
+Completed: Integration test: SPIRAL retry escalation and timeout scope-reduction via MockClaudeAPI (US-1371) (ID: US-1400) in 10m
+
+
+## Pre-analysis for US-1401 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent:
+
+**Objective:** Implement security tests for the `/api/costs/breakdown` endpoint to prevent unauthorized access and credential leakage.
+
+**Framework:** The backend is a Flask application, not Frappe. Tests should use a standard Python test client like `httpx` or the built-in Flask test client.
+
+**Files to Modify:**
+*   **Primary:** `tests/test_costs_api.py` (to add new test cases).
+*   **Source Under Test:** `spiral-ui-backend/routes/costs.py` (the API endpoint logic from US-1384).
+
+**Implementation Approach:**
+1.  **Authentication Test:** In `tests/test_costs_api.py`, create a test that calls the `/api/costs/breakdown` endpoint without authentication credentials. Assert that the response is an HTTP 401 or 403 error.
+2.  **Credential Leakage Test:** Create a new test specifically for checking secret leakage in responses.
+3.  Inside this test, use `pytest.monkeypatch` to temporarily set a fake `os.environ['ANTHROPIC_API_KEY']` (e.g., "sk-ant-fake-key-for-testing").
+4.  Make a successful call to the endpoint and recursively search the JSON response to assert the fake key is NOT present.
+5.  Simulate malformed input (e.g., invalid TSV data) and assert the fake key does NOT appear in the error message body.
+
+**Edge Cases & Gotchas:**
+*   Focus on error handling paths, as they are common sources of information leaks.
+*   Ensure tests correctly handle the case where authentication is enabled in the app's configuration.
+*   Verify that no hardcoded secrets (like `sk-ant-`) are present in the `costs.py` route file itself.
+
