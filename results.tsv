@@ -263,3 +263,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T16:11:14Z	28	1	US-1431	lib: Federation Story Namespace Validator - Detect Cross-SubProject Collisions	keep	465	haiku	0	14dd508623042beff25c3b90bc91e955ea9e9a39	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-18T16:27:06Z	29	1	US-1432	Ralph: Inject error recovery hints from failure history into decomposition prompts	keep	559	haiku	0	3aaf87da6fed9f87719e0917baa1184cf2db8e79	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-18T16:45:46Z	31	1	US-1433	Create MockClaudeAPI class in tests/fixtures/mock_claude_api.py	keep	358	haiku	0	b247fbd90cd1a0eea61d5b5663d14727928cc58a	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-18T16:54:33Z	31	2	US-1434	Phase V: Output test evidence.json per story with verification metadata	keep	497	sonnet	0	f0299293d6954c985e605de669be45ea665d501d	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
