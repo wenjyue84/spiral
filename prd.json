@@ -4118,7 +4118,16 @@
       "_antiPatterns": [
         "oversized_diff: produced 2407 lines but limit is 800. Keep total insertions+deletions under 800 lines."
       ],
-      "last_attempted": "2026-05-18T13:05:38Z"
+      "last_attempted": "2026-05-18T13:05:38Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe existing `lib/phase_v_evidence.py` (53 lines) is a simple PRD-passes aggregator from US-1246. It reads prd.json and writes pass/fail status. It does NOT parse test stdout/stderr or extract AC markers. The test file (47 lines) tests only the existing simple functionality.\n\n## Problem Identified\nUS-1406 requires a `TestEvidenceAggregator` class that parses test output for `@spiral:ac` markers and pytest failure lines, generating per-story JSON evidence files with failed AC list, failing test file, and line numbers. Previous attempt was 2407 lines — I must keep it under 800 by surgically adding to existing files instead of rewriting.\n\n## Planned Changes\n- **Edit `lib/phase_v_evidence.py`**: Add `TestEvidenceAggregator` class (~55 lines) with `parse_output()` and `aggregate()` methods. Keep existing functions intact.\n- **Edit `tests/test_phase_v_evidence.py`**: Add `test_aggregator_parses_test_output` test (~35 lines). Keep existing tests.\n- **Edit `lib/phases/phase_v_validate.sh`**: Add 4 lines after existing evidence aggregator call to invoke `TestEvidenceAggregator` on test output.\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"lib/phase_v_evidence.py\", \"tests/test_phase_v_evidence.py\", \"lib/phases/phase_v_validate.sh\"],\n  \"functions_to_add\": [\"TestEvidenceAggregator\"],\n  \"estimated_loc\": 100\n}\n</plan>\n\nNow let me implement. I'll add the class to the existing module and the test.\nNow add the invocation in Phase V after the existing evidence aggregator call:\nNow let me run the tests and quality checks.\nAll 5 tests pass. Let me run type checking and formatting.\nAll checks pass. Let me verify the diff size.\n136 lines of diff — well under 800. Now mark the story as passed and commit.\nDone. US-1406 implemented with 156 insertions, 2 deletions (well under 800 limit).\n\n**Summary:**\n- Added `TestEvidenceAggregator` class to `lib/phase_v_evidence.py` — parses `@spiral:ac:pass/fail` markers, pytest `FAILED` lines with file:line refs, and file-existence assertions\n- Writes per-story JSON evidence to `.spiral/verification_evidence/<story-id>.json`\n- Added `test_aggregator_parses_test_output` test — all 5 tests pass\n- Hooked into Phase V via `phase_v_validate.sh` after the existing evidence call"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 231,
+        "tokensAfterMasking": 230,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1407",
