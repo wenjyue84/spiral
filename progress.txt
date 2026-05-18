@@ -1913,3 +1913,5 @@ FAILED diagnosis-block gate: Create MockClaudeAPI class with response injection 
 ## Iteration 5 - Mon, May 18, 2026  7:26:07 PM
 Completed: Create MockClaudeAPI class with response injection and failure simulation (ID: US-1414) in 1m
 
+## Iteration 6 - Mon, May 18, 2026  7:29:24 PM
+Completed: Test HealthWidget: polling /api/health and graceful error backoff (ID: US-1415) in 2m

@@ -230,8 +230,9 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T10:38:53Z	15	2	US-1401	[Security Test] /api/costs/breakdown: unauthorized access blocked, no token leakage	keep	275	sonnet	1	1aca8c2c68150371c3a5a438a9accdd861427939	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T10:46:51Z	15	3	US-1405	[Integration Test] MockClaudeAPI fixture: intercept, inject, and failure paths	keep	446	haiku	0	757495cfeac32523cc6fbdd0189d42a4a0629adf	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T10:53:17Z	15	4	US-1408	[Security Test] HealthWidget /api/health: no sensitive data in response payload	keep	360	haiku	0	0a218ab77b49e2c05520664e3e3cb9871c2af6fa	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
-2026-05-18T11:12:54Z	16	1	US-1409	[Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365	reject	501	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-18T11:15:55Z	16	2	US-1409	[Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365	keep	144	sonnet	1	d51a231c7b4f1e437fe7ea46902dd661ec0e8053	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-18T11:20:39Z	16	3	US-1410	[Security Test] 06-configuration.html: verify no secret values rendered in config reference page	keep	259	haiku	0	a92d839725c9ba06f7d250e0ed79fbabd2bd5480	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-18T11:24:02Z	16	4	US-1414	Create MockClaudeAPI class with response injection and failure simulation	reject	199	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-18T11:26:07Z	16	5	US-1414	Create MockClaudeAPI class with response injection and failure simulation	keep	97	sonnet	1	e1adcc5f23665a470b7e03235d6f406d981dfe3f	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-18T11:12:54Z	16	1	US-1409	[Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365	reject	501	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T11:15:55Z	16	2	US-1409	[Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365	keep	144	sonnet	1	d51a231c7b4f1e437fe7ea46902dd661ec0e8053	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T11:20:39Z	16	3	US-1410	[Security Test] 06-configuration.html: verify no secret values rendered in config reference page	keep	259	haiku	0	a92d839725c9ba06f7d250e0ed79fbabd2bd5480	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T11:24:02Z	16	4	US-1414	Create MockClaudeAPI class with response injection and failure simulation	reject	199	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T11:26:07Z	16	5	US-1414	Create MockClaudeAPI class with response injection and failure simulation	keep	97	sonnet	1	e1adcc5f23665a470b7e03235d6f406d981dfe3f	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T11:29:24Z	16	6	US-1415	Test HealthWidget: polling /api/health and graceful error backoff	keep	173	haiku	0	e92c523e3fe0d882086f01ed2da1c8422e289a49	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
