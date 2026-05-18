@@ -4010,7 +4010,8 @@
         "tokensAfterMasking": 553,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "_passedCommit": "1aca8c2c68150371c3a5a438a9accdd861427939"
     },
     {
       "id": "US-1402",
@@ -4078,10 +4079,11 @@
         "US-1365"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "_skipped": true,
-      "_failureReason": "dependency US-1365 was skipped"
+      "_failureReason": "dependency US-1365 was skipped",
+      "last_attempted": "2026-05-18T10:38:55Z"
     },
     {
       "id": "US-1408",
