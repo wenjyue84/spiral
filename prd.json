@@ -3649,8 +3649,9 @@
       "model": "haiku",
       "last_attempted": "2026-05-18T00:15:44Z",
       "_phaseI": {
-        "diagnosisBlock": "## Current State\n- FastAPI app in `lib/dashboard/api.py` with existing cost endpoints\n- `results.tsv` file with story execution data including tokens and models\n- `lib/dashboard/routes/` directory with helper modules like `tests.py`\n\n## Problem Identified\nNeed to create `/api/costs/breakdown` endpoint that parses `results.tsv` and returns cost metrics including:\n- phases (dict keyed by phase letter)\n- total_tokens\n- total_cost_usd\n- spend_rate_per_story\n- iteration_count\n\n## Planned Changes\n1. Create `lib/dashboard/routes/costs.py` with `parse_costs_from_results_tsv()` function\n2. Add `/api/costs/breakdown` endpoint to `lib/dashboard/api.py`\n3. Create `tests/test_costs_api.py` with comprehensive tests\n\n<plan>\n{\n  \"files_to_create\": [\"lib/dashboard/routes/costs.py\", \"tests/test_costs_api.py\"],\n  \"files_to_modify\": [\"lib/dashboard/api.py\"],\n  \"functions_to_add\": [\"parse_costs_from_results_tsv\", \"costs_breakdown\"],\n  \"estimated_loc\": 120\n}\n</plan>\nNow let me run the tests to verify the implementation:\nPerfect! All acceptance criteria are met and all tests pass. Let me create a final summary:\n\n## Summary"
-      }
+        "diagnosisBlock": "## Current State\n- spiral-ui is a React app on port 5299 with Node.js Express backend (server.ts)\n- There's also a Python SSE server at lib/ui/spiral_live_server.py on port 5300 handling API endpoints\n- results.tsv contains story execution data but doesn't have explicit phase, cost_usd, or cost_tokens columns\n- The story requires: parse results.tsv, return costs broken down by phase, with response containing phases dict, total_tokens, total_cost_usd, spend_rate_per_story, iteration_count\n\n## Problem Identified\n- results.tsv structure doesn't have phase, cost_usd, or cost_tokens columns\n- Need to implement /api/costs/breakdown endpoint in Python backend\n- Need to handle missing/empty results.tsv gracefully  \n- Tests need to use mock TSV data with the expected structure\n\n## Planned Changes\n- Create lib/ui/costs.py with: parse_costs_from_results_tsv(), compute_burn_rate(), estimate_remaining_budget()\n- Add /api/costs/breakdown route handler in lib/ui/spiral_live_server.py\n- Create tests/test_costs_api.py with test_parse_costs_breakdown() and test_empty_results_tsv()\n\n<plan>\n{\n  \"files_to_create\": [\"lib/ui/costs.py\", \"tests/test_costs_api.py\"],\n  \"files_to_modify\": [\"lib/ui/spiral_live_server.py\"],\n  \"functions_to_add\": [\"parse_costs_from_results_tsv\", \"compute_burn_rate\", \"estimate_remaining_budget\", \"_handle_costs_breakdown\"],\n  \"estimated_loc\": 200\n}\n</plan>\n\nLet me start implementing:\nLet me run the tests to verify everything works:\n## ✅ Story US-1384 Complete"
+      },
+      "_passedCommit": "5bf64cfdce2df4577cf1c1da03e021b0717339ef"
     },
     {
       "id": "US-1385",
@@ -3672,7 +3673,8 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-18T00:23:44Z"
     }
   ]
 }
