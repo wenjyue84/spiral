@@ -4292,7 +4292,8 @@
         "tokensAfterMasking": 87,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "_passedCommit": "188467630ad347c580652262d874352a3c914dc6"
     },
     {
       "id": "US-1413",
@@ -4313,7 +4314,8 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-18T13:50:16Z"
     },
     {
       "id": "US-1414",
