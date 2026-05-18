@@ -229,3 +229,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T10:32:13Z	15	1	US-1401	[Security Test] /api/costs/breakdown: unauthorized access blocked, no token leakage	reject	274	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T10:38:53Z	15	2	US-1401	[Security Test] /api/costs/breakdown: unauthorized access blocked, no token leakage	keep	275	sonnet	1	1aca8c2c68150371c3a5a438a9accdd861427939	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-18T10:46:51Z	15	3	US-1405	[Integration Test] MockClaudeAPI fixture: intercept, inject, and failure paths	keep	446	haiku	0	757495cfeac32523cc6fbdd0189d42a4a0629adf	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-18T10:53:17Z	15	4	US-1408	[Security Test] HealthWidget /api/health: no sensitive data in response payload	keep	360	haiku	0	0a218ab77b49e2c05520664e3e3cb9871c2af6fa	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				

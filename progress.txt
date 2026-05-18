@@ -1754,3 +1754,34 @@ This task involves creating integration tests for the `MockClaudeAPI` class to e
 ## Iteration 3 - Mon, May 18, 2026  6:46:51 PM
 Completed: [Integration Test] MockClaudeAPI fixture: intercept, inject, and failure paths (ID: US-1405) in 7m
 
+## Iteration 4 - Mon, May 18, 2026  6:53:17 PM
+Completed: [Security Test] HealthWidget /api/health: no sensitive data in response payload (ID: US-1408) in 6m
+
+
+## Pre-analysis for US-1409 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-1409.
+
+**Subject: Technical Brief: US-1409 - MockClaudeAPI Fixture**
+
+This story requires creating a `pytest` fixture to mock `subprocess` calls to the Claude CLI, enabling network-free integration testing.
+
+**1. Python Files to Modify:**
+*   `tests/fixtures/mock_claude_api.py` (Create new): Will contain the core `MockClaudeAPI` class.
+*   `tests/conftest.py`: To be updated with the new `mock_api_repo` pytest fixture.
+*   `tests/test_mock_claude_api.py` (Create new): A dedicated test file to validate the mock's functionality.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This task is unrelated to the Frappe framework; it is a pure Python/Pytest task for the Spiral codebase.
+
+**3. Recommended Implementation Approach:**
+*   **`MockClaudeAPI` Class:** In `tests/fixtures/mock_claude_api.py`, create a class that uses `unittest.mock.patch` to target `subprocess.run` within the appropriate module where it's called (e.g., `spiral.agents.claude`).
+*   The mock should inspect command arguments to identify CLI calls and return a mocked `subprocess.CompletedProcess` object from an internal queue or dictionary of responses.
+*   **`mock_api_repo` Fixture:** In `tests/conftest.py`, define a fixture that instantiates `MockClaudeAPI` and yields it, allowing tests to configure injected responses. Use `pytest.monkeypatch` for safer patching.
+*   **Testing:** Create tests in `tests/test_mock_claude_api.py` that use the fixture, one for a successful response and another that injects a failure (non-zero `returncode` and `stderr`).
+
+**4. Edge Cases & Gotchas:**
+*   **Patch Target:** The `patch` target must be precise (e.g., `spiral.module.subprocess.run`, not just `subprocess.run`).
+*   **Response Object:** The mock must return a `subprocess.CompletedProcess` instance. Ensure `stdout` and `stderr` are bytes-encoded, as `subprocess` uses bytes by default.
+*   **Stateful Mocks:** If a test makes multiple calls, the mock must be stateful enough to return different responses for each invocation. A simple list of responses to `pop()` from works well.
+*   **Fixture Teardown:** Ensure the patch is always removed after the test, which `monkeypatch` and `patch` context managers handle automatically.
+
