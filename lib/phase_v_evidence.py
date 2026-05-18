@@ -12,8 +12,61 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from typing import Any
+
+
+class TestEvidenceAggregator:
+    """Parse test stdout/stderr for AC markers and pytest failures."""
+
+    _AC_PATTERN = re.compile(r"@spiral:ac:(pass|fail)\s+(.+)")
+    _FAIL_PATTERN = re.compile(r"FAILED\s+(\S+?)::(\S+)")
+    _LOC_PATTERN = re.compile(r"(\S+\.py):(\d+)")
+    _FILE_ASSERT = re.compile(
+        r"assert.*(?:exists|is_file|is_dir)\(\).*['\"](.+?)['\"]|"
+        r"os\.path\.(?:exists|isfile)\(['\"](.+?)['\"]\)"
+    )
+
+    def parse_output(self, test_output: str, story_id: str) -> dict[str, Any]:
+        """Extract AC statuses, failing tests, and file assertions."""
+        criteria: list[dict[str, str]] = []
+        failing_tests: list[dict[str, Any]] = []
+        file_assertions: list[dict[str, Any]] = []
+
+        for line in test_output.splitlines():
+            ac_m = self._AC_PATTERN.search(line)
+            if ac_m:
+                criteria.append({"description": ac_m.group(2).strip(), "status": ac_m.group(1)})
+                continue
+            fail_m = self._FAIL_PATTERN.search(line)
+            if fail_m:
+                entry: dict[str, Any] = {"file": fail_m.group(1), "name": fail_m.group(2)}
+                loc_m = self._LOC_PATTERN.search(line)
+                if loc_m:
+                    entry["line"] = int(loc_m.group(2))
+                failing_tests.append(entry)
+                continue
+            fa_m = self._FILE_ASSERT.search(line)
+            if fa_m:
+                path = fa_m.group(1) or fa_m.group(2)
+                file_assertions.append({"path": path, "exists": os.path.exists(path)})
+
+        return {
+            "story_id": story_id,
+            "acceptance_criteria": criteria,
+            "failing_tests": failing_tests,
+            "file_assertions": file_assertions,
+        }
+
+    def aggregate(self, test_output: str, story_id: str, output_dir: str = ".spiral/verification_evidence") -> str:
+        """Parse output and write per-story JSON evidence file."""
+        evidence = self.parse_output(test_output, story_id)
+        os.makedirs(output_dir, exist_ok=True)
+        out_path = os.path.join(output_dir, f"{story_id}.json")
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(evidence, f, indent=2)
+        return out_path
 
 
 def aggregate_evidence(prd: dict[str, Any]) -> dict[str, dict[str, str]]:

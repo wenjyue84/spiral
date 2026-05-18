@@ -758,6 +758,19 @@ PYEOF
       --prd "$PRD_FILE" \
       --out "$SCRATCH_DIR/evidence.json" 2>/dev/null || true
 
+    # ── Granular verification evidence (US-1406) ─────────────────────────
+    if [[ -f "$_TEST_OUTPUT_FILE" && -s "$_TEST_OUTPUT_FILE" ]]; then
+      "$SPIRAL_PYTHON" -c "
+from lib.phase_v_evidence import TestEvidenceAggregator; import sys
+agg = TestEvidenceAggregator()
+output = open(sys.argv[1], encoding='utf-8').read()
+for sid in sys.argv[3:]:
+    p = agg.aggregate(output, sid, sys.argv[2])
+    print(f'  [V] Evidence: {p}')
+" "$_TEST_OUTPUT_FILE" "$SCRATCH_DIR/verification_evidence" \
+        $("$JQ" -r '.userStories[] | select(.passes == true) | .id' "$PRD_FILE" 2>/dev/null) 2>/dev/null || true
+    fi
+
     write_checkpoint "$SPIRAL_ITER" "V"
   fi
   run_phase_hook POST "V" || true
