@@ -521,6 +521,21 @@ if [[ "$WORKERS_KILL_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── cleanup --remove-stale-workers: garbage-collect orphaned worktrees ────────
+CLEANUP_MODE="${CLEANUP_MODE:-0}"
+if [[ "$CLEANUP_MODE" -eq 1 ]]; then
+  _WC_LIB="$SPIRAL_HOME/lib/worker_cleanup.sh"
+  if [[ ! -f "$_WC_LIB" ]]; then
+    echo "[spiral] ERROR: lib/worker_cleanup.sh not found (SPIRAL_HOME=$SPIRAL_HOME)" >&2
+    exit 1
+  fi
+  # shellcheck source=lib/worker_cleanup.sh
+  source "$_WC_LIB"
+  _WT_BASE="${REPO_ROOT}/.spiral-workers"
+  cleanup_stale_workers "$REPO_ROOT" "$_WT_BASE"
+  exit 0
+fi
+
 # ── dedup-suggestions: find duplicate stories using TF-IDF similarity ─────────
 DEDUP_MODE="${DEDUP_MODE:-0}"
 if [[ "$DEDUP_MODE" -eq 1 ]]; then

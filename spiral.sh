@@ -625,6 +625,15 @@ while [[ $# -gt 0 ]]; do
         esac
       done
       ;;
+    cleanup)
+      if [[ "${2:-}" == "--remove-stale-workers" ]]; then
+        CLEANUP_MODE=1
+        shift 2
+      else
+        echo "[spiral] Unknown cleanup subcommand: ${2:-}" >&2
+        exit "$ERR_BAD_USAGE"
+      fi
+      ;;
     workers)
       if [[ "${2:-}" == "kill" ]]; then
         WORKERS_KILL_MODE=1
@@ -735,6 +744,7 @@ while [[ $# -gt 0 ]]; do
       echo "  batch <op> --stories-file F  Execute batch operation on multiple stories (mark-done, retrigger)"
       echo "    <op>                       Operation: mark-done or retrigger"
       echo "    --stories-file FILE        File path with story IDs (one per line)"
+      echo "  cleanup --remove-stale-workers  Garbage-collect orphaned worker processes and free disk space"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --continuous               Never stop — loop back to Phase A after all stories pass"
