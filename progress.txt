@@ -350,3 +350,34 @@ Completed: [Integration Test] Federated PRD Merge with Namespace Isolation and C
 - Test fixtures use realistic story data with complete required fields
 - Tests verify field-by-field preservation for critical properties (acceptanceCriteria, filesTouch, dependencies, etc.)
 - Custom pytest mark used (federation_integration) for easy filtering of federation tests
+
+## Pre-analysis for US-1340 (Gemini 2.5 Pro)
+**Technical Brief: US-1340 - Implement TestsTab Component**
+
+This user story is for a **React/TypeScript** implementation within the `spiral-ui` application, not a Frappe/Python task. The goal is to create a new tab that displays test execution results from a backend API.
+
+**1. Primary Files for Modification/Creation:**
+*   **Create:** `spiral-ui/src/components/TestsTab.tsx` (Main component)
+*   **Create:** `spiral-ui/src/components/TestsTab.test.tsx` (Vitest tests with MSW mocks)
+*   **Modify:** `spiral-ui/src/api/hooks.ts` (Add data-fetching hook)
+*   **Modify:** `spiral-ui/src/App.tsx` (Integrate the new tab)
+*   **Modify:** `spiral-ui/src/types/phase.ts` (Define data structure)
+
+**2. Involved Frameworks/Libraries:**
+*   React, TypeScript, TanStack Query (`useQuery`), `shadcn/ui` (`Table`, `Badge`), Vitest, MSW.
+
+**3. Recommended Implementation Approach:**
+1.  In `types/phase.ts`, define the `PhaseVResult` interface.
+2.  In `api/hooks.ts`, create `usePhaseVResults`, a `useQuery` hook to fetch data from the `/api/phase-v-results` endpoint.
+3.  Build the `TestsTab.tsx` component. Use the hook to retrieve data.
+4.  Use `shadcn/ui` `Table` to render a timeline of test results, showing `story_id`, `test_file`, `duration_s`, and a colored `Badge` for pass/fail status.
+5.  Above the table, render a summary bar calculating and displaying total tests, pass rate (%), and average duration.
+6.  Add the new `TestsTab` to the main tab group in `App.tsx`.
+7.  Create `TestsTab.test.tsx` to unit test the component, mocking the API with `msw`.
+
+**4. Edge Cases & Gotchas:**
+*   Handle API loading and error states gracefully (e.g., show a skeleton loader or error message).
+*   Address the "empty state" when the API returns an empty array.
+*   Prevent division-by-zero errors in summary calculations if no test data is available.
+*   Ensure the timeline is sorted chronologically if the API doesn't guarantee order.
+
