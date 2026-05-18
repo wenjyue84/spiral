@@ -250,3 +250,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T13:50:14Z	21	3	US-1412	Phase L: Analyze Learned-Pattern Trends Across Iterations for Evolution Tracking	keep	208	sonnet	1	188467630ad347c580652262d874352a3c914dc6	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T14:03:00Z	22	1	US-1413	Phase V: Auto-Extract Verifiable Assertions from Story Acceptance Criteria	keep	489	haiku	0	c40f4dc6e17d5a2b71e073733f42ed2193874d7b	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T14:10:48Z	22	2	US-1419	Integration test: Phase S merges federated stories with namespace validation	keep	444	haiku	0	5ea5cb09b9528f5dcb60b3cea34eb0b537494fa0	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T14:21:37Z	23	1	US-1421	CLI: Show story blockers and dependents with `spiral inspect-story <id>`	reject	302	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
