@@ -1572,3 +1572,74 @@ Completed: Integration tests for html/index.html dashboard data generation (ID: 
 - MyPy --strict: ✓ passed on test file
 - Ruff lint/format: ✓ passed
 - Pre-commit hooks: ✓ passed (mypy excluded tests, only checks lib/)
+## Iteration 2 - Mon, May 18, 2026  6:06:06 PM
+Completed: Integration tests for html/index.html dashboard data generation (US-1353) (ID: US-1399) in 5m
+
+
+## Pre-analysis for US-1400 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1400.
+
+**Project:** SPIRAL (Python)
+**Objective:** Add integration tests for retry escalation and timeout-based scope reduction.
+
+**Files to Modify:**
+*   `tests/test_spiral_integration.py`: Add new `pytest` test functions here.
+
+**Frappe/DocType Context:**
+*   N/A. This is a Python project test, not a Frappe application change.
+
+**Implementation Approach:**
+1.  Familiarize yourself with the failure injection mechanisms in `tests/fixtures/mock_claude_api.py`.
+2.  Create a new test, `test_retry_escalation_on_haiku_failure`, in `tests/test_spiral_integration.py`.
+3.  Inside the test, use the `MockClaudeAPI` fixture to simulate a single failure for the `haiku` model, followed by a success for the `sonnet` model.
+4.  Invoke the core Spiral execution logic as a subprocess, targeting a test story.
+5.  Assert that the story ultimately passes, confirming the escalation to Sonnet worked.
+6.  Create a second test, `test_timeout_triggers_scope_reduction`.
+7.  Use `MockClaudeAPI` to inject a timeout condition.
+8.  Invoke the core logic and assert that the target story is either decomposed or marked as 'deferred' in the final state.
+
+**Gotchas & Edge Cases:**
+*   Ensure tests use the mock API exclusively and make no real network calls.
+*   Name the new tests to be discoverable via `pytest -k us_1371`.
+*   Keep subprocess iterations low (`iterations=1`) to ensure fast test execution.
+*   The test environment must correctly patch the real API client to use the mock fixture.
+
+## Iteration N+10 - Sun, May 18, 2026 - Story US-1400 Completed
+Completed: Integration tests for SPIRAL retry escalation and timeout scope-reduction (US-1400)
+
+### What was implemented
+- Created tests/test_spiral_integration.py with 4 comprehensive integration tests:
+  1. test_retry_escalation_on_haiku_failure_us1371: Haiku failure → sonnet escalation success
+  2. test_retry_escalation_with_multiple_models_us1371: Full escalation chain (haiku → sonnet → opus)
+  3. test_timeout_triggers_scope_reduction_us1371: Timeout failure → scope reduction/decomposition
+  4. test_timeout_with_retries_us1371: Timeout handling with extended timeout and decomposition
+
+- All tests use stateful side_effect mocking via unittest.mock.patch() to avoid real Claude API calls
+- Tests are discoverable via `pytest -k 1371` keyword filter
+- Full mypy --strict type checking compliance achieved
+- All pre-commit hooks pass (ruff lint/format, mypy strict, shellcheck, shfmt)
+
+### Key Patterns Discovered
+- Stateful subprocess.run mocking via side_effect functions with call counters works well for retry scenarios
+- Using `Any` type annotation for subprocess.CompletedProcess when `text=True` avoids type mismatches
+- MockClaudeAPI fixture from tests/fixtures/mock_claude_api.py enables subprocess-level mocking
+- Keyword matching in test functions via `_us1371` suffix allows pytest discovery with `-k 1371` filter
+
+### Testing Results
+- All 4 tests pass: 100% success rate
+- MyPy --strict: ✓ passed (no type errors)
+- Ruff lint/format: ✓ passed
+- Pre-commit hooks: ✓ passed on new file
+
+### Acceptance Criteria Met
+- [x] uv run pytest tests/test_spiral_integration.py -v exits 0 with 4 passing tests (>= 2 required)
+- [x] Test asserts haiku failure followed by sonnet success produces passing story result
+- [x] Test asserts timeout injection triggers scope-reduction logic (decomposition/deferred)
+- [x] uv run pytest tests/ -k 1371 -v exits 0 (all 4 tests discoverable and pass)
+
+### Gotchas
+- MockClaudeAPI failure injection checks phase field before response field; stateful side_effect is more flexible
+- Subprocess.run with text=True produces CompletedProcess[str], not CompletedProcess[bytes]; must use Any for type compatibility
+- Redefining variables in same scope violates mypy strict mode; must scope with try/except or use different names
+- Pre-commit mypy check excludes tests/ by default; test files are only checked for direct pytest execution
+

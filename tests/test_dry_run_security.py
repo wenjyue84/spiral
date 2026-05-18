@@ -71,11 +71,7 @@ def test_dry_run_subprocess_no_secret_leakage() -> None:
     - Captured stdout contains no API key sentinel value
     """
     # Create temporary test PRD
-    test_prd = {
-        "userStories": [
-            {"id": "US-1", "title": "Test", "estimatedComplexity": "small"}
-        ]
-    }
+    test_prd = {"userStories": [{"id": "US-1", "title": "Test", "estimatedComplexity": "small"}]}
 
     # Write test PRD to temp location
     test_prd_path = Path(__file__).parent / "temp_test_prd.json"
