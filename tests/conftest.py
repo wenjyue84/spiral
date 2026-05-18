@@ -658,3 +658,64 @@ def mock_api_repo(tmp_path: Path):
 
     with _MockClaudeAPI() as mock_api:
         yield mock_api, tmp_path
+
+
+# ── US-1386: MockClaudeRunner fixture for timeout simulation ─────────────────
+
+
+class MockClaudeRunner:
+    """Simulate a Claude CLI runner that can raise TimeoutError after N seconds.
+
+    Used in Phase I timeout-recovery integration tests to verify that
+    timeout_handler catches the signal and scope_reducer is invoked.
+
+    Usage::
+
+        runner = MockClaudeRunner()
+        runner_with_timeout = runner.with_timeout(90)
+        result = runner_with_timeout.run(story)  # raises TimeoutError after 90 s
+
+        # or inject a pre-set timeout value:
+        runner = MockClaudeRunner.with_timeout(90)
+    """
+
+    def __init__(self, timeout_seconds: int | None = None) -> None:
+        self.timeout_seconds = timeout_seconds
+        self.call_count = 0
+        self.last_story: dict[str, Any] | None = None
+
+    def with_timeout(self, seconds: int) -> "MockClaudeRunner":
+        """Return a new runner configured to raise TimeoutError after *seconds*."""
+        return MockClaudeRunner(timeout_seconds=seconds)
+
+    def run(self, story: dict[str, Any]) -> dict[str, Any]:
+        """Simulate running a Claude CLI invocation for *story*.
+
+        If timeout_seconds is set the call raises TimeoutError immediately
+        (deterministic — avoids actual sleeping in tests).
+
+        Args:
+            story: Story dict with at least 'id' and 'acceptanceCriteria'.
+
+        Returns:
+            dict with 'status', 'ac_fulfilled_count', 'retry_count'.
+
+        Raises:
+            TimeoutError: When timeout_seconds is configured.
+        """
+        self.call_count += 1
+        self.last_story = story
+        if self.timeout_seconds is not None:
+            raise TimeoutError(f"MockClaudeRunner: simulated {self.timeout_seconds}s timeout")
+        acs = story.get("acceptanceCriteria", [])
+        return {
+            "status": "completed",
+            "ac_fulfilled_count": len(acs),
+            "retry_count": 0,
+        }
+
+
+@pytest.fixture
+def mock_claude_runner() -> MockClaudeRunner:
+    """Fixture: Provide a MockClaudeRunner for Phase I timeout-recovery tests."""
+    return MockClaudeRunner()

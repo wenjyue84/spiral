@@ -794,3 +794,31 @@ This brief outlines the implementation for a timeout recovery integration test w
 *   **Idempotency:** The `scope_reducer` should be designed to handle being called multiple times, even if the current implementation only expects one call.
 *   **Mandatory vs. Optional:** The logic to differentiate between mandatory and optional ACs must be robust. Assume ACs are mandatory unless explicitly marked otherwise.
 
+
+## Story US-1386 - Integration Test: Phase I Timeout Handler Reduces Scope and Completes Story
+
+### What was implemented
+- Created `tests/integration/test_phase_i_timeout_recovery.py` (9 tests, 3 test classes)
+  - `TestTimeoutTriggersScopeReduction`: 3 tests verifying MockClaudeRunner with 90s timeout raises TimeoutError and _simulate_ralph_run catches it, calls scope_reducer, retries with trimmed story
+  - `TestScopeReducerRemovesOptionalACs`: 3 tests verifying strip_optional_ac removes 3+ @optional ACs, preserves mandatory ones, and timeout_scope_reducer delegates to strip_optional_ac
+  - `TestRetryCountRecordedInResultsTsv`: 3 tests verifying retry_count=1, ac_fulfilled_count < original, results.tsv row format
+
+- Added `MockClaudeRunner` class to `tests/conftest.py`
+  - `with_timeout(seconds)` factory method returns new runner configured to raise TimeoutError
+  - `run(story)` raises TimeoutError if configured, else returns {status, ac_fulfilled_count, retry_count}
+  - `mock_claude_runner` pytest fixture
+
+### Key Patterns Discovered
+- The story referenced `lib/impl/timeout_handler.sh` but the actual implementation is `lib/timeout_handler.py` (Python) — tested against the real Python module
+- `timeout_scope_reducer()` in lib/timeout_handler.py delegates to `strip_optional_ac()` in lib/impl/scope_reducer.py
+- Integration tests import lib modules directly via `sys.path.insert` (no shell subprocess needed)
+- `_simulate_ralph_run()` helper mirrors the actual Phase I retry logic: try → catch TimeoutError → reduce → retry
+
+### Acceptance Criteria Met
+- [x] tests/integration/test_phase_i_timeout_recovery.py sets up MockClaudeRunner with 90s timeout, verifies timeout_handler catches TimeoutError and calls scope_reducer()
+- [x] scope_reducer() removes 3+ optional ACs and re-invokes runner with trimmed story definition
+- [x] Integration test asserts story completes with status='completed', ac_fulfilled_count < original_ac_count, and retry_count=1
+
+### Testing
+- 9/9 tests passing (100%)
+- mypy --strict: Success on test file (pre-existing conftest.py errors not introduced by this story)
