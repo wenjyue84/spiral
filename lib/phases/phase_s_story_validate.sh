@@ -109,6 +109,12 @@ run_phase_story_validate() {
     done < <(PYTHONPATH="$spiral_home${PYTHONPATH:+:$PYTHONPATH}" \
       "$spiral_python" -m lib.phase_s.duplicate_detector "$validated_out" 2>/dev/null || true)
   fi
+
+  # ── US-1422: Run AC validation to detect incomplete acceptance criteria ──
+  if [[ -f "$validated_out" ]]; then
+    PYTHONPATH="$spiral_home${PYTHONPATH:+:$PYTHONPATH}" \
+      "$spiral_python" "$spiral_home/lib/ac_validator.py" "$validated_out" 2>/dev/null || true
+  fi
 }
 
 # run_phase_s — Phase S orchestration wrapper
@@ -151,6 +157,18 @@ run_phase_s() {
     _S_REJECTED=$("$JQ" '.stories | length' "$SCRATCH_DIR/_story_rejected.json" 2>/dev/null || echo "0")
     _S_TOTAL=$((_S_ACCEPTED + _S_REJECTED))
     log_spiral_event "phase_s_result" "\"iteration\":$SPIRAL_ITER,\"accepted\":$_S_ACCEPTED,\"rejected\":$_S_REJECTED,\"total\":$_S_TOTAL"
+
+    # ── US-1422: Log AC validation summary ──
+    # Run AC validator and parse summary for logging
+    _ac_summary=$({
+      PYTHONPATH="$SPIRAL_HOME${PYTHONPATH:+:$PYTHONPATH}" \
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ac_validator.py" "$VALIDATED_OUTPUT" 2>/dev/null || true
+    } | head -1)
+    if [[ -n "$_ac_summary" ]]; then
+      # Extract counts from summary: "AC Validation: N stories with incomplete ACs found"
+      _ac_stories_count=$(echo "$_ac_summary" | grep -oP 'AC Validation: \K\d+' || echo "0")
+      log_spiral_event "phase_s_ac_validation" "\"iteration\":$SPIRAL_ITER,\"incomplete_stories\":$_ac_stories_count,\"scanned\":$_S_ACCEPTED"
+    fi
 
     # ── US-1283: Track rejection reasons in prd.json and .spiral/rejections.jsonl ──
     if [[ -f "$SCRATCH_DIR/_story_rejected.json" ]] && [[ "$_S_REJECTED" -gt 0 ]]; then

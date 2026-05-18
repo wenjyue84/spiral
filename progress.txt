@@ -166,3 +166,5 @@ before any changes were made. Files were already in place from git history. This
 - mypy --strict passes on lib/story_inspector.py
 - CLI smoke test on real prd.json works correctly
 - Marked story as passes: true
+## Iteration 2 - Mon, May 18, 2026 10:26:02 PM
+Completed: CLI: Show story blockers and dependents with `spiral inspect-story <id>` (ID: US-1421) in 2m
