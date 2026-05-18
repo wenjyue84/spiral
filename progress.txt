@@ -1087,3 +1087,37 @@ Completed the `spiral rename-story <old-id> <new-id>` CLI command with full supp
 ## Iteration 1 - Tue, May 19, 2026  1:29:43 AM
 Completed: CLI: spiral rename-story with history and reference preservation (ID: US-1436) in 7m
 
+## Iteration 2 - Tue, May 19, 2026  1:37:01 AM
+Completed: Phase T: Extract Test Failure Patterns for Episodic Learning Integration (ID: US-1437) in 6m
+
+
+## Pre-analysis for US-1438 (Gemini 2.5 Pro)
+### Technical Brief: US-1438 Research Replay CLI
+
+**Objective:** Implement a CLI command `spiral research-replay <story-id>` to compare historical research synthesis with current results from the Gemini API, flagging significant quality degradation.
+
+**1. Files to Modify/Create:**
+*   **Create:** `lib/research_replay.py`
+*   **Create:** `tests/test_research_replay.py`
+*   **Modify:** `lib/cli_subcommands.sh`
+
+**2. Core Components:**
+*   **Python Function:** `lib.research_replay.replay_research(story_id)` will be the entry point.
+*   **CLI Integration:** A new `research-replay` command in `lib/cli_subcommands.sh` will invoke the Python script.
+*   **Data Source:** Reads historical queries from `.spiral/research-cache/{story_id}/results.tsv`.
+
+**3. Implementation Approach:**
+1.  In `lib/cli_subcommands.sh`, add a `research-replay`) case that calls `uv run python -m lib.research_replay "$1"`.
+2.  In `lib/research_replay.py`, the `replay_research` function should:
+    a.  Read the original queries and source URLs from the specified story's `results.tsv`.
+    b.  Re-execute the same queries against the live Gemini search API.
+    c.  Calculate a "quality delta" by comparing the original vs. new result sets (e.g., Jaccard similarity of URLs) and summary content (e.g., `difflib` ratio).
+    d.  Print a comparison report and exit with a non-zero status if the delta exceeds a 15% threshold.
+3.  In `tests/test_research_replay.py`, create pytest tests that mock the Gemini API and provide sample `results.tsv` data to validate the delta calculation logic under various scenarios (no change, minor change, major change).
+
+**4. Edge Cases & Gotchas:**
+*   **Delta Metric:** The "15% delta" needs a precise definition. A combination of result set changes and summary text divergence is recommended.
+*   **API Failures:** The script must gracefully handle potential network or API errors during the live search queries.
+*   **TSV Format:** Ensure robust parsing of the `results.tsv`, handling potential inconsistencies.
+*   **Performance:** API calls can be slow; consider logging progress for better UX.
+

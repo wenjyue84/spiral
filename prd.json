@@ -5005,7 +5005,10 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-05-18T17:37:03Z"
+      "last_attempted": "2026-05-18T17:37:03Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- results.tsv stores historical SPIRAL run telemetry (story_id, status, model, retry_num, etc.)\n- Phase R uses research_cache.py which stores cached queries with: query, result, iteration, tokens, added_at\n- Existing CLI commands (story_inspector.py) follow a pattern: load functions, format output, main()\n- cli_subcommands.sh integrates CLI commands into spiral.sh\n\n## Problem Identified\nUser needs a CLI command to replay historical research queries against current Gemini API to:\n1. Detect when research sources have been re-ranked or changed\n2. Identify synthesis quality degradation\n3. Flag for re-research when delta > 15%\n\n## Planned Changes\n- **lib/research_replay.py** (~170 lines): Main implementation with research loading, Gemini replay, delta calculation\n- **tests/test_research_replay.py** (~160 lines): Comprehensive tests including delta_detection test per AC\n- **lib/cli_subcommands.sh** (~8 lines): Add research-replay handler\n\n<plan>\n{\n  \"files_to_create\": [\"lib/research_replay.py\", \"tests/test_research_replay.py\"],\n  \"files_to_modify\": [\"lib/cli_subcommands.sh\"],\n  \"functions_to_add\": [\"load_story_research\", \"replay_research_queries\", \"calculate_quality_delta\", \"replay_research\"],\n  \"estimated_loc\": 320\n}\n</plan>\n\nNow let me implement the story:\n## ✅ Story US-1438 Complete"
+      }
     }
   ]
 }
