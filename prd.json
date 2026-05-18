@@ -4956,7 +4956,8 @@
       "last_attempted": "2026-05-18T17:21:25Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe SPIRAL system stores stories in `prd.json` with:\n- Each story has an `id` field (e.g., \"US-001\")\n- A `dependencies` array field referencing other story IDs\n- Historical execution data in `results.tsv` with a `story_id` column\n\n## Problem Identified\n\nImplementing a CLI command to safely rename story IDs across prd.json, results.tsv, and all dependency references while preserving execution telemetry and preventing data loss.\n\n## Planned Changes\n\n1. **lib/story_renamer.py** — Core rename logic with atomic writes\n2. **lib/cli_subcommands.sh** — Add rename-story subcommand handler\n3. **tests/test_story_renamer.py** — Comprehensive test suite\n\n<plan>\n{\n  \"files_to_create\": [\"lib/story_renamer.py\", \"tests/test_story_renamer.py\"],\n  \"files_to_modify\": [\"lib/cli_subcommands.sh\"],\n  \"functions_to_add\": [\"rename_story\", \"validate_rename\", \"update_dependencies\", \"update_results_tsv\"],\n  \"estimated_loc\": 220\n}\n</plan>\n\nNow let me implement the solution:\nPerfect! **Story US-1436 is now complete and committed.**\n\n## Summary"
-      }
+      },
+      "_passedCommit": "a9397b8a108aed17cd8a7c1b5cecef02f5944ec3"
     },
     {
       "id": "US-1437",
@@ -4975,9 +4976,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-18T17:29:45Z"
     },
     {
       "id": "US-1438",
