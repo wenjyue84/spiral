@@ -1226,3 +1226,72 @@ This is a technical brief for implementing `US-1443`, which involves testing a P
 *   The `mock_api_repo` fixture is critical and likely prepares a temporary file system or git repo context that the tested code requires to run.
 *   Ensure the tests trigger the *exact* `subprocess` call that `MockClaudeAPI` is designed to patch.
 *   The tests should exercise the `MockClaudeAPI` class directly as a Python object, not by invoking external scripts like `spiral.sh`.
+
+## Iteration [25] - Story: US-1443 [Integration Test] Verify MockClaudeAPI fixture intercepts subprocess and injects responses
+
+### What was implemented
+
+Verified and completed comprehensive integration tests for MockClaudeAPI subprocess interception:
+
+1. **tests/test_mock_claude_api.py (199 lines)**
+   - 14 comprehensive integration tests covering:
+     - Response injection and retrieval (test_inject_response_stored_and_retrieved)
+     - Context manager patching (test_context_manager_patches_subprocess_run)
+     - JSON response as stdout (test_inject_response_returned_as_stdout)
+     - Failure injection modes: returncode and CalledProcessError
+     - Non-claude call pass-through (test_non_claude_calls_pass_through)
+     - Multiple independent responses (test_multiple_responses_independent)
+     - Happy-path interception (test_intercept_success)
+     - Failure injection (test_inject_failure)
+     - Unmatched call detection (test_unmatched_raises)
+     - mock_api_repo fixture integration (test_mock_api_repo_fixture_exercisable_in_isolation)
+     - intercept() method with bulk responses (test_intercept_no_real_call)
+     - Call logging (test_call_log)
+     - Network isolation verification (test_mock_api_prevents_network_calls_us_1365)
+   - All 14 tests passing with zero timeout (proves no network I/O)
+
+2. **tests/pyproject.toml (1 line added)**
+   - Registered us_1365 pytest marker to eliminate marker warning
+   - Documentation of the marker purpose in config
+
+### How it works
+
+MockClaudeAPI is a subprocess-level interceptor that:
+- Patches subprocess.run() via unittest.mock.patch
+- Extracts --phase and --story arguments from command line
+- Returns injected JSON responses as stdout for matching (phase, story_id) tuples
+- Simulates failures (returncode=1 or CalledProcessError) for specified phases
+- Logs all intercepted calls for inspection
+- Passes through non-claude subprocess calls unchanged
+- Works as context manager or explicit intercept()/stop() pair
+
+### Patterns discovered
+
+- MockClaudeAPI is essential for Phase I/R/V integration tests that would otherwise require real Claude CLI
+- The fixture supports both keyed responses (phase+story_id) and bulk response injection
+- Network isolation verified by 5s timeout on subprocess calls (proves no actual I/O)
+- Failure modes: "returncode" → exit 1; any other → CalledProcessError exception
+- unmatched calls raise AssertionError with full command for easy debugging
+
+### Gotchas
+
+- MockClaudeAPI patches subprocess.run globally; ensure isolation with fixtures
+- Phase/story_id extraction requires specific --phase and --story argument format
+- Must call mock.stop() when using intercept() outside context manager
+- Unmatched calls intentionally raise AssertionError (fail-fast design)
+
+### Acceptance criteria met
+
+- [x] AC1: Happy-path interception test passes (test_intercept_success)
+- [x] AC2: Failure injection test passes (test_inject_failure)
+- [x] AC3: 14 test items collected in test_mock_claude_api.py (>= 2 required)
+- [x] AC4: All tests complete without network I/O (5s timeout verification)
+- [x] mock_api_repo fixture confirmed importable from conftest.py
+- [x] conftest.py fixture yields (MockClaudeAPI, Path) tuple as documented
+- [x] All tests pass: 14/14 PASSED
+- [x] MyPy strict type checking passes
+- [x] Pre-commit hooks pass
+- [x] Story marked as passes: true in prd.json
+
+## Iteration 4 - May 19, 2026 12:15 AM
+Completed: [Integration Test] Verify MockClaudeAPI fixture intercepts subprocess and injects responses (ID: US-1443) in 15m
