@@ -158,6 +158,8 @@ LOGS_MODE=0                                  # 1 = view story logs and exit (--l
 LOGS_STORY_ID=""                             # story ID to view logs for
 LOGS_LEVEL=""                                # log level filter: DEBUG|INFO|WARN|ERROR
 LOGS_CONTEXT=""                              # log context filter: parse|decompose|implement|verify
+INSPECT_STORY_MODE=0                         # 1 = inspect story metadata and exit (--inspect-story)
+INSPECT_STORY_ID=""                          # story ID to inspect
 SEARCH_MODE=0                                # 1 = search stories and exit (search subcommand)
 SEARCH_QUERY=""                              # search query string
 SEARCH_FORMAT="table"                        # output format: table|json|csv
@@ -483,6 +485,11 @@ while [[ $# -gt 0 ]]; do
           *) break ;;
         esac
       done
+      ;;
+    --inspect-story)
+      INSPECT_STORY_MODE=1
+      INSPECT_STORY_ID="${2:-}"
+      shift 2
       ;;
     search)
       SEARCH_MODE=1

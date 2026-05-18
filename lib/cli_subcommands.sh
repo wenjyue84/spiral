@@ -673,6 +673,18 @@ if [[ "$BENCHMARK_LIST_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── inspect-story: show story metadata, blockers, and dependents ──────────────
+INSPECT_STORY_MODE="${INSPECT_STORY_MODE:-0}"
+INSPECT_STORY_ID="${INSPECT_STORY_ID:-}"
+if [[ "$INSPECT_STORY_MODE" -eq 1 ]]; then
+  if [[ -z "$INSPECT_STORY_ID" ]]; then
+    echo "[spiral] ERROR: Usage: spiral inspect-story <story-id>" >&2
+    exit 1
+  fi
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_inspector.py" "$PRD_FILE" "$INSPECT_STORY_ID"
+  exit $?
+fi
+
 # ── explain-learning: show temporal evolution of learned patterns ──────────────
 EXPLAIN_LEARNING_MODE="${EXPLAIN_LEARNING_MODE:-0}"
 EXPLAIN_LEARNING_PATTERN_TYPE="${EXPLAIN_LEARNING_PATTERN_TYPE:-}"
