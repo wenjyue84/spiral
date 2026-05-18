@@ -60,6 +60,15 @@ phase_gen_changelog() {
     return 1
   fi
 
+  # Validate CHANGELOG.md Markdown syntax and link integrity (US-1403)
+  _validate_changelog_links "$spiral_home" "$output_file"
+  local _links_validate_rc=$?
+  if [[ "$_links_validate_rc" -ne 0 ]]; then
+    echo "[phase-g] Markdown and link validation failed — rolling back CHANGELOG.md" >&2
+    rm -f "$output_file"
+    return 1
+  fi
+
   return 0
 }
 
@@ -137,7 +146,45 @@ _validate_changelog_schema() {
   fi
 }
 
+# _validate_changelog_links: Run lib/validate_changelog.py to check Markdown & links (US-1403)
+#
+# Validates CHANGELOG.md for: (1) Markdown syntax, (2) story ID references exist in prd.json,
+# (3) file links point to existing files. Results logged to .spiral/_changelog_validation.json.
+#
+# Returns: 0 on pass or unavailable, 1 on validation failure
+_validate_changelog_links() {
+  local spiral_home="$1"
+  local changelog_path="$2"
+  local python_bin="${SPIRAL_PYTHON:-python3}"
+  local validate_script="${spiral_home}/lib/validate_changelog.py"
+  local prd_file="${spiral_home}/prd.json"
+  local scratch_dir="${spiral_home}/.spiral"
+
+  if [[ ! -f "$validate_script" ]]; then
+    echo "[phase-g] WARNING: lib/validate_changelog.py not found — skipping Markdown validation"
+    return 0
+  fi
+
+  if ! command -v "$python_bin" &>/dev/null && ! $python_bin --version &>/dev/null 2>&1; then
+    echo "[phase-g] WARNING: Python not available — skipping Markdown validation"
+    return 0
+  fi
+
+  echo "[phase-g] Validating CHANGELOG.md Markdown syntax and link integrity..."
+  if $python_bin "$validate_script" \
+    --changelog "$changelog_path" \
+    --prd "$prd_file" \
+    --git-root "$spiral_home" \
+    --scratch-dir "$scratch_dir"; then
+    echo "[phase-g] CHANGELOG.md validation passed"
+    return 0
+  else
+    return 1
+  fi
+}
+
 # Export functions for use in spiral.sh
 export -f phase_gen_changelog
 export -f _log_orphan_commits
 export -f _validate_changelog_schema
+export -f _validate_changelog_links
