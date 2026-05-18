@@ -628,6 +628,97 @@ print(json.dumps(result))
   }
 });
 
+// Cost breakdown endpoint - parse results.tsv for cost analysis (US-1385)
+app.get('/api/costs/breakdown', (req, res) => {
+  try {
+    const resultsPath = join(resolve('.'), 'results.tsv');
+
+    if (!existsSync(resultsPath)) {
+      return res.json({
+        entries: [],
+        total_cost_usd: 0,
+        burn_rate_per_minute: 0,
+        ceiling_usd: 200.00
+      });
+    }
+
+    const content = readFileSync(resultsPath, 'utf-8');
+    const lines = content.trim().split('\n');
+    if (lines.length === 0) {
+      return res.json({
+        entries: [],
+        total_cost_usd: 0,
+        burn_rate_per_minute: 0,
+        ceiling_usd: 200.00
+      });
+    }
+
+    const header = lines[0].split('\t');
+    const modelIdx = header.indexOf('model');
+    const reviewTokensIdx = header.indexOf('review_tokens');
+    const cacheCreationTokensIdx = header.indexOf('cache_creation_tokens');
+    const durationSecIdx = header.indexOf('duration_sec');
+
+    // Group costs by model (as a proxy for phase)
+    const phaseMap = new Map<string, { tokens: number; cost_usd: number }>();
+    let totalTokens = 0;
+    let totalCost = 0;
+    let totalDurationSec = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split('\t');
+      if (parts.length <= Math.max(modelIdx, reviewTokensIdx)) continue;
+
+      const model = parts[modelIdx] || 'unknown';
+      const reviewTokens = parseInt(parts[reviewTokensIdx] || '0', 10);
+      const cacheCreationTokens = parseInt(parts[cacheCreationTokensIdx] || '0', 10);
+      const durationSec = parseInt(parts[durationSecIdx] || '0', 10);
+
+      const totalTokensUsed = reviewTokens + cacheCreationTokens;
+
+      // Estimate cost: haiku ~$0.00080/1k tokens, sonnet ~$0.003/1k, opus ~$0.015/1k
+      let costPerMillion = 0.80; // default for haiku
+      if (model.includes('sonnet')) costPerMillion = 3.0;
+      if (model.includes('opus')) costPerMillion = 15.0;
+
+      const tokenCost = (totalTokensUsed / 1000000) * costPerMillion;
+
+      if (!phaseMap.has(model)) {
+        phaseMap.set(model, { tokens: 0, cost_usd: 0 });
+      }
+      const entry = phaseMap.get(model)!;
+      entry.tokens += totalTokensUsed;
+      entry.cost_usd += tokenCost;
+
+      totalTokens += totalTokensUsed;
+      totalCost += tokenCost;
+      totalDurationSec += durationSec;
+    }
+
+    // Convert map to entries array
+    const entries = Array.from(phaseMap.entries()).map(([phase, data]) => ({
+      phase: phase.charAt(0).toUpperCase() + phase.slice(1),
+      cost_usd: Math.round(data.cost_usd * 100) / 100,
+      token_count: data.tokens
+    }));
+
+    // Calculate burn rate (cost per minute across all stories)
+    const burnRatePerMinute = totalDurationSec > 0
+      ? Math.round((totalCost / (totalDurationSec / 60)) * 100) / 100
+      : 0;
+
+    res.json({
+      entries,
+      total_cost_usd: Math.round(totalCost * 100) / 100,
+      burn_rate_per_minute: burnRatePerMinute,
+      ceiling_usd: 200.00
+    });
+  } catch (e) {
+    console.error('[/api/costs/breakdown] Error parsing results.tsv:', e);
+    res.status(500).json({ error: 'Failed to compute cost breakdown' });
+  }
+});
+
 // Health check endpoint with phase metrics (US-1366)
 app.get('/api/health', (req, res) => {
   try {

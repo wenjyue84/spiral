@@ -5,6 +5,7 @@ import SettingsPanel, { defaultValues, type ConfigValues } from './components/Se
 import ConfigGenerator from './components/ConfigGenerator';
 import NodePanel from './components/NodePanel';
 import ProjectDashboard from './components/ProjectDashboard';
+import CostAnalysisTab from './components/CostAnalysisTab';
 
 type Tab = 'projects' | 'workflow' | 'settings' | 'config';
 
