@@ -1,3 +1,43 @@
+## Iteration Current - Sun, May 18, 2026 - Story US-1414 Completed
+Completed: Create MockClaudeAPI class with response injection and failure simulation (ID: US-1414) in ~2m
+
+### What was implemented
+- Verified tests/fixtures/mock_claude_api.py MockClaudeAPI class (created in US-1365)
+  - Context manager that intercepts subprocess.run calls to 'claude' binary
+  - inject_response(phase, story_id, response_json) stores keyed responses
+  - inject_failure(phase, error_type) stores failure modes
+  - _make_side_effect() extracts --phase and --story from args, returns injected responses or raises errors
+  - crash_then_succeed() helper for worker respawn test scenarios
+
+- Verified tests/test_mock_claude_api.py comprehensive test suite
+  - All 12 tests passing (exceeds 2-test minimum)
+  - Tests cover: storage/retrieval, context manager, response injection, failure injection, non-claude passthrough
+  - test_intercept_success: verifies inject_response returns correct JSON stdout
+  - test_inject_failure: verifies inject_failure raises CalledProcessError
+  - test_unmatched_raises: verifies AssertionError for unmatched calls
+  - test_mock_api_repo_fixture_exercisable_in_isolation: fixture wiring verified
+
+- Verified tests/conftest.py mock_api_repo fixture (wired in US-1365)
+  - Creates minimal git repo with constitution.md and prd.json
+  - Returns tuple of (MockClaudeAPI instance, tmp_path)
+
+### Key Patterns Discovered
+- MockClaudeAPI patches subprocess.run via unittest.mock.patch in __enter__/__exit__
+- Command-line arg extraction: loop through args, check for --phase and --story flags
+- Strict matching: unmatched calls raise AssertionError, not silently pass through
+- JSONL serialization: responses encoded as UTF-8 JSON in CompletedProcess.stdout
+
+### Acceptance Criteria Met
+- [x] uv run pytest tests/test_mock_claude_api.py -v exits 0 with 12 passing tests (>= 2)
+- [x] MockClaudeAPI.inject_response() causes intercepted call to return that response (test_intercept_success)
+- [x] MockClaudeAPI.inject_failure() causes intercepted call to raise given error (test_inject_failure)
+
+### Testing
+- All 12 tests passing (100%)
+- Ruff lint/format checks passed
+- Code quality gates clear (dependency US-1365 satisfied)
+- Pre-commit hooks: ruff passed, mypy isolated, no new issues
+
 ## Iteration N+7 - Sun, May 18, 2026 - Story US-1348 Completed
 Completed: Fill html/pages/05-cli-reference.html with filterable CLI tables (ID: US-1348) in ~20m
 
