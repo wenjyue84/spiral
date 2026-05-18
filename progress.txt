@@ -448,3 +448,43 @@ Added comprehensive security hardening and tests for the /api/costs/breakdown en
 - [x] No server paths or file contents leak in error responses
 
 Story ID: US-1427
+## Iteration 1 - Mon, May 18, 2026 11:29:54 PM
+Completed: [Security Test] /api/costs/breakdown: response exposes no raw API keys or tokens (ID: US-1427) in 8m
+
+
+## Iteration [27] - Story: US-1428 Phase I Error Classifier - Extract and Categorize Failure Patterns from results.tsv
+
+### What was implemented
+
+1. **lib/spiral/impl/__init__.py** — Created package init for lib/spiral/impl/
+2. **lib/spiral/impl/error_classifier.py** (~110 lines)
+   - `ErrorCategory(str, Enum)` with 8 values: timeout, oom, syntax, import, assertion, network, auth, unknown
+   - `classify_error(error_msg: str) -> ErrorCategory` — classifies error text using pattern matching
+   - `scan_results_tsv(results_tsv, output_jsonl)` — scans results.tsv failures, produces lib/error_patterns.jsonl with per-category frequency + examples
+3. **tests/test_error_classifier.py** (15 tests, all passing)
+   - `test_classify_timeout` and `test_classify_oom` (AC test commands)
+   - Tests for all 8 categories, edge cases, JSONL output format
+4. **lib/impl/retry.sh** — Updated `get_failure_type()` to use `error_classifier.classify_error()` instead of `failure_categorizer.categorize_failure()`. Maps new category names back to legacy names expected by `select_retry_strategy()` (syntax→syntax_error, import→missing_dependency, assertion→test_assertion, network/auth/unknown→other)
+5. **lib/error_patterns.jsonl** — Generated from real results.tsv (66 failures, 4 categories found: unknown 61, assertion 2, auth 2, timeout 1)
+
+### Patterns discovered
+
+- `lib/spiral/impl/` was a new subdirectory; needed `__init__.py` to make it a package
+- results.tsv has no error_msg column — story_title is the best proxy for error classification
+- Most historical failures (61/66) classify as "unknown" because story titles are descriptive, not error messages — classifier works correctly on actual stderr output
+
+### Gotchas
+
+- `ruff format` reformatted multi-line `any()` calls — budget extra lines
+- The `select_retry_strategy()` in retry.sh uses legacy category names; a mapping layer in `get_failure_type()` avoids changing that function's contract
+
+### Acceptance criteria met
+
+- [x] AC1: lib/spiral/impl/error_classifier.py exports classify_error(error_msg: str) -> ErrorCategory enum with all 8 values
+- [x] AC2: scan_results_tsv() parses failures and appends to lib/error_patterns.jsonl with frequency + examples
+- [x] AC3: lib/impl/retry.sh get_failure_type() now calls error_classifier.classify_error()
+- [x] uv run pytest tests/test_error_classifier.py::TestClassifyError::test_classify_timeout -v PASSED
+- [x] uv run pytest tests/test_error_classifier.py::TestClassifyError::test_classify_oom -v PASSED
+- [x] All 15 tests in test_error_classifier.py pass
+- [x] mypy --strict passes
+- [x] ruff check+format passes

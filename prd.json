@@ -4694,7 +4694,8 @@
       "last_attempted": "2026-05-18T15:19:51Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n- The `/api/costs/breakdown` endpoint exists but only accepts hard-coded \"results.tsv\"\n- No file parameter exists currently\n- Tests for secret field leakage and path traversal do not exist yet\n- The `parse_costs_from_results_tsv()` function is secure but the endpoint needs path validation\n\n## Problem Identified\nThe story requires adding security tests and endpoint validation to ensure:\n1. Response JSON never contains raw API keys/tokens (no fields named token, key, password, secret)\n2. Path traversal attempts (../../etc/passwd) are rejected with 400 and no file contents leaked\n\n## Planned Changes\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"lib/dashboard/api.py\",\n    \"tests/test_costs_api.py\"\n  ],\n  \"functions_to_add\": [\n    \"validate_file_path\",\n    \"test_breakdown_no_secret_fields\",\n    \"test_breakdown_path_traversal\"\n  ],\n  \"estimated_loc\": 80\n}\n</plan>\n\n---\n\n## Diagnosis Block"
-      }
+      },
+      "_passedCommit": "c2906b84a08bbb3cc90cf3d602d023040dd7e5e9"
     },
     {
       "id": "US-1428",
@@ -4714,9 +4715,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-05-18T15:29:56Z"
     },
     {
       "id": "US-1429",

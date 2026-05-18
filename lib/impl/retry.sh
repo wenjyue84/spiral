@@ -156,30 +156,38 @@ handle_story_failure() {
 }
 
 # get_failure_type <stderr_file>
-# Calls failure_categorizer.py on stderr output and returns one of 8 categories:
-#   missing_dependency, syntax_error, type_error, test_assertion,
-#   timeout, oom, context_overflow, other
+# Calls error_classifier.classify_error() on stderr output and returns one of:
+#   timeout, oom, syntax, import, assertion, network, auth, unknown
+#   (legacy fallback categories: missing_dependency, syntax_error, type_error,
+#    test_assertion, context_overflow, other)
 # Returns "other" on any error or if stderr file is missing.
 get_failure_type() {
   local stderr_file="${1:-}"
-  local categorizer
-  categorizer="$(dirname "${BASH_SOURCE[0]}")/../../lib/failure_categorizer.py"
 
-  if [[ ! -f "$categorizer" || ! -f "$stderr_file" ]]; then
+  if [[ ! -f "$stderr_file" ]]; then
     echo "other"
     return 0
   fi
 
   local result
   result=$(uv run python -c "
-from lib.failure_categorizer import categorize_failure
+from lib.spiral.impl.error_classifier import classify_error
 import sys
 with open(sys.argv[1], encoding='utf-8', errors='replace') as f:
     stderr = f.read()
-ftype, _ = categorize_failure(stderr, '')
-print(ftype)
-" "$stderr_file" 2>/dev/null) || result="other"
-  echo "${result:-other}"
+print(classify_error(stderr).value)
+" "$stderr_file" 2>/dev/null) || result=""
+
+  # Map new category names to legacy names expected by select_retry_strategy()
+  case "${result:-}" in
+    timeout)   echo "timeout" ;;
+    oom)       echo "oom" ;;
+    syntax)    echo "syntax_error" ;;
+    import)    echo "missing_dependency" ;;
+    assertion) echo "test_assertion" ;;
+    network | auth | unknown | "") echo "other" ;;
+    *)         echo "${result:-other}" ;;
+  esac
 }
 
 # select_retry_strategy <failure_type> <retry_count>
