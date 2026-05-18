@@ -808,3 +808,44 @@ Completed: Create MockClaudeAPI class in tests/fixtures/mock_claude_api.py (ID: 
 ## Iteration 2 - Tue, May 19, 2026 12:54:33 AM
 Completed: Phase V: Output test evidence.json per story with verification metadata (ID: US-1434) in 8m
 
+
+## Iteration [32] - Story: US-1435 Test html/pages/06-configuration.html contains all SPIRAL_* vars with anchors
+
+### What was implemented
+
+Created comprehensive test suite to validate the configuration reference page (US-1349):
+
+1. **tests/test_config_page.py (58 lines)**
+   - Test function: `test_config_page_exists()` — validates file exists and is non-empty
+   - Test function: `test_config_page_contains_representative_anchors()` — parses HTML and verifies 4 required anchor IDs:
+     - `config-SPIRAL_VALIDATE_CMD` (representative sample from AC)
+     - `config-SPIRAL_MAX_PENDING`
+     - `config-SPIRAL_STORY_BATCH_SIZE`
+     - `config-SPIRAL_MODEL_ROUTING`
+   - Test function: `test_config_page_has_multiple_variable_anchors()` — ensures 50+ total SPIRAL_* anchors exist for deep-linking
+
+2. **Testing Results**
+   - All 3 tests pass ✓
+   - MyPy strict type checking passes ✓
+   - Ruff lint/format passes ✓
+   - No coverage issues (test-only file)
+
+### Patterns discovered
+
+- BeautifulSoup4 is already available as a dependency (v4.14.3)
+- HTML page uses `<tr id="config-SPIRAL_*">` pattern for all 70+ environment variables
+- Each variable has a unique anchor ID matching pattern `config-SPIRAL_<VARNAME>`
+- Fixture-based approach simplifies path resolution and file handling
+
+### Gotchas
+
+- File paths in tests must use `Path.parent` navigation due to test discovery location
+- Encoding must be explicitly set to UTF-8 when reading HTML files on Windows
+- Pre-commit hooks (ruff) automatically remove unused imports (`import os`)
+
+### Acceptance criteria met
+
+- [x] uv run pytest tests/test_config_page.py -v exits 0 with all assertions passing
+- [x] Test asserts html/pages/06-configuration.html exists and is non-empty
+- [x] Test parses HTML and asserts id='config-SPIRAL_VALIDATE_CMD' anchor is present as a representative sample of required anchors
+
