@@ -1352,3 +1352,41 @@ Integration tests for MockClaudeAPI subprocess interception (tests/test_mock_cla
 - [x] AC2: uv run pytest tests/test_mock_claude_api.py -v exits 0 with failure-injection test passing
 - [x] AC3: 14 collected test items (>= 2 required)
 - [x] AC4: All tests complete without network I/O (timeout=5s proves no network wait)
+## Iteration 2 - Tue, May 19, 2026  3:20:10 AM
+Completed: [Integration Test] Verify MockClaudeAPI fixture intercepts subprocess and injects responses (ID: US-1443) in 2m
+
+
+## Pre-analysis for US-1444 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1444.
+
+---
+
+**Project:** Spiral Agent Framework
+**Objective:** Implement a validation engine in `Phase S` to parse `constitution.md` and reject stories that violate predefined anti-patterns.
+
+**1. Python Files to Modify/Create:**
+
+*   **Create `lib/constitution_validator.py`:** This new module will contain the core validation logic.
+    *   `parse_constitution_rules(file_path)`: Reads `constitution.md` to extract rules and anti-patterns.
+    *   `match_antipattern(story_content, antipattern)`: Uses regex or string matching to detect violations.
+    *   `validate_story(story_json)`: Main function that orchestrates parsing and matching. It should exit with a non-zero status code on validation failure.
+*   **Create `lib/tests/test_constitution_validator.py`:** Unit tests to verify that anti-patterns are correctly detected and that valid stories pass.
+*   **Modify `lib/phases/phase_s.sh`:** This shell script will be updated to call the new validator.
+
+**2. Frappe DocTypes/Hooks (Analogues):**
+
+*   **Hook:** The integration point is within the `lib/phases/phase_s.sh` script's main processing loop, before a story is passed to `merge_stories.py`.
+*   **DocType:** The primary data structures are the user story JSON and the new rejection log entry format: `{story_id, rule_violated, reason, phase, timestamp}`.
+
+**3. Recommended Implementation Approach:**
+
+1.  In `phase_s.sh`, iterate through candidate stories. For each story, invoke the validator: `python -m lib.constitution_validator --story-json "$story_json"`.
+2.  If the validator exits with a non-zero status, capture the violated rule (from stdout) and log the rejection to `.spiral/_rejected_stories.json`. Do not merge the story.
+3.  The `constitution_validator.py` script should read the story JSON, perform the validation against `constitution.md`, and print the reason for failure before exiting.
+
+**4. Edge Cases & Gotchas:**
+
+*   **Parsing `constitution.md`:** The rule format within this markdown file must be standardized to allow for reliable parsing.
+*   **Concurrency:** Ensure that writing to `.spiral/_rejected_stories.json` is an atomic operation to prevent race conditions.
+*   **Anti-Pattern Complexity:** Start with simple, precise keyword/regex matching for anti-patterns to avoid false positives. For example, matching against `technicalNotes` or code blocks is safer than matching against the general `description`.
+

@@ -115,6 +115,15 @@ run_phase_story_validate() {
     PYTHONPATH="$spiral_home${PYTHONPATH:+:$PYTHONPATH}" \
       "$spiral_python" "$spiral_home/lib/ac_validator.py" "$validated_out" 2>/dev/null || true
   fi
+
+  # ── US-1444: Run constitution validation with antipattern detection ──
+  if [[ -f "$validated_out" && -n "${SPIRAL_SPECKIT_CONSTITUTION:-}" && -f "${SPIRAL_SPECKIT_CONSTITUTION}" ]]; then
+    PYTHONPATH="$spiral_home${PYTHONPATH:+:$PYTHONPATH}" \
+      "$spiral_python" "$spiral_home/lib/constitution_validator_runner.py" \
+      --constitution "$SPIRAL_SPECKIT_CONSTITUTION" \
+      --stories "$validated_out" \
+      --rejected-out "$scratch_dir/_rejected_stories.json" 2>/dev/null || true
+  fi
 }
 
 # run_phase_s — Phase S orchestration wrapper
