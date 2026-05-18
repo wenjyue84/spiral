@@ -4855,7 +4855,10 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-05-18T16:39:25Z"
+      "last_attempted": "2026-05-18T16:39:25Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nThe MockClaudeAPI class already exists with full functionality using a context manager pattern. All 12 existing tests pass. However, the story's acceptance criteria require three specific test functions and an `intercept()` method.\n\n## Problem Identified\n\nThe story requires:\n- AC1: `test_intercept_no_real_call` test for `MockClaudeAPI.intercept(responses=[...])` method\n- AC2: `test_inject_failure` test (✓ already exists and passes)\n- AC3: `test_call_log` test for verifying call_log property\n\nMissing implementations:\n- `intercept()` method (currently only context manager available)\n- `test_intercept_no_real_call` test\n- `test_call_log` test\n\n## Planned Changes\n\n1. **Add `intercept()` method to MockClaudeAPI** — decorator/method for bulk response injection that patches subprocess\n2. **Add `test_intercept_no_real_call()` test** — verifies intercept method patches subprocess without real calls\n3. **Add `test_call_log()` test** — verifies call_log property records intercepted calls\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/fixtures/mock_claude_api.py\",\n    \"tests/test_mock_claude_api.py\"\n  ],\n  \"functions_to_add\": [\n    \"intercept\",\n    \"test_intercept_no_real_call\",\n    \"test_call_log\"\n  ],\n  \"estimated_loc\": 40\n}\n</plan>\n\nNow implementing the required changes:\n## Summary"
+      }
     },
     {
       "id": "US-1434",
