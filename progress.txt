@@ -852,3 +852,81 @@ Created comprehensive test suite to validate the configuration reference page (U
 ## Iteration 1 - Tue, May 19, 2026  1:04:32 AM
 Completed: Test html/pages/06-configuration.html contains all SPIRAL_* vars with anchors (ID: US-1435) in 5m
 
+
+
+## Iteration [33] - Story: US-1433 Create MockClaudeAPI class in tests/fixtures/mock_claude_api.py
+
+### What was verified/completed
+
+Verified complete implementation of MockClaudeAPI class that was already developed in prior iteration:
+
+1. **MockClaudeAPI class (tests/fixtures/mock_claude_api.py - 181 lines)**
+   - `__init__()`: Initialize with empty response/failure maps and call log
+   - `inject_response(phase, story_id, response_json)`: Register JSON response for phase/story_id pair
+   - `inject_failure(phase, error_type)`: Register failure mode (returncode or exception)
+   - `intercept(responses=[...])`: Alternative to context manager; bulk response injection, returns self
+   - `stop()`: Explicit cleanup for non-context-manager usage
+   - `_make_side_effect()`: Core subprocess patching logic that extracts phase/story_id from args
+   - Context manager support via `__enter__` and `__exit__`
+   - `crash_then_succeed()` helper for worker respawn testing
+
+2. **tests/test_mock_claude_api.py (199 lines)**
+   - 14 comprehensive tests (all passing):
+     - AC1: test_intercept_no_real_call ✓
+     - AC2: test_inject_failure ✓
+     - AC3: test_call_log ✓
+     - Plus 11 supporting unit tests for context manager, response injection, failure modes, etc.
+
+3. **tests/fixtures/__init__.py (updated)**
+   - Added export of MockClaudeAPI class for clean import paths
+
+### Quality verification
+
+- MyPy --strict: ✓ Passes
+- Ruff lint/format: ✓ Passes
+- All 14 tests: ✓ Passing
+- All 3 acceptance criteria: ✓ Met
+
+### Patterns discovered
+
+- MockClaudeAPI provides two usage patterns: context manager (with MockClaudeAPI() as mock:) or direct intercept() call
+- Subprocess patching extracts phase and story_id from --phase and --story command-line arguments
+- Unmatched calls raise AssertionError with helpful debugging info
+- Non-claude subprocess calls pass through to real subprocess.run unchanged
+
+### Gotchas
+
+- Windows file path handling for subprocess args requires list() conversion
+- jq.exe required for JSON response serialization in _make_side_effect
+- Must use relative imports in __init__.py to avoid mypy path resolution conflicts
+
+### Acceptance criteria met
+
+- [x] AC1: uv run pytest tests/test_mock_claude_api.py::test_intercept_no_real_call -v PASSED
+- [x] AC2: uv run pytest tests/test_mock_claude_api.py::test_inject_failure -v PASSED
+- [x] AC3: uv run pytest tests/test_mock_claude_api.py::test_call_log -v PASSED
+- [x] MyPy strict type checking passes
+- [x] Ruff lint/format passes
+- [x] All 14 tests passing (100%)
+- [x] Story marked as passes: true in prd.json
+
+## Iteration 1 - Tue, May 19, 2026 1:07:45 AM
+Completed: Create MockClaudeAPI class in tests/fixtures/mock_claude_api.py (ID: US-1433) in 3m
+## Iteration 2 - Tue, May 19, 2026  1:07:40 AM
+FAILED diagnosis-block gate: Create MockClaudeAPI class in tests/fixtures/mock_claude_api.py (ID: US-1433) — no diagnosis block found — attempt 1/3
+
+
+## Iteration [34] - Story: US-1433 Create MockClaudeAPI class in tests/fixtures/mock_claude_api.py
+
+### What was verified/completed
+
+The MockClaudeAPI implementation was already complete from a prior iteration (Iteration 33).
+All 3 acceptance criteria tests PASSED:
+- test_intercept_no_real_call PASSED
+- test_inject_failure PASSED
+- test_call_log PASSED
+
+### Key lesson
+When a story fails only due to DIAGNOSIS_BLOCK_MISSING, the code is already correct.
+On retry, verify test results first, then output diagnosis block + mark passes=true.
+No code changes were required.
