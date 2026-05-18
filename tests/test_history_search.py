@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
-from history_search import build_index, find_similar_attempts
+from history_search import HistoryIndex, build_index, find_similar_attempts
 from results_tsv import ResultsRecord, write_results_tsv  # noqa: E402
 
 # ── helpers ──────────────────────────────────────────────────────────────
@@ -185,3 +185,177 @@ def test_recall_fifty_rows(seed: int) -> None:
 
         recall = hits_total / len(sample_queries)
         assert recall >= 0.8, f"Recall {recall:.2f} < 0.8 for {len(sample_queries)} queries"
+
+
+# ── tests for HistoryIndex class ─────────────────────────────────────────
+
+
+class TestHistoryIndexClass:
+    def test_initialization(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "history.db")
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            assert index.results_path == tsv
+            assert index.db_path == db
+            assert index.root == tmpdir
+
+    def test_build_method(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "history.db")
+            records = [_make_record("US-1", "Add login feature")]
+            _make_tsv(tsv, records)
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            index.build()
+            assert os.path.isfile(db)
+
+    def test_query_text_search(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "history.db")
+            records = [
+                _make_record("US-1", "Add authentication login", status="reject"),
+                _make_record("US-2", "Fix database migration error", status="keep"),
+            ]
+            _make_tsv(tsv, records)
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            index.build()
+            results = index.query(text="authentication")
+            assert len(results) >= 1
+            assert any(r["story_id"] == "US-1" for r in results)
+
+    def test_query_with_status_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "history.db")
+            records = [
+                _make_record("US-1", "Test title one", status="reject"),
+                _make_record("US-2", "Test title two", status="keep"),
+            ]
+            _make_tsv(tsv, records)
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            index.build()
+            results = index.query(text="Test", status="reject")
+            assert len(results) >= 1
+            assert all(r["status"] == "reject" for r in results)
+
+    def test_query_with_model_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "history.db")
+            rec1 = _make_record("US-1", "Story one")
+            rec1.model = "haiku"
+            rec2 = _make_record("US-2", "Story two")
+            rec2.model = "sonnet"
+            _make_tsv(tsv, [rec1, rec2])
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            index.build()
+            results = index.query(text="Story", model="haiku")
+            assert len(results) >= 1
+            assert all(r["model"] == "haiku" for r in results)
+
+    def test_query_returns_story_title(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "history.db")
+            records = [_make_record("US-1", "Deploy pipeline fix")]
+            _make_tsv(tsv, records)
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            index.build()
+            results = index.query(text="deploy")
+            assert len(results) >= 1
+            assert "story_title" in results[0]
+            assert results[0]["story_title"] == "Deploy pipeline fix"
+
+    def test_stats_returns_correct_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "history.db")
+            records = [
+                _make_record("US-1", "Test story one"),
+                _make_record("US-2", "Test story two"),
+            ]
+            _make_tsv(tsv, records)
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            index.build()
+            stats = index.stats()
+            assert "index_exists" in stats
+            assert "row_count" in stats
+            assert "last_updated" in stats
+            assert stats["index_exists"] is True
+            assert stats["row_count"] == 2
+            assert stats["last_updated"] is not None
+
+    def test_stats_nonexistent_db(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "nonexistent.db")
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            stats = index.stats()
+            assert stats["index_exists"] is False
+            assert stats["row_count"] == 0
+            assert stats["last_updated"] is None
+
+    def test_fts5_full_text_query(self) -> None:
+        """Acceptance criteria: spiral search-history 'timeout' returns timeout failures."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "history.db")
+            records = [
+                _make_record("US-1", "Story title", status="reject", failure_msg="timeout error"),
+                _make_record("US-2", "Another story", status="keep"),
+            ]
+            _make_tsv(tsv, records)
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            index.build()
+            results = index.query(text="timeout")
+            assert len(results) >= 1
+            assert results[0]["story_id"] == "US-1"
+
+    def test_query_with_combined_filters(self) -> None:
+        """Acceptance criteria: spiral search-history 'timeout cost>50' combines text and filters."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "history.db")
+            rec1 = _make_record("US-1", "Timeout story", status="reject", failure_msg="timeout")
+            rec1.model = "sonnet"
+            rec2 = _make_record("US-2", "Timeout story 2", status="keep", failure_msg="timeout")
+            rec2.model = "haiku"
+            _make_tsv(tsv, [rec1, rec2])
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            index.build()
+            # Search for "timeout" with model filter
+            results = index.query(text="timeout", model="sonnet")
+            assert len(results) >= 1
+            assert results[0]["story_id"] == "US-1"
+            assert results[0]["model"] == "sonnet"
+
+    def test_query_performance_target(self) -> None:
+        """Acceptance criteria: queries complete in <500ms for 1000+ rows."""
+        import time
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tsv = os.path.join(tmpdir, "results.tsv")
+            db = os.path.join(tmpdir, "history.db")
+            # Create 1000+ records
+            records = []
+            for i in range(1100):
+                records.append(
+                    _make_record(
+                        f"US-{2000 + i}",
+                        f"Story {i} with timeout failure",
+                        status=["reject", "keep", "timeout"][i % 3],
+                        failure_msg="timeout error" if i % 5 == 0 else "",
+                    )
+                )
+            _make_tsv(tsv, records)
+            index = HistoryIndex(results_path=tsv, db_path=db, root=tmpdir)
+            index.build()
+
+            # Measure query time
+            start = time.time()
+            results = index.query(text="timeout", status="reject")
+            elapsed_ms = (time.time() - start) * 1000
+            assert elapsed_ms < 500, f"Query took {elapsed_ms:.1f}ms, target is <500ms"
+            assert len(results) > 0

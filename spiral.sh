@@ -160,6 +160,9 @@ LOGS_LEVEL=""                                # log level filter: DEBUG|INFO|WARN
 LOGS_CONTEXT=""                              # log context filter: parse|decompose|implement|verify
 INSPECT_STORY_MODE=0                         # 1 = inspect story metadata and exit (--inspect-story)
 INSPECT_STORY_ID=""                          # story ID to inspect
+SEARCH_HISTORY_MODE=0                        # 1 = search historical results and exit (search-history)
+SEARCH_HISTORY_QUERY=""                      # search query string
+SEARCH_HISTORY_FILTERS=()                    # filter arguments (status=X, model=X, etc.)
 SEARCH_MODE=0                                # 1 = search stories and exit (search subcommand)
 SEARCH_QUERY=""                              # search query string
 SEARCH_FORMAT="table"                        # output format: table|json|csv
@@ -490,6 +493,21 @@ while [[ $# -gt 0 ]]; do
       INSPECT_STORY_MODE=1
       INSPECT_STORY_ID="${2:-}"
       shift 2
+      ;;
+    search-history)
+      SEARCH_HISTORY_MODE=1
+      SEARCH_HISTORY_QUERY="${2:-}"
+      shift 2
+      # Collect remaining arguments as filter arguments
+      while [[ $# -gt 0 ]]; do
+        case $1 in
+          -*) break ;; # Stop if we hit another flag
+          *)
+            SEARCH_HISTORY_FILTERS+=("$1")
+            shift
+            ;;
+        esac
+      done
       ;;
     search)
       SEARCH_MODE=1

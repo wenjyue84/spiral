@@ -685,6 +685,25 @@ if [[ "$INSPECT_STORY_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── search-history: full-text search over historical SPIRAL results ──────────
+SEARCH_HISTORY_MODE="${SEARCH_HISTORY_MODE:-0}"
+SEARCH_HISTORY_QUERY="${SEARCH_HISTORY_QUERY:-}"
+if [[ "$SEARCH_HISTORY_MODE" -eq 1 ]]; then
+  if [[ -z "$SEARCH_HISTORY_QUERY" ]]; then
+    echo "[spiral] ERROR: Usage: spiral search-history <query> [filters...]" >&2
+    echo "[spiral] Example: spiral search-history 'timeout'" >&2
+    echo "[spiral] Example: spiral search-history 'timeout' status=reject model=sonnet" >&2
+    exit 1
+  fi
+  _SEARCH_HISTORY_ARGS=("$SEARCH_HISTORY_QUERY")
+  # Remaining args after query are passed as filter arguments
+  if [[ ${#SEARCH_HISTORY_FILTERS[@]:-0} -gt 0 ]]; then
+    _SEARCH_HISTORY_ARGS+=("${SEARCH_HISTORY_FILTERS[@]}")
+  fi
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/history_search.py" "${_SEARCH_HISTORY_ARGS[@]}"
+  exit $?
+fi
+
 # ── explain-learning: show temporal evolution of learned patterns ──────────────
 EXPLAIN_LEARNING_MODE="${EXPLAIN_LEARNING_MODE:-0}"
 EXPLAIN_LEARNING_PATTERN_TYPE="${EXPLAIN_LEARNING_PATTERN_TYPE:-}"
