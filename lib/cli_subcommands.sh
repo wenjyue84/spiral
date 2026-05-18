@@ -758,3 +758,23 @@ if [[ "$RESEARCH_REPLAY_MODE" -eq 1 ]]; then
     --cache-dir "$REPO_ROOT/.spiral"
   exit $?
 fi
+
+# ── compare-iterations: analyze story delta between two iterations ──────────────
+COMPARE_ITERATIONS_MODE="${COMPARE_ITERATIONS_MODE:-0}"
+COMPARE_ITERATIONS_A="${COMPARE_ITERATIONS_A:-}"
+COMPARE_ITERATIONS_B="${COMPARE_ITERATIONS_B:-}"
+COMPARE_ITERATIONS_JSON="${COMPARE_ITERATIONS_JSON:-0}"
+COMPARE_ITERATIONS_DETAILED="${COMPARE_ITERATIONS_DETAILED:-0}"
+if [[ "$COMPARE_ITERATIONS_MODE" -eq 1 ]]; then
+  if [[ -z "$COMPARE_ITERATIONS_A" ]] || [[ -z "$COMPARE_ITERATIONS_B" ]]; then
+    echo "[spiral] ERROR: Usage: spiral compare-iterations <iter-a> <iter-b> [--json|--detailed]" >&2
+    exit 1
+  fi
+  _COMPARE_ARGS=("$COMPARE_ITERATIONS_A" "$COMPARE_ITERATIONS_B")
+  _RESULTS_TSV="${RESULTS_TSV:-$REPO_ROOT/results.tsv}"
+  [[ -f "$_RESULTS_TSV" ]] && _COMPARE_ARGS+=(--results "$_RESULTS_TSV")
+  [[ "$COMPARE_ITERATIONS_JSON" -eq 1 ]] && _COMPARE_ARGS+=(--json)
+  [[ "$COMPARE_ITERATIONS_DETAILED" -eq 1 ]] && _COMPARE_ARGS+=(--detailed)
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cli_compare_iterations.py" "${_COMPARE_ARGS[@]}"
+  exit $?
+fi

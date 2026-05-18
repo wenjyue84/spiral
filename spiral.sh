@@ -142,6 +142,11 @@ SHOW_FLAKY_TESTS_MODE=0                      # 1 = print flaky tests from test s
 CALIBRATION_REPORT_MODE=0                    # 1 = print calibration report and exit (--calibration-report)
 SHOW_PATTERNS_MODE=0                         # 1 = display learned retry patterns and exit (--show-patterns)
 FEDERATION_VALIDATE_MODE=0                   # 1 = validate federation story ID namespaces and exit (--federation-validate)
+COMPARE_ITERATIONS_MODE=0                    # 1 = compare story deltas between iterations and exit (--compare-iterations)
+COMPARE_ITERATIONS_A=""                      # earlier iteration number for --compare-iterations
+COMPARE_ITERATIONS_B=""                      # later iteration number for --compare-iterations
+COMPARE_ITERATIONS_JSON=0                    # 1 = output JSON format (--compare-iterations --json)
+COMPARE_ITERATIONS_DETAILED=0                # 1 = include detailed per-story status (--compare-iterations --detailed)
 QUERY_MODE=0                                 # 1 = run story query and exit (--query)
 QUERY_SUBCOMMAND=""                          # subcommand for --query (e.g. "stories")
 QUERY_STATUS=""                              # --status filter for query
@@ -404,6 +409,30 @@ while [[ $# -gt 0 ]]; do
     --federation-validate)
       FEDERATION_VALIDATE_MODE=1
       shift
+      ;;
+    --compare-iterations)
+      if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+        echo "[spiral] ERROR: Usage: spiral compare-iterations <iter-a> <iter-b> [--json|--detailed]" >&2
+        exit "$ERR_BAD_USAGE"
+      fi
+      COMPARE_ITERATIONS_MODE=1
+      COMPARE_ITERATIONS_A="$2"
+      COMPARE_ITERATIONS_B="$3"
+      shift 3
+      # Parse optional --json or --detailed flags
+      while [[ $# -gt 0 ]] && [[ "$1" == --json || "$1" == --detailed ]]; do
+        case $1 in
+          --json)
+            COMPARE_ITERATIONS_JSON=1
+            shift
+            ;;
+          --detailed)
+            COMPARE_ITERATIONS_DETAILED=1
+            shift
+            ;;
+          *) break ;;
+        esac
+      done
       ;;
     --query)
       QUERY_MODE=1
