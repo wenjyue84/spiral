@@ -1720,3 +1720,34 @@ Here is the technical brief for the Claude agent:
 *   Focus on error handling paths, as they are common sources of information leaks.
 *   Ensure tests correctly handle the case where authentication is enabled in the app's configuration.
 *   Verify that no hardcoded secrets (like `sk-ant-`) are present in the `costs.py` route file itself.
+## Iteration 2 - Mon, May 18, 2026  6:38:53 PM
+Completed: [Security Test] /api/costs/breakdown: unauthorized access blocked, no token leakage (ID: US-1401) in 4m
+
+
+## Pre-analysis for US-1405 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1405.
+
+**Subject: Technical Brief for US-1405: Integration Tests for MockClaudeAPI**
+
+This task involves creating integration tests for the `MockClaudeAPI` class to ensure it correctly intercepts subprocess calls, injects responses, and handles failures as configured.
+
+**1. Python Files to Modify:**
+*   **Primary Target:** `tests/test_mock_claude_api.py` (This will be a new file).
+*   **Reference:** `tests/fixtures/mock_claude_api.py` (The class that needs to be tested).
+*   **Verification:** `tests/conftest.py` (Ensure the `mock_api_repo` fixture is correctly wired).
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is a pure Python/pytest task within the Spiral project's test suite. It does not involve any Frappe DocTypes or hooks.
+
+**3. Recommended Implementation Approach:**
+*   Create the new test file `tests/test_mock_claude_api.py`.
+*   Use `unittest.mock.patch` to mock the `subprocess.run` function that `MockClaudeAPI` uses internally. This is critical for isolating the test from the actual Claude CLI.
+*   **Happy Path Test:** Create a `test_intercept_success` function. Instantiate `MockClaudeAPI` with a predefined response string. Call the intercept method and assert that the return value matches the string and that the `subprocess` mock was called.
+*   **Failure Path Test:** Create a `test_intercept_failure` function. Configure `MockClaudeAPI` to simulate an error. Use `pytest.raises` to assert that the intercept method raises the expected exception.
+*   **Fixture Test:** Ensure a minimal test exists that requests the `mock_api_repo` fixture from `conftest.py` to validate it can be initialized without errors.
+
+**4. Edge Cases & Gotchas:**
+*   The `subprocess` patch must target the correct location (e.g., `patch('tests.fixtures.mock_claude_api.subprocess.run', ...)`).
+*   The tests must not perform any real file system or network operations. Rely entirely on mocking.
+*   Verify that the `mock_api_repo` fixture can be exercised independently as specified in the acceptance criteria.
+
