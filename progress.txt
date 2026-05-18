@@ -1275,3 +1275,33 @@ Completed: Fill html/pages/09-troubleshooting.html with known issues, exit codes
 - All 16 exit codes present (0, 2-15, 130)
 - All 20 issues extracted from SKILL.md Troubleshooting section
 
+## Iteration 10 - Mon, May 18, 2026 10:18:13 AM
+Completed: Fill html/pages/09-troubleshooting.html — known issues, exit codes, recovery (ID: US-1352) in 5m
+
+
+## Pre-analysis for US-1354 (Gemini 2.5 Pro)
+This is a technical brief for implementing user story US-1354.
+
+**Project:** Spiral (Python/Shell)
+**Objective:** Aggregate research from multiple search providers (Gemini, DuckDuckGo, Bing), deduplicate results, and provide fallback resilience.
+
+**1. Files to Modify/Create:**
+*   **Create:** `lib/research_aggregator.py`. This new file will house the core aggregation and deduplication logic.
+*   **Modify:** `spiral.sh`. Update the Phase R (research) section (approx. line 800) to replace the direct Gemini API call with an execution of the new `research_aggregator.py` script.
+
+**2. Frappe Context:**
+*   This is a pure Python and shell scripting task. No Frappe DocTypes or hooks are involved.
+
+**3. Implementation Approach:**
+*   In `lib/research_aggregator.py`, create the main function `aggregate_sources(sources: list[str], query: str)`.
+*   This function will dynamically call the appropriate search provider based on the `sources` list.
+*   Use the `duckduckgo-search` package for DuckDuckGo and the `requests` library for the Bing Search API.
+*   After fetching results from all sources, use the `sentence-transformers` library to compute cosine similarity for deduplication (threshold: 0.8).
+*   Each aggregated story dictionary must be annotated with a `sources` key, listing the origin of the data.
+
+**4. Edge Cases & Gotchas:**
+*   Implement robust error handling to ensure the script continues if one search provider fails.
+*   The script must read the `BING_API_KEY` from environment variables; handle cases where it's missing.
+*   Ensure Python dependencies (`duckduckgo-search`, `requests`, `sentence-transformers`) are added to `pyproject.toml`.
+*   The test suite for this feature is located at `tests/test_research_aggregator.py`.
+

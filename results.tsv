@@ -219,3 +219,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T01:40:20Z	2	2	US-1391	CLI: Add `spiral dry-run N` command to preview execution plan without API calls	keep	488	haiku	0	7a29c30c6b862cd419f09080040324af234f2563	6a0a60b94188	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-18T01:45:59Z	2	3	US-1348	Fill html/pages/05-cli-reference.html — all flags and subcommands in a filterable table	keep	315	haiku	0	da8a9c999a6842dc0d9c6eddd8ac376139b2c469	6a0a60b94188	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-18T02:12:03Z	3	9	US-1351	Fill html/pages/08-glossary.html — define every SPIRAL term in one place	keep	159	sonnet	1	0fc8cd52a756df6eb0ce5047b6a305750ac53ab0	6a0a60b94188	false	0	0	0	0	0	0	0		0	0	0	0	unknown			
+2026-05-18T02:18:13Z	3	10	US-1352	Fill html/pages/09-troubleshooting.html — known issues, exit codes, recovery	keep	333	haiku	0	5929d6cd43d657eb8ad4d0f755d35dcbb8fdc274	6a0a60b94188	false	0	0	0	0	0	0	0		0	0	0	0	unknown			

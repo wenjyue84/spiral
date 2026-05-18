@@ -3421,11 +3421,7 @@
         "html"
       ],
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-18T02:02:08Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `html/pages/06-configuration.html` exists with placeholder content\n- US-1348 established a pattern using simple-datatables v9 with search and click-to-reveal functionality\n- SKILL.md contains 19 categories of config variables (lines 673-887)\n\n## Problem Identified\nNeed to fill the configuration page with all SPIRAL_* environment variables grouped by category, with sticky TOC, live search, anchor links, and default values in `<code>` tags.\n\n## Planned Changes\n1. **html/pages/06-configuration.html** — Complete rewrite with:\n   - Sticky TOC on left side\n   - Live search box at top\n   - 19 category sections with tables\n   - Each row has `id=\"config-SPIRAL_VARNAME\"` for anchor navigation\n   - Default values in `<code>` tags\n   - Uses simple-datatables v9 for search functionality\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"html/pages/06-configuration.html\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 420\n}\n</plan>\n\nNow let me implement this by creating the comprehensive configuration HTML page:\nPerfect! Now let me commit this completed story.\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1350",
@@ -3483,18 +3479,7 @@
         "html"
       ],
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-18T02:09:02Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe `html/pages/08-glossary.html` file contains only a placeholder. The previous attempt failed (model used: haiku, not recorded why).\n\n## Problem Identified\nNeed to fill the page with 17+ SPIRAL terms, an A-Z index strip, anchored term IDs, and \"See also\" cross-links.\n\n## Planned Changes\n- Edit `html/pages/08-glossary.html`: replace placeholder with full glossary content styled consistently with other pages (06-configuration.html pattern for TOC/layout).\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"html/pages/08-glossary.html\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 250\n}\n</plan>\nNow verify the acceptance criteria:\nAll 4 acceptance criteria pass: 12 letter anchors in A-Z strip, 17 terms with `id=\"term-*\"`, every term has See also cross-links, term count = 17. Now mark as passed and commit.\nDone. US-1351 is complete:\n\n- **17 terms** defined: Capacity Limit, Constitution, Cost Ceiling, Decompose, DLQ, Episodic Memory, Focus, Gate, Iteration, Model Routing, Phase, PRD, Ralph, Story, Validate Cmd, Worker, Worktree\n- **A-Z index strip** with 12 active letter links at the top\n- Every term has `id=\"term-<kebab-name>\"` for deep-linking from other pages\n- Every term has at least one See also cross-link to another term or page\n- `passes: true` set in prd.json, committed."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 18,
-        "tokensAfterMasking": 18,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_passedCommit": "0fc8cd52a756df6eb0ce5047b6a305750ac53ab0"
+      "model": "haiku"
     },
     {
       "id": "US-1352",
@@ -3523,11 +3508,7 @@
         "html"
       ],
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-18T02:12:08Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe html/pages/09-troubleshooting.html file exists with placeholder content and needs three sections filled in:\n1. A searchable table of known issues (Symptom/Cause/Fix) from SKILL.md\n2. Exit codes reference (0-15, 130)\n3. Crash recovery summary\n\nThe SKILL.md file has all necessary source data at lines 924-1036.\n\n## Problem Identified\nThe troubleshooting page is a critical self-service resource. I need to convert SKILL.md content into interactive HTML tables:\n- Section 1: >=15 issue rows with searchable table (simple-datatables)\n- Section 2: All exit codes with meanings\n- Section 3: Crash recovery & auto-healing summary\n- Widget: \"Was this helpful?\" with localStorage vote tracking\n\n## Planned Changes\n- Replace placeholder content in html/pages/09-troubleshooting.html\n- Add three `<section>` blocks with HTML tables\n- Include simple-datatables v9 CDN for searchable Section 1\n- Add JavaScript for feedback widget localStorage persistence\n- Match styling from config.html and cli-reference.html\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"html/pages/09-troubleshooting.html\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 250\n}\n</plan>\n\nNow I'll write the complete troubleshooting.html file:\nPerfect! Now let me verify the implementation meets all acceptance criteria and run quality checks:\nPerfect! Let me do a final comprehensive verification:\nExcellent! **Story US-1352 is now complete.** Here's a summary of what was implemented:\n\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1354",
@@ -3727,7 +3708,7 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-05-18T01:59:16Z"
+      "last_attempted": "2026-05-18T00:48:28Z"
     },
     {
       "id": "US-1380",
@@ -4030,6 +4011,102 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1393",
+      "title": "[Security Test] SPIRAL loop integration: no real API calls and no token leakage",
+      "priority": "high",
+      "description": "Write security-focused tests for the full SPIRAL loop integration test (US-1371) that verify: the MockClaudeAPI fixture is enforced so zero real Claude API calls are made, and no sensitive data (API keys, tokens) appears in process output or written files during a 2-iteration run.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_test_spiral_integration.py -v -k 'success' passes without network calls",
+        "uv run pytest tests/test_test_spiral_integration.py -v -k 'retry' passes showing haiku→sonnet escalation via mock",
+        "grep -r 'ANTHROPIC_API_KEY\\|sk-ant' .spiral/ returns empty after test run (no token written to disk)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_test_spiral_integration.py (create — import mock_api_repo fixture; assert subprocess.run call count matches expected mock calls)",
+        "Test command: uv run pytest tests/test_test_spiral_integration.py -v",
+        "Block real outbound calls by monkeypatching socket.socket or asserting no calls to real Claude CLI binary",
+        "Check .spiral/ scratch dir for leaked secrets after each test using a post-test glob + grep assertion"
+      ],
+      "dependencies": [
+        "US-1371"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1394",
+      "title": "[Security Test] /api/health response contains no secrets and returns valid schema",
+      "priority": "high",
+      "description": "Write security tests for the spiral-ui /api/health endpoint (introduced by US-1366) verifying that the response does not leak sensitive environment variables or API keys, and that the JSON body matches the expected schema with no extraneous fields.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/ -k us_1366 -v passes",
+        "Response body from GET /api/health does not contain strings matching /sk-ant|ANTHROPIC|api_key/i (verified in test assertion)",
+        "GET /api/health returns HTTP 200 with JSON keys: phases, workers, token_burn_rate"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_health_security.py (create — use FastAPI/Flask test client; assert response.json() keys and check for secret patterns)",
+        "File to edit: spiral_ui/frontend/HealthWidget.tsx (reference only — no edits unless endpoint contract changes)",
+        "Test command: uv run pytest tests/test_health_security.py -v",
+        "Import the app from spiral_ui backend and use httpx.AsyncClient or TestClient for requests"
+      ],
+      "dependencies": [
+        "US-1366"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1395",
+      "title": "[Security Test] /api/costs/breakdown response leaks no secrets and has correct shape",
+      "priority": "high",
+      "description": "Write security tests for the /api/costs/breakdown endpoint (US-1384) that verify the parsed results.tsv data is sanitised before output — no file-system paths, API tokens, or raw env vars appear in the response body, and the JSON shape matches the documented contract.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_costs_security.py -v passes",
+        "Response body does not contain strings matching /sk-ant|ANTHROPIC|C:\\\\Users|home\\//i (asserted in test)",
+        "GET /api/costs/breakdown returns JSON with top-level keys: phases, burn_rate, remaining_budget"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_costs_security.py (create — seed a temp results.tsv with synthetic data; call endpoint; assert shape and scan for secret patterns)",
+        "File to edit: spiral-ui-backend/routes/costs.py (reference — verify no raw path passthrough in serialiser)",
+        "Test command: uv run pytest tests/test_costs_security.py -v",
+        "Use tmp_path pytest fixture to write a controlled results.tsv so the test is fully self-contained"
+      ],
+      "dependencies": [
+        "US-1384"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1396",
+      "title": "[Security Test] spiral dry-run makes zero API calls and leaks no secrets in output",
+      "priority": "high",
+      "description": "Write security tests for the spiral dry-run subcommand (US-1391) verifying that it exits 0, makes no outbound Claude API calls, and does not print any sensitive environment variable values (API keys, tokens) in its ASCII or JSON plan output.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_dry_run_security.py -v passes",
+        "Output of 'python -m lib.dry_run_planner 1' does not match /sk-ant|ANTHROPIC_API_KEY/i (asserted via captured stdout)",
+        "Running dry-run with ANTHROPIC_API_KEY=dummy exits 0 and the word 'dummy' does not appear in stdout"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_dry_run_security.py (create — invoke lib.dry_run_planner via subprocess or direct import; capture stdout; assert patterns)",
+        "File to edit: lib/dry_run_planner.py (reference — confirm it never reads or echoes ANTHROPIC_API_KEY)",
+        "Test command: uv run pytest tests/test_dry_run_security.py -v",
+        "Set env ANTHROPIC_API_KEY=sentinel_value in the test process; assert sentinel_value absent in output"
+      ],
+      "dependencies": [
+        "US-1391"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
       "model": "haiku"
     }
   ]
