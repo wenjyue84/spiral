@@ -1144,3 +1144,6 @@ Completed: CLI: spiral research-replay <story-id> to Compare Current vs Historic
 - [x] AC1: `uv run pytest tests/test_spiral_integration.py -k 'security or auth or permission' -v` exits 0, 4 tests collected
 - [x] AC2: test_security_unauthorized_access verifies 401/403/1 returncode without token in error message
 - [x] AC3: test_no_credential_leak_on_auth_failure uses caplog to assert no sk- pattern or credential value in logs
+## Iteration 1 - Tue, May 19, 2026  2:04:54 AM
+Completed: [Security Test] Auth/permission integration test for US-1371 MockClaudeAPI (ID: US-1439) in 3m
+
