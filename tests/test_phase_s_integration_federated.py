@@ -183,9 +183,9 @@ def test_federated_story_merge_with_namespace(
     assert us25_us3_key in duplicate_scores, (
         f"Should detect duplicate pair (US-25, US-3). Found pairs: {list(duplicate_scores.keys())}"
     )
-    assert (
-        duplicate_scores[us25_us3_key] >= 0.75
-    ), f"Duplicate score for (US-25, US-3) should be >= 0.75, got {duplicate_scores[us25_us3_key]}"
+    assert duplicate_scores[us25_us3_key] >= 0.75, (
+        f"Duplicate score for (US-25, US-3) should be >= 0.75, got {duplicate_scores[us25_us3_key]}"
+    )
 
     # AC3: Verify namespaced story IDs are preserved via sub_project field
     # After merge, each story should have a sub_project field indicating its source
@@ -193,16 +193,12 @@ def test_federated_story_merge_with_namespace(
     for story in merged_stories:
         story_id = story.get("id", "")
         sub_proj = story.get("sub_project", "")
-        assert (
-            sub_proj
-        ), f"Story {story_id} missing sub_project field (namespace preservation)"
+        assert sub_proj, f"Story {story_id} missing sub_project field (namespace preservation)"
         id_to_subproject[story_id] = sub_proj
 
     # Verify the sub_project values match expected projects
     main_stories = {id: sub_proj for id, sub_proj in id_to_subproject.items() if sub_proj == "main"}
-    payments_stories = {
-        id: sub_proj for id, sub_proj in id_to_subproject.items() if sub_proj == "payments"
-    }
+    payments_stories = {id: sub_proj for id, sub_proj in id_to_subproject.items() if sub_proj == "payments"}
 
     assert len(main_stories) == 5, f"Should have 5 main stories, got {len(main_stories)}"
     assert len(payments_stories) == 3, f"Should have 3 payments stories, got {len(payments_stories)}"

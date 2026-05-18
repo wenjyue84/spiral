@@ -62,9 +62,7 @@ def sample_prd_file() -> str:
         ],
     }
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
         json.dump(prd_data, f)
         temp_path = f.name
 

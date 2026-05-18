@@ -26,17 +26,16 @@ def load_story_by_id(prd_file: str, story_id: str) -> Optional[dict[str, Any]]:
         print(f"[spiral] ERROR: Failed to load {prd_file}: {e}", file=sys.stderr)
         return None
 
-    for story in prd.get("userStories", []):
-        if story.get("id") == story_id:
+    stories: list[Any] = prd.get("userStories", [])
+    for story in stories:
+        if isinstance(story, dict) and story.get("id") == story_id:
             return story
 
     print(f"[spiral] ERROR: Story {story_id} not found in {prd_file}", file=sys.stderr)
     return None
 
 
-def find_blockers_and_dependents(
-    prd_file: str, story_id: str
-) -> tuple[list[str], list[str]]:
+def find_blockers_and_dependents(prd_file: str, story_id: str) -> tuple[list[str], list[str]]:
     """
     Find blockers (stories this story depends on) and dependents (stories that depend on this story).
 
