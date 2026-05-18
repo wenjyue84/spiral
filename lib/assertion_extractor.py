@@ -215,8 +215,8 @@ def generate_pytest_assertions(story: Dict[str, Any], assertions: List[Assertion
         "import pytest",
         "",
         "",
-        f'@pytest.mark.{story_id.lower().replace("-", "_")}',
-        f'class Test{story_id.replace("-", "_")}:',
+        f"@pytest.mark.{story_id.lower().replace('-', '_')}",
+        f"class Test{story_id.replace('-', '_')}:",
         f'    """Auto-generated test assertions for {story_id}."""',
         "",
     ]
@@ -233,8 +233,8 @@ def generate_pytest_assertions(story: Dict[str, Any], assertions: List[Assertion
         elif assertion.type == "have":
             code_lines.append(f'        assert "{assertion.subject}" in dir()')
         elif assertion.type == "return":
-            code_lines.append(f'        # TODO: implement return value check for {assertion.expected_value}')
-            code_lines.append(f'        assert True  # Placeholder')
+            code_lines.append(f"        # TODO: implement return value check for {assertion.expected_value}")
+            code_lines.append("        assert True  # Placeholder")
         elif assertion.type == "contains":
             code_lines.append(f'        assert "{assertion.expected_value}" in output')
 
@@ -249,14 +249,10 @@ def main() -> None:
     import json
     from pathlib import Path
 
-    parser = argparse.ArgumentParser(
-        description="Auto-extract verifiable assertions from acceptance criteria"
-    )
+    parser = argparse.ArgumentParser(description="Auto-extract verifiable assertions from acceptance criteria")
     parser.add_argument("--story-id", required=True, help="Story ID (e.g., US-1413)")
     parser.add_argument("--prd-file", default="prd.json", help="Path to prd.json")
-    parser.add_argument(
-        "--output-dir", default=".spiral/auto_assertions", help="Output directory for .py files"
-    )
+    parser.add_argument("--output-dir", default=".spiral/auto_assertions", help="Output directory for .py files")
 
     args = parser.parse_args()
 

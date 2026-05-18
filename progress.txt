@@ -52,3 +52,56 @@ Created a complete system for automatically extracting and validating assertions
 - [x] All tests passing (23/23)
 - [x] MyPy strict type checking passes
 - [x] Story marked as passes: true in prd.json
+## Iteration 1 - Mon, May 18, 2026 10:03:01 PM
+Completed: Phase V: Auto-Extract Verifiable Assertions from Story Acceptance Criteria (ID: US-1413) in 8m
+
+
+## Iteration [23] - Story: US-1419 Integration test: Phase S merges federated stories with namespace validation
+
+### What was implemented
+
+Created comprehensive integration test for Phase S federated story merging with namespace preservation:
+
+1. **tests/test_phase_s_integration_federated.py (224 lines)**
+   - Test fixtures for temporary PRD structure (main prd.json + sub/payments/prd.json)
+   - Fixtures for main PRD data (5 stories) and payments sub-project data (3 stories, 1 duplicate)
+   - Main test function: `test_federated_story_merge_with_namespace()`
+   - Validates all 3 acceptance criteria:
+     - AC1: Story count after merge (8 total: 5 from main + 3 from payments)
+     - AC2: Duplicate detection finds US-25 vs US-3 pair with score >= 0.75 (achieved 0.97!)
+     - AC3: Namespace preservation via sub_project field and ID routing
+
+### How it works
+
+- Uses `lib.federated_merge_prd.merge_prds()` to merge multiple PRD files
+- Uses `lib.phase_s.duplicate_detector.find_duplicates()` for similarity detection
+- Merges treats each project directory as a namespace source
+- Each merged story gets a `sub_project` field indicating its origin (main or payments)
+- Duplicate detection uses sentence-transformer embeddings (all-MiniLM-L6-v2 model)
+- Embedding cache prevents recomputation across test runs
+
+### Patterns discovered
+
+- Phase S is responsible for story validation (constitution, goals), not merge
+- Federated merge happens earlier in the pipeline (likely phase-specific preprocessing)
+- Duplicate detection uses embedding-based similarity (0.75 threshold by default)
+- Story namespace is preserved via `sub_project` field (used by Phase M/X for routing)
+- Merging 5 + 3 stories produces 8 total; deduplication is Phase M's responsibility
+- Similarity scoring works well: US-25 ("Payment gateway integration") vs US-3 ("Gateway payment integration") achieved 0.97 score
+
+### Gotchas
+
+- `federated_merge_prd.merge_prds()` returns a tuple of (merged_prd, errors), not just merged_prd
+- Story namespace is stored in `sub_project` field, not as ID prefix (different from load_with_includes())
+- Embedding model download happens on first run (one-time ~100MB download for all-MiniLM-L6-v2)
+- Duplicate pairs are found regardless of order; need to check both directions
+- Test uses test-specific story data to ensure reproducible duplicate detection
+
+### Acceptance criteria met
+
+- [x] AC1: Test verifies story count (8 total after merging 5+3)
+- [x] AC2: Duplicate detection finds US-25/US-3 pair with 0.97 score (>= 0.75 threshold)
+- [x] AC3: Namespace preservation via sub_project field (verified for all 8 merged stories)
+- [x] MyPy strict type checking passes
+- [x] Test passes with all fixtures working correctly
+- [x] Story marked as passes: true in prd.json

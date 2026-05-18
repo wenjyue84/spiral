@@ -4318,7 +4318,8 @@
       "last_attempted": "2026-05-18T13:54:30Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\n- **Existing work**: `lib/ac_assertion_extractor.py` parses AC into command-based assertions (5 types: exit_code, file_exists, test_command, json_field, log_grep)\n- **Phase V integration**: Phase V already checks for assertion files at `.spiral/ac_checks/{story_id}.json` and runs `ac_verification_runner.py`\n- **Gap**: No module yet that auto-generates pytest assertions for stories without explicit `testFiles` or `testMarker`\n\n## Problem Identified\n\nStory US-1413 asks for a new, simpler assertion extractor that:\n1. Extracts natural-language assertions from AC (e.g., \"assert X\", \"must have Y\", \"should return Z\", \"contains [item]\")\n2. Returns structured [assertion_type, subject, expected_value, confidence_score]\n3. Auto-generates pytest files to `.spiral/auto_assertions/<story-id>.py` for stories without explicit verification\n4. Integrates with Phase V to validate these auto-generated assertions\n\n## Planned Changes\n\n<plan>\n{\n  \"files_to_create\": [\n    \"lib/assertion_extractor.py\",\n    \"tests/test_assertion_extractor.py\"\n  ],\n  \"files_to_modify\": [\n    \"lib/phases/phase_v_validate.sh\"\n  ],\n  \"functions_to_add\": [\n    \"extract_assertions(ac_text: str) -> List[Assertion]\",\n    \"generate_pytest_assertions(story: Dict) -> str\"\n  ],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow I'll implement the solution.\n\n---\n\n## Diagnosis Block"
-      }
+      },
+      "_passedCommit": "c40f4dc6e17d5a2b71e073733f42ed2193874d7b"
     },
     {
       "id": "US-1414",
@@ -4461,9 +4462,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-18T14:03:03Z"
     },
     {
       "id": "US-1420",

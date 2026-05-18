@@ -8,12 +8,9 @@ Run with: pytest tests/test_assertion_extractor.py -v
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
 from assertion_extractor import (
-    Assertion,
     extract_assertions,
     generate_pytest_assertions,
 )
