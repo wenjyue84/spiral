@@ -356,12 +356,55 @@ async def cost_history() -> dict[str, Any]:
     return {"history": result}
 
 
+def _validate_file_path(file_param: str) -> Path:
+    """Validate file path to prevent directory traversal attacks.
+
+    Args:
+        file_param: File path parameter from query string
+
+    Returns:
+        Validated Path object
+
+    Raises:
+        HTTPException with 400 status if validation fails
+    """
+    # Reject paths with traversal attempts
+    if ".." in file_param or file_param.startswith("/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file path: path traversal not allowed",
+        )
+
+    # Convert to Path and resolve
+    try:
+        requested_path = Path(file_param)
+        resolved_path = requested_path.resolve()
+
+        # Ensure resolved path is within project root
+        project_root = Path.cwd().resolve()
+        if not str(resolved_path).startswith(str(project_root)):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file path: must be within project directory",
+            )
+
+        return requested_path
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file path format",
+        ) from e
+
+
 @app.get("/api/costs/breakdown")
-async def costs_breakdown() -> dict[str, Any]:
+async def costs_breakdown(file: str = "results.tsv") -> dict[str, Any]:
     """Cost breakdown endpoint parsing results.tsv (US-1384).
 
     Returns total tokens, estimated USD costs, burn rate per story,
     remaining budget, and iteration count for cost transparency and budget estimation.
+
+    Query Parameters:
+        file: Path to results.tsv file (default: "results.tsv", must be within project root)
 
     Returns JSON with keys:
     - phases: dict with per-model cost breakdown {model: {cost_usd, token_count}}
@@ -371,9 +414,13 @@ async def costs_breakdown() -> dict[str, Any]:
     - remainingBudget: budget (200 USD) minus total spent
     - iteration_count: number of unique spiral_iter values
 
+    Returns 400 if file path contains traversal attempts or is outside project root.
     Returns 404 if results.tsv is missing.
     """
-    result = parse_costs_from_results_tsv("results.tsv")
+    # Validate file path parameter to prevent directory traversal (US-1427)
+    _validate_file_path(file)
+
+    result = parse_costs_from_results_tsv(file)
     if result.pop("_missing", False):
         raise HTTPException(
             status_code=404,

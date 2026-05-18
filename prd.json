@@ -4667,6 +4667,119 @@
         "diagnosisBlock": "## Current State\n\nThe `/api/costs/breakdown` endpoint is already implemented in `lib/dashboard/api.py` (line 359), and `parse_costs_from_results_tsv()` is in `lib/dashboard/routes/costs.py`. However, the test file `tests/test_costs_api.py` exists but doesn't have tests with the exact names required by the story acceptance criteria:\n\n- ✅ `test_response_shape_with_synthetic_data` (exists but wrong name)\n- ✅ `test_per_phase_totals_sum` (exists but wrong name)\n- ✅ `test_missing_results_tsv_returns_404` (exists but wrong name, expects 404 not 200)\n\n## Problem Identified\n\nI need to add three specific test functions with the exact required names that test the acceptance criteria correctly.\n\n## Planned Changes\n\n1. Rename/create `test_breakdown_response_shape` - verify response has phases, burnRate, remainingBudget keys\n2. Rename/create `test_breakdown_per_phase_data` - verify each phase entry has cost_usd, token_count \n3. Rename/create `test_breakdown_missing_tsv` - verify returns 200 with empty phases (NOT 404)\n4. Keep existing tests marked with `@pytest.mark.us_1384` to satisfy criterion 4\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_costs_api.py\"],\n  \"functions_to_add\": [\"test_breakdown_response_shape\", \"test_breakdown_per_phase_data\", \"test_breakdown_missing_tsv\"],\n  \"estimated_loc\": 80\n}\n</plan>\n\nNow let me implement the required tests:\nPerfect! All acceptance criteria pass:\n- ✅ AC1: `test_breakdown_response_shape` PASSED\n- ✅ AC2: `test_breakdown_per_phase_data` PASSED\n- ✅ AC3: `test_breakdown_missing_tsv` PASSED\n- ✅ AC4: `pytest tests/ -k us_1384` → 14 tests PASSED\n\nNow let me run quality checks:\n## Summary"
       },
       "_passedCommit": "0aebe71e0e9365a02e7dcc4463d256e22a71db45"
+    },
+    {
+      "id": "US-1427",
+      "title": "[Security Test] /api/costs/breakdown: response exposes no raw API keys or tokens",
+      "priority": "high",
+      "description": "Add security tests for the /api/costs/breakdown endpoint (US-1384) ensuring that parsed results.tsv data is never returned with raw credential fields, and that malformed or path-traversal inputs in query parameters return a safe 400 error without leaking server paths.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_costs_api.py::test_breakdown_no_secret_fields -v exits 0 confirming response JSON keys contain no token/key/password fields",
+        "uv run pytest tests/test_costs_api.py::test_breakdown_path_traversal -v exits 0 confirming GET /api/costs/breakdown?file=../../etc/passwd returns 400 with no file contents",
+        "uv run pytest tests/test_costs_api.py -v --tb=short exits 0 with all existing tests still passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_costs_api.py (add test_breakdown_no_secret_fields and test_breakdown_path_traversal)",
+        "File to edit: spiral-ui-backend/routes/costs.py (sanitise file param if present; validate it resolves inside project root)",
+        "Test command: uv run pytest tests/test_costs_api.py -v --tb=short",
+        "Use Flask test client; assert set(response.json.keys()).isdisjoint({'token','key','password','secret'})"
+      ],
+      "dependencies": [
+        "US-1384"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku",
+      "last_attempted": "2026-05-18T15:19:51Z"
+    },
+    {
+      "id": "US-1428",
+      "title": "Phase I Error Classifier - Extract and Categorize Failure Patterns from results.tsv",
+      "priority": "high",
+      "description": "Build an error classification engine that parses failure messages from results.tsv and categorizes them into 8 error types (timeout, OOM, syntax, import, assertion, network, auth, unknown). Store patterns in lib/error_patterns.jsonl for future retry routing decisions.",
+      "acceptanceCriteria": [
+        "lib/spiral/impl/error_classifier.py exports classify_error(error_msg: str) -> ErrorCategory enum with timeout, oom, syntax, import, assertion, network, auth, unknown",
+        "Parses all failure rows in results.tsv and appends to lib/error_patterns.jsonl with per-category frequency and example error snippets",
+        "Integration into lib/impl/retry.sh: select_retry_strategy() uses error_classifier to choose scope_reducer vs skip vs escalate before calling retry_phase()"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/spiral/impl/error_classifier.py (classify_error function, ~100 lines)",
+        "File to create: lib/error_patterns.jsonl as append-only JSON Lines with {error_type, frequency, examples, suggestion}",
+        "Update: lib/impl/retry.sh to import and call error_classifier.classify_error()",
+        "Test command: uv run pytest tests/test_error_classifier.py::test_classify_timeout -v && uv run pytest tests/test_error_classifier.py::test_classify_oom -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1429",
+      "title": "[Integration Test] Phase R Research Cache Hit/Miss Validation via MockGeminiAPI",
+      "priority": "high",
+      "description": "End-to-end integration test verifying Phase R research cache correctly hits on identical story titles, misses on different queries, and respects 24-hour TTL expiry. Uses MockGeminiAPI fixture to intercept Gemini calls and assert cache effectiveness.",
+      "acceptanceCriteria": [
+        "Phase R cache is hit on 2nd story with identical title; verify MockGeminiAPI.call_count remains 1 (no 2nd API call)",
+        "Cache miss on different research_query parameter or story_title variation; call_count increments",
+        "Mocked time.time() advances 25 hours; cache entry expires; 3rd run with same title triggers API call (call_count = 2)"
+      ],
+      "technicalNotes": [
+        "File to create: tests/integration/test_phase_r_research_cache.py (setup_mock_gemini, test_cache_hit_same_title, test_cache_miss_different_query, test_ttl_expiry, ~130 lines)",
+        "File to create: tests/fixtures/mock_gemini_api.py MockGeminiAPI class with call_count tracking and response injection",
+        "Update: lib/spiral/phases/phase_r.py or research_cache.py to accept optional api_client for testing",
+        "Test command: uv run pytest tests/integration/test_phase_r_research_cache.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1430",
+      "title": "spiral-ui: PhaseStatsCard React Component - Per-Phase Success Rate Grid",
+      "priority": "medium",
+      "description": "Add dashboard component that aggregates spiral_events.jsonl data into per-phase (A, R, T, S, E, M, I, V) success rates, story counts, and avg durations. Renders as 2×4 color-coded grid (green >90%, yellow 70–90%, red <70%) with real-time updates via socket.io.",
+      "acceptanceCriteria": [
+        "Component reads spiral_events.jsonl and groups events by phase field; computes success_count / total_count per phase",
+        "Renders 2-row, 4-column grid with phase name, success %, story count, avg duration; color-codes background per threshold",
+        "Socket.io listener updates grid on-push when new spiral_events.jsonl rows are appended (no manual refresh needed)"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/PhaseStatsCard.tsx (React FC, useEffect + socket listener, ~140 lines)",
+        "File to create: spiral-ui/src/hooks/usePhaseStats.ts (parseEventLog, computePhaseStats, ~60 lines)",
+        "File to create: tests/PhaseStatsCard.test.tsx with mock spiral_events.jsonl and socket.io mock",
+        "Test command: npm test -- spiral-ui/src/components/PhaseStatsCard.test.tsx"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1431",
+      "title": "lib: Federation Story Namespace Validator - Detect Cross-SubProject Collisions",
+      "priority": "medium",
+      "description": "Create federation_validator.py that scans prd.json prd.include field, validates sub-project story ID namespace prefixes (e.g., SUBPROJ-NNN), and detects collisions where same story_id appears in multiple sub-projects with mismatched prefixes. Integrates into Phase M as pre-merge gate.",
+      "acceptanceCriteria": [
+        "lib/spiral/federation_validator.py exports validate_federation_namespaces(prd_dict) -> ValidationResult with collisions list",
+        "Detects collision: same story_id (e.g., US-100) in main prd.json and sub-project.prd.json without matching namespace prefix",
+        "CLI: spiral federation validate outputs summary table with ✓ symbols, sub-project names, story counts, collision count, and auto-fix suggestions"
+      ],
+      "technicalNotes": [
+        "File to create: lib/spiral/federation_validator.py (build_story_id_map, detect_collisions, suggest_namespace_renames, ~120 lines)",
+        "File to update: lib/cli_subcommands.sh add case 'federation' calling lib/spiral/cli/federation_check.py",
+        "File to create: tests/test_federation_validator.py with prd fixtures containing namespace collisions",
+        "Test command: uv run pytest tests/test_federation_validator.py::test_detect_namespace_collision -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }

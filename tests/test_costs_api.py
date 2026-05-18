@@ -172,6 +172,85 @@ class TestParseCostsFromResultsTsv:
             Path(tsv_path).unlink()
 
 
+def test_breakdown_no_secret_fields(tmp_path: Path) -> None:
+    """Test that response contains no raw API keys or credential fields.
+
+    Verifies response JSON keys do not contain: token, key, password, secret.
+    This is acceptance criterion 1 for US-1427.
+    """
+    # Create synthetic results.tsv
+    tsv_file = tmp_path / "results.tsv"
+    tsv_file.write_text(
+        "timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\t"
+        "status\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\t"
+        "cache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\t"
+        "wall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\n"
+        "2026-05-18T10:00:00Z\t1\t1\tUS-001\tTest Story 1\tpass\t100\t"
+        "haiku\t0\tabc123\trun1\tfalse\t1000\t500\t100\t0\t0\t0\t0\t\n",
+        encoding="utf-8",
+    )
+
+    result = parse_costs_from_results_tsv(str(tsv_file))
+
+    # AC1: Response must not contain secret/token/key/password fields
+    response_keys = set(result.keys())
+    secret_fields = {"token", "key", "password", "secret"}
+    leaked_fields = response_keys & secret_fields
+
+    assert not leaked_fields, (
+        f"Response must not contain secret fields. Leaked fields: {leaked_fields}"
+    )
+
+    # Verify all returned keys are safe
+    safe_keys = {
+        "phases",
+        "total_tokens",
+        "total_cost_usd",
+        "burnRate",
+        "remainingBudget",
+        "iteration_count",
+        "_missing",
+    }
+    assert response_keys.issubset(safe_keys), (
+        f"Response contains unexpected keys: {response_keys - safe_keys}"
+    )
+
+
+def test_breakdown_path_traversal() -> None:
+    """Test that path traversal attempts return 400 without leaking file contents.
+
+    Verifies GET /api/costs/breakdown?file=../../etc/passwd returns 400
+    and does not expose server paths or file contents.
+    This is acceptance criterion 2 for US-1427.
+    """
+    client = TestClient(app)
+
+    # Test 1: Classic path traversal attempt
+    response = client.get("/api/costs/breakdown?file=../../etc/passwd")
+    assert response.status_code == 400, (
+        f"Path traversal should return 400, got {response.status_code}"
+    )
+    error_detail = response.json().get("detail", "")
+    assert error_detail, "Error response must include detail message"
+
+    # Test 2: Verify response does not leak file contents
+    response_text = json.dumps(response.json())
+    assert "root:" not in response_text, "Response must not leak /etc/passwd contents"
+    assert "/etc/passwd" not in response_text, "Response must not reference system files"
+
+    # Test 3: Absolute path traversal
+    response = client.get("/api/costs/breakdown?file=/etc/passwd")
+    assert response.status_code == 400, (
+        f"Absolute path should return 400, got {response.status_code}"
+    )
+
+    # Test 4: Multiple traversal segments
+    response = client.get("/api/costs/breakdown?file=../../../../../../../etc/passwd")
+    assert response.status_code == 400, (
+        f"Deep path traversal should return 400, got {response.status_code}"
+    )
+
+
 def test_breakdown_response_shape(tmp_path: Path) -> None:
     """Test response shape (AC1): response contains phases, burnRate, remainingBudget keys.
 
