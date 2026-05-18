@@ -3705,10 +3705,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-05-18T00:48:28Z"
+      "last_attempted": "2026-05-18T01:59:16Z"
     },
     {
       "id": "US-1380",
