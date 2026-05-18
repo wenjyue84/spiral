@@ -1259,6 +1259,12 @@ _launch_worker_i() {
   WORKER_PGID_FILES+=("$_PGID_FILE")  # US-245: track PGID file for crash cleanup
   WORKER_START_TIMES+=("$(date +%s)") # US-318: record launch time for invoke_agent span
   echo "$_wpid" >"$WORKTREE_BASE/worker-${i}/worker.pid"
+  # US-1425: Spawn background heartbeat monitor for stall detection
+  if [[ -f "$SPIRAL_HOME/lib/impl/worker_monitor.sh" ]]; then
+    bash "$SPIRAL_HOME/lib/impl/worker_monitor.sh" "$i" "$_wpid" "$WORKTREE_BASE/worker-${i}" "$SPIRAL_HOME" &
+    local _monitor_pid=$!
+    disown "$_monitor_pid" 2>/dev/null || true
+  fi
   disown "$_wpid"
 }
 
