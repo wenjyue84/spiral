@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
 
 setup() {
-    export TEST_TMPDIR=$(mktemp -d)
-    export RESULTS_FILE="$TEST_TMPDIR/results.jsonl"
-    
-    cat > "$RESULTS_FILE" << 'EOF'
+  export TEST_TMPDIR=$(mktemp -d)
+  export RESULTS_FILE="$TEST_TMPDIR/results.jsonl"
+
+  cat >"$RESULTS_FILE" <<'EOF'
 {"phase": "A", "iteration": 1, "duration_sec": 45.2}
 {"phase": "R", "iteration": 1, "duration_sec": 120.5}
 {"phase": "T", "iteration": 1, "duration_sec": 30.2}
@@ -24,18 +24,18 @@ EOF
 }
 
 @test "CLI: spiral analyze-phases outputs table format" {
-    run uv run python lib/phase_bottleneck_analyzer.py --results "$RESULTS_FILE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"PHASE BOTTLENECK ANALYSIS"* ]]
+  run uv run python lib/phase_bottleneck_analyzer.py --results "$RESULTS_FILE"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PHASE BOTTLENECK ANALYSIS"* ]]
 }
 
 @test "CLI: spiral analyze-phases --json outputs newline-delimited JSON" {
-    run uv run python lib/phase_bottleneck_analyzer.py --results "$RESULTS_FILE" --json
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"phase_name"* ]]
+  run uv run python lib/phase_bottleneck_analyzer.py --results "$RESULTS_FILE" --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"phase_name"* ]]
 }
 
 @test "CLI: spiral analyze-phases handles missing file" {
-    run uv run python lib/phase_bottleneck_analyzer.py --results /nonexistent/file.jsonl
-    [ "$status" -eq 0 ]
+  run uv run python lib/phase_bottleneck_analyzer.py --results /nonexistent/file.jsonl
+  [ "$status" -eq 0 ]
 }

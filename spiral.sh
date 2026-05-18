@@ -196,6 +196,11 @@ DEDUP_MERGE_ID2=""                           # second story ID to merge
 EXPORT_TRAJECTORY_MODE=0                     # 1 = export JSONL training data and exit (export-trajectory)
 EXPORT_TRAJECTORY_OUTPUT=""                  # output .jsonl.gz path (default: timestamped)
 EXPORT_TRAJECTORY_FILTER=""                  # filter as key=value (e.g. model=sonnet)
+EXPORT_RESULTS_MODE=0                        # 1 = export results as CSV/JSON and exit (export-results)
+EXPORT_RESULTS_FORMAT="csv"                  # csv or json
+EXPORT_RESULTS_SINCE=""                      # filter results after ISO8601 timestamp
+EXPORT_RESULTS_STATUS=""                     # filter by status: pass|fail|timeout
+EXPORT_RESULTS_OUTPUT=""                     # output file path (default: stdout)
 PROFILE_PHASES_MODE=0                        # 1 = read phase timings and print profiling report (profile-phases)
 WORKERS_KILL_MODE=0                          # 1 = kill a specific worker by ID and exit (workers kill)
 WORKERS_KILL_ID=""                           # worker ID to kill (numeric)
@@ -508,6 +513,32 @@ while [[ $# -gt 0 ]]; do
         esac
       done
       ;;
+    --export-results)
+      EXPORT_RESULTS_MODE=1
+      shift
+      # Parse optional export-results flags
+      while [[ $# -gt 0 ]] && [[ "$1" == --* ]]; do
+        case $1 in
+          --format)
+            EXPORT_RESULTS_FORMAT="${2:-csv}"
+            shift 2
+            ;;
+          --since)
+            EXPORT_RESULTS_SINCE="${2:-}"
+            shift 2
+            ;;
+          --status)
+            EXPORT_RESULTS_STATUS="${2:-}"
+            shift 2
+            ;;
+          --output)
+            EXPORT_RESULTS_OUTPUT="${2:-}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
     skills)
       SKILLS_MODE=1
       SKILLS_SUBCOMMAND="${2:-list}"
@@ -755,6 +786,11 @@ while [[ $# -gt 0 ]]; do
       echo "  --show-patterns            Display learned retry patterns (0-retry vs 3+ retry stories) and exit"
       echo "  --graph                    Render PRD dependency graph to SVG and exit"
       echo "    --output FILE              Output file path (default: spiral-deps.svg)"
+      echo "  --export-results           Export results.tsv as CSV or JSON analytics export and exit"
+      echo "    --format csv|json          Output format (default: csv)"
+      echo "    --since ISO8601            Filter results after timestamp (e.g., 2026-05-18T10:30:00Z)"
+      echo "    --status pass|fail|timeout Filter by story status"
+      echo "    --output FILE              Output file path (default: stdout)"
       echo "  --query stories            Query prd.json stories with optional filters and exit"
       echo "    --status pass|fail|pending  Filter by story status"
       echo "    --complexity small|medium|large  Filter by complexity"

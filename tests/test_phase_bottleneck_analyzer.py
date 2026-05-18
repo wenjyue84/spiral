@@ -1,7 +1,6 @@
 import json
+
 import pytest
-from pathlib import Path
-from statistics import mean, stdev
 
 from lib.phase_bottleneck_analyzer import PhaseBottleneckAnalyzer
 

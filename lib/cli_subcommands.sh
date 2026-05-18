@@ -639,3 +639,14 @@ except Exception as e:
 GRAPH_PY
   exit $?
 fi
+
+# ── --export-results: export results.tsv as CSV or JSON and exit ──────────────
+if [[ "$EXPORT_RESULTS_MODE" -eq 1 ]]; then
+  _EXPORT_ARGS=("--format" "$EXPORT_RESULTS_FORMAT")
+  [[ -n "$EXPORT_RESULTS_SINCE" ]] && _EXPORT_ARGS+=("--since" "$EXPORT_RESULTS_SINCE")
+  [[ -n "$EXPORT_RESULTS_STATUS" ]] && _EXPORT_ARGS+=("--status" "$EXPORT_RESULTS_STATUS")
+  [[ -n "$EXPORT_RESULTS_OUTPUT" ]] && _EXPORT_ARGS+=("--output" "$EXPORT_RESULTS_OUTPUT")
+  _EXPORT_ARGS+=("--project-root" "$REPO_ROOT")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/results_exporter.py" "${_EXPORT_ARGS[@]}"
+  exit $?
+fi

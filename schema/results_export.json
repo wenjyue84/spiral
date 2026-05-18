@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SPIRAL Results Export Schema",
+  "description": "Schema for results export in CSV and JSON formats from spiral export-results command",
+  "definitions": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["metadata"],
+          "description": "Record type identifier"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Export timestamp in ISO 8601 format"
+        },
+        "iteration_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of unique iterations in export"
+        },
+        "total_cost_usd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total USD cost of all stories"
+        },
+        "story_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of stories exported"
+        }
+      },
+      "required": ["type", "timestamp", "iteration_count", "total_cost_usd", "story_count"]
+    },
+    "story_record": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Story completion timestamp"
+        },
+        "iteration": {
+          "type": ["string", "integer"],
+          "description": "SPIRAL iteration number"
+        },
+        "story_id": {
+          "type": "string",
+          "pattern": "^(US|UT)-[0-9]+$",
+          "description": "Unique story identifier"
+        },
+        "model": {
+          "type": "string",
+          "enum": ["haiku", "sonnet", "opus"],
+          "description": "Claude model used for implementation"
+        },
+        "tokens_input": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Estimated input tokens consumed"
+        },
+        "tokens_output": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Estimated output tokens generated"
+        },
+        "cost_usd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Estimated cost in USD"
+        },
+        "duration_sec": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Story implementation duration in seconds"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail", "timeout", "reject", "unknown"],
+          "description": "Story completion status"
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["A", "R", "T", "S", "E", "M", "X", "G", "I", "V", "C"],
+          "description": "SPIRAL phase letter (A through C)"
+        },
+        "date_completed": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Story completion timestamp (ISO 8601)"
+        },
+        "phase_times": {
+          "type": "object",
+          "description": "Phase-specific duration breakdown (JSON export only)",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "required": [
+        "timestamp",
+        "iteration",
+        "story_id",
+        "model",
+        "tokens_input",
+        "tokens_output",
+        "cost_usd",
+        "duration_sec",
+        "status",
+        "phase",
+        "date_completed"
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "description": "Single metadata record (CSV export)",
+      "$ref": "#/definitions/metadata"
+    },
+    {
+      "type": "object",
+      "description": "Single story record (CSV export)",
+      "$ref": "#/definitions/story_record"
+    },
+    {
+      "type": "array",
+      "description": "Newline-delimited JSON export (JSON format) - array of metadata followed by story records",
+      "items": {
+        "oneOf": [
+          {"$ref": "#/definitions/metadata"},
+          {"$ref": "#/definitions/story_record"}
+        ]
+      }
+    }
+  ]
+}
