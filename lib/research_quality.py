@@ -298,3 +298,213 @@ def _build_score_distribution(scores_by_story: dict[str, int]) -> dict[str, int]
         else:
             distribution["30-49"] += 1
     return distribution
+
+
+# ── Research Result Source Credibility Scoring (US-1407) ──────────────────────
+
+
+def score_research_result(url: str, snippet_text: str) -> int:
+    """Score research result by source credibility (0-100).
+
+    Evaluates domain authority and snippet quality:
+    - .edu/.gov/.org/.ac.uk domains: 70-100 (high authority)
+    - News outlets (reuters, bbc, nytimes, etc.): 65-85
+    - Tech news (techcrunch, arstechnica, theverge): 60-80
+    - Academic sources (nature, ieee, acm): 75-95
+    - Marketing/ad domains (linkedin, medium.com personal): 20-35
+    - Blog/forum spam (reddit, dev.to, pinteres...): 25-40
+    - Unknown domains: 45-55 (neutral)
+
+    Args:
+        url: Source URL
+        snippet_text: Snippet content from the source
+
+    Returns:
+        Score 0-100 (higher = more credible)
+    """
+    from urllib.parse import urlparse
+
+    if not url:
+        return 20  # No URL = low credibility
+
+    # Parse domain
+    try:
+        parsed = urlparse(url.lower())
+        domain = parsed.netloc.lower()
+    except Exception:
+        return 20
+
+    # If URL lacks proper scheme/domain structure, score low
+    if not domain or (not domain.count(".") >= 1 and domain != "localhost"):
+        return 30
+
+    # Remove common prefixes
+    if domain.startswith("www."):
+        domain = domain[4:]
+
+    score = 50  # Default neutral
+
+    # ── HIGH AUTHORITY DOMAINS (70+) ──
+    if domain.endswith(".edu") or domain.endswith(".gov") or domain.endswith(".mil"):
+        score = 85
+    elif domain.endswith(".ac.uk") or domain.endswith(".edu.au") or domain.endswith(".org.uk"):
+        score = 80
+    elif domain.endswith(".org"):
+        # Most .org are good, but some are spammy
+        if any(x in domain for x in ["spam", "bot", "fake"]):
+            score = 30
+        else:
+            score = 75
+
+    # ── ACADEMIC & RESEARCH (75+) ──
+    elif any(x in domain for x in ["nature.com", "sciencedirect.com", "ieee.org", "acm.org"]):
+        score = 85
+    elif any(x in domain for x in ["arxiv.org", "scholar.google.com", "researchgate.net"]):
+        score = 80
+
+    # ── REPUTABLE NEWS (65+) ──
+    elif any(
+        x in domain
+        for x in [
+            "reuters.com",
+            "apnews.com",
+            "bbc.com",
+            "bbc.co.uk",
+            "nytimes.com",
+            "washingtonpost.com",
+            "theguardian.com",
+            "bloomberg.com",
+            "wsj.com",
+            "cnbc.com",
+        ]
+    ):
+        score = 75
+
+    # ── TECH MEDIA (60-75) ──
+    elif any(x in domain for x in ["techcrunch.com", "arstechnica.com", "wired.com", "theverge.com"]):
+        score = 70
+    elif any(x in domain for x in ["medium.com", "dev.to"]):
+        # Medium and Dev.to: personal blogs, moderate credibility
+        score = 40
+
+    # ── LOW CREDIBILITY SPAM (20-40) ──
+    elif any(
+        x in domain
+        for x in [
+            "reddit.com",
+            "pinterest.com",
+            "facebook.com",
+            "instagram.com",
+            "tiktok.com",
+            "quora.com",
+            "linkedin.com",
+        ]
+    ):
+        score = 25
+
+    # ── AD/MARKETING DOMAINS (<30) ──
+    elif any(x in domain for x in ["ads.", ".ad.", "adserver", "doubleclick.net", "googleads"]):
+        score = 15
+    elif any(x in url.lower() for x in ["utm_", "clickid=", "affiliate", "promo", "sponsored"]):
+        score = 20
+
+    # ── SNIPPET QUALITY ADJUSTMENTS ──
+    # Check snippet for red flags with penalty magnitude based on domain authority
+    snippet_lower = snippet_text.lower() if snippet_text else ""
+
+    # Determine penalty magnitude based on initial score
+    if score >= 70:
+        # High-authority sources: small penalties only for severe issues
+        short_penalty = 3
+        marketing_penalty = 5
+    elif score >= 45:
+        # Medium-credibility sources: moderate penalties
+        short_penalty = 10
+        marketing_penalty = 15
+    else:
+        # Low-credibility sources: larger penalties
+        short_penalty = 15
+        marketing_penalty = 20
+
+    if len(snippet_text or "") < 20:
+        # Very short snippet, probably low quality
+        score = max(15, score - short_penalty)
+
+    if any(x in snippet_lower for x in ["click here", "buy now", "limited time", "sponsored"]):
+        # Marketing language
+        score = max(20, score - marketing_penalty)
+
+    # Error pages always reduce score significantly
+    if any(x in snippet_lower for x in ["error", "404", "not found"]):
+        score = max(15, score - 40)
+
+    return min(100, max(0, score))
+
+
+def filter_research_results_by_quality(
+    results: dict[str, Any],
+    min_score: int = 40,
+    log_path: str = ".spiral/research_quality.jsonl",
+) -> dict[str, Any]:
+    """Filter research results by source credibility score.
+
+    Evaluates each result's source, logs filtering decisions, and returns
+    filtered results suitable for synthesis.
+
+    Args:
+        results: {"stories": [...]} dict from Phase R
+        min_score: Minimum credibility score to keep (default 40)
+        log_path: Path to write filtering log (JSONL format)
+
+    Returns:
+        Filtered results with same structure, reduced story count
+    """
+    import json
+    from pathlib import Path
+
+    stories = results.get("stories", [])
+    filtered_stories = []
+    skipped_count = 0
+
+    # Create log entries for skipped results
+    log_entries = []
+
+    for story in stories:
+        if not isinstance(story, dict):
+            continue
+
+        # Extract URL and snippet from story
+        # Research results may have different field names, try several
+        url = story.get("url") or story.get("source_url") or story.get("link") or ""
+        snippet = story.get("snippet") or story.get("content") or story.get("summary") or ""
+
+        score = score_research_result(url, snippet)
+
+        if score < min_score:
+            skipped_count += 1
+            log_entries.append(
+                {
+                    "url": url,
+                    "score": score,
+                    "reason": "credibility_threshold",
+                    "threshold": min_score,
+                    "snippet_preview": (snippet[:100] + "...") if snippet else "",
+                }
+            )
+        else:
+            # Keep this story with score metadata
+            story_copy = dict(story)
+            story_copy["_quality_score"] = score
+            filtered_stories.append(story_copy)
+
+    # Write log entries
+    log_path_obj = Path(log_path)
+    log_path_obj.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(log_path_obj, "a", encoding="utf-8") as f:
+            for entry in log_entries:
+                f.write(json.dumps(entry) + "\n")
+    except (OSError, TypeError):
+        pass  # Graceful fallback if logging fails
+
+    return {"stories": filtered_stories, "_skipped_count": skipped_count}

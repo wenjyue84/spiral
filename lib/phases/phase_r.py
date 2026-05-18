@@ -100,3 +100,54 @@ class PhaseRCache:
         self.telemetry_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.telemetry_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(telemetry) + "\n")
+
+
+def apply_research_quality_filter(
+    research_output_path: str,
+    min_score: int = 40,
+    quality_log_path: str = ".spiral/research_quality.jsonl",
+) -> None:
+    """Filter research results by source credibility before synthesis (US-1407).
+
+    Loads research results from _research_output.json, scores each result by
+    source credibility using score_research_result(), filters out low-scoring
+    results, logs filtering decisions, and writes filtered results back.
+
+    Args:
+        research_output_path: Path to .spiral/_research_output.json
+        min_score: Minimum credibility score to keep (default 40)
+        quality_log_path: Path to write filtering log (JSONL format)
+    """
+    from lib.research_quality import filter_research_results_by_quality
+
+    try:
+        output_path = Path(research_output_path)
+        if not output_path.exists():
+            return  # No research output, nothing to filter
+
+        # Load research results
+        with open(output_path, encoding="utf-8") as f:
+            results = json.load(f)
+
+        # Apply quality filtering
+        filtered = filter_research_results_by_quality(
+            results,
+            min_score=min_score,
+            log_path=quality_log_path,
+        )
+
+        # Write filtered results back
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(filtered, f, indent=2)
+
+        # Log summary
+        skipped = filtered.get("_skipped_count", 0)
+        kept = len(filtered.get("stories", []))
+        if skipped > 0:
+            print(
+                f"[Phase R] Research quality filter: kept {kept} results, "
+                f"skipped {skipped} low-credibility sources (score < {min_score})"
+            )
+    except Exception as e:
+        # Graceful fallback — Phase R should continue even if filtering fails
+        print(f"[Phase R] Research quality filter failed: {e}", file=sys.stderr)

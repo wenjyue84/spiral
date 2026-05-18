@@ -17,8 +17,10 @@ from research_quality import (
     ResearchQualityResult,
     aggregate_research_quality,
     calculate_research_quality_score,
+    filter_research_results_by_quality,
     format_research_quality_report,
     get_research_quality_trend,
+    score_research_result,
 )
 
 # ── Scoring Formula Tests ──────────────────────────────────────────────────────
@@ -306,6 +308,157 @@ class TestTrendAnalysis:
             assert len(trends) == 2
             assert trends[0].iteration == 4
             assert trends[1].iteration == 5
+
+
+# ── Source Credibility Scoring Tests (US-1407) ────────────────────────────────
+
+
+class TestSourceCredibilityScoring:
+    """Unit tests for score_research_result() — Source credibility scoring."""
+
+    def test_score_academic_sources(self) -> None:
+        """AC1: .edu/.gov/.org domains score >60, ad/spam <40."""
+        # Educational domains
+        assert score_research_result("https://example.edu", "Academic content") >= 70
+        assert score_research_result("https://university.ac.uk", "Research paper") >= 70
+        assert score_research_result("https://research.gov", "Government data") >= 70
+        assert score_research_result("https://org.edu.au", "Australian education") >= 70
+
+        # Organizational domains
+        score_org = score_research_result("https://nonprofit.org", "Nonprofit content")
+        assert score_org >= 70, f"Expected .org >= 70, got {score_org}"
+
+        # Ad/marketing/spam domains should score <40
+        assert score_research_result("https://ads.example.com", "Click here!") < 40
+        assert score_research_result("https://example.com/path?utm_campaign=x", "Buy now!") < 40
+        assert score_research_result("https://linkedin.com/posts", "Content") < 40
+        assert score_research_result("https://reddit.com/r/x", "Discussion") < 40
+
+    def test_reputable_news_sources(self) -> None:
+        """AC2: Known news outlets (reuters, bbc, nyt, etc) score 65+."""
+        news_sources = [
+            "https://reuters.com/article",
+            "https://bbc.com/news",
+            "https://nytimes.com/story",
+            "https://bloomberg.com/article",
+            "https://wsj.com/article",
+        ]
+        for url in news_sources:
+            score = score_research_result(url, "News content")
+            assert score >= 65, f"News source {url} should score >= 65, got {score}"
+
+    def test_tech_media_sources(self) -> None:
+        """AC3: Tech media (techcrunch, arstechnica, theverge) score 60+."""
+        tech_sources = [
+            ("https://techcrunch.com/article", 60),
+            ("https://arstechnica.com/article", 60),
+            ("https://theverge.com/article", 60),
+        ]
+        for url, min_score in tech_sources:
+            score = score_research_result(url, "Tech news")
+            assert score >= min_score, f"{url} should score >= {min_score}, got {score}"
+
+    def test_blog_forum_low_score(self) -> None:
+        """AC4: Blogs and forums (medium, dev.to, reddit) score <50."""
+        blog_sources = [
+            "https://medium.com/@author/article",
+            "https://dev.to/author/article",
+        ]
+        for url in blog_sources:
+            score = score_research_result(url, "Blog post")
+            assert score < 50, f"Blog source {url} should score < 50, got {score}"
+
+    def test_snippet_quality_affects_score(self) -> None:
+        """AC5: Short/error/marketing snippets reduce credibility score."""
+        # Short snippet should reduce score
+        score_short = score_research_result("https://example.edu", "Hi")
+        score_normal = score_research_result(
+            "https://example.edu", "This is a longer academic snippet with substantial content"
+        )
+        assert score_short < score_normal, "Short snippets should score lower"
+
+        # Error pages reduce score
+        score_error = score_research_result("https://example.edu", "404 error not found")
+        assert score_error < 50, f"Error pages should score low, got {score_error}"
+
+        # Marketing language reduces score
+        score_marketing = score_research_result("https://example.edu", "Limited time offer! Click here now!")
+        assert score_marketing < score_normal, "Marketing snippets should score lower"
+
+    def test_empty_url_scores_low(self) -> None:
+        """AC6: Missing URL scores very low."""
+        score = score_research_result("", "Some content")
+        assert score < 30, f"Empty URL should score < 30, got {score}"
+
+    def test_invalid_url_scores_low(self) -> None:
+        """AC7: Invalid URLs score low."""
+        score = score_research_result("not a valid url", "Content")
+        assert score < 40, f"Invalid URL should score < 40, got {score}"
+
+    def test_score_in_valid_range(self) -> None:
+        """AC8: All scores returned are in [0, 100] range."""
+        test_cases = [
+            ("https://example.edu", "Content"),
+            ("https://reddit.com", "Post"),
+            ("", "Content"),
+            ("https://ads.com", "Buy now!"),
+            ("https://nature.com", "Research"),
+        ]
+        for url, snippet in test_cases:
+            score = score_research_result(url, snippet)
+            assert 0 <= score <= 100, f"Score out of range: {score}"
+
+
+class TestFilteringByQuality:
+    """Unit tests for filter_research_results_by_quality()."""
+
+    def test_filters_low_score_results(self) -> None:
+        """Low-score results are removed from output."""
+        results = {
+            "stories": [
+                {"url": "https://example.edu", "snippet": "Academic content", "title": "Good source"},
+                {"url": "https://ads.com", "snippet": "Click here!", "title": "Bad source"},
+                {"url": "https://reddit.com", "snippet": "Discussion", "title": "Forum"},
+            ]
+        }
+        filtered = filter_research_results_by_quality(results, min_score=40)
+        assert filtered["_skipped_count"] >= 1, "Should skip low-score results"
+
+    def test_adds_quality_score_metadata(self) -> None:
+        """Kept results include _quality_score field."""
+        results = {
+            "stories": [
+                {"url": "https://example.edu", "snippet": "Academic content", "title": "Good"},
+            ]
+        }
+        filtered = filter_research_results_by_quality(results, min_score=40)
+        filtered_stories = filtered.get("stories", [])
+        assert len(filtered_stories) > 0, "Should keep high-score results"
+        assert "_quality_score" in filtered_stories[0], "Should add _quality_score field"
+        assert filtered_stories[0]["_quality_score"] >= 40, "Score should meet minimum"
+
+    def test_logs_filtering_decisions(self) -> None:
+        """Filtering decisions are logged to JSONL."""
+        with TemporaryDirectory() as tmpdir:
+            log_path = Path(tmpdir) / "quality.jsonl"
+            results = {
+                "stories": [
+                    {"url": "https://ads.com", "snippet": "Buy now!", "title": "Ad"},
+                ]
+            }
+            filter_research_results_by_quality(results, min_score=40, log_path=str(log_path))
+            assert log_path.exists(), "Log file should be created"
+            # Read and verify log entries
+            with open(log_path, encoding="utf-8") as f:
+                lines = f.readlines()
+                assert len(lines) > 0, "Should have log entries"
+
+    def test_empty_results(self) -> None:
+        """Empty results don't cause errors."""
+        results = {"stories": []}
+        filtered = filter_research_results_by_quality(results, min_score=40)
+        assert filtered["stories"] == []
+        assert filtered["_skipped_count"] == 0
 
 
 # ── Formatting Tests ───────────────────────────────────────────────────────────
