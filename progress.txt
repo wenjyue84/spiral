@@ -976,3 +976,55 @@ Story: Tests for HealthWidget polling, error handling, and sparkline rendering (
 ## Iteration 4 - Mon, May 18, 2026  9:15:22 AM
 Completed: Tests for HealthWidget polling, error handling, and sparkline rendering (ID: US-1388) in 2m
 
+
+## Iteration N+6 - Sun, May 18, 2026 - Story US-1389 Completed
+Completed: Tests for /api/costs/breakdown endpoint — parsing, response shape, and error cases (ID: US-1389) in ~5m
+
+### What was implemented
+- Verified comprehensive test suite for /api/costs/breakdown endpoint in tests/test_costs_api.py
+  - All 10 tests passing (100% success)
+  - Tests cover all acceptance criteria
+
+### Test Coverage Breakdown
+**TestParseCostsFromResultsTsv (5 tests):**
+- test_parse_costs_breakdown: Validates parsing of valid results.tsv with multiple stories and models
+  - Verifies token aggregation across cache_read, cache_creation, review columns
+  - Verifies per-model cost breakdown (haiku, sonnet, opus)
+  - Verifies iteration counting (unique spiral_iter values)
+- test_empty_results_tsv: Confirms graceful handling when results.tsv has only headers
+- test_missing_results_tsv: Confirms missing file returns _missing=True flag
+- test_results_tsv_missing_columns: Confirms graceful fallback when required columns missing
+- test_malformed_token_values: Confirms invalid token values treated as 0 without crashing
+
+**TestCostsBreakdownEndpoint (5 tests):**
+- test_endpoint_structure: Verifies /api/costs/breakdown returns correct JSON keys (phases, burnRate, remainingBudget, etc.)
+- test_endpoint_response_consistency: Validates non-negative numeric values and correct data types
+- test_response_shape_with_synthetic_data (AC 2): Confirms response contains phases (dict), burnRate (number), remainingBudget (number)
+  - Tests using synthetic results.tsv with haiku + sonnet models
+- test_per_phase_totals_sum (AC 3): Confirms per-phase USD totals sum to within 0.001 of total_cost_usd
+  - Validates: sum(phases[m]['cost_usd']) ≈ total_cost_usd (tolerance: 0.001)
+- test_missing_results_tsv_returns_404 (AC 4): Confirms missing results.tsv returns 404 with JSON error message
+  - Monkeypatches parse_costs_from_results_tsv to return _missing=True
+  - Verifies response.status_code == 404 and response includes "detail" field with "results.tsv" reference
+  - Confirms NO 500 tracebacks on error
+
+### Key Patterns Discovered
+- Cost calculation per row: tokens * rate_per_model_in_usd_per_token
+- Haiku rate: 2.5e-7 (haiku-4.5-20251001)
+- Sonnet rate: 3e-6
+- Opus rate: 1.5e-5
+- Burn rate: total_cost_usd / story_count (average cost per story)
+- Remaining budget: 200.0 - total_cost_usd (fixed $200 baseline budget)
+- Parse loop: split lines by tab, track unique spiral_iter for iteration_count, accumulate tokens per model
+
+### Acceptance Criteria Met
+- [x] uv run pytest tests/test_costs_api.py -v exits 0 with at least 3 passing tests (10/10 pass)
+- [x] Response shape test POSTs synthetic results.tsv and asserts JSON contains phases, burnRate, remainingBudget
+- [x] Per-phase totals sum within 0.001 of total_cost_usd
+- [x] Missing results.tsv causes 404 with JSON error message (no 500 traceback)
+
+### Testing
+- All 10 tests passing (100% success)
+- MyPy --strict: ✓ passed on lib/dashboard/routes/costs.py
+- No TypeScript, lint, or shell errors
+- All quality gates clear
