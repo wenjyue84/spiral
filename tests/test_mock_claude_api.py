@@ -118,3 +118,36 @@ def test_mock_api_repo_fixture_exercisable_in_isolation(mock_api_repo: tuple[Moc
     mock_api.inject_response("I", "US-TEST", {"status": "ok"})
     result = subprocess.run(["claude", "--phase", "I", "--story", "US-TEST"], capture_output=True)
     assert result.returncode == 0
+
+
+@pytest.mark.us_1365
+def test_mock_api_prevents_network_calls_us_1365() -> None:
+    """Verify MockClaudeAPI intercepts subprocess calls and prevents real network calls.
+
+    This test ensures that when using MockClaudeAPI, Claude CLI calls are
+    intercepted and return injected responses without making actual network calls.
+    This is essential for US-1365: enabling mock API mode for integration tests.
+
+    Criterion: uv run pytest tests/ -k us_1365 -v runs without network calls
+    """
+    with MockClaudeAPI() as mock:
+        # Inject a response for phase I
+        mock.inject_response("I", "US-NETWORK-TEST", {"result": "mocked"})
+
+        # Call subprocess with claude command - should be intercepted
+        result = subprocess.run(
+            ["claude", "--phase", "I", "--story", "US-NETWORK-TEST"],
+            capture_output=True,
+            timeout=5,  # Short timeout - proves no network wait
+        )
+
+        # Verify the response came from mock, not network
+        assert result.returncode == 0
+        import json
+
+        parsed = json.loads(result.stdout.decode("utf-8"))
+        assert parsed == {"result": "mocked"}
+
+        # Verify the call was logged (intercepted)
+        assert len(mock.call_log) == 1
+        assert "claude" in str(mock.call_log[0][0])
