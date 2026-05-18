@@ -14,7 +14,7 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -80,15 +80,14 @@ class TestRetryEscalation:
         """
         call_count = {"value": 0}
 
-        def side_effect_escalation(
-            args: Any, *pargs: Any, **kwargs: Any
-        ) -> Any:
+        def side_effect_escalation(args: Any, *pargs: Any, **kwargs: Any) -> Any:
             arg_list = list(args) if isinstance(args, (list, tuple)) else [str(args)]
             is_claude = arg_list and str(arg_list[0]) in {"claude", "claude.exe"}
 
             if not is_claude:
                 # Fall through to real subprocess for non-claude
                 import subprocess as sp
+
                 return sp.run(args, *pargs, **kwargs)
 
             call_count["value"] += 1
@@ -96,9 +95,7 @@ class TestRetryEscalation:
 
             # First call (haiku): fail
             if call_num == 1:
-                raise subprocess.CalledProcessError(
-                    1, arg_list, stderr=b"haiku model timeout"
-                )
+                raise subprocess.CalledProcessError(1, arg_list, stderr=b"haiku model timeout")
 
             # Second call (sonnet escalation): succeed
             if call_num == 2:
@@ -144,9 +141,7 @@ class TestRetryEscalation:
             # Verify state tracking
             assert call_count["value"] == 2, "Should have exactly 2 calls"
 
-    def test_retry_escalation_with_multiple_models_us1371(
-        self, mock_api_repo: tuple[MockClaudeAPI, Path]
-    ) -> None:
+    def test_retry_escalation_with_multiple_models_us1371(self, mock_api_repo: tuple[MockClaudeAPI, Path]) -> None:
         """Test escalation path: haiku fail → sonnet fail → opus pass.
 
         This verifies the full escalation chain (haiku → sonnet → opus).
@@ -163,9 +158,7 @@ class TestRetryEscalation:
         # Inject escalation path: haiku fail, sonnet fail, opus succeed
         call_count = {"value": 0}
 
-        def side_effect_escalation(
-            args: Any, *pargs: Any, **kwargs: Any
-        ) -> Any:
+        def side_effect_escalation(args: Any, *pargs: Any, **kwargs: Any) -> Any:
             arg_list = list(args) if isinstance(args, (list, tuple)) else [str(args)]
             is_claude = arg_list and str(arg_list[0]) in {"claude", "claude.exe"}
 
@@ -178,15 +171,11 @@ class TestRetryEscalation:
 
             # First call: haiku fails
             if call_num == 1:
-                raise subprocess.CalledProcessError(
-                    1, arg_list, stderr=b"haiku timeout"
-                )
+                raise subprocess.CalledProcessError(1, arg_list, stderr=b"haiku timeout")
 
             # Second call: sonnet fails
             if call_num == 2:
-                raise subprocess.CalledProcessError(
-                    1, arg_list, stderr=b"sonnet context overflow"
-                )
+                raise subprocess.CalledProcessError(1, arg_list, stderr=b"sonnet context overflow")
 
             # Third call: opus succeeds
             if call_num == 3:
@@ -241,9 +230,7 @@ class TestRetryEscalation:
 class TestTimeoutScopeReduction:
     """Integration tests for timeout-induced scope reduction."""
 
-    def test_timeout_triggers_scope_reduction_us1371(
-        self, mock_api_repo: tuple[MockClaudeAPI, Path]
-    ) -> None:
+    def test_timeout_triggers_scope_reduction_us1371(self, mock_api_repo: tuple[MockClaudeAPI, Path]) -> None:
         """Test that timeout failure triggers scope reduction or decomposition.
 
         Scenario:
@@ -292,9 +279,7 @@ class TestTimeoutScopeReduction:
         # We verify the logic path in unit tests; here we verify the mock
         # intercepts the timeout scenario correctly.
 
-    def test_timeout_with_retries_us1371(
-        self, mock_api_repo: tuple[MockClaudeAPI, Path]
-    ) -> None:
+    def test_timeout_with_retries_us1371(self, mock_api_repo: tuple[MockClaudeAPI, Path]) -> None:
         """Test timeout handling with retry escalation.
 
         Scenario:
@@ -312,9 +297,7 @@ class TestTimeoutScopeReduction:
 
         call_count = {"value": 0}
 
-        def side_effect_timeout(
-            args: Any, *pargs: Any, **kwargs: Any
-        ) -> Any:
+        def side_effect_timeout(args: Any, *pargs: Any, **kwargs: Any) -> Any:
             arg_list = list(args) if isinstance(args, (list, tuple)) else [str(args)]
             is_claude = arg_list and str(arg_list[0]) in {"claude", "claude.exe"}
 
@@ -326,9 +309,7 @@ class TestTimeoutScopeReduction:
 
             # Both calls timeout (simulating repeated timeout failures)
             if call_num <= 2:
-                raise subprocess.TimeoutExpired(
-                    ["claude", "..."], timeout=30, output=b"Timeout exceeded"
-                )
+                raise subprocess.TimeoutExpired(["claude", "..."], timeout=30, output=b"Timeout exceeded")
 
             # Third call succeeds (after scope reduction)
             if call_num == 3:

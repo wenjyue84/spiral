@@ -225,4 +225,5 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T09:39:24Z	13	2	US-1397	Create lib/learning_extractor.py: parse results.tsv and append to learning.md	keep	496	haiku	0	5b6b3c0f2a2c211c6745fff3796fcc0429b8ff4a	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T09:58:10Z	14	1	US-1398	Wire Phase L into spiral.sh and update hint_recommender.py to read learning.md	keep	345	haiku	0	5c5607cf077c10b515358122ffac4e9d253c59ef	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T10:06:06Z	14	2	US-1399	Integration tests for html/index.html dashboard data generation (US-1353)	keep	354	haiku	0	8dbcbdbc9b95b1c0ced7c0bcc95c3830111a1eb6	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
-2026-05-18T10:18:59Z	14	3	US-1400	Integration test: SPIRAL retry escalation and timeout scope-reduction via MockClaudeAPI (US-1371)	keep	653	haiku	0	241d77929bec88c24bf98e8683d99c57dfd56c91	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-18T10:18:59Z	14	3	US-1400	Integration test: SPIRAL retry escalation and timeout scope-reduction via MockClaudeAPI (US-1371)	keep	653	haiku	0	241d77929bec88c24bf98e8683d99c57dfd56c91	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T10:32:13Z	15	1	US-1401	[Security Test] /api/costs/breakdown: unauthorized access blocked, no token leakage	reject	274	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0

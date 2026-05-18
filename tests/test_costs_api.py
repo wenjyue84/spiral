@@ -407,9 +407,7 @@ class TestCostsBreakdownEndpoint:
         monkeypatch.setenv("ANTHROPIC_API_KEY", dummy_key)
 
         # Create temp results.tsv with malformed data (missing required columns)
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".tsv", delete=False, encoding="utf-8"
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
             # Write header without required cache columns
             f.write("invalid_header\tno_cache_columns\n")
             f.write("some_data\tmore_data\n")
@@ -420,9 +418,7 @@ class TestCostsBreakdownEndpoint:
             result = parse_costs_from_results_tsv(tsv_path)
             result_text = json.dumps(result)
 
-            assert dummy_key not in result_text, (
-                f"ANTHROPIC_API_KEY must not appear in error handling: {result_text}"
-            )
+            assert dummy_key not in result_text, f"ANTHROPIC_API_KEY must not appear in error handling: {result_text}"
             assert "sk-ant-" not in result_text, (
                 f"Anthropic key pattern (sk-ant-*) must not appear in error handling: {result_text}"
             )
