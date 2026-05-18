@@ -7,6 +7,101 @@
   <link rel="stylesheet" href="../assets/css/custom.css">
   <script src="../data.js"></script>
   <script src="../assets/js/nav.js"></script>
+  <style>
+    .config-layout { display: flex; gap: 2rem; }
+    .config-toc {
+      width: 240px;
+      position: sticky;
+      top: 80px;
+      height: fit-content;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1rem;
+      background: var(--surface);
+    }
+    .config-toc-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.03em;
+    }
+    .config-toc-list { list-style: none; padding: 0; margin: 0; }
+    .config-toc-item { margin: 0.35rem 0; }
+    .config-toc-link {
+      display: block;
+      padding: 0.35rem 0.5rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.8rem;
+      border-radius: 3px;
+      transition: all 0.15s;
+    }
+    .config-toc-link:hover { background: var(--accent-soft); color: var(--accent); }
+    .config-main { flex: 1; min-width: 0; }
+    .config-search {
+      margin: 0 0 2rem;
+      position: relative;
+    }
+    .config-search input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.9rem;
+      background: var(--surface);
+      color: var(--text);
+    }
+    .config-search input::placeholder { color: var(--text-muted); }
+    .config-search input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
+    }
+    .config-section { margin: 2.5rem 0; scroll-margin-top: 100px; }
+    .config-section h2 {
+      font-size: 1.15rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--accent-soft);
+      color: var(--text);
+    }
+    .config-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+    .config-table thead { background: var(--accent-soft); }
+    .config-table th {
+      padding: 0.7rem;
+      text-align: left;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .config-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+      vertical-align: top;
+    }
+    .config-table tbody tr:hover { background: var(--accent-soft); transition: background 0.15s; }
+    .config-var-name {
+      font-family: "Menlo", "Monaco", "Courier New", monospace;
+      font-weight: 600;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    .config-default {
+      font-family: "Menlo", "Monaco", "Courier New", monospace;
+      font-size: 0.8rem;
+      background: var(--surface);
+      padding: 0.25rem 0.4rem;
+      border-radius: 3px;
+      color: var(--text-muted);
+    }
+    .config-description { color: var(--text-muted); line-height: 1.5; }
+  </style>
 </head>
 <body>
 <div class="app">
@@ -15,19 +110,384 @@
     <header class="page-head">
       <div>
         <h1>06 Configuration</h1>
-        <div class="sub">Configuration options and settings</div>
+        <div class="sub">Environment variables and runtime configuration options</div>
       </div>
       <button id="themeToggle" class="theme-toggle">Dark mode</button>
     </header>
     <div class="page-content">
-      <h2>Configuration</h2>
-      <p>Configuration documentation coming soon.</p>
+      <div class="config-layout">
+        <!-- Sticky Table of Contents -->
+        <aside class="config-toc">
+          <div class="config-toc-title">Categories</div>
+          <ul class="config-toc-list">
+            <li class="config-toc-item"><a href="#cat-loop" class="config-toc-link">Loop & Iteration</a></li>
+            <li class="config-toc-item"><a href="#cat-ai-suggest" class="config-toc-link">AI Suggestions</a></li>
+            <li class="config-toc-item"><a href="#cat-research" class="config-toc-link">Research</a></li>
+            <li class="config-toc-item"><a href="#cat-validation" class="config-toc-link">Story Validation</a></li>
+            <li class="config-toc-item"><a href="#cat-enrichment" class="config-toc-link">Story Enrichment</a></li>
+            <li class="config-toc-item"><a href="#cat-test-synth" class="config-toc-link">Test Synthesis</a></li>
+            <li class="config-toc-item"><a href="#cat-implementation" class="config-toc-link">Implementation</a></li>
+            <li class="config-toc-item"><a href="#cat-phase-v" class="config-toc-link">Phase V Validation</a></li>
+            <li class="config-toc-item"><a href="#cat-git" class="config-toc-link">Git & Commits</a></li>
+            <li class="config-toc-item"><a href="#cat-memory" class="config-toc-link">Memory & Workers</a></li>
+            <li class="config-toc-item"><a href="#cat-security" class="config-toc-link">Security Scanning</a></li>
+            <li class="config-toc-item"><a href="#cat-hooks" class="config-toc-link">Hooks & Notifications</a></li>
+            <li class="config-toc-item"><a href="#cat-logging" class="config-toc-link">Logging & Display</a></li>
+            <li class="config-toc-item"><a href="#cat-tools" class="config-toc-link">Tool & Inference</a></li>
+            <li class="config-toc-item"><a href="#cat-context" class="config-toc-link">Context Injection</a></li>
+            <li class="config-toc-item"><a href="#cat-quality" class="config-toc-link">Quality & Retry</a></li>
+            <li class="config-toc-item"><a href="#cat-otel" class="config-toc-link">Observability</a></li>
+            <li class="config-toc-item"><a href="#cat-ollama" class="config-toc-link">Local Fallback</a></li>
+            <li class="config-toc-item"><a href="#cat-adr" class="config-toc-link">ADR & Self-Review</a></li>
+          </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="config-main">
+          <!-- Search Box -->
+          <div class="config-search">
+            <input type="text" id="configSearch" placeholder="Search variables by name or description..." />
+          </div>
+
+          <!-- Loop & Iteration Control -->
+          <section id="cat-loop" class="config-section">
+            <h2>Loop & Iteration Control</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_STORY_BATCH_SIZE"><td class="config-var-name">SPIRAL_STORY_BATCH_SIZE</td><td><code class="config-default">0 (off)</code></td><td class="config-description">Show only N highest-priority stories to Ralph per iteration</td></tr>
+                <tr id="config-SPIRAL_MAX_PENDING"><td class="config-var-name">SPIRAL_MAX_PENDING</td><td><code class="config-default">30</code></td><td class="config-description">Pause story pipeline when undone stories ≥ N; resume when count drops below N. 0 = unlimited</td></tr>
+                <tr id="config-SPIRAL_MAX_STORIES"><td class="config-var-name">SPIRAL_MAX_STORIES</td><td><code class="config-default">100</code></td><td class="config-description">Warn when total stories exceed N</td></tr>
+                <tr id="config-SPIRAL_MAX_STORIES_ABORT"><td class="config-var-name">SPIRAL_MAX_STORIES_ABORT</td><td><code class="config-default">0</code></td><td class="config-description">Hard-abort when story count exceeded (0 = warn only)</td></tr>
+                <tr id="config-SPIRAL_COST_CEILING"><td class="config-var-name">SPIRAL_COST_CEILING</td><td><code class="config-default">—</code></td><td class="config-description">Abort when cumulative API spend exceeds USD threshold</td></tr>
+                <tr id="config-SPIRAL_ZERO_PROGRESS_LIMIT"><td class="config-var-name">SPIRAL_ZERO_PROGRESS_LIMIT</td><td><code class="config-default">0</code></td><td class="config-description">Abort after N consecutive zero-progress iterations. Disabled by default</td></tr>
+                <tr id="config-SPIRAL_CASCADE_FAN_OUT_LIMIT"><td class="config-var-name">SPIRAL_CASCADE_FAN_OUT_LIMIT</td><td><code class="config-default">5</code></td><td class="config-description">Max consecutive story failures before Phase I aborts (0 = disabled)</td></tr>
+                <tr id="config-SPIRAL_CONSECUTIVE_FAIL_ABORT"><td class="config-var-name">SPIRAL_CONSECUTIVE_FAIL_ABORT</td><td><code class="config-default">0</code></td><td class="config-description">Stop loop after N consecutive zero-progress iterations</td></tr>
+                <tr id="config-SPIRAL_CONTINUOUS"><td class="config-var-name">SPIRAL_CONTINUOUS</td><td><code class="config-default">false</code></td><td class="config-description">Never stop on all-pass — loop back to Phase A for new story discovery</td></tr>
+                <tr id="config-SPIRAL_CONTINUOUS_COOLDOWN_SECS"><td class="config-var-name">SPIRAL_CONTINUOUS_COOLDOWN_SECS</td><td><code class="config-default">60</code></td><td class="config-description">Cooldown seconds between discovery cycles when all stories pass</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- AI Suggestions -->
+          <section id="cat-ai-suggest" class="config-section">
+            <h2>AI Suggestions (Phase A)</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_MAX_AI_SUGGEST"><td class="config-var-name">SPIRAL_MAX_AI_SUGGEST</td><td><code class="config-default">5</code></td><td class="config-description">Max AI-generated story suggestions per iteration (0 = disable Phase A)</td></tr>
+                <tr id="config-SPIRAL_AI_SUGGEST_MODEL"><td class="config-var-name">SPIRAL_AI_SUGGEST_MODEL</td><td><code class="config-default">haiku</code></td><td class="config-description">Claude model for constitution-aware gap analysis</td></tr>
+                <tr id="config-SPIRAL_AI_SUGGEST_MIN_SCORE"><td class="config-var-name">SPIRAL_AI_SUGGEST_MIN_SCORE</td><td><code class="config-default">0</code></td><td class="config-description">Quality filter score (0-100) for AI suggestions; reject below threshold</td></tr>
+                <tr id="config-SPIRAL_TEST_STORY_MIN_COMPLEXITY"><td class="config-var-name">SPIRAL_TEST_STORY_MIN_COMPLEXITY</td><td><code class="config-default">medium</code></td><td class="config-description">Min complexity to generate paired test stories</td></tr>
+                <tr id="config-SPIRAL_TEST_SUITE_TYPES"><td class="config-var-name">SPIRAL_TEST_SUITE_TYPES</td><td><code class="config-default">—</code></td><td class="config-description">Comma-separated test suite types to populate (smoke, regression, security, performance)</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Research -->
+          <section id="cat-research" class="config-section">
+            <h2>Research (Phase R)</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_RESEARCH_MODEL"><td class="config-var-name">SPIRAL_RESEARCH_MODEL</td><td><code class="config-default">sonnet</code></td><td class="config-description">Model for Phase R</td></tr>
+                <tr id="config-SPIRAL_RESEARCH_TIMEOUT"><td class="config-var-name">SPIRAL_RESEARCH_TIMEOUT</td><td><code class="config-default">300s</code></td><td class="config-description">Phase R wall-clock timeout</td></tr>
+                <tr id="config-SPIRAL_RESEARCH_RETRIES"><td class="config-var-name">SPIRAL_RESEARCH_RETRIES</td><td><code class="config-default">2</code></td><td class="config-description">Retry Phase R if output missing/invalid (3 total attempts)</td></tr>
+                <tr id="config-SPIRAL_RESEARCH_CACHE_TTL_HOURS"><td class="config-var-name">SPIRAL_RESEARCH_CACHE_TTL_HOURS</td><td><code class="config-default">24</code></td><td class="config-description">Cache URL responses (0 = disabled)</td></tr>
+                <tr id="config-SPIRAL_MAX_RESEARCH_STORIES"><td class="config-var-name">SPIRAL_MAX_RESEARCH_STORIES</td><td><code class="config-default">0</code></td><td class="config-description">Cap new research stories per iteration (0 = unlimited)</td></tr>
+                <tr id="config-SPIRAL_FIRECRAWL_ENABLED"><td class="config-var-name">SPIRAL_FIRECRAWL_ENABLED</td><td><code class="config-default">0</code></td><td class="config-description">Use Firecrawl MCP for scraping (requires FIRECRAWL_API_KEY)</td></tr>
+                <tr id="config-SPIRAL_GEMINI_PROMPT"><td class="config-var-name">SPIRAL_GEMINI_PROMPT</td><td><code class="config-default">—</code></td><td class="config-description">Gemini 2.5 Pro pre-research prompt (empty = skip Gemini)</td></tr>
+                <tr id="config-SPIRAL_FOCUS"><td class="config-var-name">SPIRAL_FOCUS</td><td><code class="config-default">—</code></td><td class="config-description">Theme to scope research (also injectable via --focus)</td></tr>
+                <tr id="config-SPIRAL_CACHE_SIM_THRESHOLD"><td class="config-var-name">SPIRAL_CACHE_SIM_THRESHOLD</td><td><code class="config-default">0.92</code></td><td class="config-description">Cosine similarity threshold for semantic cache hits (1.0 = exact only)</td></tr>
+                <tr id="config-SPIRAL_USE_FULL_RESEARCH"><td class="config-var-name">SPIRAL_USE_FULL_RESEARCH</td><td><code class="config-default">0</code></td><td class="config-description">Bypass summarization and pass full research to downstream phases</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Story Validation -->
+          <section id="cat-validation" class="config-section">
+            <h2>Story Validation (Phase S)</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_SPECKIT_CONSTITUTION"><td class="config-var-name">SPIRAL_SPECKIT_CONSTITUTION</td><td><code class="config-default">—</code></td><td class="config-description">Path to constitution.md — injected into Phase S, Phase R, and Ralph</td></tr>
+                <tr id="config-SPIRAL_STORY_VALIDATE_MIN_OVERLAP"><td class="config-var-name">SPIRAL_STORY_VALIDATE_MIN_OVERLAP</td><td><code class="config-default">1</code></td><td class="config-description">Min keyword overlap with goals[] for a story to be accepted</td></tr>
+                <tr id="config-SPIRAL_VALIDATION_VOTES"><td class="config-var-name">SPIRAL_VALIDATION_VOTES</td><td><code class="config-default">3</code></td><td class="config-description">Independent LLM validation calls per story; majority-vote consensus</td></tr>
+                <tr id="config-SPIRAL_SEMANTIC_DEDUP_THRESHOLD"><td class="config-var-name">SPIRAL_SEMANTIC_DEDUP_THRESHOLD</td><td><code class="config-default">0.85</code></td><td class="config-description">TF-IDF cosine similarity threshold for near-duplicate rejection (0 = disabled)</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Story Enrichment -->
+          <section id="cat-enrichment" class="config-section">
+            <h2>Story Enrichment (Phase E)</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_STORY_ENRICHMENT"><td class="config-var-name">SPIRAL_STORY_ENRICHMENT</td><td><code class="config-default">false</code></td><td class="config-description">Enable Phase E enrichment pass</td></tr>
+                <tr id="config-SPIRAL_STORY_ENRICHMENT_MODEL"><td class="config-var-name">SPIRAL_STORY_ENRICHMENT_MODEL</td><td><code class="config-default">sonnet</code></td><td class="config-description">Claude model for story enrichment</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Test Synthesis -->
+          <section id="cat-test-synth" class="config-section">
+            <h2>Test Synthesis (Phase T)</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_SKIP_TEST_SYNTHESIS"><td class="config-var-name">SPIRAL_SKIP_TEST_SYNTHESIS</td><td><code class="config-default">0</code></td><td class="config-description">Skip Phase T entirely</td></tr>
+                <tr id="config-SPIRAL_SYNTHESIZE_TESTS_FOR_NEW"><td class="config-var-name">SPIRAL_SYNTHESIZE_TESTS_FOR_NEW</td><td><code class="config-default">0</code></td><td class="config-description">Create paired UT- stories for each new feature story</td></tr>
+                <tr id="config-SPIRAL_TEST_SYNTH_TIMEOUT"><td class="config-var-name">SPIRAL_TEST_SYNTH_TIMEOUT</td><td><code class="config-default">60s</code></td><td class="config-description">Phase T timeout</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Implementation -->
+          <section id="cat-implementation" class="config-section">
+            <h2>Implementation (Phase I / Ralph)</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_IMPL_TIMEOUT"><td class="config-var-name">SPIRAL_IMPL_TIMEOUT</td><td><code class="config-default">600s</code></td><td class="config-description">Phase I timeout</td></tr>
+                <tr id="config-SPIRAL_WORKER_TIMEOUT"><td class="config-var-name">SPIRAL_WORKER_TIMEOUT</td><td><code class="config-default">600s</code></td><td class="config-description">Per-worker timeout (parallel mode)</td></tr>
+                <tr id="config-SPIRAL_MODEL_ROUTING"><td class="config-var-name">SPIRAL_MODEL_ROUTING</td><td><code class="config-default">auto</code></td><td class="config-description">Default model tier (auto|haiku|sonnet|opus)</td></tr>
+                <tr id="config-SPIRAL_DECOMPOSE_THRESHOLD"><td class="config-var-name">SPIRAL_DECOMPOSE_THRESHOLD</td><td><code class="config-default">2</code></td><td class="config-description">Auto-decompose story at this retry count (0 = disabled)</td></tr>
+                <tr id="config-SPIRAL_MAX_DIFF_LINES"><td class="config-var-name">SPIRAL_MAX_DIFF_LINES</td><td><code class="config-default">500</code></td><td class="config-description">Abort commit if diff exceeds N lines (0 = disabled)</td></tr>
+                <tr id="config-SPIRAL_MAX_FILES_PER_STORY"><td class="config-var-name">SPIRAL_MAX_FILES_PER_STORY</td><td><code class="config-default">10</code></td><td class="config-description">Warn/abort if story touches > N files (0 = disabled)</td></tr>
+                <tr id="config-SPIRAL_SCOPE_CREEP_ACTION"><td class="config-var-name">SPIRAL_SCOPE_CREEP_ACTION</td><td><code class="config-default">warn</code></td><td class="config-description">"warn" or "abort" on scope creep detection</td></tr>
+                <tr id="config-SPIRAL_STORY_COST_WARN_USD"><td class="config-var-name">SPIRAL_STORY_COST_WARN_USD</td><td><code class="config-default">0.50</code></td><td class="config-description">Warn when single story costs more than $N</td></tr>
+                <tr id="config-SPIRAL_STORY_COST_HARD_USD"><td class="config-var-name">SPIRAL_STORY_COST_HARD_USD</td><td><code class="config-default">2.00</code></td><td class="config-description">Abandon story when cost exceeds $N</td></tr>
+                <tr id="config-SPIRAL_SKIP_STORY_IDS"><td class="config-var-name">SPIRAL_SKIP_STORY_IDS</td><td><code class="config-default">—</code></td><td class="config-description">Comma-separated IDs to permanently skip</td></tr>
+                <tr id="config-SPIRAL_AUTO_INFER_DEPS"><td class="config-var-name">SPIRAL_AUTO_INFER_DEPS</td><td><code class="config-default">false</code></td><td class="config-description">Infer story dependencies from filesTouch overlap</td></tr>
+                <tr id="config-SPIRAL_THINKING_EFFORT"><td class="config-var-name">SPIRAL_THINKING_EFFORT</td><td><code class="config-default">high</code></td><td class="config-description">Thinking effort level for 4.6 models (low/medium/high/max)</td></tr>
+                <tr id="config-SPIRAL_THINKING_BUDGET_TOKENS"><td class="config-var-name">SPIRAL_THINKING_BUDGET_TOKENS</td><td><code class="config-default">10000</code></td><td class="config-description">Maximum thinking tokens per story (0 = disable thinking)</td></tr>
+                <tr id="config-SPIRAL_MODEL_FALLBACK_CHAIN"><td class="config-var-name">SPIRAL_MODEL_FALLBACK_CHAIN</td><td><code class="config-default">—</code></td><td class="config-description">Colon-separated fallback models (e.g. sonnet:haiku:opus)</td></tr>
+                <tr id="config-SPIRAL_CACHE_TTL"><td class="config-var-name">SPIRAL_CACHE_TTL</td><td><code class="config-default">7</code></td><td class="config-description">Days before research cache entries are pruned</td></tr>
+                <tr id="config-SPIRAL_STORY_TIMEOUT_SMALL"><td class="config-var-name">SPIRAL_STORY_TIMEOUT_SMALL</td><td><code class="config-default">300</code></td><td class="config-description">Timeout (seconds) for small-complexity stories</td></tr>
+                <tr id="config-SPIRAL_STORY_TIMEOUT_MEDIUM"><td class="config-var-name">SPIRAL_STORY_TIMEOUT_MEDIUM</td><td><code class="config-default">600</code></td><td class="config-description">Timeout (seconds) for medium-complexity stories</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Phase V Validation -->
+          <section id="cat-phase-v" class="config-section">
+            <h2>Phase V Validation</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_VALIDATE_CMD"><td class="config-var-name">SPIRAL_VALIDATE_CMD</td><td><code class="config-default">—</code></td><td class="config-description">Test suite command (required)</td></tr>
+                <tr id="config-SPIRAL_VALIDATE_TIMEOUT"><td class="config-var-name">SPIRAL_VALIDATE_TIMEOUT</td><td><code class="config-default">300s</code></td><td class="config-description">Phase V timeout</td></tr>
+                <tr id="config-SPIRAL_INCREMENTAL_VALIDATE"><td class="config-var-name">SPIRAL_INCREMENTAL_VALIDATE</td><td><code class="config-default">false</code></td><td class="config-description">Only run tests for files touched in current iteration</td></tr>
+                <tr id="config-SPIRAL_DEV_URL"><td class="config-var-name">SPIRAL_DEV_URL</td><td><code class="config-default">—</code></td><td class="config-description">Dev server URL for Chrome DevTools screenshot</td></tr>
+                <tr id="config-SPIRAL_LIGHTHOUSE"><td class="config-var-name">SPIRAL_LIGHTHOUSE</td><td><code class="config-default">0</code></td><td class="config-description">Run Lighthouse audit after tests</td></tr>
+                <tr id="config-SPIRAL_LIGHTHOUSE_URL"><td class="config-var-name">SPIRAL_LIGHTHOUSE_URL</td><td><code class="config-default">—</code></td><td class="config-description">Lighthouse target URL</td></tr>
+                <tr id="config-SPIRAL_LIGHTHOUSE_THRESHOLD"><td class="config-var-name">SPIRAL_LIGHTHOUSE_THRESHOLD</td><td><code class="config-default">50</code></td><td class="config-description">Min Lighthouse score %</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Git & Commits -->
+          <section id="cat-git" class="config-section">
+            <h2>Git & Commits</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_GIT_AUTHOR"><td class="config-var-name">SPIRAL_GIT_AUTHOR</td><td><code class="config-default">git config</code></td><td class="config-description">AI commit author name</td></tr>
+                <tr id="config-SPIRAL_GIT_EMAIL"><td class="config-var-name">SPIRAL_GIT_EMAIL</td><td><code class="config-default">git config</code></td><td class="config-description">AI commit author email</td></tr>
+                <tr id="config-SPIRAL_BRANCH_PREFIX"><td class="config-var-name">SPIRAL_BRANCH_PREFIX</td><td><code class="config-default">spiral-worker</code></td><td class="config-description">Prefix for per-story feature branch names</td></tr>
+                <tr id="config-SPIRAL_CREATE_PRS"><td class="config-var-name">SPIRAL_CREATE_PRS</td><td><code class="config-default">false</code></td><td class="config-description">Auto-create GitHub PR per passed story</td></tr>
+                <tr id="config-SPIRAL_PR_BASE_BRANCH"><td class="config-var-name">SPIRAL_PR_BASE_BRANCH</td><td><code class="config-default">main</code></td><td class="config-description">PR target branch</td></tr>
+                <tr id="config-SPIRAL_PR_DRAFT"><td class="config-var-name">SPIRAL_PR_DRAFT</td><td><code class="config-default">false</code></td><td class="config-description">Create draft PRs</td></tr>
+                <tr id="config-SPIRAL_PATCH_DIRS"><td class="config-var-name">SPIRAL_PATCH_DIRS</td><td><code class="config-default">all</code></td><td class="config-description">Limit git diffs to these dirs (parallel mode)</td></tr>
+                <tr id="config-SPIRAL_DEPLOY_CMD"><td class="config-var-name">SPIRAL_DEPLOY_CMD</td><td><code class="config-default">—</code></td><td class="config-description">Shell command to run after parallel workers complete</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Memory & Workers -->
+          <section id="cat-memory" class="config-section">
+            <h2>Memory & Workers</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_WORKER_MEMORY_LIMIT"><td class="config-var-name">SPIRAL_WORKER_MEMORY_LIMIT</td><td><code class="config-default">1024 MB</code></td><td class="config-description">V8 heap cap per Claude process</td></tr>
+                <tr id="config-SPIRAL_MEMORY_THRESHOLD"><td class="config-var-name">SPIRAL_MEMORY_THRESHOLD</td><td><code class="config-default">1536 MB</code></td><td class="config-description">Watchdog kill threshold</td></tr>
+                <tr id="config-SPIRAL_LOW_POWER_MODE"><td class="config-var-name">SPIRAL_LOW_POWER_MODE</td><td><code class="config-default">1</code></td><td class="config-description">Enable graduated memory pressure management</td></tr>
+                <tr id="config-SPIRAL_PRESSURE_THRESHOLDS"><td class="config-var-name">SPIRAL_PRESSURE_THRESHOLDS</td><td><code class="config-default">40,25,18,12</code></td><td class="config-description">% free RAM for pressure levels 1–4</td></tr>
+                <tr id="config-SPIRAL_PREEMPTIVE_PRESSURE_MB"><td class="config-var-name">SPIRAL_PREEMPTIVE_PRESSURE_MB</td><td><code class="config-default">0</code></td><td class="config-description">Trigger level 1 if free RAM < N MB (0 = off)</td></tr>
+                <tr id="config-SPIRAL_QUEUE_STALL_WARN_SECS"><td class="config-var-name">SPIRAL_QUEUE_STALL_WARN_SECS</td><td><code class="config-default">600</code></td><td class="config-description">Alert if parallel worker queue stalls this long</td></tr>
+                <tr id="config-SPIRAL_WORK_STEALING"><td class="config-var-name">SPIRAL_WORK_STEALING</td><td><code class="config-default">false</code></td><td class="config-description">Idle workers claim stories from a shared queue instead of sitting idle</td></tr>
+                <tr id="config-SPIRAL_DISPATCH_MODE"><td class="config-var-name">SPIRAL_DISPATCH_MODE</td><td><code class="config-default">dag</code></td><td class="config-description">Worker scheduling: dag (tier-aware) or parallel (legacy all-parallel)</td></tr>
+                <tr id="config-SPIRAL_MEMORY_POOL"><td class="config-var-name">SPIRAL_MEMORY_POOL</td><td><code class="config-default">true</code></td><td class="config-description">Dynamic per-story memory reservation from shared pool</td></tr>
+                <tr id="config-SPIRAL_MEMORY_GATE_MB"><td class="config-var-name">SPIRAL_MEMORY_GATE_MB</td><td><code class="config-default">1536</code></td><td class="config-description">Per-worker free RAM required before launch</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Security Scanning -->
+          <section id="cat-security" class="config-section">
+            <h2>Security Scanning</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_SECURITY_SCAN"><td class="config-var-name">SPIRAL_SECURITY_SCAN</td><td><code class="config-default">false</code></td><td class="config-description">Enable security gate in Ralph (gate 5)</td></tr>
+                <tr id="config-SPIRAL_SECURITY_SCAN_TOOL"><td class="config-var-name">SPIRAL_SECURITY_SCAN_TOOL</td><td><code class="config-default">semgrep</code></td><td class="config-description">"semgrep" or "bandit"</td></tr>
+                <tr id="config-SPIRAL_SECURITY_SCAN_ARGS"><td class="config-var-name">SPIRAL_SECURITY_SCAN_ARGS</td><td><code class="config-default">—</code></td><td class="config-description">Extra flags for the scanner</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Hooks & Notifications -->
+          <section id="cat-hooks" class="config-section">
+            <h2>Hooks & Notifications</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_PRE_PHASE_HOOK"><td class="config-var-name">SPIRAL_PRE_PHASE_HOOK</td><td><code class="config-default">—</code></td><td class="config-description">Script run before each phase (non-zero = abort)</td></tr>
+                <tr id="config-SPIRAL_POST_PHASE_HOOK"><td class="config-var-name">SPIRAL_POST_PHASE_HOOK</td><td><code class="config-default">—</code></td><td class="config-description">Script run after each phase (non-zero = warn)</td></tr>
+                <tr id="config-SPIRAL_ON_COMPLETE"><td class="config-var-name">SPIRAL_ON_COMPLETE</td><td><code class="config-default">—</code></td><td class="config-description">Shell command on successful completion</td></tr>
+                <tr id="config-SPIRAL_NOTIFY_WEBHOOK"><td class="config-var-name">SPIRAL_NOTIFY_WEBHOOK</td><td><code class="config-default">—</code></td><td class="config-description">HTTP POST JSON at phase start/end</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Logging & Display -->
+          <section id="cat-logging" class="config-section">
+            <h2>Logging & Display</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_LOG_LEVEL"><td class="config-var-name">SPIRAL_LOG_LEVEL</td><td><code class="config-default">INFO</code></td><td class="config-description">DEBUG|INFO|WARN|ERROR</td></tr>
+                <tr id="config-SPIRAL_LOG_MAX_MB"><td class="config-var-name">SPIRAL_LOG_MAX_MB</td><td><code class="config-default">50</code></td><td class="config-description">Rotate ralph-run.log when it exceeds N MB (0 = off)</td></tr>
+                <tr id="config-SPIRAL_OPEN_DASHBOARD"><td class="config-var-name">SPIRAL_OPEN_DASHBOARD</td><td><code class="config-default">1</code></td><td class="config-description">Auto-open HTML dashboard after each iteration</td></tr>
+                <tr id="config-SPIRAL_DASHBOARD_REFRESH_SECS"><td class="config-var-name">SPIRAL_DASHBOARD_REFRESH_SECS</td><td><code class="config-default">30</code></td><td class="config-description">Dashboard HTML auto-refresh interval</td></tr>
+                <tr id="config-SPIRAL_PROGRESS_MAX_LINES"><td class="config-var-name">SPIRAL_PROGRESS_MAX_LINES</td><td><code class="config-default">2000</code></td><td class="config-description">Rotate progress.txt at N lines (0 = off)</td></tr>
+                <tr id="config-SPIRAL_STALE_DAYS"><td class="config-var-name">SPIRAL_STALE_DAYS</td><td><code class="config-default">—</code></td><td class="config-description">Days before a story is flagged as stale</td></tr>
+                <tr id="config-SPIRAL_GITNEXUS_REPO"><td class="config-var-name">SPIRAL_GITNEXUS_REPO</td><td><code class="config-default">—</code></td><td class="config-description">GitNexus repo name for smarter file-story mapping</td></tr>
+                <tr id="config-SPIRAL_REPORTS_DIR"><td class="config-var-name">SPIRAL_REPORTS_DIR</td><td><code class="config-default">test-reports</code></td><td class="config-description">Where test reports are written</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Tool & Inference -->
+          <section id="cat-tools" class="config-section">
+            <h2>Tool & Inference</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_PROGRAMMATIC_TOOLS"><td class="config-var-name">SPIRAL_PROGRAMMATIC_TOOLS</td><td><code class="config-default">auto</code></td><td class="config-description">Enable code_execution tool for orchestrated multi-tool calls (true/false/auto)</td></tr>
+                <tr id="config-SPIRAL_INTERLEAVED_THINKING"><td class="config-var-name">SPIRAL_INTERLEAVED_THINKING</td><td><code class="config-default">false</code></td><td class="config-description">Enable interleaved thinking between tool calls (doubles token consumption)</td></tr>
+                <tr id="config-SPIRAL_EPISODIC_MEMORY"><td class="config-var-name">SPIRAL_EPISODIC_MEMORY</td><td><code class="config-default">false</code></td><td class="config-description">Inject top-3 similar past implementations from episodic memory DB</td></tr>
+                <tr id="config-SPIRAL_DEFERRED_TOOLS"><td class="config-var-name">SPIRAL_DEFERRED_TOOLS</td><td><code class="config-default">true</code></td><td class="config-description">Enable deferred tool loading for reduced prompt size</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Context Injection -->
+          <section id="cat-context" class="config-section">
+            <h2>Context Injection</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_CONTEXT_WINDOW_MARGIN"><td class="config-var-name">SPIRAL_CONTEXT_WINDOW_MARGIN</td><td><code class="config-default">0.85</code></td><td class="config-description">Upgrade model when prompt exceeds this fraction of context window</td></tr>
+                <tr id="config-SPIRAL_CONTEXT_MODE"><td class="config-var-name">SPIRAL_CONTEXT_MODE</td><td><code class="config-default">diff</code></td><td class="config-description">diff = inject git diff; full = inject full file contents</td></tr>
+                <tr id="config-SPIRAL_DIFF_DEPTH"><td class="config-var-name">SPIRAL_DIFF_DEPTH</td><td><code class="config-default">3</code></td><td class="config-description">Number of commits to diff against (git diff HEAD~N)</td></tr>
+                <tr id="config-SPIRAL_REPO_MAP"><td class="config-var-name">SPIRAL_REPO_MAP</td><td><code class="config-default">false</code></td><td class="config-description">Enable Phase X per-story symbol map generation</td></tr>
+                <tr id="config-SPIRAL_REPO_MAP_MAX_LINES"><td class="config-var-name">SPIRAL_REPO_MAP_MAX_LINES</td><td><code class="config-default">150</code></td><td class="config-description">Max lines per story symbol map</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Quality & Retry Strategy -->
+          <section id="cat-quality" class="config-section">
+            <h2>Quality & Retry Strategy</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_ANTI_PATTERN_INJECT"><td class="config-var-name">SPIRAL_ANTI_PATTERN_INJECT</td><td><code class="config-default">true</code></td><td class="config-description">Append failure reasons as FORBIDDEN APPROACHES on retry</td></tr>
+                <tr id="config-SPIRAL_DECOMPOSE_ON_FIRST_FAIL"><td class="config-var-name">SPIRAL_DECOMPOSE_ON_FIRST_FAIL</td><td><code class="config-default">true</code></td><td class="config-description">Immediately decompose on first failure if complexity >= threshold</td></tr>
+                <tr id="config-SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY"><td class="config-var-name">SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY</td><td><code class="config-default">medium</code></td><td class="config-description">Min complexity for first-fail decomposition (small/medium/large)</td></tr>
+                <tr id="config-SPIRAL_STRICT_SCOPE_GUARD"><td class="config-var-name">SPIRAL_STRICT_SCOPE_GUARD</td><td><code class="config-default">false</code></td><td class="config-description">Strict scope enforcement beyond warn/abort</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Observability (OTel) -->
+          <section id="cat-otel" class="config-section">
+            <h2>Observability (OTel)</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_OTEL_EMIT_MESSAGES"><td class="config-var-name">SPIRAL_OTEL_EMIT_MESSAGES</td><td><code class="config-default">false</code></td><td class="config-description">Emit gen_ai input/output message attributes (opt-in for privacy)</td></tr>
+                <tr id="config-SPIRAL_OTEL_SCRUB_PATTERNS"><td class="config-var-name">SPIRAL_OTEL_SCRUB_PATTERNS</td><td><code class="config-default">all</code></td><td class="config-description">Comma-separated privacy scrub patterns (anthropic_api_key, github_token, etc.)</td></tr>
+                <tr id="config-SPIRAL_OTEL_SCRUB_FIELDS"><td class="config-var-name">SPIRAL_OTEL_SCRUB_FIELDS</td><td><code class="config-default">gen_ai.input/output.messages</code></td><td class="config-description">Attribute names to fully redact</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- Local Fallback (Ollama) -->
+          <section id="cat-ollama" class="config-section">
+            <h2>Local Fallback (Ollama)</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_OLLAMA_FALLBACK_MODEL"><td class="config-var-name">SPIRAL_OLLAMA_FALLBACK_MODEL</td><td><code class="config-default">—</code></td><td class="config-description">Ollama model name for local fallback (requires ollama serve)</td></tr>
+                <tr id="config-SPIRAL_OLLAMA_HOST"><td class="config-var-name">SPIRAL_OLLAMA_HOST</td><td><code class="config-default">http://localhost:11434/v1</code></td><td class="config-description">Ollama API base URL</td></tr>
+                <tr id="config-SPIRAL_LOCAL_FALLBACK_POLICY"><td class="config-var-name">SPIRAL_LOCAL_FALLBACK_POLICY</td><td><code class="config-default">—</code></td><td class="config-description">Policy for local model fallback (allow/deny/unset)</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- ADR & Self-Review -->
+          <section id="cat-adr" class="config-section">
+            <h2>ADR & Self-Review</h2>
+            <table class="config-table">
+              <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr id="config-SPIRAL_SKIP_ADR"><td class="config-var-name">SPIRAL_SKIP_ADR</td><td><code class="config-default">false</code></td><td class="config-description">Skip ADR (Architecture Decision Record) generation</td></tr>
+                <tr id="config-SPIRAL_ADR_MODEL"><td class="config-var-name">SPIRAL_ADR_MODEL</td><td><code class="config-default">haiku</code></td><td class="config-description">Model for ADR generation</td></tr>
+                <tr id="config-SPIRAL_SKIP_SELF_REVIEW"><td class="config-var-name">SPIRAL_SKIP_SELF_REVIEW</td><td><code class="config-default">false</code></td><td class="config-description">Skip post-implementation self-review pass</td></tr>
+                <tr id="config-SPIRAL_SELF_REVIEW_MODEL"><td class="config-var-name">SPIRAL_SELF_REVIEW_MODEL</td><td><code class="config-default">haiku</code></td><td class="config-description">Model for self-review pass</td></tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+      </div>
     </div>
   </main>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   renderShell({ page: 'configuration' });
+
+  // Live search functionality
+  const searchInput = document.getElementById('configSearch');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      const rows = document.querySelectorAll('.config-table tbody tr');
+
+      rows.forEach(row => {
+        const varName = row.querySelector('.config-var-name')?.textContent || '';
+        const description = row.querySelector('.config-description')?.textContent || '';
+        const matches = varName.toLowerCase().includes(query) || description.toLowerCase().includes(query);
+        row.style.display = matches ? '' : 'none';
+      });
+    });
+  }
+
+  // Smooth scroll for TOC links
+  document.querySelectorAll('.config-toc-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const href = link.getAttribute('href');
+      const target = document.querySelector(href);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
 });
 </script>
 </body>

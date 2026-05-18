@@ -3421,7 +3421,8 @@
         "html"
       ],
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-18T02:02:08Z"
     },
     {
       "id": "US-1350",

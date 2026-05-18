@@ -1147,3 +1147,37 @@ This technical brief is for implementing a static HTML feature, not a Frappe/Pyt
 ## Iteration 3 - Mon, May 18, 2026  9:45:59 AM
 Completed: Fill html/pages/05-cli-reference.html — all flags and subcommands in a filterable table (ID: US-1348) in 5m
 
+
+
+## Pre-analysis for US-1349 (Gemini 2.5 Pro)
+Based on the user story JSON for US-1349, here is the technical brief for the implementation agent.
+
+***
+
+**Project:** Spiral (Python Developer Tool)
+**Story:** US-1349 - Generate Configuration Docs Page
+
+This story involves creating a static HTML documentation page, not modifying a Frappe application. The goal is to parse environment variable documentation from a Markdown file and render it as an interactive HTML page.
+
+**1. Files to Modify / Create:**
+*   **Primary Target:** `html/pages/06-configuration.html` (This file will be overwritten by a script).
+*   **New Script:** Create a new Python script, e.g., `scripts/generate_config_docs.py`, to automate the page generation. Do not manually edit the HTML.
+*   **Source File:** The script will read from `~/.claude/skills/spiral/SKILL.md`.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This is not a Frappe user story. It concerns the `Spiral` project's internal documentation.
+
+**3. Recommended Implementation Approach:**
+1.  In `scripts/generate_config_docs.py`, use Python's `re` or `markdown` library to parse the "Configurable Options Reference" section of the source `SKILL.md`.
+2.  Extract each category and the `SPIRAL_*` variables within it (name, description, default value).
+3.  Generate the HTML for `06-configuration.html`, structuring variables under their respective category headings (`<h2>`). Each variable row should have the `id="config-VAR_NAME"` anchor.
+4.  Implement the sticky Table of Contents using CSS (`position: sticky`).
+5.  Add a vanilla JavaScript snippet inside the generated HTML for the live search box. This script should listen for `keyup` events and filter the visibility of variable rows.
+6.  Add a new task to `Taskfile.yml` to execute the generation script, ensuring docs can be kept up-to-date easily.
+
+**4. Edge Cases & Gotchas:**
+*   The parsing logic must be resilient to minor formatting changes in `SKILL.md`.
+*   The live search JS should be efficient to handle potentially hundreds of variables without UI lag.
+*   Ensure generated anchor IDs are unique and correctly formatted for deep-linking.
+*   The script should robustly locate the source `SKILL.md` file using `os.path.expanduser`.
+
