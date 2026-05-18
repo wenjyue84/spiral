@@ -648,3 +648,75 @@ This is a Python/Shell application, not a Frappe app. The key components are:
 *   **Multiple Failure Types:** For a story that has failed in multiple ways (e.g., syntax and timeout), the system should aggregate hints from all relevant failure categories.
 *   **Environment Variable Formatting:** Ensure the hints are formatted into a single string that can be safely passed as an environment variable and correctly parsed by the downstream AI prompt.
 
+
+## Iteration [29] - Story: US-1432 Ralph: Inject error recovery hints from failure history into decomposition prompts
+
+### What was implemented
+
+Implemented error recovery hint injection system to enrich Ralph's decomposition prompts with hints from historical failures:
+
+1. **lib/error_hints.json (37 lines)**
+   - JSON configuration file with categorized recovery hints indexed by 8 error types
+   - Error categories: timeout, oom, syntax, import, assertion, network, auth, unknown
+   - Each category has 2-3 actionable recovery suggestions
+   - Used by error_hints_loader.py for hint lookup
+
+2. **lib/error_hints_loader.py (180 lines)**
+   - `load_error_hints()`: Loads error_hints.json with proper type safety for mypy --strict
+   - `classify_error(error_msg: str)`: Classifies error text into one of 8 categories using pattern matching
+   - `load_hints_for_story(story_title, results_tsv)`: Main function that:
+     - Scans results.tsv for past failures of a given story (by story ID or title match)
+     - Classifies each failure using classify_error
+     - Maps to recovery hints from error_hints.json
+     - Returns list of hints specific to story's failure patterns
+   - Graceful handling of missing files, no failures, and malformed data
+
+3. **lib/impl/decompose.sh (modified)**
+   - Updated `decompose_story()` function to load error recovery hints before calling decompose_story.py
+   - Calls error_hints_loader.py with story_title and results_tsv path
+   - Passes loaded hints via `--learned-hints` argument to decompose_story.py
+   - Logs hint injection for observability
+
+4. **lib/workers/decompose_story.py (modified)**
+   - Added `--learned-hints` argument to parser for accepting recovery hints from decompose.sh
+   - Builds `<learned_recovery_hints>` XML section with up to 5 hints
+   - Injects recovery hints into decompose prompt alongside complexity band hints
+   - Logs hint injection count for debugging
+
+5. **tests/test_ralph_hint_injection.py (185 lines)**
+   - 17 comprehensive unit tests covering:
+     - Error hint loading from JSON file
+     - Error classification for all 8 categories
+     - Story failure history lookup (single failures, multiple failures, no failures, partial matches)
+     - Integration test for timeout hint injection into decomposition context
+   - All 17 tests passing (100%)
+   - Tests use temporary files for isolation
+
+### Patterns discovered
+
+- Story failures in results.tsv don't have error_msg column, so story_title is used as error proxy
+- Pattern-based error classification is effective for categorizing known error types
+- Hints should be limited to ~5 items to avoid overwhelming the decomposition prompt
+- Story matching can be done by exact story_id or title substring matching
+
+### Gotchas
+
+- Windows line ending warnings (LF→CRLF) are expected on Windows environments
+- JSON typing requires explicit isinstance checks for mypy --strict compliance
+- Ruff format expands some patterns, so budget was 280 LOC target
+- Error classification order matters (check specific patterns before general ones)
+
+### Acceptance criteria met
+
+- [x] AC1: lib/error_hints.json created with 8 error categories and recovery patterns
+- [x] AC2: lib/impl/decompose.sh loads hints and passes --learned-hints to decompose_story.py
+- [x] AC3: lib/workers/decompose_story.py injects hints into <learned_recovery_hints> XML tag in prompt
+- [x] Test command passes: uv run pytest tests/test_ralph_hint_injection.py::TestTimeoutHintInjection::test_timeout_hint_injection_in_decompose_context -v PASSED
+- [x] All 17 tests passing (100%)
+- [x] MyPy strict mode passes (lib/error_hints_loader.py)
+- [x] Ruff lint and format passes
+- [x] ShellCheck passes (lib/impl/decompose.sh)
+- [x] Story marked as passes: true in prd.json
+
+## Iteration 1 - Tue, May 19, 2026 1:30:00 AM
+Completed: Ralph: Inject error recovery hints from failure history into decomposition prompts (ID: US-1432) in ~25m
