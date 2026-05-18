@@ -4772,7 +4772,10 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-05-18T15:47:38Z"
+      "last_attempted": "2026-05-18T15:47:38Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- spiral-ui has React components using Tailwind CSS + recharts\n- useSSE hook exists for real-time updates from `/api/events`\n- PhaseTimeline component provides a reference for phase-based visualization\n- Testing uses vitest + @testing-library/react\n\n## Problem Identified\nUS-1430 requires a PhaseStatsCard component that:\n1. Reads spiral_events data (from API via SSE or direct fetch)\n2. Groups events by phase (A, R, T, S, E, M, I, V)\n3. Computes per-phase: success rate, story count, avg duration\n4. Renders 2×4 grid with color-coding (green >90%, yellow 70-90%, red <70%)\n5. Updates in real-time via SSE\n\n## Planned Changes\n\n<plan>\n{\n  \"files_to_create\": [\n    \"spiral-ui/src/hooks/usePhaseStats.ts\",\n    \"spiral-ui/src/components/PhaseStatsCard.tsx\",\n    \"spiral-ui/src/components/PhaseStatsCard.test.tsx\"\n  ],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\n    \"usePhaseStats\",\n    \"PhaseStatsCard\",\n    \"parseEventLog\",\n    \"computePhaseStats\"\n  ],\n  \"estimated_loc\": 250\n}\n</plan>\n\n## Diagnosis Block"
+      }
     },
     {
       "id": "US-1431",
