@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from typing import Any
 
 import pytest
 
@@ -98,3 +99,22 @@ def test_unmatched_raises() -> None:
         mock.inject_response("I", "US-001", {"ok": True})
         with pytest.raises(AssertionError, match="Unmatched claude call"):
             subprocess.run(["claude", "--phase", "I", "--story", "US-999"], capture_output=True)
+
+
+def test_mock_api_repo_fixture_exercisable_in_isolation(mock_api_repo: tuple[MockClaudeAPI, Any]) -> None:
+    """Verify mock_api_repo fixture can be exercised independently: wiring, git repo, and API active."""
+    mock_api, repo_path = mock_api_repo
+
+    # Confirm fixture yields (MockClaudeAPI, Path) tuple
+    assert isinstance(mock_api, MockClaudeAPI)
+    assert repo_path.exists()
+    assert (repo_path / ".git").exists(), "Git repo should be initialized"
+
+    # Confirm required fixture files exist
+    assert (repo_path / "constitution.md").exists()
+    assert (repo_path / "prd.json").exists()
+
+    # Confirm MockClaudeAPI can be used: inject and call without error
+    mock_api.inject_response("I", "US-TEST", {"status": "ok"})
+    result = subprocess.run(["claude", "--phase", "I", "--story", "US-TEST"], capture_output=True)
+    assert result.returncode == 0
