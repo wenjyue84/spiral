@@ -46,4 +46,4 @@ def build_hint_context(band: str) -> str:
     guidance = _BAND_GUIDANCE.get(band)
     if not guidance:
         return ""
-    return f"\n<complexity_hint band=\"{band}\">\n{guidance}\n</complexity_hint>\n"
+    return f'\n<complexity_hint band="{band}">\n{guidance}\n</complexity_hint>\n'

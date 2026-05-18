@@ -44,7 +44,7 @@ teardown() {
 @test "cleanup: stale worker with old heartbeat is identified" {
   mkdir -p "$WORKTREE_BASE/worker-1"
   # Create heartbeat file with a fake PID that doesn't exist
-  echo "99999" > "$WORKTREE_BASE/worker-1/.heartbeat"
+  echo "99999" >"$WORKTREE_BASE/worker-1/.heartbeat"
 
   # Make heartbeat file 3 hours old (older than 2-hour threshold)
   # Use touch with explicit time
@@ -66,7 +66,7 @@ teardown() {
 @test "cleanup: respects active workers with heartbeat files" {
   mkdir -p "$WORKTREE_BASE/worker-1"
   # Write current shell's PID
-  echo "$$" > "$WORKTREE_BASE/worker-1/.heartbeat"
+  echo "$$" >"$WORKTREE_BASE/worker-1/.heartbeat"
 
   run bash "$CLEANUP_LIB" "$REPO_ROOT" "$WORKTREE_BASE"
   [ "$status" -eq 0 ]
@@ -81,11 +81,11 @@ teardown() {
   mkdir -p "$WORKTREE_BASE/worker-3"
 
   # Make workers 1 and 2 stale (dead PIDs)
-  echo "99999" > "$WORKTREE_BASE/worker-1/.heartbeat"
-  echo "99998" > "$WORKTREE_BASE/worker-2/.heartbeat"
+  echo "99999" >"$WORKTREE_BASE/worker-1/.heartbeat"
+  echo "99998" >"$WORKTREE_BASE/worker-2/.heartbeat"
 
   # Make worker 3 active (current PID)
-  echo "$$" > "$WORKTREE_BASE/worker-3/.heartbeat"
+  echo "$$" >"$WORKTREE_BASE/worker-3/.heartbeat"
 
   run bash "$CLEANUP_LIB" "$REPO_ROOT" "$WORKTREE_BASE"
   [ "$status" -eq 0 ]
@@ -106,7 +106,7 @@ teardown() {
 # ── Test: cleanup summary message format ──────────────────────────────────────
 @test "cleanup: summary message includes worker count and freed MB" {
   mkdir -p "$WORKTREE_BASE/worker-1"
-  echo "99999" > "$WORKTREE_BASE/worker-1/.heartbeat"
+  echo "99999" >"$WORKTREE_BASE/worker-1/.heartbeat"
 
   run bash "$CLEANUP_LIB" "$REPO_ROOT" "$WORKTREE_BASE"
   [ "$status" -eq 0 ]

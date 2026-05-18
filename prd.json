@@ -3728,7 +3728,10 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-05-18T00:59:21Z"
+      "last_attempted": "2026-05-18T00:59:21Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe test file has 7 passing tests, but I need to verify they cover all acceptance criteria:\n- Criterion 2 (inject_response returns success): `test_inject_response_returned_as_stdout` ✓\n- Criterion 3 (raises exception on failure): Only tests `returncode` case, missing exception case\n- Criterion 4 (unmatched calls raise AssertionError): No test exists; code currently returns success\n\n## Problem Identified\nI need to:\n1. Add `test_intercept_success` — focused success interception test\n2. Add `test_inject_failure` — test that exceptions are raised for non-returncode failures\n3. Add `test_unmatched_raises` — test that unmatched calls raise AssertionError\n\nThis requires modifying MockClaudeAPI to raise AssertionError for unmatched claude calls (strict mode).\n\n## Planned Changes\n1. **tests/fixtures/mock_claude_api.py**: Modify `_make_side_effect()` to raise AssertionError for unmatched claude calls\n2. **tests/test_mock_claude_api.py**: Add three new test functions (test_intercept_success, test_inject_failure, test_unmatched_raises)\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/fixtures/mock_claude_api.py\", \"tests/test_mock_claude_api.py\"],\n  \"functions_to_add\": [\"test_intercept_success\", \"test_inject_failure\", \"test_unmatched_raises\"],\n  \"estimated_loc\": 40\n}\n</plan>\n\nNow let me implement the changes:\nNow I need to fix the existing test that will break due to the stricter behavior:\nNow let's run the tests to verify they pass:\nThe test is failing because the matching logic doesn't actually check if responses match. Let me implement proper matching by extracting story_id and phase from command-line arguments:\nNow I need to update the existing tests to include --phase and --story arguments:\nPerfect! All 10 tests pass. Now let me run quality checks to ensure the code meets standards:\nExcellent! All quality checks pass. Let me now stage and commit the changes:\nLet me verify the final state with one more test run:\n## Summary"
+      }
     },
     {
       "id": "US-1388",

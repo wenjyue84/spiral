@@ -92,9 +92,7 @@ class TestIntegrationHintedStories:
         bands = [extract_complexity_band(s["description"]) for s in stories_with_hints]
         assert bands == ["small", "medium", "large"]
 
-    def test_hint_contexts_reflect_guidance(
-        self, stories_with_hints: list[dict[str, str]]
-    ) -> None:
+    def test_hint_contexts_reflect_guidance(self, stories_with_hints: list[dict[str, str]]) -> None:
         for story in stories_with_hints:
             band = extract_complexity_band(story["description"])
             assert band is not None
@@ -102,17 +100,13 @@ class TestIntegrationHintedStories:
             assert context != ""
             assert f'band="{band}"' in context
 
-    def test_small_prefers_fewer_substories(
-        self, stories_with_hints: list[dict[str, str]]
-    ) -> None:
+    def test_small_prefers_fewer_substories(self, stories_with_hints: list[dict[str, str]]) -> None:
         band = extract_complexity_band(stories_with_hints[0]["description"])
         assert band == "small"
         context = build_hint_context(band)
         assert "2 sub-stories" in context
 
-    def test_large_decomposes_aggressively(
-        self, stories_with_hints: list[dict[str, str]]
-    ) -> None:
+    def test_large_decomposes_aggressively(self, stories_with_hints: list[dict[str, str]]) -> None:
         band = extract_complexity_band(stories_with_hints[2]["description"])
         assert band == "large"
         context = build_hint_context(band)
