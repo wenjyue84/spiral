@@ -1,0 +1,54 @@
+## Iteration [22] - Story: US-1413 Phase V: Auto-Extract Verifiable Assertions from Story Acceptance Criteria
+
+### What was implemented
+
+Created a complete system for automatically extracting and validating assertions from acceptance criteria:
+
+1. **lib/assertion_extractor.py (309 lines)**
+   - Pattern-based parser for natural language assertions
+   - Supports 4 assertion patterns: "assert X", "must have Y", "should return Z", "contains [item]"
+   - Assertion namedtuple with type, subject, expected_value, confidence_score fields
+   - Auto-generates pytest assertion code to .spiral/auto_assertions/<story-id>.py
+   - CLI interface for command-line usage
+   - Full type hints (passes mypy strict)
+
+2. **tests/test_assertion_extractor.py (318 lines)**
+   - 23 comprehensive unit tests covering:
+     - Pattern extraction for each assertion type
+     - Confidence scoring
+     - Pytest code generation
+     - Edge cases (special characters, case insensitivity, punctuation)
+     - Integration tests (extract → generate workflow)
+   - All tests passing
+
+3. **lib/phases/phase_v_validate.sh (40 lines added)**
+   - New auto-generation section before AC Verification
+   - Checks if stories have explicit testFiles/testMarker in verification field
+   - Calls assertion_extractor for stories without explicit verification
+   - Generates .spiral/auto_assertions/<story-id>.py files
+   - Uses SPIRAL_AUTO_ASSERTIONS config var (defaults to true)
+   - Integrated with existing Phase V validation pipeline
+
+### Patterns discovered
+
+- Phase V already had infrastructure for AC verification (ac_assertion_extractor.py, ac_verification_runner.py)
+- This story complements that by adding auto-generation for stories without explicit verification contracts
+- The regex-based approach works well for clean AC text but struggles with vague/descriptive AC
+- Confidence scoring helps distinguish high-confidence vs low-confidence extractions
+
+### Gotchas
+
+- AC text needs to follow specific patterns for extraction to work
+- Quoted items in AC text can confuse the regex patterns (matching internal quotes)
+- The assertion_extractor.py is a simpler, pattern-focused extractor separate from ac_assertion_extractor.py
+- SPIRAL_AUTO_ASSERTIONS config variable needed to be used consistently with Phase V conventions
+
+### Acceptance criteria met
+
+- [x] Parses AC text with regex patterns for: 'assert X', 'must have Y', 'should return Z', 'contains [item]'
+- [x] Returns List[Assertion] with type, subject, expected_value, confidence_score
+- [x] Auto-generates pytest assertions to .spiral/auto_assertions/<story-id>.py for stories without explicit testFiles/testMarker
+- [x] Integrated with Phase V validation via lib/phases/phase_v_validate.sh
+- [x] All tests passing (23/23)
+- [x] MyPy strict type checking passes
+- [x] Story marked as passes: true in prd.json
