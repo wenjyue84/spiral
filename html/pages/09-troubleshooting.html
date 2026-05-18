@@ -5,8 +5,90 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Troubleshooting — SPIRAL</title>
   <link rel="stylesheet" href="../assets/css/custom.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-datatables@9.0.0/dist/style.css">
   <script src="../data.js"></script>
   <script src="../assets/js/nav.js"></script>
+  <style>
+    .troubleshoot-section { margin: 2.5rem 0; scroll-margin-top: 100px; }
+    .troubleshoot-section h2 {
+      font-size: 1.15rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--accent-soft);
+      color: var(--text);
+    }
+    .troubleshoot-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+    .troubleshoot-table thead { background: var(--accent-soft); }
+    .troubleshoot-table th {
+      padding: 0.7rem;
+      text-align: left;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .troubleshoot-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+      vertical-align: top;
+    }
+    .troubleshoot-table tbody tr:hover { background: var(--accent-soft); transition: background 0.15s; }
+    .issue-code {
+      font-family: "Menlo", "Monaco", "Courier New", monospace;
+      font-weight: 600;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    .feedback-widget {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background: var(--accent-soft);
+      border-radius: 6px;
+      border-left: 4px solid var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      max-width: 600px;
+    }
+    .feedback-label {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .feedback-buttons {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+    .feedback-btn {
+      width: 40px;
+      height: 40px;
+      border: 2px solid var(--border);
+      background: white;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .feedback-btn:hover {
+      transform: scale(1.1);
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .feedback-btn.active {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+    .feedback-count {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-left: 0.5rem;
+    }
+  </style>
 </head>
 <body>
 <div class="app">
@@ -15,19 +97,364 @@
     <header class="page-head">
       <div>
         <h1>09 Troubleshooting</h1>
-        <div class="sub">Troubleshooting and common issues</div>
+        <div class="sub">Common issues, exit codes, and recovery procedures</div>
       </div>
       <button id="themeToggle" class="theme-toggle">Dark mode</button>
     </header>
     <div class="page-content">
-      <h2>Troubleshooting</h2>
-      <p>Troubleshooting documentation coming soon.</p>
+      <!-- Section 1: Known Issues -->
+      <section class="troubleshoot-section">
+        <h2>Known Issues & Solutions</h2>
+        <p>Search for your symptom below. Click any row for more details.</p>
+        <table id="issuesTable" class="troubleshoot-table">
+          <thead>
+            <tr>
+              <th>Symptom</th>
+              <th>Cause</th>
+              <th>Fix</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>All stories done but Spiral keeps running</td>
+              <td>Expected behavior — Phase R discovers new stories each iteration</td>
+              <td>Set <code>--until HH:MM</code> or <code>--time-limit N</code> to stop at a specific time</td>
+            </tr>
+            <tr>
+              <td>Tests failing immediately</td>
+              <td>Validation command is incorrect or failing</td>
+              <td>Check <code>SPIRAL_VALIDATE_CMD</code> in <code>spiral.config.sh</code></td>
+            </tr>
+            <tr>
+              <td>Workers not merging cleanly</td>
+              <td>Merge conflicts during parallel execution</td>
+              <td>Reduce <code>--ralph-workers</code> to 1</td>
+            </tr>
+            <tr>
+              <td>Research phase slow or unhelpful</td>
+              <td>Too many stories queued or broad scope</td>
+              <td>Add <code>--skip-research</code>, reduce <code>--capacity-limit</code>, or set <code>SPIRAL_FOCUS</code></td>
+            </tr>
+            <tr>
+              <td>OOM / out of memory</td>
+              <td>Workers using too much memory</td>
+              <td>Reduce <code>--ralph-workers</code>, lower <code>SPIRAL_WORKER_MEMORY_LIMIT</code>, or set <code>SPIRAL_PREEMPTIVE_PRESSURE_MB</code></td>
+            </tr>
+            <tr>
+              <td>Story keeps failing (3 retries)</td>
+              <td>Story is too large or has unmet dependencies</td>
+              <td>Auto-decomposes into sub-stories; or rollback with <code>--rollback STORY_ID</code></td>
+            </tr>
+            <tr>
+              <td>Story too expensive</td>
+              <td>Complex story consuming many tokens</td>
+              <td>Lower <code>SPIRAL_STORY_COST_HARD_USD</code>; use <code>--model haiku</code></td>
+            </tr>
+            <tr>
+              <td>Dashboard not opening</td>
+              <td>Dashboard disabled in config</td>
+              <td>Set <code>SPIRAL_OPEN_DASHBOARD=1</code> in <code>spiral.config.sh</code></td>
+            </tr>
+            <tr>
+              <td>Firecrawl errors</td>
+              <td>Missing or invalid API key</td>
+              <td>Verify <code>FIRECRAWL_API_KEY</code> env var is set</td>
+            </tr>
+            <tr>
+              <td>GitNexus not annotating</td>
+              <td>GitNexus not initialized</td>
+              <td>Run <code>gitnexus analyze</code> first in the repo</td>
+            </tr>
+            <tr>
+              <td><code>prd.json</code> corrupted after crash</td>
+              <td>Incomplete write during crash</td>
+              <td>Auto-restored from <code>.spiral/prd-backups/prd-iter*.json</code>; no manual fix needed</td>
+            </tr>
+            <tr>
+              <td>Stale <code>spiral-worker-*</code> branches</td>
+              <td>Leftover branches from crashed workers</td>
+              <td>Auto-purged on next run startup</td>
+            </tr>
+            <tr>
+              <td><code>index.lock</code> blocking git ops</td>
+              <td>Git lock file from previous crash</td>
+              <td>Auto-removed before worktree creation on next run</td>
+            </tr>
+            <tr>
+              <td>Phase T hanging</td>
+              <td>Test synthesis taking too long</td>
+              <td>Default 60s timeout auto-kills it; set <code>SPIRAL_TEST_SYNTH_TIMEOUT</code> to adjust</td>
+            </tr>
+            <tr>
+              <td>Deferred workers never launch</td>
+              <td>Memory pressure preventing worker spawning</td>
+              <td>Check memory pressure — stalls warn after <code>SPIRAL_QUEUE_STALL_WARN_SECS</code> (600s)</td>
+            </tr>
+            <tr>
+              <td><code>.rej</code> files after parallel run</td>
+              <td>Patch conflicts during merge</td>
+              <td>Check <code>spiral_events.jsonl</code> for <code>patch_rejected</code> events; delete <code>.rej</code> files manually</td>
+            </tr>
+            <tr>
+              <td>Wrong time in iteration calculation</td>
+              <td>System time used instead of AI estimate</td>
+              <td>Run <code>date "+%H:%M"</code> manually — the skill uses real system time</td>
+            </tr>
+            <tr>
+              <td><code>prd.json.lock</code> blocking workers</td>
+              <td>Stale lock file from crashed worker</td>
+              <td>Lock includes PID; stale locks auto-broken on next acquisition. Manual: <code>rm prd.json.lock</code></td>
+            </tr>
+            <tr>
+              <td>Duplicate stories after crash</td>
+              <td>Incomplete merge transaction</td>
+              <td>Transaction journal auto-recovers on next iteration; check <code>.spiral/_txn_journal.jsonl</code></td>
+            </tr>
+            <tr>
+              <td>Worker idle while others have stories</td>
+              <td>No work-stealing enabled</td>
+              <td>Set <code>SPIRAL_WORK_STEALING=true</code> in <code>spiral.config.sh</code> to enable work-offering queue</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 2: Exit Codes -->
+      <section class="troubleshoot-section">
+        <h2>Exit Codes Reference</h2>
+        <p>SPIRAL returns these exit codes to indicate the final state of a run.</p>
+        <table class="troubleshoot-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="issue-code">0</td>
+              <td>Success — all stories pass + tests clean</td>
+            </tr>
+            <tr>
+              <td class="issue-code">2</td>
+              <td>Bad CLI arguments</td>
+            </tr>
+            <tr>
+              <td class="issue-code">3</td>
+              <td>Missing or invalid spiral.config.sh</td>
+            </tr>
+            <tr>
+              <td class="issue-code">4</td>
+              <td>Required tool not found (jq, claude, etc.)</td>
+            </tr>
+            <tr>
+              <td class="issue-code">5</td>
+              <td>prd.json not found</td>
+            </tr>
+            <tr>
+              <td class="issue-code">6</td>
+              <td>prd.json corrupted and unrecoverable</td>
+            </tr>
+            <tr>
+              <td class="issue-code">7</td>
+              <td>prd.json schema version too new</td>
+            </tr>
+            <tr>
+              <td class="issue-code">8</td>
+              <td>Cost ceiling exceeded</td>
+            </tr>
+            <tr>
+              <td class="issue-code">9</td>
+              <td>Zero-progress limit reached (stuck)</td>
+            </tr>
+            <tr>
+              <td class="issue-code">10</td>
+              <td><code>--replay</code> mode: story failed</td>
+            </tr>
+            <tr>
+              <td class="issue-code">11</td>
+              <td><code>--replay</code> mode: story ID not found</td>
+            </tr>
+            <tr>
+              <td class="issue-code">12</td>
+              <td><code>--rollback</code> mode: git revert failed</td>
+            </tr>
+            <tr>
+              <td class="issue-code">13</td>
+              <td>Max iterations reached; stories still remain</td>
+            </tr>
+            <tr>
+              <td class="issue-code">14</td>
+              <td>Claude API unreachable at startup probe</td>
+            </tr>
+            <tr>
+              <td class="issue-code">15</td>
+              <td>Consecutive story failures exceeded cascade fan-out limit</td>
+            </tr>
+            <tr>
+              <td class="issue-code">130</td>
+              <td>Interrupted by Ctrl+C (checkpoint saved, run again to resume)</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 3: Crash Recovery -->
+      <section class="troubleshoot-section">
+        <h2>Crash Recovery & Auto-Healing</h2>
+        <p>SPIRAL includes built-in recovery for common failure scenarios. Most issues are automatically repaired on the next run.</p>
+        <table class="troubleshoot-table">
+          <thead>
+            <tr>
+              <th>Failure</th>
+              <th>Auto-Recovery</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>prd.json</code> corrupted mid-write</td>
+              <td>Validated with <code>jq empty</code> each iteration; restored from latest <code>.spiral/prd-backups/prd-iter*.json</code></td>
+            </tr>
+            <tr>
+              <td>Interrupted run (Ctrl+C)</td>
+              <td>Checkpoint saved at last completed phase; re-run to resume from where it stopped</td>
+            </tr>
+            <tr>
+              <td>OOM-killed worker leaves <code>index.lock</code></td>
+              <td>Removed before worktree creation on next run</td>
+            </tr>
+            <tr>
+              <td>OOM-killed worker leaves <code>prd.json.lock</code></td>
+              <td>PID written to lock file; stale locks (dead PID) auto-broken on next acquisition attempt</td>
+            </tr>
+            <tr>
+              <td>Orphaned <code>spiral-worker-*</code> branches</td>
+              <td>Auto-deleted at startup if not in any live worktree</td>
+            </tr>
+            <tr>
+              <td>Phase T hangs</td>
+              <td>Killed after <code>SPIRAL_TEST_SYNTH_TIMEOUT</code> seconds (default 60s); empty output used as fallback</td>
+            </tr>
+            <tr>
+              <td>Crash between overflow + prd.json writes (Phase M)</td>
+              <td>Write-ahead transaction journal (<code>_txn_journal.jsonl</code>) rolls back incomplete multi-file writes on next iteration startup</td>
+            </tr>
+            <tr>
+              <td>Stuck story never requeued</td>
+              <td>Force-reset if <code>.passes</code> not correctly set to <code>false</code>; check heartbeat log</td>
+            </tr>
+            <tr>
+              <td><code>/tmp</code> fill-up from previous runs</td>
+              <td>Temp files cleaned on startup</td>
+            </tr>
+            <tr>
+              <td>Deferred worker queue stalled</td>
+              <td>Warns with actionable message after <code>SPIRAL_QUEUE_STALL_WARN_SECS</code> (default 600s)</td>
+            </tr>
+            <tr>
+              <td>Worker finishes early, sits idle</td>
+              <td><code>SPIRAL_WORK_STEALING=true</code> enables finished workers to claim uncompleted stories from a shared queue</td>
+            </tr>
+            <tr>
+              <td>Parallel worker retry counts lost</td>
+              <td>Per-worker <code>retry-counts.json</code> merged back to root after each parallel wave</td>
+            </tr>
+            <tr>
+              <td>Locked worktrees block all workers</td>
+              <td>Worktrees locked by crashed runs resist <code>--force</code> removal. Auto-handled by <code>run_parallel_ralph.sh</code> since 2026-03-20</td>
+            </tr>
+            <tr>
+              <td>Auto-stash reverts uncommitted config changes</td>
+              <td><code>spiral.sh</code> auto-stashes dirty files before Phase I, then pops after. Fix: <strong>commit config changes to git</strong></td>
+            </tr>
+            <tr>
+              <td>Story timeout too short for complex stories</td>
+              <td>Default medium=900s insufficient for integration tests. Set in <code>spiral.config.sh</code>; recommended: small=1200s, medium=1800s, large=2400s</td>
+            </tr>
+            <tr>
+              <td>Corrupt story title (ID as title)</td>
+              <td>Phase M occasionally assigns story ID as title. Fix: manually correct title in prd.json</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Feedback Widget -->
+      <div class="feedback-widget">
+        <div>
+          <div class="feedback-label">Was this page helpful?</div>
+        </div>
+        <div class="feedback-buttons">
+          <button class="feedback-btn" id="helpfulYes" title="Helpful">👍</button>
+          <button class="feedback-btn" id="helpfulNo" title="Not helpful">👎</button>
+          <span class="feedback-count">
+            <span id="voteCount">0</span> vote<span id="voteLabel">s</span>
+          </span>
+        </div>
+      </div>
     </div>
   </main>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/simple-datatables@9.0.0/dist/umd.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   renderShell({ page: 'troubleshooting' });
+
+  // Initialize searchable table
+  new DataTable('#issuesTable', {
+    perPage: 10,
+    layout: {
+      top: '{search}',
+      bottom: '{pager}'
+    }
+  });
+
+  // Feedback widget localStorage
+  const storageKey = 'spiral_troubleshoot_vote';
+  const yesBtn = document.getElementById('helpfulYes');
+  const noBtn = document.getElementById('helpfulNo');
+  const voteCount = document.getElementById('voteCount');
+  const voteLabel = document.getElementById('voteLabel');
+
+  // Load vote from localStorage
+  const savedVote = localStorage.getItem(storageKey);
+  let totalVotes = parseInt(localStorage.getItem(storageKey + '_total')) || 0;
+
+  function updateDisplay() {
+    voteCount.textContent = totalVotes;
+    voteLabel.textContent = totalVotes === 1 ? '' : 's';
+  }
+
+  if (savedVote === 'yes') {
+    yesBtn.classList.add('active');
+  } else if (savedVote === 'no') {
+    noBtn.classList.add('active');
+  }
+  updateDisplay();
+
+  yesBtn.addEventListener('click', () => {
+    const wasVoting = localStorage.getItem(storageKey) !== null;
+    if (localStorage.getItem(storageKey) !== 'yes') {
+      localStorage.setItem(storageKey, 'yes');
+      if (!wasVoting) totalVotes++;
+      localStorage.setItem(storageKey + '_total', totalVotes);
+      yesBtn.classList.add('active');
+      noBtn.classList.remove('active');
+      updateDisplay();
+    }
+  });
+
+  noBtn.addEventListener('click', () => {
+    const wasVoting = localStorage.getItem(storageKey) !== null;
+    if (localStorage.getItem(storageKey) !== 'no') {
+      localStorage.setItem(storageKey, 'no');
+      if (!wasVoting) totalVotes++;
+      localStorage.setItem(storageKey + '_total', totalVotes);
+      noBtn.classList.add('active');
+      yesBtn.classList.remove('active');
+      updateDisplay();
+    }
+  });
 });
 </script>
 </body>
