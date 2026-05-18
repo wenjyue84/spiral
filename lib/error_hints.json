@@ -1,0 +1,42 @@
+{
+  "timeout": [
+    "Reduce scope to atomic, focused changes. Break story into smaller sub-stories.",
+    "Avoid inefficient algorithms and expensive operations.",
+    "Consider increasing SPIRAL_TIMEOUT if limits are too tight."
+  ],
+  "oom": [
+    "Optimize memory usage: avoid creating large objects in memory.",
+    "Use streaming or chunking instead of loading entire datasets at once.",
+    "Defer non-critical parts (tests, docs) to reduce context size."
+  ],
+  "syntax": [
+    "Check for unmatched brackets, quotes, and indentation errors.",
+    "Validate the code with Python parser before submission.",
+    "Ensure all line continuations are properly formatted."
+  ],
+  "import": [
+    "Ensure all required modules are imported at the top of the file.",
+    "Remove unused imports to keep code clean.",
+    "Check that each imported name is actually used in the implementation."
+  ],
+  "assertion": [
+    "Re-read test code and acceptance criteria carefully.",
+    "Ensure the implementation matches expected behavior.",
+    "Verify all test assertions will pass with the implementation."
+  ],
+  "network": [
+    "Add retry logic for network calls with exponential backoff.",
+    "Check for proper timeout configuration on network operations.",
+    "Verify API endpoints are accessible and responding."
+  ],
+  "auth": [
+    "Verify API keys and credentials are properly configured.",
+    "Check permission levels for accessing resources.",
+    "Ensure authentication flow is correctly implemented."
+  ],
+  "unknown": [
+    "Try a fundamentally different implementation strategy.",
+    "Review the error message for clues about the root cause.",
+    "Adjust approach based on the specific error encountered."
+  ]
+}

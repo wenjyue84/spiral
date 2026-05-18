@@ -613,3 +613,38 @@ Completed: lib: Federation Story Namespace Validator - Detect Cross-SubProject C
 ## Iteration 1 - Tue, May 19, 2026 12:11:15 AM
 Completed: lib: Federation Story Namespace Validator - Detect Cross-SubProject Collisions (ID: US-1431) in 7m
 
+
+## Pre-analysis for US-1432 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1432.
+
+**Project:** Spiral (AI Developer Tool)
+**Goal:** Inject historical error recovery hints into Ralph's decomposition prompts.
+
+**1. Python/Shell Files to Modify:**
+
+*   **`ralph/ralph.sh` (Modify):** The core script to be updated. It will call the new hint loader and export the `LEARNED_RECOVERY_HINTS` environment variable before invoking the AI for decomposition.
+*   **`lib/error_hints_loader.py` (Create):** A new Python module responsible for parsing failure history (`results.tsv`), mapping failure types to recovery strategies defined in `lib/error_hints.json`, and returning the relevant hints for a given story.
+*   **`lib/error_hints.json` (Create):** A new JSON configuration file containing structured recovery advice, indexed by error categories like `syntax_error`, `import_error`, and `timeout`.
+*   **`tests/test_ralph_hint_injection.py` (Create):** A new pytest file to unit-test the hint injection mechanism, ensuring failures are correctly mapped to hints.
+
+**2. Involved Components (Not Frappe):**
+
+This is a Python/Shell application, not a Frappe app. The key components are:
+*   **Python Module:** `lib/error_hints_loader.py`
+*   **Shell Script:** `ralph/ralph.sh`
+*   **Data Sources:** `results.tsv` (for historical failure data) and `lib/error_hints.json` (for hint definitions).
+
+**3. Recommended Implementation Approach:**
+
+1.  **Create `lib/error_hints.json`** with the initial structure for `syntax_error`, `import_error`, and `timeout`.
+2.  **Implement `load_hints_for_story()` in `lib/error_hints_loader.py`**. This function should read `results.tsv`, find past failures for the target story, and retrieve corresponding hint arrays from `error_hints.json`.
+3.  **Modify `ralph/ralph.sh`**. Before the decomposition step, execute the Python loader script, capture its output, and set the `LEARNED_RECOVERY_HINTS` environment variable.
+4.  **Create a test** in `tests/test_ralph_hint_injection.py` that simulates a story failure, runs the loader, and asserts that the correct hints are loaded into the environment.
+
+**4. Edge Cases & Gotchas:**
+
+*   **No Prior Failures:** The loader must gracefully handle stories with no failure history, returning an empty set of hints.
+*   **TSV Parsing Robustness:** Ensure the TSV parser in the Python script is resilient to empty or malformed lines.
+*   **Multiple Failure Types:** For a story that has failed in multiple ways (e.g., syntax and timeout), the system should aggregate hints from all relevant failure categories.
+*   **Environment Variable Formatting:** Ensure the hints are formatted into a single string that can be safely passed as an environment variable and correctly parsed by the downstream AI prompt.
+

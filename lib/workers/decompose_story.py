@@ -268,6 +268,7 @@ def main() -> int:
     parser.add_argument("--model", default="sonnet", help="Claude model (default: sonnet)")
     parser.add_argument("--max-substories", type=int, default=4, help="Max sub-stories (default: 4)")
     parser.add_argument("--enable-hints", action="store_true", help="Parse @spiral:hint-* markers from description")
+    parser.add_argument("--learned-hints", default="", help="Recovery hints from failure history (newline-separated)")
     parser.add_argument("--dry-run", action="store_true", help="Print prompt without modifying prd.json")
     args = parser.parse_args()
 
@@ -335,6 +336,17 @@ def main() -> int:
             hint_text = build_hint_context(hint_band)
             print(f"[decompose] Using @spiral:hint-complexity-band:{hint_band}")
 
+    # Build recovery hints from failure history
+    recovery_hints_text = ""
+    if args.learned_hints:
+        hints_list = [h.strip() for h in args.learned_hints.split("\n") if h.strip()]
+        if hints_list:
+            recovery_hints_text = "\n<learned_recovery_hints>\n"
+            for hint in hints_list[:5]:  # Limit to 5 hints
+                recovery_hints_text += f"  - {hint}\n"
+            recovery_hints_text += "</learned_recovery_hints>\n"
+            print(f"[decompose] Injected {len(hints_list)} recovery hints from failure history")
+
     # Build prompt
     parent_ac_string = "\n".join(f"    - {ac}" for ac in parent.get("acceptanceCriteria", []))
     prompt = DECOMPOSE_PROMPT.format(
@@ -344,7 +356,7 @@ def main() -> int:
         parent_ac=parent_ac_string,
         failure_context=failure_context,
         max_sub=args.max_substories,
-        learned_patterns=lp_text + hint_text,
+        learned_patterns=lp_text + hint_text + recovery_hints_text,
     )
     prompt += build_lessons_section(args.lessons, parent)
 

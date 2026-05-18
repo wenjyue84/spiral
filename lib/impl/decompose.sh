@@ -105,6 +105,7 @@ decompose_story() {
   local spiral_home="${SPIRAL_HOME:-.}"
   local python="${SPIRAL_PYTHON:-python3}"
   local decompose_script="$spiral_home/lib/workers/decompose_story.py"
+  local results_tsv="${RESULTS_TSV:-results.tsv}"
 
   echo "[Phase I / decompose] Decomposing $story_id into sub-stories (model=$model)"
 
@@ -118,6 +119,17 @@ decompose_story() {
     return 1
   fi
 
+  # Load error recovery hints from failure history
+  local learned_hints=""
+  local hints_loader="$spiral_home/lib/error_hints_loader.py"
+  if [[ -f "$hints_loader" ]] && [[ -f "$results_tsv" ]]; then
+    local hints_json
+    hints_json=$("$python" "$hints_loader" --story-title "$story_id" --results "$results_tsv" 2>/dev/null) || true
+    if [[ -n "$hints_json" ]]; then
+      learned_hints=$(echo "$hints_json" | "$python" -c "import sys, json; d = json.load(sys.stdin); print('\\n'.join(d.get('hints', [])))" 2>/dev/null) || true
+    fi
+  fi
+
   local learning_path="${spiral_home}/.spiral/learning.md"
   "$python" "$decompose_script" \
     --story-id "$story_id" \
@@ -125,6 +137,7 @@ decompose_story() {
     --model "$model" \
     --progress "$progress_file" \
     --learning-path "$learning_path" \
+    --learned-hints "$learned_hints" \
     --enable-hints
 }
 

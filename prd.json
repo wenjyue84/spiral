@@ -4804,6 +4804,29 @@
         "diagnosisBlock": "## Current State\n\nThe test file `tests/test_federation_validator.py` already exists with comprehensive tests, but the implementation file `lib/spiral/federation_validator.py` does not. The CLI handler `lib/spiral/cli/federation_check.py` already exists and expects to import `validate_federation_namespaces` from `lib.spiral.federation_validator`.\n\n## Problem Identified\n\nNeed to implement the `federation_validator.py` module with functions to:\n1. Extract namespace prefixes from story IDs\n2. Build maps of story IDs to their projects and prefixes\n3. Detect namespace collisions (same story ID in multiple projects, or same numeric ID with different prefixes)\n4. Suggest namespace fixes\n5. Validate the full federation namespace structure\n\n## Planned Changes\n\n- Create `lib/spiral/federation_validator.py` with ~120 lines implementing:\n  - `extract_namespace_prefix()`: Extract prefix from ID\n  - `build_story_id_map()`: Map story IDs to projects and prefixes\n  - `detect_collisions()`: Find namespace collisions\n  - `suggest_namespace_renames()`: Generate fix suggestions\n  - `ValidationResult` dataclass\n  - `validate_federation_namespaces()`: Main validation function\n  \n- No changes to existing files (CLI handler already wired, tests already in place)\n\n<plan>\n{\n  \"files_to_create\": [\"lib/spiral/federation_validator.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"extract_namespace_prefix\", \"build_story_id_map\", \"detect_collisions\", \"suggest_namespace_renames\", \"validate_federation_namespaces\", \"ValidationResult\"],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me implement the validation module:\nNow let me analyze the failures and fix them. The issues are:\n\n1. **Collision detection** - should flag ANY story ID appearing in multiple projects as a collision, not just when prefixes differ\n2. **Suggestion generation** - the numeric part extraction is broken\n\nLet me fix the implementation:\n## Summary"
       },
       "_passedCommit": "14dd508623042beff25c3b90bc91e955ea9e9a39"
+    },
+    {
+      "id": "US-1432",
+      "title": "Ralph: Inject error recovery hints from failure history into decomposition prompts",
+      "priority": "medium",
+      "description": "Enrich Ralph's decomposition prompts with error recovery hints extracted from past failures in results.tsv. When a story fails syntax/import/timeout, inject relevant hints to guide Ralph toward better decomposition.",
+      "acceptanceCriteria": [
+        "Create lib/error_hints.json with categorized recovery patterns: {\"syntax_error\": [...steps...], \"import_error\": [...], \"timeout\": [...]}, indexed by error type",
+        "In ralph/ralph.sh, load hints matching detected failure types from prior story attempts and pass as 'LEARNED_RECOVERY_HINTS' env var to Claude CLI",
+        "Verify hints appear in Ralph's decomposition context and influence sub-story generation (test with timeout + scope-reduction hint injection)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/error_hints_loader.py with function load_hints_for_story(story_title) → List[str]",
+        "File to modify: ralph/ralph.sh — load hints before claude_code invoke and format into LEARNED_RECOVERY_HINTS",
+        "File to create: lib/error_hints.json",
+        "Test command: uv run pytest tests/test_ralph_hint_injection.py::test_timeout_hint_injection -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "last_attempted": "2026-05-18T16:17:22Z"
     }
   ]
 }
