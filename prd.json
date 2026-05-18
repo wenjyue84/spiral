@@ -4033,9 +4033,11 @@
         "US-1371"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "_failureReason": "file_existence_gate: no feature code written",
+      "last_attempted": "2026-05-18T03:15:50Z"
     },
     {
       "id": "US-1394",

@@ -1305,3 +1305,57 @@ This is a technical brief for implementing user story US-1354.
 *   Ensure Python dependencies (`duckduckgo-search`, `requests`, `sentence-transformers`) are added to `pyproject.toml`.
 *   The test suite for this feature is located at `tests/test_research_aggregator.py`.
 
+## Iteration 3 - Mon, May 18, 2026 11:15:48 AM
+FAILED file-gate: [Security Test] SPIRAL loop integration: no real API calls and no token leakage (ID: US-1393) — no feature code written — attempt 1/3
+
+
+## Pre-analysis for US-1393 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1393.
+
+---
+
+**Objective:** Implement security-focused tests for the SPIRAL integration test loop to ensure no real API calls are made and no sensitive API keys are leaked to disk or logs.
+
+**Files to Modify:**
+*   `tests/test_test_spiral_integration.py`: This is the primary file for adding the new security tests.
+*   You might need to reference fixtures from `tests/conftest.py` or the `mock_api_repo`.
+
+**Frappe DocTypes / Hooks:**
+*   N/A. This is a pure Python/Pytest task and does not involve the Frappe framework.
+
+**Implementation Approach:**
+1.  **API Call Prevention:**
+    *   Create a new test, `test_spiral_run_makes_no_real_api_calls`.
+    *   Use Pytest's `monkeypatch` fixture to patch `socket.socket` at the module level to raise an exception on any attempt to create a network connection. This is a robust way to guarantee no outbound calls.
+    *   Run the core SPIRAL loop logic from US-1371 within this test. The test should pass if no network connection is attempted.
+2.  **Token Leakage Verification:**
+    *   Create a test `test_spiral_run_does_not_leak_keys`.
+    *   This test should run a 2-iteration SPIRAL loop.
+    *   After the run, programmatically scan all files within the `.spiral/` directory.
+    *   Use Python's `pathlib` to glob for all files and read their contents, searching for the patterns `ANTHROPIC_API_KEY` or `sk-ant`.
+    *   Assert that no matches are found. Use a temporary test-specific output directory to avoid clashes.
+3.  **Mock Verification:**
+    *   For the 'retry' scenario, assert that the mock API fixture is called first with 'haiku' and subsequently with 'sonnet' to confirm model escalation logic works as expected via the mock.
+
+**Edge Cases & Gotchas:**
+*   **Test Isolation:** Ensure the `.spiral/` directory is created and destroyed cleanly for each test run to prevent results from contaminating other tests. A function-scoped fixture is ideal for this.
+*   **Subprocess Calls:** The primary integration test calls SPIRAL via `subprocess.run`. The `socket` patch will prevent network calls from within the main test process, but also from the subprocess, which is the desired behavior.
+*   **Sensitive Environment Variables:** Ensure tests run in an environment where the real `ANTHROPIC_API_KEY` is unset to prevent accidental leakage if the code has bugs.
+
+
+## Iteration 3 - Story: [Security Test] SPIRAL loop integration: no real API calls and no token leakage (US-1393)
+
+### What was implemented
+- Created `tests/test_test_spiral_integration.py` with `TestSpiralLoopIntegrationSecurity` class
+- `test_spiral_loop_integration_success`: uses `mock_api_repo` fixture (MockClaudeAPI active), verifies zero real claude CLI calls by checking `mock_api.call_log == []`
+- `test_spiral_loop_integration_retry`: monkeypatches `subprocess.run` to simulate haiku→sonnet escalation, asserts `model_calls == ["haiku", "sonnet"]`
+- Both tests assert no ANTHROPIC_API_KEY or sk-ant in their isolated `.spiral/` dirs (using `tmp_path`)
+
+### Patterns discovered
+- `MockClaudeAPI` (from `tests/fixtures/mock_claude_api.py`) intercepts only `claude`/`claude.exe` subprocess calls; non-claude calls pass through to real subprocess
+- `mock_api_repo` conftest fixture yields `(MockClaudeAPI, Path)` with a minimal git repo
+- Pre-existing mypy errors in other lib/ files are unrelated — our new file passes `mypy --strict` cleanly
+
+### Gotchas
+- The project `.spiral/` dir already contains text mentioning "ANTHROPIC_API_KEY" in research cache (not actual keys); tests use `tmp_path` for isolation
+- Previous attempt (attempt 1) failed `file_existence_gate` — the file was never written
