@@ -107,3 +107,49 @@ Created comprehensive integration test for Phase S federated story merging with 
 - [x] Story marked as passes: true in prd.json
 ## Iteration 2 - Mon, May 18, 2026 10:10:48 PM
 Completed: Integration test: Phase S merges federated stories with namespace validation (ID: US-1419) in 7m
+
+## Iteration [24] - Story: US-1421 CLI: Show story blockers and dependents with inspect-story
+
+### What was implemented
+
+Completed and verified the `spiral inspect-story <id>` CLI command for developer experience improvement:
+
+1. **lib/story_inspector.py (182 lines)**
+   - `load_story_by_id()`: Loads story from prd.json by ID with proper error handling
+   - `find_blockers_and_dependents()`: Parses dependency graph to find stories this depends on and stories that depend on this
+   - `estimate_complexity()`: Estimates complexity band (small/medium/large) based on AC word count
+   - `format_inspect_output()`: Formats inspection output with all required metadata
+   - `main()`: CLI entry point wired into spiral.sh
+
+2. **tests/test_story_inspector.py (194 lines)**
+   - 13 comprehensive unit tests covering all functions
+   - Tests for blockers, dependents, complexity estimation, and output formatting
+   - All tests passing (13/13)
+
+3. **lib/cli_subcommands.sh (already wired)**
+   - inspect-story handler at lines 676-686
+   - Calls lib/story_inspector.py with PRD file and story ID
+
+### Patterns discovered
+
+- Story dependencies are bidirectional: blockers are dependencies of this story, dependents are stories that list this as a dependency
+- Complexity estimation using AC word count is effective for most stories
+- Type safety required explicit casting in load_story_by_id to satisfy mypy --strict
+
+### Gotchas
+
+- mypy strict mode requires explicit type annotations for dictionary unpacking
+- isinstance(story, dict) check needed to satisfy type checker before calling dict methods
+
+### Acceptance criteria met
+
+- [x] AC1: Command displays story title, description, full AC list, and _source field
+- [x] AC2: Output includes blockers and dependents parsed from prd.json
+- [x] AC3: Shows estimated complexity band (small/medium/large) based on AC word count
+- [x] MyPy strict type checking passes
+- [x] All tests passing (13/13)
+- [x] Story marked as passes: true in prd.json
+
+## Iteration 3 - Sun, May 18, 2026 10:25:45 PM
+Completed: CLI: Show story blockers and dependents with inspect-story command (ID: US-1421) in 5m
+
