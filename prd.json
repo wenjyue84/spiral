@@ -3701,7 +3701,8 @@
       "last_attempted": "2026-05-18T00:50:08Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe codebase has:\n- `lib/impl/scope_reducer.py` with `strip_optional_ac()` \n- `lib/timeout_handler.py` with `timeout_scope_reducer()` and `reduce_story_for_timeout()`\n- `lib/impl/retry.sh` with `try_timeout_scope_reduction()` bash function\n- No `lib/impl/timeout_handler.sh` (technical notes reference is incorrect — it's a Python module)\n- `tests/integration/` directory with several integration tests\n- `tests/conftest.py` with various fixtures but no `MockClaudeRunner`\n\n## Problem Identified\nStory US-1386 requires an integration test that simulates a timeout mid-story and verifies the scope-reduction flow. The Python modules already exist; I need to create the integration test that exercises the full flow.\n\n## Planned Changes\n1. Create `tests/integration/test_phase_i_timeout_recovery.py` — integration test using Python's `signal.SIGALRM` to simulate timeout, testing that `timeout_scope_reducer()` is called and reduces AC count\n2. Add `MockClaudeRunner` class with `with_timeout()` to `tests/conftest.py`\n\n<plan>\n{\n  \"files_to_create\": [\"tests/integration/test_phase_i_timeout_recovery.py\"],\n  \"files_to_modify\": [\"tests/conftest.py\"],\n  \"functions_to_add\": [\"MockClaudeRunner\", \"MockClaudeRunner.with_timeout\", \"test_timeout_triggers_scope_reduction\", \"test_scope_reducer_removes_optional_acs\", \"test_retry_count_recorded_in_results\"],\n  \"estimated_loc\": 120\n}\n</plan>\nNow let me add the `MockClaudeRunner` class to conftest.py:\nNow create the integration test file:\nAll 9 tests pass. Now run mypy type checking:\nNow fix line 137 — the `# type: ignore` on the `reduced[\"acceptanceCriteria\"]` line:\nNo mypy errors in my new code. The pre-existing errors are from existing conftest.py code. Let me verify the tests still pass:\nAll 9 pass. Now mark the story as passing and commit:\nNow update progress.txt and commit:\nUS-1386 is complete. Summary:\n\n**Implemented:**\n- `tests/integration/test_phase_i_timeout_recovery.py` — 9 tests across 3 classes testing the full timeout→scope_reduce→retry flow\n- Added `MockClaudeRunner` class + `mock_claude_runner` fixture to `tests/conftest.py`\n\n**All acceptance criteria met:**\n1. `MockClaudeRunner.with_timeout(90)` raises `TimeoutError`; `_simulate_ralph_run()` catches it, calls `timeout_scope_reducer()`, and retries with reduced story\n2. `scope_reducer()` strips 3 `@optional` ACs, leaving only mandatory ones\n3. Final result: `status='completed'`, `ac_fulfilled_count < original_ac_count`, `retry_count=1` (verified in results.tsv row format test)"
-      }
+      },
+      "_passedCommit": "4dc58c9ce2ae491a9e8629d9fa6ec3fe6c35ddca"
     },
     {
       "id": "US-1387",
@@ -3724,9 +3725,10 @@
         "US-1365"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-18T00:59:21Z"
     },
     {
       "id": "US-1388",

@@ -1,3 +1,39 @@
+## Iteration N+4 - Sun, May 18, 2026 - Story US-1387 Completed
+Completed: Integration tests for MockClaudeAPI class (ID: US-1387) in ~10m
+
+### What was implemented
+- tests/test_mock_claude_api.py: Added three new test functions:
+  - test_intercept_success: verifies injected responses are returned correctly
+  - test_inject_failure: verifies CalledProcessError is raised for non-returncode failures
+  - test_unmatched_raises: verifies AssertionError is raised for unmatched calls
+
+- tests/fixtures/mock_claude_api.py: Improved matching logic:
+  - Extract phase and story_id from command-line arguments (--phase, --story)
+  - Changed from permissive to strict mode (raises AssertionError for unmatched calls)
+  - Ensures injected responses/failures only apply to matching calls
+
+- Updated 3 existing tests to include --phase and --story arguments:
+  - test_context_manager_patches_subprocess_run
+  - test_inject_response_returned_as_stdout
+  - test_inject_failure_returncode_exits_nonzero
+
+### Key Patterns Discovered
+- MockClaudeAPI command-line argument extraction uses simple loop with index checking
+- Strict mocking pattern: all injected patterns must be explicitly matched, otherwise raise AssertionError
+- Tests require --phase and --story arguments to match injected responses/failures
+
+### Acceptance Criteria Met
+- [x] uv run pytest tests/test_mock_claude_api.py -v exits 0 with 10 passing tests (>= 3)
+- [x] test_intercept_success verifies MockClaudeAPI returns injected success response
+- [x] test_inject_failure verifies MockClaudeAPI raises CalledProcessError for failures
+- [x] test_unmatched_raises verifies AssertionError for unmatched calls
+
+### Testing
+- All 10 tests passing (100%): 7 original + 3 new
+- mypy --strict: ✓ passed
+- ruff check: ✓ passed
+- All quality gates clear
+
 ## Iteration N+3 - Sun, May 18, 2026 - Story US-1379 Completed
 Completed: CLI: Add spiral cleanup --remove-stale-workers (ID: US-1379) in ~30m
 
@@ -822,3 +858,5 @@ This brief outlines the implementation for a timeout recovery integration test w
 ### Testing
 - 9/9 tests passing (100%)
 - mypy --strict: Success on test file (pre-existing conftest.py errors not introduced by this story)
+## Iteration 1 - Mon, May 18, 2026  8:59:18 AM
+Completed: Integration Test: Phase I Timeout Handler Reduces Scope and Completes Story (ID: US-1386) in 8m
