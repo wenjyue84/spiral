@@ -206,5 +206,6 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-17T23:08:27Z	38	2	US-1369	[Regression Test] Full SPIRAL loop executes all phases in order (mocked CLI)	keep	418	haiku	0	de5fac6256591e8ae0cb2872c1631cdc1413580b	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-17T23:24:45Z	39	1	US-1380	[Security Test] Settings tab config save blocked without auth (US-1215)	keep	224	haiku	0	de75108276a6e33c7314a1d91fc13ceb743d6757	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-17T23:32:38Z	39	2	US-1381	[Test] HealthWidget: polling interval, exponential back-off, and no sensitive data in output	keep	447	haiku	0	f06ecd6998c48725413918c4f3f0dfd403164327	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
-2026-05-18T00:15:42Z	40	1	US-1340	spiral-ui: Add TestsTab component with Phase V pass/fail timeline	keep	639	haiku	0	b1a329cedfe69ecefd13e98e065cd6471661d31c	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				
-2026-05-18T00:23:42Z	41	1	US-1384	spiral-ui: Add /api/costs/breakdown endpoint parsing results.tsv	keep	599	haiku	0	5bf64cfdce2df4577cf1c1da03e021b0717339ef	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-18T00:15:42Z	40	1	US-1340	spiral-ui: Add TestsTab component with Phase V pass/fail timeline	keep	639	haiku	0	b1a329cedfe69ecefd13e98e065cd6471661d31c	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T00:23:42Z	41	1	US-1384	spiral-ui: Add /api/costs/breakdown endpoint parsing results.tsv	keep	599	haiku	0	5bf64cfdce2df4577cf1c1da03e021b0717339ef	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T00:24:37Z	40	2	US-1384	spiral-ui: Add /api/costs/breakdown endpoint parsing results.tsv	keep	507	haiku	0	f651e06704d8fd0e4f505adf7d928aabfe02b704	6a0941b8231e	false	0	0	0	0	0	0	0		0	0	0	0

@@ -15,6 +15,7 @@ import SkillsTab from './dashboard/SkillsTab';
 import ActivityTab from './dashboard/ActivityTab';
 import TestsTab from './TestsTab';
 import TestsCoverageTab from './TestsCoverageTab';
+import CostAnalysisTab from './CostAnalysisTab';
 import { type ProjectData, type ActiveStoryInfo, pct } from './dashboard/types';
 
 // Re-exports for backward compatibility
@@ -24,13 +25,14 @@ export { default as ActiveStoryBanner } from './dashboard/ActiveStoryBanner';
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type DashTab = 'progress' | 'settings' | 'constitution' | 'skills' | 'activity' | 'graph' | 'phase-trace' | 'workers' | 'tokens' | 'tests' | 'coverage' | 'analytics';
+type DashTab = 'progress' | 'settings' | 'constitution' | 'skills' | 'activity' | 'graph' | 'phase-trace' | 'workers' | 'tokens' | 'tests' | 'coverage' | 'analytics' | 'costs';
 
 const DASH_TABS: { id: DashTab; slug: string; label: string; icon: string }[] = [
   { id: 'progress',     slug: 'progress',     label: 'Progress',     icon: '📊' },
   { id: 'phase-trace',  slug: 'phase-trace',  label: 'Phase Trace',  icon: '🔬' },
   { id: 'workers',      slug: 'workers',      label: 'Workers',      icon: '👷' },
   { id: 'tokens',       slug: 'tokens',       label: 'Tokens',       icon: '💰' },
+  { id: 'costs',        slug: 'costs',        label: 'Costs',        icon: '💵' },
   { id: 'graph',        slug: 'graph',        label: 'Graph',        icon: '🔗' },
   { id: 'tests',        slug: 'tests',        label: 'Tests',        icon: '🧪' },
   { id: 'coverage',     slug: 'coverage',     label: 'Coverage',     icon: '📈' },
@@ -261,6 +263,7 @@ export default function ProjectDashboard() {
         {activeTab === 'phase-trace'  && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} stories={data.progress?.stories ?? []} activeStory={activeStory} /></div>}
         {activeTab === 'workers'      && <div className="h-full overflow-y-auto"><WorkersTab projectName={projectName ?? ''} activeStory={activeStory} currentPhase={data?.activeStatus?.phase ?? null} isRunning={isRunning} /></div>}
         {activeTab === 'tokens'       && <div className="h-full overflow-y-auto"><TokenTab projectName={projectName ?? ''} tokenBurn={data.tokenBurn} /></div>}
+        {activeTab === 'costs'        && <div className="h-full overflow-hidden"><CostAnalysisTab /></div>}
         {activeTab === 'graph'        && (
           <div className="h-full overflow-hidden">
             <DependencyGraph stories={data.progress?.stories ?? []} storyAttempts={data.storyAttempts} />
