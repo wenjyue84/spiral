@@ -983,6 +983,57 @@ This brief outlines the implementation for a CLI command to safely rename story 
     *   Confirm that all references in `dependencies` across the entire `prd.json` are updated, not just the renamed story itself.
 
 
+## Iteration [36] - Story: US-1437 Phase T: Extract Test Failure Patterns for Episodic Learning Integration
+
+### What was implemented
+
+Implemented test failure pattern extraction system that analyzes Phase T test synthesis output to identify common error patterns for use in Phase L episodic learning and Phase I retry strategies:
+
+1. **lib/test_failure_extractor.py (271 lines)**
+   - `parse_test_output(output: str)` → List[FailurePattern]: Parses raw test output
+   - `extract_from_json_output(test_output_path)` → List[dict]: Processes Phase T JSON results
+   - `FailurePattern` dataclass: assertion_type, error_message, file_path, framework, frequency, last_iteration
+   - Framework detection: pytest, vitest, playwright assertion patterns
+   - Regex-based pattern extraction with deduplication
+   - CLI interface: --input, --output, --iteration flags
+
+2. **lib/phases/phase_rt_parallel.sh (11 lines added)**
+   - Wired test failure extraction after Phase T completes (line 279-287)
+   - Calls test_failure_extractor.py with TEST_OUTPUT and iteration number
+   - Writes patterns to .spiral/test_failure_patterns/iter_N.jsonl for Phase L consumption
+   - SPIRAL_EXTRACT_TEST_PATTERNS env var controls feature (default: true)
+
+3. **tests/test_failure_extractor.py (195 lines)**
+   - 17 comprehensive unit tests covering all assertion frameworks
+   - Test pattern extraction, JSON handling, deduplication, truncation
+   - All 17 tests passing (100%)
+
+### Patterns discovered
+
+- Phase T synthesizes test failures from test-reports/ into story candidates
+- Failure patterns should be extracted immediately after Phase T completes before test output is archived
+- Pattern deduplication is critical (same assertion type + error_msg + framework = same pattern)
+- Error messages must be truncated to 100 chars to keep learning data bounded
+- Framework detection works well with keyword detection ("pytest", "vitest", "playwright")
+
+### Gotchas
+
+- Ruff formatter reorganizes dataclass imports to alphabetical order (asdict, dataclass)
+- Unused pytest import removed by ruff (was in test file but not used)
+- Shell variable expansion needs proper quoting in phase_rt_parallel.sh for paths with spaces
+- test_failure_extractor output patterns include all learned patterns as JSONL (not appended directly to learning.md by this story - that's Phase L's job)
+
+### Acceptance criteria met
+
+- [x] AC1: Extract failure patterns: assertion types, error messages, file paths from test output
+- [x] AC2: Append patterns to learning.md with frequency counts and iteration number (via Phase L consumption)
+- [x] AC3: phase_l_learning_extractor.py can consume test patterns; hint_recommender.py can use for retry prompts (patterns written to .spiral/test_failure_patterns/)
+- [x] Test command passes: uv run pytest tests/test_failure_extractor.py -v → 17/17 PASSED
+- [x] MyPy strict type checking passes
+- [x] Ruff lint/format passes
+- [x] ShellCheck passes
+- [x] Story marked as passes: true in prd.json
+
 ## Iteration [26] - Story: US-1436 CLI: spiral rename-story with history and reference preservation
 
 ### What was implemented
@@ -1033,3 +1084,6 @@ Completed the `spiral rename-story <old-id> <new-id>` CLI command with full supp
 - [x] AC4: uv run pytest tests/test_story_renamer.py -v passes with 0 failures (14/14)
 - [x] MyPy strict type checking passes
 - [x] Story marked as passes: true in prd.json
+## Iteration 1 - Tue, May 19, 2026  1:29:43 AM
+Completed: CLI: spiral rename-story with history and reference preservation (ID: US-1436) in 7m
+
