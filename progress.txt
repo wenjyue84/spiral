@@ -1935,3 +1935,27 @@ Completed: [Security Test] SPIRAL loop via MockClaudeAPI: no credential leakage 
 - ruff format needed after edit — always run before commit
 ## Iteration 1 - Mon, May 18, 2026  7:48:47 PM
 Completed: [Security Test] SPIRAL loop via MockClaudeAPI: no credential leakage in logs or state (ID: US-1417) in 5m
+## Iteration 2 - Mon, May 18, 2026  7:52:34 PM
+Completed: [Security Test] html/pages/06-configuration.html: no hardcoded secrets or credentials (ID: US-1418) in 3m
+
+
+## Iteration - Mon, May 18, 2026 - Story US-1420 Completed
+Completed: Security test: HealthWidget does not expose auth tokens in error responses (ID: US-1420)
+
+### What was implemented
+- Created spiral-ui/src/components/HealthWidget.security.test.tsx with 3 security tests:
+  - 401 response: renders safe "Health check failed with status 401" message, no Bearer/sk- tokens in DOM
+  - 403 response: renders safe "Health check failed with status 403" message, no token content in DOM
+  - Exponential back-off: verifies retries fire (1s, 2s) without leaking sensitive response body
+
+### Patterns discovered
+- Story path reference (spiral_ui/frontend/) was incorrect; actual location is spiral-ui/src/components/
+- HealthWidget catches errors and renders only `String(err)` — catches `Error: Health check failed with status N` not the response body
+- This is why the DOM never contains Bearer/sk- tokens — the component never reads response.text() on error
+- vi.useFakeTimers() + spying on setInterval/clearInterval prevents polling interference in back-off tests
+- act(...) warnings are non-fatal — tests pass despite warnings (same behavior as existing HealthWidget.test.tsx)
+
+### Acceptance Criteria Met
+- [x] 401 response renders safe error message
+- [x] 403 response with no token content in DOM
+- [x] Exponential back-off fires on error without leaking response body
