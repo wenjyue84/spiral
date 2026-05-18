@@ -109,3 +109,53 @@ def test_us_1353_malformed_prd_json(tmp_path: Path) -> None:
     # Should raise JSONDecodeError
     with pytest.raises(json.JSONDecodeError):
         generate_data_js(str(output_path), str(prd_path))
+
+
+def test_kpi_keys_present(tmp_path: Path) -> None:
+    """Verify that gen_html_data.py produces html/data.js with all KPI keys.
+
+    Tests that the generated data.js contains the KPI keys:
+    - storiesTotal: numeric count of all stories
+    - storiesPassed: numeric count of passed stories
+    - lastUpdated: ISO timestamp string
+    """
+    prd_data = {
+        "userStories": [
+            {"id": "US-001", "title": "Story A", "passes": True},
+            {"id": "US-002", "title": "Story B", "passes": True},
+            {"id": "US-003", "title": "Story C", "passes": False},
+        ]
+    }
+    prd_path = tmp_path / "prd.json"
+    with open(prd_path, "w", encoding="utf-8") as f:
+        json.dump(prd_data, f)
+
+    output_path = tmp_path / "data.js"
+    generate_data_js(str(output_path), str(prd_path))
+
+    assert output_path.exists(), "data.js was not created"
+    content = output_path.read_text(encoding="utf-8")
+
+    # All KPI keys must be present
+    assert re.search(r"storiesTotal\s*:", content), "storiesTotal key missing from data.js"
+    assert re.search(r"storiesPassed\s*:", content), "storiesPassed key missing from data.js"
+    assert re.search(r"lastUpdated\s*:", content), "lastUpdated key missing from data.js"
+
+    # Values must be correct
+    total_match = re.search(r"storiesTotal:\s*(\d+)", content)
+    passed_match = re.search(r"storiesPassed:\s*(\d+)", content)
+    assert total_match and int(total_match.group(1)) == 3, "storiesTotal should be 3"
+    assert passed_match and int(passed_match.group(1)) == 2, "storiesPassed should be 2"
+
+
+def test_missing_prd_raises(tmp_path: Path) -> None:
+    """Verify gen_html_data.py raises a clear error when prd.json is missing.
+
+    Tests that generate_data_js() raises FileNotFoundError when the prd.json
+    path does not exist, providing a clear diagnostic to the caller.
+    """
+    prd_path = tmp_path / "does_not_exist.json"
+    output_path = tmp_path / "data.js"
+
+    with pytest.raises(FileNotFoundError):
+        generate_data_js(str(output_path), str(prd_path))
