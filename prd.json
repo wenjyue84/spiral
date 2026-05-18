@@ -3876,7 +3876,8 @@
       "last_attempted": "2026-05-18T09:24:53Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe `lib/dry_run_planner.py` module exists and provides a clean, API-agnostic execution plan generator. The module:\n- Loads prd.json\n- Generates token estimates per phase\n- Outputs ASCII tree or JSON format\n- Never reads or uses ANTHROPIC_API_KEY\n\n## Problem Identified\n\nNeed to create security tests for US-1391 (dry-run subcommand) that verify:\n1. The dry-run command exits with code 0\n2. No outbound API calls are made (can be verified by mocking)\n3. No sensitive environment variables (API keys, tokens) leak in stdout\n\n## Planned Changes\n\nI will create `tests/test_dry_run_security.py` with:\n- Test: direct import of `plan_execution()` and verify no secrets in output\n- Test: subprocess invocation with `ANTHROPIC_API_KEY=sentinel` in env, verify sentinel doesn't appear in stdout\n- Test: verify module can be invoked as `python -m lib.dry_run_planner 1` and exits 0\n- Test: verify subprocess output matches no API key patterns (sk-ant, ANTHROPIC_API_KEY literal)\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_dry_run_security.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 85\n}\n</plan>\n\nNow I'll implement the test file:\nNow let's run the security tests to verify they all pass:\nPerfect! All 5 tests pass. Now let me run the pre-commit hooks to ensure code quality:\nLet me verify the acceptance criteria are fully met:\nPerfect! All acceptance criteria are met. Now let me mark the story as passing in prd.json:\nNow let me stage and commit the changes:\nPerfect! I've successfully implemented **US-1396** — security tests for the spiral dry-run command. Here's what was completed:\n\n## Summary"
-      }
+      },
+      "_passedCommit": "5549137a5f0cc7dfc0aa259c796feb2c6277fcbe"
     },
     {
       "id": "US-1397",
@@ -3896,10 +3897,11 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "_decomposedFrom": "US-1394"
+      "_decomposedFrom": "US-1394",
+      "last_attempted": "2026-05-18T09:30:33Z"
     },
     {
       "id": "US-1398",
