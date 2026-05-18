@@ -2084,3 +2084,33 @@ Completed: Phase V: Create granular verification evidence aggregator for detaile
 ### Gotchas
 - ruff format expanded the regex pattern to multi-line — budget for formatter expansion
 - Keep new classes under 50 lines to stay within diff budget
+## Iteration 2 - Mon, May 18, 2026  9:11:03 PM
+Completed: Phase V: Create granular verification evidence aggregator for detailed failure reports (ID: US-1406) in 5m
+
+
+## Pre-analysis for US-1407 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1407.
+
+**Project Context:** This is a Python-based application (Project Spiral), not a Frappe app. All file paths and logic are for a standard Python project structure.
+
+**1. Files to Modify/Create:**
+*   **Create:** `lib/research_quality.py` - This new file will contain the core scoring logic.
+*   **Create:** `tests/test_research_quality.py` - A new test file to validate the scoring function.
+*   **Modify:** `lib/phases/phase_r.py` - This existing file's research loop needs to be updated to call the new scoring function and filter results.
+
+**2. Involved DocTypes/Hooks:**
+*   None. This is not a Frappe project, so no DocTypes or hooks are relevant.
+
+**3. Implementation Approach:**
+1.  Begin by creating `tests/test_research_quality.py` with a test case `test_score_academic_sources` to drive the implementation (TDD).
+2.  Create `lib/research_quality.py` and define the function `score_research_result(url, snippet_text)`.
+3.  In this function, parse the URL to get the domain. Implement scoring rules based on domain TLDs (e.g., `.edu`, `.gov` get high scores) and keyword-based blacklists/whitelists.
+4.  In `lib/phases/phase_r.py`, import the new function. Before the synthesis step, loop through each research result.
+5.  Call `score_research_result` for each item. If the score is `< 40`, discard the result.
+6.  For each discarded result, append a JSON object to `.spiral/research_quality.jsonl` with the URL, score, and reason.
+
+**4. Edge Cases & Gotchas:**
+*   The scoring logic in `research_quality.py` should be efficient to avoid slowing down the research phase.
+*   Ensure the logging to `.spiral/research_quality.jsonl` is done in append mode (`'a'`) to prevent overwriting previous log entries.
+*   The function should gracefully handle malformed URLs or missing snippets.
+*   The path `.spiral/` is relative to the project root. Ensure file I/O resolves this path correctly.

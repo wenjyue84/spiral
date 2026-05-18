@@ -4149,7 +4149,10 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-05-18T13:11:05Z"
+      "last_attempted": "2026-05-18T13:11:05Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/research_quality.py` exists but it's for post-hoc quality scoring (retry-based)\n- `lib/research_source_scorer.py` exists with domain credibility scoring logic\n- Phase R outputs research to `_research_output.json` with structure `{\"stories\": [...]}`\n- No current filtering of research results by source quality before synthesis\n\n## Problem Identified\nUS-1407 requires:\n1. Score individual research results (URL + snippet) by source credibility\n2. Filter results with score <40 before Gemini synthesis\n3. Log filtering decisions to `.spiral/research_quality.jsonl`\n\n## Planned Changes\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"lib/research_quality.py\",\n    \"tests/test_research_quality.py\",\n    \"lib/phases/phase_r.py\"\n  ],\n  \"functions_to_add\": [\n    \"score_research_result\",\n    \"filter_research_results_by_quality\"\n  ],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me implement:\n\n## Diagnosis Block"
+      }
     },
     {
       "id": "US-1408",

@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 # Model pricing per million input tokens
 PRICING = {
     "haiku": 0.80,
@@ -171,6 +170,7 @@ def export_csv(
     if output is None:
         # Return as string
         import io
+
         f = io.StringIO()
         writer = csv.DictWriter(f, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL, extrasaction="ignore")
         for row in rows:
@@ -207,6 +207,7 @@ def export_json(
     """
     if output is None:
         import io
+
         f = io.StringIO()
     elif isinstance(output, (str, Path)):
         f = open(output, "w", encoding="utf-8")
@@ -232,9 +233,7 @@ def export_json(
     # Write each row
     for row in rows:
         # Compute phase_times (simplified: just duration for this phase)
-        phase_times = {
-            row.get("phase", "A"): row.get("duration_sec", 0)
-        }
+        phase_times = {row.get("phase", "A"): row.get("duration_sec", 0)}
         row_with_phase_times = {**row, "phase_times": phase_times}
         f.write(json.dumps(row_with_phase_times, ensure_ascii=False) + "\n")
 
