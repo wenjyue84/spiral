@@ -5096,7 +5096,8 @@
       "last_attempted": "2026-05-18T18:40:03Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n`lib/phase_r_cache.py` has query-based caching (sha256 of query string, per-file in `.spiral/research-cache/`). It lacks story-level cache key derivation and title-change invalidation. The integration test dir exists at `tests/integration/` with an `__init__.py`.\n\n## Problem Identified\nUS-1441 requires story-level cache invalidation: when a story's title changes, the old cache entry must be marked `invalidated_at`, and a new entry created under the new title hash. Currently `phase_r_cache.py` has no `cache_key_from_story` or `check_cache_validity` functions, and no `.spiral/research_cache.json` store.\n\n## Planned Changes\n- `lib/phase_r_cache.py`: Add `cache_key_from_story`, `check_cache_validity`, plus helpers `_get_story_cache_file`, `_load_story_cache`, `_save_story_cache`, `cache_story_research`, `invalidate_story_cache_if_stale`\n- `tests/integration/test_phase_r_cache_invalidation.py`: New test with `test_cache_invalidated_on_title_change` (mocked prd.json, mocked Gemini results, two title variations)\n\n<plan>\n{\n  \"files_to_create\": [\"tests/integration/test_phase_r_cache_invalidation.py\"],\n  \"files_to_modify\": [\"lib/phase_r_cache.py\"],\n  \"functions_to_add\": [\"cache_key_from_story\", \"check_cache_validity\", \"_get_story_cache_file\", \"_load_story_cache\", \"_save_story_cache\", \"cache_story_research\", \"invalidate_story_cache_if_stale\"],\n  \"estimated_loc\": 130\n}\n</plan>\nNow create the integration test:\nAll 4 tests pass. Now run the full test file:\n4/4 passed. Now run mypy and pre-commit:\nThe mypy errors are all pre-existing in other files — my two files pass mypy cleanly. Now mark passes and commit:\nDone. US-1441 is complete.\n\n**Summary:**\n- `lib/phase_r_cache.py`: Added 7 new functions for story-level cache management — `cache_key_from_story` (sha256 of title), `check_cache_validity` (hash comparison + invalidated_at check), `cache_story_research`, `invalidate_story_cache_if_stale`, and 3 internal helpers. Uses `.spiral/research_cache.json` keyed by title hash.\n- `tests/integration/test_phase_r_cache_invalidation.py`: 4 tests, all passing. Primary test `test_cache_invalidated_on_title_change` covers the full AC1+AC2 scenario end-to-end with mocked Gemini responses and two title variations."
-      }
+      },
+      "_passedCommit": "bab6584f56d2efee289d0519a6d47991d9a1a3fd"
     },
     {
       "id": "US-1442",
@@ -5115,9 +5116,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-18T18:47:03Z"
     }
   ]
 }
