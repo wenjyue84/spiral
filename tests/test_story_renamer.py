@@ -198,9 +198,7 @@ def test_update_results_tsv_no_story_id_column(tmp_path: Path) -> None:
     assert "timestamp" in content
 
 
-def test_rename_preserves_history(
-    tmp_path: Path, sample_prd: dict[str, object], sample_results_tsv: str
-) -> None:
+def test_rename_preserves_history(tmp_path: Path, sample_prd: dict[str, object], sample_results_tsv: str) -> None:
     """Rename should preserve execution telemetry in results.tsv."""
     prd_path = tmp_path / "prd.json"
     results_path = tmp_path / "results.tsv"
@@ -230,9 +228,7 @@ def test_rename_preserves_history(
     assert lines[3].split("\t")[3] == "US-999"
 
 
-def test_rename_aborts_on_collision(
-    tmp_path: Path, sample_prd: dict[str, object]
-) -> None:
+def test_rename_aborts_on_collision(tmp_path: Path, sample_prd: dict[str, object]) -> None:
     """Rename should abort if new_id already exists."""
     prd_path = tmp_path / "prd.json"
     results_path = tmp_path / "results.tsv"
@@ -247,9 +243,7 @@ def test_rename_aborts_on_collision(
         rename_story("US-001", "US-002", str(prd_path), str(results_path))
 
 
-def test_rename_aborts_on_missing_old_id(
-    tmp_path: Path, sample_prd: dict[str, object]
-) -> None:
+def test_rename_aborts_on_missing_old_id(tmp_path: Path, sample_prd: dict[str, object]) -> None:
     """Rename should abort if old_id doesn't exist."""
     prd_path = tmp_path / "prd.json"
     results_path = tmp_path / "results.tsv"

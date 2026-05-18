@@ -1192,3 +1192,5 @@ Completed: [Security Test] HealthWidget /api/health endpoint auth/permission che
 - [x] AC2: research_cache.json contains both old (invalidated_at) and new (fresh) entries
 - [x] AC3: check_cache_validity returns False for changed title (cache miss simulation)
 - [x] uv run pytest tests/integration/test_phase_r_cache_invalidation.py::test_cache_invalidated_on_title_change -v -s → PASSED
+## Iteration 1 - Tue, May 19, 2026  2:47:01 AM
+Completed: Integration test: Phase R research cache invalidation when story title changes (ID: US-1441) in 5m

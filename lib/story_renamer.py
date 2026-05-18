@@ -20,9 +20,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from core.spiral_io import atomic_write_json
 
 
-def validate_rename(
-    old_id: str, new_id: str, prd_path: str
-) -> tuple[bool, str]:
+def validate_rename(old_id: str, new_id: str, prd_path: str) -> tuple[bool, str]:
     """
     Validate that rename is safe.
 
@@ -105,9 +103,7 @@ def update_results_tsv(results_path: str, old_id: str, new_id: str) -> None:
         raise
 
 
-def rename_story(
-    old_id: str, new_id: str, prd_path: str, results_path: str
-) -> None:
+def rename_story(old_id: str, new_id: str, prd_path: str, results_path: str) -> None:
     """
     Rename a story from old_id to new_id.
 
@@ -144,9 +140,7 @@ def rename_story(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Rename a story ID across prd.json, results.tsv, and dependencies"
-    )
+    parser = argparse.ArgumentParser(description="Rename a story ID across prd.json, results.tsv, and dependencies")
     parser.add_argument("old_id", help="Old story ID (e.g., US-001)")
     parser.add_argument("new_id", help="New story ID (e.g., US-999)")
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json")
