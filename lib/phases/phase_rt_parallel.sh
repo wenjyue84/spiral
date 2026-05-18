@@ -276,6 +276,17 @@ except Exception:
   # ── Write main checkpoint (T = last parallel phase in ordering) ───────
   write_checkpoint "$SPIRAL_ITER" "T"
 
+  # ── US-1437: Extract test failure patterns for episodic learning ───────
+  if [[ -f "$TEST_OUTPUT" ]] && [[ "${SPIRAL_EXTRACT_TEST_PATTERNS:-true}" == "true" ]]; then
+    _TEST_PATTERNS_DIR=".spiral/test_failure_patterns"
+    mkdir -p "$SPIRAL_HOME/$_TEST_PATTERNS_DIR" 2>/dev/null || true
+    _PATTERNS_OUT="$SPIRAL_HOME/$_TEST_PATTERNS_DIR/iter_${SPIRAL_ITER}.jsonl"
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/test_failure_extractor.py" \
+      --input "$TEST_OUTPUT" \
+      --output "$_PATTERNS_OUT" \
+      --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  fi
+
   # ── Compute individual durations and combined wall time ───────────────
   _NOW=$(date +%s)
   _R_END=$(cat "$SCRATCH_DIR/_phase_R_${SPIRAL_ITER}.endtime" 2>/dev/null || echo "$_NOW")
