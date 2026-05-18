@@ -3284,8 +3284,29 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1334",
+      "title": "CLI: Add `spiral profile-phases` command to measure and report phase execution time",
+      "priority": "low",
+      "description": "Add CLI subcommand to profile wall-clock time per phase and identify bottlenecks. Outputs sorted table: Phase | Duration | % of Total | Status. Helps product owners and developers optimize SPIRAL runtime.",
+      "acceptanceCriteria": [
+        "spiral.sh logs phase start/end timestamps to .spiral/_phase_timings.jsonl in format {phase: 'R', start_ms: <timestamp>, end_ms: <timestamp>} for each phase execution",
+        "`spiral profile-phases` reads _phase_timings.jsonl, outputs table sorted by duration descending: Phase | Duration (s) | Pct | Status; handles incomplete/missing data",
+        "Includes summary: total runtime, slowest phase, suggestion to investigate phases >30% of total time"
+      ],
+      "technicalNotes": [
+        "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
+        "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
+        "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "haiku",
-      "last_attempted": "2026-05-17T23:46:05Z"
+      "_skipped": true,
+      "_failureReason": "Chronic timeout. Permanently skipped."
     },
     {
       "id": "US-1340",
@@ -3307,7 +3328,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -3328,7 +3349,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "sonnet"
     },
     {
@@ -3524,6 +3545,47 @@
       "model": "haiku"
     },
     {
+      "id": "US-1356",
+      "title": "SPIRAL - Route Trivial Stories to Local Ollama Before Haiku for Cost Reduction",
+      "priority": "medium",
+      "description": "Extend model routing to use local Ollama llama2 for complexity ≤ 2 stories, saving ~95% per story. Gracefully fallback to haiku if Ollama unavailable. Advances developer experience goal (cost transparency and reduction).",
+      "acceptanceCriteria": [
+        "Add SPIRAL_OLLAMA_ENABLED=true and SPIRAL_OLLAMA_URL=http://localhost:11434 to spiral.config.sh with defaults",
+        "In lib/model_routing.py, classify_complexity(story) returns score ≤ 2 → route to Ollama before haiku escalation chain",
+        "If Ollama socket unreachable, log warning and escalate to haiku without crashing; no user intervention required"
+      ],
+      "technicalNotes": [
+        "File: lib/model_routing.py (extend select_model(story, complexity) function to check SPIRAL_OLLAMA_ENABLED first)",
+        "File: spiral.config.sh (add SPIRAL_OLLAMA_ENABLED=true, SPIRAL_OLLAMA_URL=http://localhost:11434)",
+        "File: setup.sh (add 'ollama pull llama2:latest' to initialization, skip if already installed)",
+        "Test: uv run pytest tests/test_model_routing.py::test_ollama_fallback_to_haiku -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1357",
+      "title": "Phase I: error_context.sh — extract error and code snippet on Ralph failure",
+      "priority": "medium",
+      "description": "Create lib/impl/error_context.sh that parses Ralph worker stdout to extract the failing test file, line number, error message, and ±5-line code snippet. Write the structured result to .spiral/error_context/<story_id>.md.",
+      "acceptanceCriteria": [
+        "extract_error_context() parses Ralph stdout and outputs test_file, line_num, error_text, and a ±5-line code_snippet",
+        ".spiral/error_context/<story_id>.md is created with error classification label (syntax/type/import/timeout/oom)",
+        "bash tests/test_error_context.bats exits 0 with all cases passing"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/error_context.sh (new file; define extract_error_context function)",
+        "File to edit: tests/test_error_context.bats (new bats test file with fixture stdout samples)",
+        "Test command: bash tests/test_error_context.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1375",
       "title": "[Integration Test] html/ scaffold: file structure and nav.js dark-mode persist",
       "priority": "high",
@@ -3572,6 +3634,69 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1377",
+      "title": "Phase A: Add story complexity auto-estimation by acceptance criteria analysis",
+      "priority": "medium",
+      "description": "Automatically classify each AI-suggested story into complexity bands (trivial/simple/medium/complex) based on acceptance criteria word count, keyword density (async, integration, auth, database, migration), and explicit dependency mentions. Store band in story._metadata.complexityBand for Phase I model routing to use when selecting Claude tier.",
+      "acceptanceCriteria": [
+        "phase_a_complexity_scorer.estimate_complexity(story_dict) analyzes story['acceptanceCriteria'] and returns {band: 'simple', score: 72, keywords: ['database', 'auth']}",
+        "Integration test validates 5 sample stories: trivial ACs (single line) → band='trivial'; complex ACs (async+database+auth) → band='complex'",
+        "Phase A handler calls estimate_complexity() and stores result in prd.json story._metadata.complexityBand before Phase S merge"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_a_complexity_scorer.py (~120 lines) with estimate_complexity(story) returning complexity band 0-100 score + keywords detected",
+        "File to edit: spiral.sh Phase A section to import and call phase_a_complexity_scorer estimate_complexity() function",
+        "Test command: uv run pytest tests/test_phase_a_complexity_scorer.py::test_complexity_estimation_bands -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "opus"
+    },
+    {
+      "id": "US-1378",
+      "title": "Phase V: Add granular verification failure reporting showing which AC and test failed",
+      "priority": "medium",
+      "description": "When a story fails verification in Phase V, parse test output to generate a detailed report showing which specific acceptance criterion failed, which test file and assertion, and captured error message. Store failure details in story._verificationFailure for Phase I to use when planning decomposition or retry strategy.",
+      "acceptanceCriteria": [
+        "phase_v_failure_reporter.extract_failure_details(story_id, pytest_json_output) returns {failedAC: 2, testFile: 'tests/test_login.py::test_password_reset', message: 'AssertionError: token not found'}",
+        "Integration test mocks pytest JSON output (FAILED tests/test_X.py::test_Y) and verifies reporter correctly maps to AC index and error message",
+        "story._verificationFailure is populated and accessible to Phase I; spiral explain <story-id> displays failure details formatted as 'AC #2 failed: ...' if present"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_v_failure_reporter.py (~140 lines) with extract_failure_details(story_id, test_output) parsing pytest JSON or stdout",
+        "File to edit: lib/phases/phase_v.sh to call failure_reporter.extract_failure_details() when test verification fails, store result in story JSON",
+        "Test command: uv run pytest tests/test_phase_v_failure_reporter.py::test_extract_failure_from_pytest_output -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1379",
+      "title": "CLI: Add spiral cleanup --remove-stale-workers to garbage-collect zombie worker processes",
+      "priority": "low",
+      "description": "Scan .spiral-workers/ directory for orphaned git worktrees (no active worker process, last modified > 2 hours ago). Safely remove stale worktree directories using git worktree remove and clean up git state. Report number of workers cleaned and disk space freed.",
+      "acceptanceCriteria": [
+        "spiral cleanup --remove-stale-workers identifies stale workers: no active process via ps/tasklist AND last-modified timestamp > 2 hours old",
+        "For each stale worker, runs git worktree remove .spiral-workers/worker-N, confirms deletion, accumulates freed disk space estimate",
+        "Exit with summary message: 'Cleaned 3 stale workers, freed 450 MB' or 'No stale workers found. All workers active.' Exit code 0 always."
+      ],
+      "technicalNotes": [
+        "File to create: lib/worker_cleanup.sh (~100 lines) with functions: find_stale_workers(), remove_worker_worktree(), estimate_freed_space()",
+        "File to edit: lib/cli_subcommands.sh to add cleanup case statement dispatching to lib/worker_cleanup.sh",
+        "Test command: tests/bats-core/bin/bats tests/test_worker_cleanup.bats -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
       "model": "haiku"
     },
     {
@@ -3641,6 +3766,75 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1383",
+      "title": "[Regression Test] CLI: spiral trace-dependencies resolves chains and detects cycles",
+      "priority": "medium",
+      "description": "Write a regression test guarding the spiral trace-dependencies CLI command (US-1209). Tests verify linear chain resolution across federated sub-projects, circular dependency detection, and sub-project boundary markers in output.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_trace_dependencies.py::test_linear_chain_resolution -v exits 0",
+        "uv run pytest tests/test_trace_dependencies.py::test_circular_dependency_detected -v exits 0 with clear error raised",
+        "uv run pytest tests/ -k us_1209 -v exits 0 with sub-project boundary markers present in captured command output"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_trace_dependencies.py (create new — test the trace-dependencies CLI entry point)",
+        "Test command: uv run pytest tests/test_trace_dependencies.py -v",
+        "Use a temporary prd.json fixture with cross-project dependency stubs (e.g. dependency: 'PROJECT-B-US-005')",
+        "Check lib/dag_check.py for cycle detection logic to target in assertions; invoke via subprocess.run(['python', 'main.py', 'trace-dependencies', story_id])",
+        "Assert SystemExit or ValueError raised for circular deps; assert output contains '[PROJECT-B]' boundary marker"
+      ],
+      "dependencies": [
+        "US-1209"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1384",
+      "title": "spiral-ui: Add /api/costs/breakdown endpoint parsing results.tsv",
+      "priority": "high",
+      "description": "Users need per-phase cost visibility to debug runaway spending. Create a backend API endpoint that parses results.tsv and returns token and USD costs broken down by phase along with burn rate and remaining budget estimates.",
+      "acceptanceCriteria": [
+        "GET /api/costs/breakdown returns JSON with keys: phases (dict keyed by phase letter), total_tokens, total_cost_usd, spend_rate_per_story, iteration_count; verified by `uv run pytest tests/test_costs_api.py::test_parse_costs_breakdown -v`",
+        "parse_costs_from_results_tsv() handles missing or empty results.tsv without raising; `uv run pytest tests/test_costs_api.py::test_empty_results_tsv -v` passes",
+        "spiral-ui-backend/app.py registers the /api/costs/breakdown route: `grep -q 'costs' spiral-ui-backend/app.py` exits 0"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui-backend/routes/costs.py (parse_costs_from_results_tsv(results_path), compute_burn_rate(total_cost, story_count), estimate_remaining_budget(spend_rate, cost_ceiling))",
+        "File to edit: spiral-ui-backend/app.py (import and register costs blueprint/router)",
+        "File to create: tests/test_costs_api.py (test_parse_costs_breakdown with mock 3-phase 5-story tsv, test_empty_results_tsv)",
+        "Test command: uv run pytest tests/test_costs_api.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-1385",
+      "title": "spiral-ui: Add CostAnalysisTab with stacked bar and cumulative line charts",
+      "priority": "high",
+      "description": "Build a React CostAnalysisTab component that fetches /api/costs/breakdown and renders a stacked bar chart by phase and a cumulative spend line chart. A budget projection card shows current burn rate and warns when spend exceeds 50% of ceiling.",
+      "acceptanceCriteria": [
+        "CostAnalysisTab renders without error and displays two recharts components (BarChart and LineChart): `npm test -- --testPathPattern=CostAnalysisTab` passes",
+        "Budget projection card text contains 'Spend:', 'Burn rate:', 'Remaining:' labels; verified in CostAnalysisTab.test.tsx with mocked API response",
+        "CostAnalysisTab is visible in main tab navigation: `grep -q 'CostAnalysisTab' spiral-ui/src/App.tsx` exits 0"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/components/CostAnalysisTab.tsx (BarChart stacked by phase, LineChart cumulative USD, budget projection card, auto-refresh every 5s via useEffect interval)",
+        "File to edit: spiral-ui/src/App.tsx (add CostAnalysisTab import and tab entry)",
+        "File to create: tests/spiral-ui/CostAnalysisTab.test.tsx (mock fetch returning 3-phase data, assert chart labels and budget card text)",
+        "Test command: npm test -- --testPathPattern=CostAnalysisTab --watchAll=false"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
       "passes": true,
       "_source": "ai-example",
       "model": "haiku"
