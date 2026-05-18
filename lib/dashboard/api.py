@@ -3,6 +3,7 @@
 
 Exposes:
 - GET /health — Health check endpoint
+- GET /api/health — Live metrics health endpoint (phases, workers, token_burn_rate) (US-1366)
 - GET /profile — Phase duration analytics endpoint
 - GET /api/timeline — Story timeline endpoint with phase swimlanes
 - GET /api/dashboard/research-sources — Research source credibility tracking endpoint
