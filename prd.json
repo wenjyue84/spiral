@@ -4245,7 +4245,10 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-05-18T11:26:10Z"
+      "last_attempted": "2026-05-18T11:26:10Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nHealthWidget is a React component that polls `/api/health` every 5 seconds and applies exponential backoff on errors. The test file (`HealthWidget.test.tsx`) exists with ~11 tests, including:\n- Polling interval verification using fake timers\n- Exponential backoff retry test  \n- Error handling tests\n\n**Issue identified:** The test file uses `afterEach` (line 42) without importing it from vitest. This would cause a runtime error when tests run.\n\n## Problem Identified\n\nThe story requires ensuring HealthWidget tests verify:\n1. Polling behavior (fetch called at least twice within 10s)\n2. Graceful error backoff (retries without crashing)\n\nThe existing tests cover these scenarios, but there's a **missing import** (`afterEach`) that will prevent them from running. Additionally, the tests might need clearer naming aligned with the story's expectations.\n\n## Planned Changes\n\n1. **Fix the missing `afterEach` import** in `HealthWidget.test.tsx` (line 1)\n2. **Verify all tests pass** by running `npx vitest run src/components/HealthWidget.test.tsx`\n3. **No additional tests needed** — existing tests already cover the acceptance criteria\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"spiral-ui/src/components/HealthWidget.test.tsx\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\n\nNow executing the fix:\nPerfect! All 11 tests pass. The tests verify both key acceptance criteria:\n- ✅ **Polling** test (line 181-206): Verifies fetch is called at least twice within 5 seconds\n- ✅ **Exponential backoff** test (line 208-248): Verifies component retries on error without crashing\n\nNow committing the fix and marking the story complete:\n## Summary"
+      }
     },
     {
       "id": "US-1416",
