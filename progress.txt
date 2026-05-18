@@ -313,3 +313,34 @@ Implemented worker stall detection and auto-restart mechanism via background hea
 ## Iteration 2 - Mon, May 18, 2026 10:58:20 PM
 Completed: lib/impl/worker_monitor.sh: Heartbeat monitoring with auto-restart on stall (ID: US-1425) in 7m
 
+
+## Pre-analysis for US-1426 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-1426.
+
+**Project:** Spiral UI Backend (Note: This is a Flask/FastAPI project, not a Frappe app as mentioned in the prompt context).
+
+**Objective:** Implement and test the `/api/costs/breakdown` endpoint to provide cost analysis from a `results.tsv` file.
+
+**1. Python Files to Modify:**
+*   `spiral-ui-backend/routes/costs.py`: Implement the route handler for `/api/costs/breakdown`. This is the core logic file.
+*   `spiral-ui-backend/app.py`: Register the `costs` blueprint to expose the new endpoint.
+*   `tests/test_costs_api.py`: Add new `pytest` tests to validate the endpoint's functionality and error handling.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This task involves a standalone Python backend, not the Frappe framework.
+
+**3. Implementation Approach:**
+*   In `costs.py`, create a new Flask/FastAPI route for `/api/costs/breakdown`.
+*   Inside the route handler, use `csv.DictReader` to parse `results.tsv`.
+*   Group the data by the "phase" column, summing `tokens_in`, `tokens_out`, and `cost_usd` for each phase.
+*   Calculate `burn_rate` and `remaining_budget` (the logic for these may need to be assumed or clarified, e.g., based on total cost/duration and a configured budget).
+*   In `test_costs_api.py`, add three tests using `pytest` fixtures to mock `results.tsv`:
+    1.  `test_breakdown_response_shape`: Verify the top-level JSON keys are present.
+    2.  `test_breakdown_per_phase_data`: Check that each entry in the `phases` array has the correct structure.
+    3.  `test_breakdown_missing_tsv`: Ensure the endpoint returns a 200 OK with an empty `phases` list when the TSV is not found.
+
+**4. Edge Cases & Gotchas:**
+*   **File Not Found:** The endpoint must handle a missing `results.tsv` gracefully by returning a 200 status with default/empty values, not a 500 error.
+*   **Malformed Data:** Wrap data type conversions (e.g., `float()`, `int()`) in `try-except` blocks to handle non-numeric or missing values in the TSV columns.
+*   **Budget/Burn Rate Logic:** The source for total budget is undefined in the story; a placeholder or environment variable may be required.
+

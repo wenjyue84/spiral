@@ -4635,6 +4635,34 @@
         "diagnosisBlock": "## Current State\n\nThe SPIRAL worker system already has heartbeat monitoring via `lib/worker_heartbeat.sh` that writes `.heartbeat` files with `last_progress_time` tracking. The `lib/run_parallel_ralph.sh` spawns workers in background subshells and tracks their PIDs. The story requires adding a separate background monitor process per worker that detects stalls and triggers restarts.\n\n## Problem Identified\n\nCurrently, there's no automatic detection and restart mechanism for workers that stall (stop making progress for >90s). The heartbeat is written but not actively monitored for staleness. Need to spawn a background monitor per worker that:\n1. Checks heartbeat mtime/content every 30s\n2. Detects when `last_progress_time` is older than SPIRAL_WORKER_STALL_TIMEOUT_SECONDS\n3. Kills and respawns the stalled worker with the same story\n4. Logs recovery events to spiral_events.jsonl\n\n## Planned Changes\n\n1. **Create `lib/impl/worker_monitor.sh`** — Background monitoring script that:\n   - Takes worker_num, worker_pid, worker_dir, spiral_home as arguments\n   - Loops every 30s checking heartbeat staleness\n   - On stall (>90s default), kills worker and logs event\n\n2. **Modify `lib/run_parallel_ralph.sh`** — At line ~1262 (after worker spawn), spawn monitor as background process\n\n<plan>\n{\n  \"files_to_create\": [\"lib/impl/worker_monitor.sh\"],\n  \"files_to_modify\": [\"lib/run_parallel_ralph.sh\"],\n  \"functions_to_add\": [\"worker_monitor (main loop in new script)\"],\n  \"estimated_loc\": 120\n}\n</plan>\n\nNow let me implement:\nNow let me modify lib/run_parallel_ralph.sh to spawn the worker monitor. First, let me find the exact location where to add it:\nNow let me add the worker monitor spawn to lib/run_parallel_ralph.sh:\nLet me verify the worker_monitor.sh is executable and check for any issues:\nLet me check for shell script linting issues:\nLet me run the existing tests to verify the implementation doesn't break anything:\nLet me run the test without the rtk prefix:\nLet me run the bats tests for worker monitoring:\nLet me verify the changes to lib/run_parallel_ralph.sh are correct:\nLet me verify the worker_monitor.sh is correct by checking its content:\nLet me verify the shell scripts pass shellcheck and shfmt:\nLet me check shfmt formatting:\nLet me update prd.json to mark US-1425 as passing:\nLet me append to progress.txt to document the implementation:\nLet me append the new iteration to progress.txt:\nLet me run the pre-commit checks to verify everything is ready:\nLet me check the modified files and then re-run pre-commit:\nLet me check if worker_monitor.sh exists and is untracked:\nLet me check the git status more carefully:\nLet me stage the changes and run pre-commit again:\nLet me verify the worker_monitor.sh file is properly formatted:\nNow let me commit the changes:\nLet me verify the commit was successful:\nLet me verify that US-1425 is marked as passes: true in prd.json:\nLet me check the passes field:\nPerfect! I have successfully implemented story **US-1425**. Here's a summary:\n\n## Implementation Complete: US-1425"
       },
       "_passedCommit": "4048edcd217a7a2c539e5506a5eb74d30360ed6b"
+    },
+    {
+      "id": "US-1426",
+      "title": "[Test] /api/costs/breakdown: response shape, per-phase data, and error handling",
+      "priority": "high",
+      "description": "Add tests for the /api/costs/breakdown endpoint to confirm it parses results.tsv correctly and returns token counts and USD costs broken down by phase, plus burn rate and remaining budget. Tests should also verify graceful handling of a missing or malformed results.tsv.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_costs_api.py::test_breakdown_response_shape -v exits 0 (response contains keys: phases, burn_rate, remaining_budget)",
+        "uv run pytest tests/test_costs_api.py::test_breakdown_per_phase_data -v exits 0 (each phase entry has tokens_in, tokens_out, usd_cost)",
+        "uv run pytest tests/test_costs_api.py::test_breakdown_missing_tsv -v exits 0 (returns 200 with empty phases list when results.tsv absent, no 500)",
+        "uv run pytest tests/ -k us_1384 -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral-ui-backend/routes/costs.py (implement /api/costs/breakdown route parsing results.tsv)",
+        "File to edit: spiral-ui-backend/app.py (register costs blueprint)",
+        "File to edit: tests/test_costs_api.py (add test_breakdown_response_shape, test_breakdown_per_phase_data, test_breakdown_missing_tsv)",
+        "results.tsv columns: story_id, phase, model, tokens_in, tokens_out, cost_usd, duration_s, status — parse with csv.DictReader",
+        "Test command: uv run pytest tests/test_costs_api.py -v --tb=short",
+        "Test command: uv run pytest tests/ -k us_1384 -v"
+      ],
+      "dependencies": [
+        "US-1384"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku",
+      "last_attempted": "2026-05-18T15:05:13Z"
     }
   ]
 }
