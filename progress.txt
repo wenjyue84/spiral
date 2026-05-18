@@ -1,3 +1,38 @@
+## Iteration N+5 - Sun, May 18, 2026 - Story US-1388 Completed
+Completed: Tests for HealthWidget polling, error handling, and sparkline rendering (ID: US-1388) in ~3m
+
+### What was implemented
+- Verified spiral-ui/src/components/HealthWidget.test.tsx (existing file, created in prior iteration US-1381)
+  - Component already implements polling via setInterval with configurable 5000ms interval
+  - Component implements exponential back-off for retry delays: 2^retryCount * 1000ms (1s, 2s, 4s...)
+  - Component renders phase durations, worker counts, and token burn rate from /api/health JSON
+
+- Verified comprehensive test coverage in HealthWidget.test.tsx with 11 tests:
+  - **polling-interval test** (lines 181-206): Uses vi.useFakeTimers(), mocks fetch, advances time 5s, verifies fetch called twice
+  - **exponential back-off test** (lines 208-248): Mocks fetch failures, verifies retry delays are 1s→2s→4s (each delay = 2x previous)
+  - **renders metrics test** (lines 46-65): Renders component with mocked /api/health response, verifies:
+    - Active worker count displays (2)
+    - Token burn rate displays (450 tokens/min)
+    - Slowest phase displays (Phase I: 15s duration)
+  - Plus 8 additional tests covering: loading state, error handling, data leakage security, worker metrics
+
+### Key Patterns Discovered
+- HealthWidget polls every 5 seconds: setInterval(fetchHealth, 5000) in useEffect
+- Exponential back-off formula: Math.pow(2, retryCountRef.current) * 1000ms
+- Tests use vi.useFakeTimers() to control time-based logic without real timers
+- Test isolation: each test calls vi.clearAllMocks() in beforeEach and vi.useRealTimers() in afterEach
+
+### Acceptance Criteria Met
+- [x] At least 3 passing tests (11/11 tests pass)
+- [x] Polling interval test verifies fetch called every 5 seconds using vi.useFakeTimers()
+- [x] Exponential back-off test verifies second retry delay >= 2x first delay (1s→2s is 2x)
+- [x] Renders metrics test verifies phase duration rows and worker count display
+
+### Testing
+- All 11 tests passing (100% success) via: npm test -- spiral-ui/src/components/HealthWidget.test.tsx
+- Component test output: ✓ src/components/HealthWidget.test.tsx (11 tests) 271ms
+- No TypeScript or lint errors
+
 ## Iteration N+4 - Sun, May 18, 2026 - Story US-1387 Completed
 Completed: Integration tests for MockClaudeAPI class (ID: US-1387) in ~10m
 
@@ -860,3 +895,35 @@ This brief outlines the implementation for a timeout recovery integration test w
 - mypy --strict: Success on test file (pre-existing conftest.py errors not introduced by this story)
 ## Iteration 1 - Mon, May 18, 2026  8:59:18 AM
 Completed: Integration Test: Phase I Timeout Handler Reduces Scope and Completes Story (ID: US-1386) in 8m
+## Iteration 2 - Mon, May 18, 2026  9:06:14 AM
+Completed: Integration tests for MockClaudeAPI class — intercept and response injection (ID: US-1387) in 6m
+
+
+## Pre-analysis for US-1388 (Gemini 2.5 Pro)
+This user story is for a **React/TypeScript frontend component**, not a Frappe/Python app. The context should be prepared for a React/Vitest agent.
+
+Here is the technical brief:
+
+**Objective**: Implement Vitest frontend tests for the `HealthWidget.tsx` React component to verify polling, error handling, and data rendering.
+
+**Primary Files**:
+*   **File to Create/Edit**: `spiral_ui/frontend/HealthWidget.test.tsx`
+*   **Component Under Test**: `spiral_ui/frontend/HealthWidget.tsx`
+
+**Frappe/Backend Context**:
+*   No Frappe DocTypes are involved.
+*   The component interacts with a single backend endpoint: `/api/health`.
+
+**Implementation Approach**:
+1.  Use `@testing-library/react` to render the `HealthWidget` component.
+2.  Mock the global `fetch` API using `vi.spyOn(global, 'fetch')`.
+3.  Use `vi.useFakeTimers()` to control time-based logic like polling and back-off delays.
+4.  **Polling Test**: Assert that `fetch` is called every 5 seconds by using `vi.advanceTimersByTime(5000)`.
+5.  **Error Handling Test**: Mock `fetch` to return a rejected promise. Advance timers to verify that retry attempts occur with an exponentially increasing delay.
+6.  **Rendering Test**: Mock `fetch` to return a successful response with sample JSON data. Use `waitFor` to assert that the component correctly renders the phase durations and worker counts from the mock data.
+
+**Edge Cases/Gotchas**:
+*   Wrap state updates and assertions in `act()` or use `waitFor()` to handle asynchronous rendering after `fetch` calls.
+*   Ensure mocks are reset after each test using `afterEach(() => { vi.restoreAllMocks(); });` to prevent test contamination.
+*   Pay close attention to the timing logic when testing the exponential back-off mechanism.
+
