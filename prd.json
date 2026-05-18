@@ -3873,11 +3873,7 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-05-18T09:24:53Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe `lib/dry_run_planner.py` module exists and provides a clean, API-agnostic execution plan generator. The module:\n- Loads prd.json\n- Generates token estimates per phase\n- Outputs ASCII tree or JSON format\n- Never reads or uses ANTHROPIC_API_KEY\n\n## Problem Identified\n\nNeed to create security tests for US-1391 (dry-run subcommand) that verify:\n1. The dry-run command exits with code 0\n2. No outbound API calls are made (can be verified by mocking)\n3. No sensitive environment variables (API keys, tokens) leak in stdout\n\n## Planned Changes\n\nI will create `tests/test_dry_run_security.py` with:\n- Test: direct import of `plan_execution()` and verify no secrets in output\n- Test: subprocess invocation with `ANTHROPIC_API_KEY=sentinel` in env, verify sentinel doesn't appear in stdout\n- Test: verify module can be invoked as `python -m lib.dry_run_planner 1` and exits 0\n- Test: verify subprocess output matches no API key patterns (sk-ant, ANTHROPIC_API_KEY literal)\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_dry_run_security.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 85\n}\n</plan>\n\nNow I'll implement the test file:\nNow let's run the security tests to verify they all pass:\nPerfect! All 5 tests pass. Now let me run the pre-commit hooks to ensure code quality:\nLet me verify the acceptance criteria are fully met:\nPerfect! All acceptance criteria are met. Now let me mark the story as passing in prd.json:\nNow let me stage and commit the changes:\nPerfect! I've successfully implemented **US-1396** — security tests for the spiral dry-run command. Here's what was completed:\n\n## Summary"
-      },
-      "_passedCommit": "5549137a5f0cc7dfc0aa259c796feb2c6277fcbe"
+      "last_attempted": "2026-05-18T08:56:10Z"
     },
     {
       "id": "US-1397",
@@ -3900,11 +3896,7 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "_decomposedFrom": "US-1394",
-      "last_attempted": "2026-05-18T09:30:33Z",
-      "_phaseI": {
-        "diagnosisBlock": "### Current State\n- `results.tsv` exists with 224 rows of story execution history\n- Available columns: story_id, story_title, status, model, retry_num, and others\n- No `learning.md` exists yet\n- `templates/` directory has example files but no learning.md template\n- Existing lib files use csv.DictReader pattern with pathlib\n\n### Problem Identified\nNeed to create lib/learning_extractor.py that:\n1. Reads results.tsv and filters for retry_num == 0 (first-try successes)\n2. Extracts story_id, model_used, and other fields\n3. Deduplicates by story_id\n4. Creates learning.md from template if absent\n5. Appends deduplicated patterns to the \"successful_patterns\" section\n\n### Planned Changes\n- **Create `lib/learning_extractor.py`**: Function `extract_patterns(results_tsv_path, learning_md_path, min_confidence=0.7)` that:\n  - Reads results.tsv and filters for retry_num == '0'\n  - Extracts story_id, model_used, and basic metadata\n  - Deduplicates by story_id\n  - Creates learning.md from template if absent\n  - Appends entries under \"successful_patterns\" section\n  \n- **Create `templates/learning.md`**: Template with three sections:\n  - `### Successful Patterns`\n  - `### Failure Recovery`\n  - `### Scope Reduction Tips`\n\n- **Create `tests/test_learning_extractor.py`**: Tests covering:\n  - Filtering for retry_num == 0\n  - Deduplication by story_id\n  - Template creation\n  - Section verification\n\n<plan>\n{\n  \"files_to_create\": [\"lib/learning_extractor.py\", \"templates/learning.md\", \"tests/test_learning_extractor.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"extract_patterns\", \"_ensure_learning_md\", \"_get_existing_story_ids\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow I'll implement the solution:\n## ✅ Story US-1397 Complete"
-      }
+      "_decomposedFrom": "US-1394"
     },
     {
       "id": "US-1398",
@@ -4054,6 +4046,29 @@
       "model": "haiku"
     },
     {
+      "id": "US-1404",
+      "title": "CLI: spiral export-results Command for CSV/JSON Analytics Export",
+      "priority": "medium",
+      "description": "Add CLI command to export results.jsonl and computed iteration metrics (per-phase durations, model usage, cost breakdown) as CSV or JSON. Enables external spreadsheet analysis, historical tracking across runs, and integration with business intelligence tools.",
+      "acceptanceCriteria": [
+        "CLI command `spiral export-results --format csv` outputs CSV with columns: iteration, story_id, model, tokens_input, tokens_output, cost_usd, duration_sec, status (pass|fail|timeout), phase, date_completed; no headers for piping, proper CSV escaping",
+        "CLI command `spiral export-results --format json` outputs newline-delimited JSON with same fields plus nested object phase_times: {phase_name: duration_sec}; includes metadata object at first line with timestamp, iteration_count, total_cost_usd",
+        "CLI command includes `--since <ISO8601>` flag to filter results after timestamp; `--status <pass|fail|timeout>` to filter by story status; `--output <filepath>` to write to file (defaults to stdout)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/results_exporter.py (ResultsExporter class with export_csv(results_file, filters) and export_json(results_file, filters) methods)",
+        "File to edit: lib/cli_subcommands.sh (add export-results subcommand with --format, --since, --status, --output flags)",
+        "File to create: schema/results_export.json (JSON Schema for export format validation)",
+        "File to create: tests/test_results_exporter.py with fixture results.jsonl (5 stories, mixed statuses)",
+        "Test command: uv run pytest tests/test_results_exporter.py::test_export_csv_escaping -v",
+        "Test command: uv run pytest tests/test_results_exporter.py::test_export_json_valid_schema -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1405",
       "title": "[Integration Test] MockClaudeAPI fixture: intercept, inject, and failure paths",
       "priority": "high",
@@ -4074,6 +4089,46 @@
       "dependencies": [
         "US-1365"
       ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1406",
+      "title": "Phase V: Create granular verification evidence aggregator for detailed failure reports",
+      "priority": "medium",
+      "description": "Implement lib/phase_v_evidence.py to parse test output and file presence checks, generating detailed JSON evidence reports showing which acceptance criteria and tests failed per story",
+      "acceptanceCriteria": [
+        "Create lib/phase_v_evidence.py with TestEvidenceAggregator class that parses test stdout/stderr for AC status markers and file-presence assertions",
+        "Phase V generates .spiral/verification_evidence/<story-id>.json with failed AC list, failing test file, and line number references",
+        "Test: uv run pytest tests/test_phase_v_evidence.py::test_aggregator_parses_test_output verifies AC extraction and JSON schema"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral.sh (Phase V section ~line 850) to invoke phase_v_evidence.TestEvidenceAggregator().aggregate(test_stdout, story_id)",
+        "File to create: lib/phase_v_evidence.py (~150 lines) with regex patterns for @spiral:ac test markers",
+        "Test command: uv run pytest tests/test_phase_v_evidence.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1407",
+      "title": "Phase R: Research quality scorer to detect and skip low-value sources before synthesis",
+      "priority": "medium",
+      "description": "Implement lib/research_quality.py to score research results by source credibility (domain authority, snippet relevance, spam detection), filter low-scoring results before Gemini synthesis, and log filtering decisions",
+      "acceptanceCriteria": [
+        "Create lib/research_quality.py with score_research_result(url, snippet_text) returning 0-100 score; .edu/.gov/.org baseline >70, marketing/ad domains <30",
+        "Phase R filters results with score <40 before synthesis; logs skipped URLs, scores, and reason to .spiral/research_quality.jsonl",
+        "Test: uv run pytest tests/test_research_quality.py::test_score_academic_sources confirms educational domains >60, ad/spam <40"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/phases/phase_r.py (integrate scoring loop, ~30 lines) to call score_research_result() for each result",
+        "File to create: lib/research_quality.py (~120 lines) with domain whitelist/blacklist and snippet keyword analysis",
+        "Test command: uv run pytest tests/test_research_quality.py -v --tb=short"
+      ],
+      "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
