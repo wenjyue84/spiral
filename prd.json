@@ -4086,7 +4086,8 @@
       "last_attempted": "2026-05-18T10:38:55Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe MockClaudeAPI class and tests already exist. Running `pytest tests/test_mock_claude_api.py -v` shows 10 passing tests that cover:\n- Happy path (mock returns injected JSON response)\n- Failure paths (configured errors raise CalledProcessError)\n- Context manager functionality\n- Call logging\n- Multiple independent responses\n\nThe `mock_api_repo` fixture is defined in conftest.py but needs an isolation test to verify it can be exercised independently.\n\n## Problem Identified\n\nUS-1405 requires verification that the `mock_api_repo` fixture can be exercised in isolation. Currently, tests exist that USE the fixture but no test specifically validates the fixture itself can be created and used independently. I need to add one test to satisfy this acceptance criterion.\n\n## Planned Changes\n\n- Add a test `test_mock_api_repo_fixture_exercisable_in_isolation()` to `tests/test_mock_claude_api.py` that:\n  1. Requests the `mock_api_repo` fixture\n  2. Verifies it yields a tuple of (MockClaudeAPI, Path)\n  3. Confirms the git repo was initialized\n  4. Confirms the fixture can be used (e.g., call inject_response without errors)\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_mock_claude_api.py\"],\n  \"functions_to_add\": [\"test_mock_api_repo_fixture_exercisable_in_isolation\"],\n  \"estimated_loc\": 15\n}\n</plan>\n\nNow I'll add the isolation test to verify the fixture works independently:\nNow let me run the tests to verify all pass, including the new isolation test:\nExcellent! All 11 tests pass. Now let me run quality checks:\nPerfect! All acceptance criteria are satisfied. Let me run pre-commit checks before committing:\nPerfect! **Story US-1405 is complete and passing.** \n\n## Summary"
-      }
+      },
+      "_passedCommit": "757495cfeac32523cc6fbdd0189d42a4a0629adf"
     },
     {
       "id": "US-1408",
@@ -4109,8 +4110,9 @@
         "US-1366"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-05-18T10:46:53Z"
     },
     {
       "id": "US-1409",
