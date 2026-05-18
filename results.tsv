@@ -260,3 +260,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T15:36:16Z	26	2	US-1428	Phase I Error Classifier - Extract and Categorize Failure Patterns from results.tsv	keep	358	sonnet	0	f7a3ed3b77f2cb4c00a1137048b2a096785d5438	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T15:47:36Z	27	1	US-1429	[Integration Test] Phase R Research Cache Hit/Miss Validation via MockGeminiAPI	keep	203	haiku	0	f35ad43c44c776b7e6843e6f6dcaac7656e713a4	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T15:57:48Z	27	2	US-1430	spiral-ui: PhaseStatsCard React Component - Per-Phase Success Rate Grid	keep	585	haiku	0	fadc15a4aa6d9d19c1d059b6d3b11d794d86fd1b	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T16:11:14Z	28	1	US-1431	lib: Federation Story Namespace Validator - Detect Cross-SubProject Collisions	keep	465	haiku	0	14dd508623042beff25c3b90bc91e955ea9e9a39	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
