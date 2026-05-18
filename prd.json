@@ -3998,7 +3998,7 @@
         "US-1384"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "last_attempted": "2026-05-18T10:27:38Z"
     },
