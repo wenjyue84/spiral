@@ -1121,3 +1121,6 @@ Completed: Phase T: Extract Test Failure Patterns for Episodic Learning Integrat
 *   **TSV Format:** Ensure robust parsing of the `results.tsv`, handling potential inconsistencies.
 *   **Performance:** API calls can be slow; consider logging progress for better UX.
 
+## Iteration 3 - Tue, May 19, 2026  1:43:53 AM
+Completed: CLI: spiral research-replay <story-id> to Compare Current vs Historical Synthesis (ID: US-1438) in 6m
+
