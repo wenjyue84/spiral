@@ -7,8 +7,6 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from lib.ac_validator import (
     calculate_risk_level,
     check_ac_word_count,

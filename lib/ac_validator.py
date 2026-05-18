@@ -12,7 +12,6 @@ import json
 import re
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Callable
 
 
@@ -49,12 +48,8 @@ def detect_technical_references(acs: list[str]) -> list[str]:
 
     # Patterns for technical references
     patterns: dict[str, Callable[[str], bool]] = {
-        "filename": lambda text: bool(
-            re.search(r"\b[\w-]+\.(py|js|ts|tsx|jsx|sh|json|md|yaml|yml)\b", text)
-        ),
-        "function": lambda text: bool(
-            re.search(r"\b(def|function|class|interface)\s+\w+|(\w+\(\))|(\w+::\w+)", text)
-        ),
+        "filename": lambda text: bool(re.search(r"\b[\w-]+\.(py|js|ts|tsx|jsx|sh|json|md|yaml|yml)\b", text)),
+        "function": lambda text: bool(re.search(r"\b(def|function|class|interface)\s+\w+|(\w+\(\))|(\w+::\w+)", text)),
         "test": lambda text: bool(
             re.search(
                 r"\b(test_\w+|spec_\w+|assert|expect|test:|should:|pytest|vitest|unittest|@test)",
@@ -63,9 +58,7 @@ def detect_technical_references(acs: list[str]) -> list[str]:
             )
         ),
         "api_endpoint": lambda text: bool(re.search(r"(/\w+){2,}|/api/\w+", text)),
-        "file_path": lambda text: bool(
-            re.search(r"(src/|lib/|tests/|modules/|components/)", text)
-        ),
+        "file_path": lambda text: bool(re.search(r"(src/|lib/|tests/|modules/|components/)", text)),
     }
 
     for i, ac in enumerate(acs):
