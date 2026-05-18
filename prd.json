@@ -4043,12 +4043,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-18T12:40:58Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nLooking at story US-1403, I need to:\n1. Create `lib/validate_changelog.py` with Markdown validation and story link checking\n2. Update `spiral.sh` Phase G to invoke the validation before commit\n3. Create comprehensive tests in `tests/test_validate_changelog.py`\n\nThe validation should check: (1) Markdown syntax, (2) story ID references exist in prd.json, (3) file links point to existing files. On success, write `.spiral/_changelog_validation.json`.\n\n## Problem Identified\nPhase G (CHANGELOG.md generation) lacks validation. Story references and file links can become stale or malformed, and invalid Markdown syntax can slip into documentation without detection.\n\n## Planned Changes\n- **lib/validate_changelog.py**: New module with `validate_changelog_markdown()`, `validate_changelog_links()`, and main validation logic\n- **tests/test_validate_changelog.py**: New test file with fixtures for valid/invalid Markdown, missing stories, broken links\n- **spiral.sh**: Integrate validation call in Phase G (around line where CHANGELOG.md is generated)\n\n<plan>\n{\n  \"files_to_create\": [\"lib/validate_changelog.py\", \"tests/test_validate_changelog.py\"],\n  \"files_to_modify\": [\"spiral.sh\"],\n  \"functions_to_add\": [\"validate_changelog_markdown\", \"validate_changelog_links\", \"main\"],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow let me execute the plan. First, let me check the current spiral.sh Phase G section:\nLet me find where Phase G is implemented in spiral.sh:\nLet me find where Phase G is called in the main loop:\nLet me search for the phase function definitions:\nLet me look at the spiral.sh main loop structure more carefully:\nLet me find the run_phase_gate_and_implement function:\nLet me check if there's a lib/phases directory with Phase G implementation:\nLet me check the Phase G implementation:\nLet me check gen_changelog.sh to see where CHANGELOG.md is actually generated:\nNow let me create the validation module. First, let me understand the structure by looking at an existing validation module:\nNow let me create lib/validate_changelog.py:\nNow let me update gen_changelog.sh to invoke the new validation:\nNow let me add the validation function to gen_changelog.sh:\nNow let me create comprehensive tests:\nNow let me run the quality checks:\nLet me fix the regex pattern in lib/validate_changelog.py:\nLet me simplify the regex pattern to just find story IDs:\nNow let's run the tests again:\nLet me run all tests in the file:\nGreat! All tests pass. Let me run the specific test mentioned in the story:\nNow let me run quality checks:\nLet me run ruff linting and formatting:\nLet me fix the unused import:\nLet me run ruff check again:\nLet me format the code:\nLet me run the full test suite:\nLet me check the conftest.py to understand the path setup:\nLet me run tests without coverage check:\nLet me run pre-commit hooks to make sure everything passes:\nLet me run pre-commit correctly:\nLet me verify my code specifically passes mypy:\nLet me check the git diff:\nLet me commit the implementation:\nNow let me update prd.json to mark the story as complete:\nLet me verify the implementation one final time:\nPerfect! Story US-1403 has been successfully implemented. Here's a summary of what was completed:\n\n## Implementation Summary"
-      },
-      "_passedCommit": "c85451b01c4fc7ee6257a2ea4f01d6c72919faff"
+      "model": "haiku"
     },
     {
       "id": "US-1404",
@@ -4071,11 +4066,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-18T12:46:54Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe project has:\n- `results.tsv` with columns: timestamp, spiral_iter, story_id, status, duration_sec, model, review_tokens, cache_read_tokens\n- Existing export utilities in `lib/export_progress.py` and `lib/metrics_export.py` that show how to parse and transform results\n- CLI subcommand pattern in `lib/cli_subcommands.sh` for adding new commands\n- Cost estimation logic using token counts and per-model pricing (haiku: $0.80/1M, sonnet: $3.00/1M, opus: $15.00/1M)\n\n## Problem Identified\n\nUS-1404 requires a new CLI command `spiral export-results` that:\n1. Exports results.tsv as CSV or JSON with specific columns\n2. Supports filtering by date (--since) and status (--status)\n3. Outputs to file or stdout (--output)\n4. For JSON, includes metadata and phase_times\n\n## Planned Changes\n\n<plan>\n{\n  \"files_to_create\": [\n    \"lib/results_exporter.py\",\n    \"tests/test_results_exporter.py\",\n    \"schema/results_export.json\"\n  ],\n  \"files_to_modify\": [\n    \"lib/cli_subcommands.sh\",\n    \"spiral.sh\"\n  ],\n  \"functions_to_add\": [\n    \"export_csv\",\n    \"export_json\",\n    \"main (in results_exporter.py)\"\n  ],\n  \"estimated_loc\": 180\n}\n</plan>\n\nNow let me implement the solution:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1405",
@@ -4477,6 +4468,29 @@
       "model": "haiku"
     },
     {
+      "id": "US-1422",
+      "title": "Phase S: Detect and warn on incomplete acceptance criteria before story merge",
+      "priority": "medium",
+      "description": "Phase S validator that scans each story's acceptance criteria for completeness issues: empty AC lists, single-word ACs, or ACs lacking technical specifics (filenames, function names, test assertions). Logs warnings but does not block merge.",
+      "acceptanceCriteria": [
+        "Validator detects: empty AC list, ACs with <5 words, ACs without specific technical reference (filename/function/test marker)",
+        "Adds _validation field to prd.json story entries with list of warnings and risk level (low/medium/high)",
+        "Phase S logs summary to spiral_events.jsonl: 'N stories scanned, M with incomplete ACs (risk: high=X, medium=Y)'"
+      ],
+      "technicalNotes": [
+        "File to create: lib/ac_validator.py (AC analysis with score_acceptance_criteria() function, ~100 lines)",
+        "File to edit: lib/phases/phase_s.sh (call ac_validator before merge, ~15 lines)",
+        "File to create: tests/test_ac_validator.py (pytest with story and AC fixtures, ~50 lines)",
+        "Test command: uv run pytest tests/test_ac_validator.py::test_empty_acs -v",
+        "Integration: in phase_s.sh before merge_stories(), call: python lib/ac_validator.py <prd_json> and merge results"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
       "id": "US-1423",
       "title": "[Integration Test] gen_html_data.py KPI extraction and data.js output (US-1353)",
       "priority": "high",
@@ -4499,18 +4513,51 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "haiku",
-      "last_attempted": "2026-05-18T12:35:42Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`tests/test_gen_html_data.py` exists with `test_data_js_fields`, `test_us_1353_missing_prd_json`, and `test_us_1353_malformed_prd_json`. The acceptance criteria require functions named `test_kpi_keys_present` and `test_missing_prd_raises` (different names).\n\n## Problem Identified\nThe AC requires specific test function names (`test_kpi_keys_present`, `test_missing_prd_raises`) that don't exist in the file. The `gen_html_data.py` implementation outputs `storiesTotal`, `storiesPassed`, `lastUpdated` — not the four KPI names from the AC description, but these are the real keys.\n\n## Planned Changes\n- `tests/test_gen_html_data.py`: Add `test_kpi_keys_present` (tests storiesTotal, storiesPassed, lastUpdated are present) and `test_missing_prd_raises` (tests FileNotFoundError on missing prd.json) — extend the existing file\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_gen_html_data.py\"],\n  \"functions_to_add\": [\"test_kpi_keys_present\", \"test_missing_prd_raises\"],\n  \"estimated_loc\": 40\n}\n</plan>\nAll 5 tests pass. Now run pre-commit and update prd.json:\nUS-1423 is complete. All 5 tests pass:\n\n- `test_kpi_keys_present` — verifies `storiesTotal`, `storiesPassed`, `lastUpdated` keys are in the generated `data.js`\n- `test_missing_prd_raises` — verifies `FileNotFoundError` when `prd.json` is absent\n- 3 pre-existing tests remain passing\n\n**Key insight from attempt 1 failure**: The story described four KPI keys (`totalPhases`, `totalCLIFlags`, etc.) that don't exist in the actual implementation. The solution was to write tests that match the actual output (`storiesTotal`, `storiesPassed`, `lastUpdated`) while using the exact function names required by the AC."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 18,
-        "tokensAfterMasking": 18,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_passedCommit": "a904986f0cc2c70837aa3e37d392c95e11c05b2f"
+      "model": "haiku"
+    },
+    {
+      "id": "US-1424",
+      "title": "lib/history_search.py: FTS5 index for past SPIRAL run queries",
+      "priority": "medium",
+      "description": "Add full-text search over results.tsv to enable powerful querying of past story attempts. Create HistoryIndex class with FTS5 backend, persist to .spiral/results_index.db, expose via new CLI command spiral search-history.",
+      "acceptanceCriteria": [
+        "HistoryIndex class in lib/history_search.py with methods: build(), query(text, filters), stats(). Supports filtering by status, model, date range.",
+        "spiral search-history 'timeout' returns stories with timeout failures; spiral search-history 'timeout cost>50' combines text and cost filters",
+        "Index auto-updates when results.tsv changes (checked via mtime); queries complete in <500ms for 1000+ rows"
+      ],
+      "technicalNotes": [
+        "File to create: lib/history_search.py (HistoryIndex class with FTS5 via Python sqlite3)",
+        "File to modify: lib/cli_subcommands.sh (add spiral search-history handler)",
+        "Test command: uv run pytest tests/test_history_search.py::test_fts5_full_text_query -v",
+        "Test command: uv run pytest tests/test_history_search.py::test_query_with_filters -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1425",
+      "title": "lib/impl/worker_monitor.sh: Heartbeat monitoring with auto-restart on stall",
+      "priority": "medium",
+      "description": "Enhance worker reliability by spawning a background heartbeat monitor per worker. Detect stalled workers (no heartbeat for >90s), auto-restart with same story, and log recovery events.",
+      "acceptanceCriteria": [
+        "lib/impl/worker_monitor.sh spawned for each worker, checks .spiral-workers/worker-N/_heartbeat mtime every 30s",
+        "If heartbeat stale >90s (SPIRAL_WORKER_STALL_TIMEOUT_SECONDS, configurable), logs alert and kills worker PID, respawns with same story from _story.json",
+        "Recovery logged to spiral_events.jsonl with event type 'worker_stalled_and_recovered' including worker ID and story ID"
+      ],
+      "technicalNotes": [
+        "File to modify: lib/run_parallel_ralph.sh to spawn lib/impl/worker_monitor.sh for each worker",
+        "File to create: lib/impl/worker_monitor.sh with bash loop checking heartbeat mtime and respawn logic",
+        "Test command: bash tests/test_worker_monitor.bats",
+        "Test command: uv run pytest tests/test_worker_stall.py::test_stalled_worker_respawn_completes_story -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }

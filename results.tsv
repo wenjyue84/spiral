@@ -241,3 +241,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T11:58:11Z	17	3	US-1420	Security test: HealthWidget does not expose auth tokens in error responses	keep	223	sonnet	0	aaa0bd65c41ccbe948a8aed52cb930b2a11140f2	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T12:40:56Z	19	1	US-1423	[Integration Test] gen_html_data.py KPI extraction and data.js output (US-1353)	keep	197	sonnet	1	a904986f0cc2c70837aa3e37d392c95e11c05b2f	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T12:46:52Z	19	2	US-1403	Phase G: Validate CHANGELOG.md Markdown Compliance and Story Link Integrity	keep	328	haiku	0	c85451b01c4fc7ee6257a2ea4f01d6c72919faff	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T12:55:17Z	19	3	US-1404	CLI: spiral export-results Command for CSV/JSON Analytics Export	keep	483	haiku	0	823c0af652b0dd79cc8a2ecf78972f642c4673d2	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
