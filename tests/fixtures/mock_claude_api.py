@@ -136,3 +136,45 @@ class MockClaudeAPI:
         if self._patch is not None:
             self._patch.stop()
             self._patch = None
+
+    def intercept(self, responses: list[dict[str, Any]] | None = None) -> "MockClaudeAPI":
+        """Configure and activate subprocess interception with optional bulk response injection.
+
+        This method is an alternative to using MockClaudeAPI as a context manager.
+        It immediately patches subprocess.run and registers any pre-configured responses.
+
+        Args:
+            responses: Optional list of response dicts to inject. Each dict should have
+                      "phase" and "story_id" keys for keying responses.
+
+        Returns:
+            Self for method chaining.
+
+        Usage::
+
+            mock = MockClaudeAPI()
+            mock.intercept(responses=[{"phase": "I", "story_id": "US-001", "data": {}}])
+            # subprocess is now patched
+            result = subprocess.run(["claude", "--phase", "I", "--story", "US-001"], ...)
+            # ... use mock
+            mock.stop()  # explicitly stop patching
+        """
+        # Inject bulk responses if provided
+        if responses:
+            for resp_config in responses:
+                phase = resp_config.get("phase")
+                story_id = resp_config.get("story_id")
+                response_data = {k: v for k, v in resp_config.items() if k not in ("phase", "story_id")}
+                if phase and story_id:
+                    self.inject_response(phase, story_id, response_data)
+
+        # Start patching subprocess
+        self._patch = patch("subprocess.run", side_effect=self._make_side_effect())
+        self._patch.start()
+        return self
+
+    def stop(self) -> None:
+        """Stop subprocess interception. Call this after using intercept()."""
+        if self._patch is not None:
+            self._patch.stop()
+            self._patch = None

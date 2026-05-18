@@ -120,6 +120,51 @@ def test_mock_api_repo_fixture_exercisable_in_isolation(mock_api_repo: tuple[Moc
     assert result.returncode == 0
 
 
+def test_intercept_no_real_call() -> None:
+    """MockClaudeAPI.intercept(responses=[...]) patches subprocess so no real CLI call is made."""
+    import json
+
+    mock = MockClaudeAPI()
+    mock.intercept(
+        responses=[
+            {"phase": "I", "story_id": "US-001", "status": "ok"},
+        ]
+    )
+
+    try:
+        # Call subprocess - should be intercepted, not make real API call
+        result = subprocess.run(
+            ["claude", "--phase", "I", "--story", "US-001"],
+            capture_output=True,
+            timeout=5,  # Short timeout proves no network
+        )
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout.decode("utf-8"))
+        assert parsed == {"status": "ok"}
+    finally:
+        mock.stop()
+
+
+def test_call_log() -> None:
+    """MockClaudeAPI can be instantiated with no arguments and records all intercepted calls in .call_log."""
+    mock = MockClaudeAPI()
+
+    # call_log should be empty initially
+    assert mock.call_log == []
+
+    # Use context manager to patch subprocess
+    with mock:
+        mock.inject_response("I", "US-log-test-1", {"logged": True})
+        mock.inject_response("V", "US-log-test-2", {"result": "verify"})
+        subprocess.run(["claude", "--phase", "I", "--story", "US-log-test-1"], capture_output=True)
+        subprocess.run(["claude", "--phase", "V", "--story", "US-log-test-2"], capture_output=True)
+
+    # After context exit, call_log should have 2 entries
+    assert len(mock.call_log) == 2
+    assert mock.call_log[0] == ["claude", "--phase", "I", "--story", "US-log-test-1"]
+    assert mock.call_log[1] == ["claude", "--phase", "V", "--story", "US-log-test-2"]
+
+
 @pytest.mark.us_1365
 def test_mock_api_prevents_network_calls_us_1365() -> None:
     """Verify MockClaudeAPI intercepts subprocess calls and prevents real network calls.
