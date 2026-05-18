@@ -930,3 +930,22 @@ All 3 acceptance criteria tests PASSED:
 When a story fails only due to DIAGNOSIS_BLOCK_MISSING, the code is already correct.
 On retry, verify test results first, then output diagnosis block + mark passes=true.
 No code changes were required.
+
+
+## Iteration [35] - Story: US-1434 Phase V: Output test evidence.json per story with verification metadata
+
+### What was implemented
+- Re-verified existing implementation from iteration 31 (commit 0c5485bb)
+- All code already committed: lib/phase_v_evidence.py, shell integrations, tests
+- 8/8 tests passing, mypy strict clean, ruff clean
+- Re-marked passes: true (was reverted by later story commits)
+
+### Patterns discovered
+- When SPIRAL commits multiple stories in one iteration, later prd.json writes can overwrite earlier passes:true
+- On retry, check if code is already committed and tests pass before reimplementing
+
+### Gotchas
+- prd.json passes field can be silently reverted by other story commits in the same iteration
+
+## Iteration 2 - Mon, May 19, 2026
+Completed: Phase V: Output test evidence.json per story with verification metadata (ID: US-1434) — retry verified existing implementation
