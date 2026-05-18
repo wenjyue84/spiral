@@ -1834,3 +1834,32 @@ Completed: [Integration Test] MockClaudeAPI fixture and conftest wiring for US-1
 ### Gotchas
 - Previous attempt failed only due to missing diagnosis block (not code issues)
 - All 4 acceptance criteria confirmed passing: test_mock_claude_api.py (12 tests), test_conftest.py (4 tests), -k us_1365 (1 passed), failure injection tests present
+## Iteration 2 - Mon, May 18, 2026  7:15:55 PM
+Completed: [Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365 (ID: US-1409) in 2m
+
+
+## Iteration - Sun, May 18, 2026 - Story US-1410 Completed
+Completed: Security tests for 06-configuration.html (ID: US-1410) in ~5m
+
+### What was implemented
+- Created tests/test_html_config.py with three security-focused test functions:
+  - test_no_secret_patterns: Uses Python regex to verify no high-entropy secrets (20+ chars) are rendered
+  - test_anchor_ids_present: Parses HTML with custom HTMLParser to find all config anchor IDs
+  - test_config_anchor_format: Validates all anchors match expected format id="config-SPIRAL_*"
+
+### Key Patterns Discovered
+- HTMLParser.handle_starttag() for selective attribute extraction without full DOM parsing
+- Regex pattern for secret detection: (api_key|token|password|secret)\s*=\s*[A-Za-z0-9+/]{20,}
+- File path validation and content reading via pathlib.Path
+
+### Acceptance Criteria Met
+- [x] No secret patterns found in 06-configuration.html (grep returns exit 1)
+- [x] Python anchor ID validation passes (114 anchors found with config-SPIRAL_ format)
+- [x] uv run pytest tests/test_html_config.py exits 0 (3/3 tests pass)
+- [x] At least 10 config anchors present (actually 114)
+
+### Testing
+- All 3 tests passing (100%): pytest tests/test_html_config.py -v
+- mypy --strict: ✓ passed (no type errors)
+- ruff check: ✓ passed
+- File size: 3.1 KB test code, well under limits
