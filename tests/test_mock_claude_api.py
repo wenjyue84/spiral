@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import subprocess
 
+import pytest
+
 from tests.fixtures.mock_claude_api import MockClaudeAPI
 
 
@@ -26,7 +28,8 @@ def test_inject_failure_stored_and_retrieved() -> None:
 def test_context_manager_patches_subprocess_run() -> None:
     """MockClaudeAPI as context manager intercepts claude subprocess calls."""
     with MockClaudeAPI() as mock:
-        result = subprocess.run(["claude", "--print", "hello"], capture_output=True)
+        mock.inject_response("I", "US-test", {})
+        result = subprocess.run(["claude", "--phase", "I", "--story", "US-test"], capture_output=True)
         assert result.returncode == 0
         assert len(mock.call_log) == 1
         assert mock.call_log[0][0] == "claude"
@@ -38,7 +41,7 @@ def test_inject_response_returned_as_stdout() -> None:
 
     with MockClaudeAPI() as mock:
         mock.inject_response("I", "US-042", {"status": "pass"})
-        result = subprocess.run(["claude", "--story", "US-042"], capture_output=True)
+        result = subprocess.run(["claude", "--phase", "I", "--story", "US-042"], capture_output=True)
         assert result.returncode == 0
         parsed = json.loads(result.stdout.decode("utf-8"))
         assert parsed == {"status": "pass"}
@@ -48,7 +51,7 @@ def test_inject_failure_returncode_exits_nonzero() -> None:
     """inject_failure('returncode') causes subprocess to return exit code 1."""
     with MockClaudeAPI() as mock:
         mock.inject_failure("I", "returncode")
-        result = subprocess.run(["claude", "--story", "US-001"], capture_output=True)
+        result = subprocess.run(["claude", "--phase", "I", "--story", "US-001"], capture_output=True)
         assert result.returncode == 1
 
 
@@ -67,3 +70,31 @@ def test_multiple_responses_independent() -> None:
     assert mock.get_response("I", "US-001") == {"a": 1}
     assert mock.get_response("V", "US-002") == {"b": 2}
     assert mock.get_response("I", "US-002") is None
+
+
+def test_intercept_success() -> None:
+    """MockClaudeAPI.intercept returns injected success response when called."""
+    import json
+
+    with MockClaudeAPI() as mock:
+        mock.inject_response("I", "US-100", {"status": "success", "data": 42})
+        result = subprocess.run(["claude", "--phase", "I", "--story", "US-100"], capture_output=True)
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout.decode("utf-8"))
+        assert parsed == {"status": "success", "data": 42}
+
+
+def test_inject_failure() -> None:
+    """MockClaudeAPI raises configured exception type when non-returncode failure is injected."""
+    with MockClaudeAPI() as mock:
+        mock.inject_failure("R", "timeout")
+        with pytest.raises(subprocess.CalledProcessError):
+            subprocess.run(["claude", "--phase", "R"], capture_output=True)
+
+
+def test_unmatched_raises() -> None:
+    """MockClaudeAPI raises AssertionError for calls not matching any injected pattern."""
+    with MockClaudeAPI() as mock:
+        mock.inject_response("I", "US-001", {"ok": True})
+        with pytest.raises(AssertionError, match="Unmatched claude call"):
+            subprocess.run(["claude", "--phase", "I", "--story", "US-999"], capture_output=True)

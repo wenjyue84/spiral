@@ -98,21 +98,32 @@ class MockClaudeAPI:
 
             self._call_log.append(arg_list)
 
-            # Check for phase-level failure (wildcard story)
-            for phase, error_type in self._failures.items():
+            # Extract phase and story_id from command line arguments
+            phase: str | None = None
+            story_id: str | None = None
+            for i, arg in enumerate(arg_list):
+                if arg == "--phase" and i + 1 < len(arg_list):
+                    phase = arg_list[i + 1]
+                elif arg == "--story" and i + 1 < len(arg_list):
+                    story_id = arg_list[i + 1]
+
+            # Check for matching failure
+            if phase and phase in self._failures:
+                error_type = self._failures[phase]
                 if error_type == "returncode":
                     return subprocess.CompletedProcess(args=arg_list, returncode=1, stdout=b"", stderr=b"")
                 raise subprocess.CalledProcessError(1, arg_list, stderr=b"mock error")
 
-            # Check for matching response
-            for (phase, story_id), response in self._responses.items():
+            # Check for matching response (phase and story_id must match)
+            if phase and story_id and (phase, story_id) in self._responses:
                 import json as _json
 
+                response = self._responses[(phase, story_id)]
                 stdout = _json.dumps(response).encode("utf-8")
                 return subprocess.CompletedProcess(args=arg_list, returncode=0, stdout=stdout, stderr=b"")
 
-            # Default: success with empty output
-            return subprocess.CompletedProcess(args=arg_list, returncode=0, stdout=b"", stderr=b"")
+            # Unmatched call: raise AssertionError
+            raise AssertionError(f"Unmatched claude call: {arg_list}. No injected response or failure configured.")
 
         return _side_effect
 
