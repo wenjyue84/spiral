@@ -723,3 +723,54 @@ Completed: Ralph: Inject error recovery hints from failure history into decompos
 ## Iteration 1 - Tue, May 19, 2026 12:27:06 AM
 Completed: Ralph: Inject error recovery hints from failure history into decomposition prompts (ID: US-1432) in 9m
 
+
+
+## Iteration [30] - Story: US-1433 Create MockClaudeAPI class in tests/fixtures/mock_claude_api.py
+
+### What was implemented
+
+Enhanced MockClaudeAPI class with an `intercept()` method and two new test functions:
+
+1. **MockClaudeAPI.intercept() method (43 lines)**
+   - Added alternative interface to context manager for subprocess interception
+   - Accepts optional `responses: list[dict[str, Any]]` for bulk response injection
+   - Extracts "phase" and "story_id" keys from each response dict
+   - Patches subprocess.run immediately when called
+   - Returns self for potential method chaining
+   - Added complementary `stop()` method to explicitly stop patching
+
+2. **test_intercept_no_real_call() test (20 lines)**
+   - Verifies intercept() method works without network calls
+   - Uses short timeout (5s) to prove no network wait
+   - Injects response via intercept() bulk-response interface
+   - Validates JSON response parsing
+   - Uses try/finally to ensure mock.stop() cleanup
+
+3. **test_call_log() test (17 lines)**
+   - Verifies call_log property starts empty
+   - Confirms call_log records all intercepted subprocess calls with exact args
+   - Tests with two consecutive calls to verify ordering and completeness
+   - Uses context manager pattern to ensure cleanup
+
+### Patterns discovered
+
+- MockClaudeAPI already had all core functionality via context manager pattern
+- The intercept() method provides non-context-manager alternative for integration tests
+- Response injection from bulk list uses dict comprehension to extract data fields
+- Mock.stop() method mirrors __exit__ behavior for explicit cleanup path
+- All 14 tests (12 original + 2 new) pass without modification to existing code
+
+### Gotchas
+
+- The response dict format for bulk injection requires "phase" and "story_id" as special keys
+- intercept() method returns self (not strictly needed but allows chaining)
+- stop() method is critical for cleanup when not using context manager
+
+### Acceptance criteria met
+
+- [x] AC1: test_intercept_no_real_call verifies MockClaudeAPI.intercept() patches subprocess without real calls
+- [x] AC2: test_inject_failure passes (already existed, verified still works)
+- [x] AC3: test_call_log verifies call_log property records all intercepted calls
+- [x] MyPy strict type checking passes
+- [x] All 14 tests passing (12 existing + 2 new)
+- [x] Story marked as passes: true in prd.json
