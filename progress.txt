@@ -1,3 +1,47 @@
+## Iteration N+3 - Sun, May 18, 2026 - Story US-1379 Completed
+Completed: CLI: Add spiral cleanup --remove-stale-workers (ID: US-1379) in ~30m
+
+### What was implemented
+- lib/worker_cleanup.sh: New cleanup utility module (~220 lines)
+  - Functions: find_stale_workers(), remove_worker_worktree(), estimate_freed_space(), cleanup_stale_workers()
+  - Scans .spiral-workers/ directory for orphaned git worktrees
+  - Identifies stale workers: no active process (via ps/tasklist) + last-modified > 2 hours old
+  - Safely removes worktrees using git worktree remove with rm -rf fallback
+  - Accumulates and reports freed disk space estimate (MB)
+
+- spiral.sh: Added 'cleanup' subcommand parsing (--remove-stale-workers flag)
+  - Parse cleanup command and set CLEANUP_MODE flag
+  - Added help text documenting new command
+
+- lib/cli_subcommands.sh: Added CLEANUP_MODE dispatch handler
+  - Sources lib/worker_cleanup.sh and calls cleanup_stale_workers()
+  - Always exits with code 0 (success)
+
+- tests/test_worker_cleanup.bats: Comprehensive test suite
+  - 11 test cases covering: empty directories, stale detection, active worker preservation
+  - Tests summary message format and exit codes
+  - All 11 tests passing (100% success)
+
+### Key Patterns Discovered
+- Worker heartbeat format: first line contains PID, located at .spiral-workers/worker-N/.heartbeat
+- is_process_alive() uses ps -p which works cross-platform (Windows Git Bash + Unix)
+- Time-based staleness checks use date +%s for epoch seconds, 2 hours = 7200 seconds
+- Cleanup summary format: "[spiral] Cleaned N worker(s), freed ~M MB" or "[spiral] No stale workers found"
+
+### Acceptance Criteria Met
+- [x] Identifies stale workers: no active process (ps/tasklist) + last-modified > 2 hours
+- [x] For each stale, runs git worktree remove with safe rm fallback
+- [x] Exit summary: "Cleaned N workers, freed M MB" OR "No stale workers found. All workers active."
+- [x] Exit code always 0
+- [x] tests/bats-core/bin/bats tests/test_worker_cleanup.bats: 11/11 passing
+
+### Testing
+- All 11 bats tests passing (100%)
+- Manual CLI verification: `bash spiral.sh cleanup --remove-stale-workers` works
+- Shellcheck: ✓ passed (no errors)
+- Shfmt: ✓ passed (formatting correct)
+- Help text verified in spiral.sh --help
+
 ## Iteration N+2 - Sun, May 18, 2026 - Story US-1341 Completed (Attempt 2)
 Completed: Ralph @spiral:hint-complexity-band marker for scope-aware decomposition (ID: US-1341)
 
@@ -712,4 +756,41 @@ Completed: spiral-ui - Add CostAnalysisTab with stacked bar and cumulative line 
 - Error and loading states properly handled
 - Mock API response fixtures correctly structured
 - No TypeScript errors or ESLint violations
+
+## Iteration 1 - Mon, May 18, 2026  8:48:24 AM
+Completed: Ralph: Support @spiral:hint-complexity-band marker for scope-aware decomposition (ID: US-1341) in 6m
+
+
+## Pre-analysis for US-1386 (Gemini 2.5 Pro)
+### Technical Brief: US-1386 Timeout Handler Integration Test
+
+This brief outlines the implementation for a timeout recovery integration test within the Spiral framework. Note: This story pertains to the core Spiral/Ralph agent logic, not a Frappe application.
+
+**1. Files to Modify:**
+
+*   **Create:** `tests/integration/test_phase_i_timeout_recovery.py` (The primary test file).
+*   **Modify:** `lib/impl/timeout_handler.sh` (To ensure it correctly traps signals and calls the scope reducer).
+*   **Modify:** `tests/conftest.py` (To add timeout simulation capabilities to the mock runner).
+*   **Modify:** `lib/impl/scope_reducer.py` (Or similar file, to implement the logic for trimming ACs).
+
+**2. Involved Components (Not Frappe DocTypes):**
+
+*   **Core Logic:** `ralph_run`, `timeout_handler`, `scope_reducer`.
+*   **Testing:** `pytest` framework, `MockClaudeRunner` fixture.
+*   **Configuration:** The user story state, likely passed as a JSON object or file.
+
+**3. Recommended Implementation Approach:**
+
+1.  In `tests/conftest.py`, enhance `MockClaudeRunner` with a `.with_timeout(seconds)` method that uses `signal.alarm()` or a similar mechanism to send a `SIGALRM` after the specified duration.
+2.  In `lib/impl/timeout_handler.sh`, implement a `trap` to catch the `SIGALRM`. The trap's handler function should call the `scope_reducer` logic and then re-execute `ralph_run` with the modified (reduced scope) story.
+3.  Create `tests/integration/test_phase_i_timeout_recovery.py` to use the timeout-enabled mock fixture.
+4.  The test should assert that the `scope_reducer` is called (e.g., by mocking it or checking its output/side effects).
+5.  Finally, assert that the story eventually completes with a reduced number of acceptance criteria and that the retry attempt is logged.
+
+**4. Edge Cases & Gotchas:**
+
+*   **Signal Propagation:** Ensure `SIGALRM` is correctly propagated from the Python test process to the shell script environment running Ralph.
+*   **State Management:** The reduced-scope story must be correctly passed to the retry-invocation of Ralph. Ensure state is not corrupted between attempts.
+*   **Idempotency:** The `scope_reducer` should be designed to handle being called multiple times, even if the current implementation only expects one call.
+*   **Mandatory vs. Optional:** The logic to differentiate between mandatory and optional ACs must be robust. Assume ACs are mandatory unless explicitly marked otherwise.
 
