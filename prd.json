@@ -4548,7 +4548,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "last_attempted": "2026-05-18T14:26:04Z"
