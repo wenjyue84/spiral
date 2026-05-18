@@ -4378,7 +4378,7 @@
         "US-1349"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
       "model": "haiku",
       "last_attempted": "2026-05-18T11:48:50Z"
