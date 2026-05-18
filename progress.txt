@@ -1,3 +1,15 @@
+## Iteration N+2 - Sun, May 18, 2026 - Story US-1341 Completed (Attempt 2)
+Completed: Ralph @spiral:hint-complexity-band marker for scope-aware decomposition (ID: US-1341)
+
+### What was implemented
+- lib/parse_story_hints.py: extract_complexity_band() + build_hint_context() (committed in attempt 1)
+- lib/impl/decompose.sh: added --enable-hints flag to decompose_story.py invocation
+- ralph/CLAUDE.md: documented @spiral:hint-complexity-band marker syntax (committed in attempt 1)
+- tests/test_parse_story_hints.py: 15 tests covering extraction, context building, 3-story integration
+
+### Gotchas
+- Attempt 1 created all files but forgot to pass --enable-hints in decompose.sh and didn't mark passes: true
+
 ## Iteration N+1 - Sun, May 18, 2026 - Story US-1385 Completed
 Completed: spiral-ui: Add CostAnalysisTab with stacked bar and cumulative line charts (ID: US-1385) in ~15m
 
