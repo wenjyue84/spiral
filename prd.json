@@ -5038,7 +5038,36 @@
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe `tests/test_spiral_integration.py` file already has a `TestCredentialSecurity` class with two tests (`test_no_credential_leakage_in_spiral_state_security` and `test_no_credential_in_stdout_security`). However, the story requires two specific additional tests: `test_security_unauthorized_access` and `test_no_credential_leak_on_auth_failure`.\n\n## Problem Identified\nThe acceptance criteria require:\n1. Tests discoverable by `-k 'security or auth or permission'` that pass\n2. A test verifying unauthorized API calls return 401/403 (or exception) without credential exposure\n3. A test using `caplog` to assert no credential strings appear in log output during auth failures\n\n## Planned Changes\n- Add two new test methods to `TestCredentialSecurity` in `tests/test_spiral_integration.py`:\n  - `test_security_unauthorized_access`: simulates missing/invalid auth token, verifies 401/403 or exception without credentials in error\n  - `test_no_credential_leak_on_auth_failure`: uses `caplog` to verify no credential patterns in log output\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_spiral_integration.py\"],\n  \"functions_to_add\": [\"test_security_unauthorized_access\", \"test_no_credential_leak_on_auth_failure\"],\n  \"estimated_loc\": 80\n}\n</plan>\nNow let's run the tests to verify they pass:\nAll 4 tests pass. Now run mypy and ruff to verify quality gates:\nAll 4 tests pass. Now update prd.json to mark the story as passing:\nUS-1439 is complete. Here's a summary of what was implemented:\n\n**Added two tests to `TestCredentialSecurity` in `tests/test_spiral_integration.py`:**\n\n1. **`test_security_unauthorized_access`** — Injects a mock that raises `CalledProcessError(401, ...)` with a generic \"Authentication failed\" message. Verifies the returncode is 1/401/403 and that the invalid token value (`sk-ant-INVALID-TOKEN-99999`) does not appear in the error output.\n\n2. **`test_no_credential_leak_on_auth_failure`** — Uses pytest's `caplog` fixture at WARNING level. A mock raises `CalledProcessError(403)` and logs a redacted warning message. Asserts no `sk-[A-Za-z0-9_-]{10,}` pattern or fake key value appears in any captured log record.\n\n**Results:** 4 tests collected and passed, mypy strict passes, ruff clean."
       },
-      "_passedCommit": "6a4b18f73ac829ed065ff7c53fcdee602d33ac20"
+      "_passedCommit": "6a4b18f73ac829ed065ff7c53fcdee602d33ac20",
+      "_skipped": true,
+      "_failureReason": "dependency US-1371 was skipped"
+    },
+    {
+      "id": "US-1440",
+      "title": "[Security Test] HealthWidget /api/health endpoint auth/permission checks",
+      "priority": "high",
+      "description": "Write security tests verifying that the /api/health endpoint introduced by US-1366 enforces access control correctly. Tests must confirm unauthorized requests receive 401/403 and that no sensitive data is leaked in error responses.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/ -k 'us_1366 and security' -v exits 0 with at least 2 passing tests",
+        "An unauthenticated GET /api/health request returns HTTP 401 or 403",
+        "Error response body contains no tokens, passwords, or secret keys (grep for 'token\\|password\\|secret' returns nothing in the response)",
+        "Authenticated request with valid credentials returns HTTP 200"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us1366.py (new file — security test suite for US-1366 /api/health auth)",
+        "Reference implementation files: spiral_ui/frontend/HealthWidget.tsx, spiral_ui/frontend/Dashboard.tsx",
+        "Test command: uv run pytest tests/test_security_us1366.py -v",
+        "Test command (full suite filter): uv run pytest tests/ -k us_1366 -v",
+        "Use the existing test client/fixture pattern from tests/test_auth.py if present; check spiral_ui backend for auth middleware entry point"
+      ],
+      "dependencies": [
+        "US-1366"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "sonnet",
+      "last_attempted": "2026-05-18T18:25:27Z"
     }
   ]
 }

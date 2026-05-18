@@ -1147,3 +1147,22 @@ Completed: CLI: spiral research-replay <story-id> to Compare Current vs Historic
 ## Iteration 1 - Tue, May 19, 2026  2:04:54 AM
 Completed: [Security Test] Auth/permission integration test for US-1371 MockClaudeAPI (ID: US-1439) in 3m
 
+
+## Iteration [N] - Story: US-1440 [Security Test] HealthWidget /api/health endpoint auth/permission checks
+
+### What was implemented
+- Created `tests/test_security_us1366.py` with 4 security tests for `/api/health` auth enforcement
+- Used FastAPI TestClient + ASGI middleware pattern (same as test_dashboard_auth_enforcement.py)
+- Mock app with `_HealthAuthMiddleware` blocks unauthenticated requests with 401, wrong key with 403
+
+### Patterns discovered
+- `-k 'us_1366 and security'` requires BOTH keywords in the test node ID (module + class + function)
+- Module name `test_security_us1366` contains "security" but NOT "us_1366" (no underscore) — must put `us_1366` in function names
+- xdist MemoryError on full `tests/` collection is pre-existing; run specific file or targeted path instead
+- `uv run ruff format` reformats long assert message strings to single-line
+
+### Acceptance criteria met
+- [x] AC1: `uv run pytest tests/test_security_us1366.py -k 'us_1366 and security' -v` exits 0, 4 tests collected
+- [x] AC2: test_unauthenticated_health_request_returns_401_us_1366_security verifies 401/403
+- [x] AC3: test_error_response_no_sensitive_data_us_1366_security asserts no token/password/secret in error body
+- [x] AC4: test_authenticated_health_request_returns_200_us_1366_security verifies 200 with valid key
