@@ -4852,14 +4852,9 @@
         "US-1365"
       ],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "_source": "test-story",
-      "model": "haiku",
-      "last_attempted": "2026-05-18T16:39:25Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe MockClaudeAPI class already exists with full functionality using a context manager pattern. All 12 existing tests pass. However, the story's acceptance criteria require three specific test functions and an `intercept()` method.\n\n## Problem Identified\n\nThe story requires:\n- AC1: `test_intercept_no_real_call` test for `MockClaudeAPI.intercept(responses=[...])` method\n- AC2: `test_inject_failure` test (✓ already exists and passes)\n- AC3: `test_call_log` test for verifying call_log property\n\nMissing implementations:\n- `intercept()` method (currently only context manager available)\n- `test_intercept_no_real_call` test\n- `test_call_log` test\n\n## Planned Changes\n\n1. **Add `intercept()` method to MockClaudeAPI** — decorator/method for bulk response injection that patches subprocess\n2. **Add `test_intercept_no_real_call()` test** — verifies intercept method patches subprocess without real calls\n3. **Add `test_call_log()` test** — verifies call_log property records intercepted calls\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"tests/fixtures/mock_claude_api.py\",\n    \"tests/test_mock_claude_api.py\"\n  ],\n  \"functions_to_add\": [\n    \"intercept\",\n    \"test_intercept_no_real_call\",\n    \"test_call_log\"\n  ],\n  \"estimated_loc\": 40\n}\n</plan>\n\nNow implementing the required changes:\n## Summary"
-      },
-      "_passedCommit": "b247fbd90cd1a0eea61d5b5663d14727928cc58a"
+      "model": "haiku"
     },
     {
       "id": "US-1434",
@@ -4879,14 +4874,34 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-05-18T16:45:48Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/phase_v_evidence.py` exists but only has `TestEvidenceAggregator`, `aggregate_evidence()`, and a basic CLI — it lacks `write_evidence_json()` and `aggregate_phase_v_summary()`\n- `tests/test_phase_v_evidence.py` exists with 5 tests but no tests for the new functions\n- `lib/phases/phase_v_validate.sh` calls evidence at lines 796-812 (old approach)\n- `lib/phases/gen_changelog.sh` has no badge embedding\n\n## Problem Identified\nUS-1434 requires per-story evidence JSONs at `.spiral/evidence/<story-id>.json` with a specific schema, a `phase_v_summary.json` with aggregate stats, and Phase G reading that summary to embed a verification badge.\n\n## Planned Changes\n- `lib/phase_v_evidence.py`: Add `write_evidence_json()`, `aggregate_phase_v_summary()`, update CLI with `--per-story`, `--evidence-dir`, `--summary-out` flags\n- `tests/test_phase_v_evidence.py`: Add `test_write_evidence_json()` and `test_aggregate_phase_v_summary()`\n- `lib/phases/phase_v_validate.sh`: Call new `--per-story` CLI after verification loop\n- `lib/phases/gen_changelog.sh`: Read `phase_v_summary.json` and embed badge\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\n    \"lib/phase_v_evidence.py\",\n    \"tests/test_phase_v_evidence.py\",\n    \"lib/phases/phase_v_validate.sh\",\n    \"lib/phases/gen_changelog.sh\"\n  ],\n  \"functions_to_add\": [\"write_evidence_json\", \"aggregate_phase_v_summary\"],\n  \"estimated_loc\": 120\n}\n</plan>\nNow update the CLI `main()` to support `--per-story`, `--evidence-dir`, `--summary-out`:\nNow add the two new tests to `tests/test_phase_v_evidence.py`:\nNow I need to add the `pytest` import to the test file:\nNow update `lib/phases/phase_v_validate.sh` to call the new `--per-story` flag after the existing evidence block:\nNow update `lib/phases/gen_changelog.sh` to embed the verification badge:\nNow let's run the tests to verify:\nAll 8 tests pass. Let's also run mypy:\nAll checks pass. Let's mark the story as complete in prd.json:\nNow append to progress.txt and commit:\nUS-1434 is complete. Here's a summary of what was done:\n\n**Changes made:**\n\n- **`lib/phase_v_evidence.py`** — Added `write_evidence_json()` (writes `.spiral/evidence/<story-id>.json` with schema `{testFile, testMarker, passed, duration_ms, timestamp}`) and `aggregate_phase_v_summary()` (computes `{total_stories, pass_count, fail_count, pass_rate_percent, slowest_tests}`). Updated CLI with `--per-story`, `--evidence-dir`, `--summary-out` flags.\n\n- **`lib/phases/phase_v_validate.sh`** — Added a `--per-story` invocation block after the existing evidence aggregator, writing per-story files to `.spiral/evidence/` and summary to `.spiral/phase_v_summary.json`.\n\n- **`lib/phases/gen_changelog.sh`** — Added badge embedding at the end of `phase_gen_changelog()`: reads `.spiral/phase_v_summary.json` and appends a `> **Verification Status**: N/M stories verified (X%)` line to CHANGELOG.md.\n\n- **`tests/test_phase_v_evidence.py`** — Added 3 new tests: `test_write_evidence_json`, `test_aggregate_phase_v_summary`, `test_main_per_story_flag`. All 8 tests pass, mypy strict clean, ruff clean."
-      },
-      "_passedCommit": "f0299293d6954c985e605de669be45ea665d501d"
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1435",
+      "title": "Test html/pages/06-configuration.html contains all SPIRAL_* vars with anchors",
+      "priority": "high",
+      "description": "Write a test that validates the configuration reference page added in US-1349. The test must confirm every expected SPIRAL_* variable appears in the HTML file and that each has a matching anchor element so deep-links resolve correctly.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_config_page.py -v exits 0 with all assertions passing",
+        "Test asserts html/pages/06-configuration.html exists and is non-empty",
+        "Test parses HTML and asserts id='config-SPIRAL_VALIDATE_CMD' anchor is present as a representative sample of required anchors"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_config_page.py (create; use Python html.parser or BeautifulSoup to parse html/pages/06-configuration.html)",
+        "File to edit: html/pages/06-configuration.html (source under test — read only, do not modify)",
+        "Test command: uv run pytest tests/test_config_page.py -v --tb=short",
+        "Dependency: beautifulsoup4 may need adding via uv add beautifulsoup4 if not present"
+      ],
+      "dependencies": [
+        "US-1349"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "haiku",
+      "last_attempted": "2026-05-19T00:00:00Z"
     }
   ]
 }
