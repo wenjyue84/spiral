@@ -635,3 +635,68 @@ This is a pure frontend story for the `spiral-ui` React application. No Frappe/P
     *   The `setInterval` must be cleared in the `useEffect` cleanup function to prevent memory leaks.
     *   Implement graceful handling for API fetch errors and empty/malformed data responses.
     *   Ensure calculations for cumulative totals and burn rate are accurate.
+## Iteration 3 - Mon, May 18, 2026  8:34:08 AM
+Completed: spiral-ui: Add CostAnalysisTab with stacked bar and cumulative line charts (ID: US-1385) in 8m
+
+
+## Iteration N+1 - Sun, May 18, 2026 - Story US-1385 Completed
+Completed: spiral-ui - Add CostAnalysisTab with stacked bar and cumulative line charts (ID: US-1385) in ~25m
+
+### What was implemented
+- Created `spiral-ui/src/hooks/useCostsBreakdown.ts` with custom hook
+  - Fetches from /api/costs/breakdown endpoint every 5 seconds
+  - Returns { data, isLoading, error } state
+  - Defines CostBreakdownData and CostBreakdownEntry interfaces
+
+- Created `spiral-ui/src/components/CostAnalysisTab.tsx` (169 lines)
+  - BarChart: stacked by phase showing cost_usd per phase
+  - LineChart: cumulative spend over phases
+  - Budget projection card with:
+    - Spend label showing total_cost_usd
+    - Burn rate label showing burn_rate_per_minute
+    - Remaining label showing ceiling_usd - total_cost_usd
+    - Usage percentage bar with color coding (red >80%, amber >50%, green ≤50%)
+  - Loading, error, and empty states with appropriate messages
+  - Responsive grid layout (1 col mobile, 2 cols on lg screens)
+  - Auto-refresh every 5 seconds via useEffect interval
+
+- Created `spiral-ui/src/components/CostAnalysisTab.test.tsx` (140 lines)
+  - 8 comprehensive test cases:
+    1. Loading state initially
+    2. Renders two recharts components with mocked data
+    3. Budget projection card displays required labels
+    4. Usage percentage displays when ceiling is set
+    5. Charts render with multiple entries
+    6. Error message on fetch failure
+    7. Empty state when no entries
+    8. High spend displays with appropriate data
+  - All tests passing (8/8 ✓)
+
+- Updated `spiral-ui/src/components/ProjectDashboard.tsx`
+  - Added 'costs' to DashTab type union
+  - Added CostAnalysisTab import
+  - Added tab entry to DASH_TABS array: { id: 'costs', slug: 'costs', label: 'Costs', icon: '💵' }
+  - Added render condition: {activeTab === 'costs' && <div className="h-full overflow-hidden"><CostAnalysisTab /></div>}
+
+### Key Patterns Discovered
+- recharts ResponsiveContainer renders charts at 100% width/height
+- useMemo dependencies must use `[data]` not `[data?.entries]` to satisfy React Compiler
+- Percentage values in React render as separate text nodes when using template literals ({value}%)
+- Custom hooks follow useState/useEffect pattern without TanStack Query (consistent with project)
+- Tab integration uses simple conditional rendering with flex/overflow classes
+
+### Acceptance Criteria Met
+- [x] CostAnalysisTab renders without error and displays two recharts components (BarChart + LineChart)
+- [x] Budget projection card text contains 'Spend:', 'Burn rate:', 'Remaining:' labels
+- [x] CostAnalysisTab is visible in main tab navigation (grep verified)
+- [x] npm test -- CostAnalysisTab passes (8/8 tests ✓)
+- [x] TypeScript strict mode: success (npx tsc --noEmit)
+- [x] ESLint: success (no errors)
+
+### Testing
+- All 8 unit tests passing (100%)
+- Component renders correctly with various data scenarios
+- Budget card styling verified (color changes at thresholds)
+- Error and loading states properly handled
+- Mock API response fixtures correctly structured
+- No TypeScript errors or ESLint violations
