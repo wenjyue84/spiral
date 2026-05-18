@@ -14,12 +14,14 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
 from lib.dashboard.api import app
 from lib.dashboard.routes.costs import parse_costs_from_results_tsv
 
 
+@pytest.mark.us_1384
 class TestParseCostsFromResultsTsv:
     """Unit tests for parse_costs_from_results_tsv function."""
 
@@ -170,6 +172,7 @@ class TestParseCostsFromResultsTsv:
             Path(tsv_path).unlink()
 
 
+@pytest.mark.us_1384
 class TestCostsBreakdownEndpoint:
     """Integration tests for /api/costs/breakdown endpoint."""
 

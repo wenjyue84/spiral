@@ -3999,7 +3999,8 @@
       ],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-18T10:27:38Z"
     },
     {
       "id": "US-1402",
@@ -4046,29 +4047,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-1404",
-      "title": "CLI: spiral export-results Command for CSV/JSON Analytics Export",
-      "priority": "medium",
-      "description": "Add CLI command to export results.jsonl and computed iteration metrics (per-phase durations, model usage, cost breakdown) as CSV or JSON. Enables external spreadsheet analysis, historical tracking across runs, and integration with business intelligence tools.",
-      "acceptanceCriteria": [
-        "CLI command `spiral export-results --format csv` outputs CSV with columns: iteration, story_id, model, tokens_input, tokens_output, cost_usd, duration_sec, status (pass|fail|timeout), phase, date_completed; no headers for piping, proper CSV escaping",
-        "CLI command `spiral export-results --format json` outputs newline-delimited JSON with same fields plus nested object phase_times: {phase_name: duration_sec}; includes metadata object at first line with timestamp, iteration_count, total_cost_usd",
-        "CLI command includes `--since <ISO8601>` flag to filter results after timestamp; `--status <pass|fail|timeout>` to filter by story status; `--output <filepath>` to write to file (defaults to stdout)"
-      ],
-      "technicalNotes": [
-        "File to create: lib/results_exporter.py (ResultsExporter class with export_csv(results_file, filters) and export_json(results_file, filters) methods)",
-        "File to edit: lib/cli_subcommands.sh (add export-results subcommand with --format, --since, --status, --output flags)",
-        "File to create: schema/results_export.json (JSON Schema for export format validation)",
-        "File to create: tests/test_results_exporter.py with fixture results.jsonl (5 stories, mixed statuses)",
-        "Test command: uv run pytest tests/test_results_exporter.py::test_export_csv_escaping -v",
-        "Test command: uv run pytest tests/test_results_exporter.py::test_export_json_valid_schema -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-1405",
       "title": "[Integration Test] MockClaudeAPI fixture: intercept, inject, and failure paths",
       "priority": "high",
@@ -4094,46 +4072,6 @@
       "model": "haiku",
       "_skipped": true,
       "_failureReason": "dependency US-1365 was skipped"
-    },
-    {
-      "id": "US-1406",
-      "title": "Phase V: Create granular verification evidence aggregator for detailed failure reports",
-      "priority": "medium",
-      "description": "Implement lib/phase_v_evidence.py to parse test output and file presence checks, generating detailed JSON evidence reports showing which acceptance criteria and tests failed per story",
-      "acceptanceCriteria": [
-        "Create lib/phase_v_evidence.py with TestEvidenceAggregator class that parses test stdout/stderr for AC status markers and file-presence assertions",
-        "Phase V generates .spiral/verification_evidence/<story-id>.json with failed AC list, failing test file, and line number references",
-        "Test: uv run pytest tests/test_phase_v_evidence.py::test_aggregator_parses_test_output verifies AC extraction and JSON schema"
-      ],
-      "technicalNotes": [
-        "File to edit: spiral.sh (Phase V section ~line 850) to invoke phase_v_evidence.TestEvidenceAggregator().aggregate(test_stdout, story_id)",
-        "File to create: lib/phase_v_evidence.py (~150 lines) with regex patterns for @spiral:ac test markers",
-        "Test command: uv run pytest tests/test_phase_v_evidence.py -v --tb=short"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1407",
-      "title": "Phase R: Research quality scorer to detect and skip low-value sources before synthesis",
-      "priority": "medium",
-      "description": "Implement lib/research_quality.py to score research results by source credibility (domain authority, snippet relevance, spam detection), filter low-scoring results before Gemini synthesis, and log filtering decisions",
-      "acceptanceCriteria": [
-        "Create lib/research_quality.py with score_research_result(url, snippet_text) returning 0-100 score; .edu/.gov/.org baseline >70, marketing/ad domains <30",
-        "Phase R filters results with score <40 before synthesis; logs skipped URLs, scores, and reason to .spiral/research_quality.jsonl",
-        "Test: uv run pytest tests/test_research_quality.py::test_score_academic_sources confirms educational domains >60, ad/spam <40"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/phases/phase_r.py (integrate scoring loop, ~30 lines) to call score_research_result() for each result",
-        "File to create: lib/research_quality.py (~120 lines) with domain whitelist/blacklist and snippet keyword analysis",
-        "Test command: uv run pytest tests/test_research_quality.py -v --tb=short"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
     },
     {
       "id": "US-1408",
@@ -4183,7 +4121,9 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "_skipped": true,
+      "_failureReason": "dependency US-1365 was skipped"
     },
     {
       "id": "US-1410",
@@ -4212,66 +4152,75 @@
       "model": "haiku"
     },
     {
-      "id": "US-1411",
-      "title": "CLI: Add spiral benchmark-model Command to Establish Per-Model Cost Baselines",
-      "priority": "medium",
-      "description": "Create a new CLI command that runs a single story across multiple model tiers (haiku, sonnet, opus) sequentially, capturing cost and timing baselines for budget forecasting and model selection.",
+      "id": "US-1414",
+      "title": "Create MockClaudeAPI class with response injection and failure simulation",
+      "priority": "high",
+      "description": "Create tests/fixtures/mock_claude_api.py containing a MockClaudeAPI class that intercepts Claude CLI subprocess calls and returns injected responses or simulated failures. Write tests/test_mock_claude_api.py to verify injection and failure modes work correctly.",
       "acceptanceCriteria": [
-        "Command `spiral benchmark-model <story-id>` runs the story with each model and outputs CSV with columns: [model, tokens_used, cost_usd, duration_sec, exit_code]",
-        "Results stored in .spiral/model_baselines.json (append to history) for use in cost estimation and model selection",
-        "`spiral benchmark-model --list` shows previously benchmarked stories with average cost per model and total count"
+        "uv run pytest tests/test_mock_claude_api.py -v exits 0 with at least 2 passing tests",
+        "MockClaudeAPI.inject_response(response) causes the next intercepted call to return that response",
+        "MockClaudeAPI.inject_failure(error) causes the next intercepted call to raise the given error"
       ],
       "technicalNotes": [
-        "File to edit: lib/cli_subcommands.sh (add benchmark-model subcommand handler routing to benchmark_runner.py)",
-        "File to edit: lib/benchmark_runner.py (new file, create run_benchmark_story(story_id, models=['haiku','sonnet','opus']) returning results dict)",
-        "Test command: uv run pytest tests/test_benchmark_runner.py::test_benchmark_multi_model -v"
+        "File to edit: tests/fixtures/mock_claude_api.py (MockClaudeAPI class — create new file)",
+        "File to edit: tests/test_mock_claude_api.py (test_inject_response, test_inject_failure — create new file)",
+        "Use unittest.mock.patch('subprocess.run') to intercept CLI calls inside MockClaudeAPI",
+        "Test command: uv run pytest tests/test_mock_claude_api.py -v"
       ],
-      "dependencies": [],
+      "dependencies": [
+        "US-1365"
+      ],
       "estimatedComplexity": "small",
       "passes": false,
-      "_source": "ai-example",
+      "_source": "test-story",
       "model": "haiku"
     },
     {
-      "id": "US-1412",
-      "title": "Phase L: Analyze Learned-Pattern Trends Across Iterations for Evolution Tracking",
-      "priority": "medium",
-      "description": "Extend Phase L to analyze how learned patterns change over iterations (which patterns appeared early vs late, which models they helped), extracting temporal evolution metrics for insight into SPIRAL's learning curve.",
+      "id": "US-1415",
+      "title": "Test HealthWidget: polling /api/health and graceful error backoff",
+      "priority": "high",
+      "description": "Add or extend spiral_ui/frontend/HealthWidget.test.tsx to verify that the HealthWidget polls /api/health every 5 seconds, renders per-phase durations and worker counts from the response, and applies exponential back-off on network errors without crashing.",
       "acceptanceCriteria": [
-        "Phase L parses results.tsv and .spiral/learned_patterns.jsonl to compute [pattern_type, first_iteration, last_iteration, frequency, model_affinity_rank]",
-        "Temporal metrics appended to .spiral/pattern_evolution.jsonl with one JSON object per pattern type capturing when pattern was most effective",
-        "`spiral explain-learning <pattern-type>` CLI command shows timeline graph (iteration vs effectiveness) and recommendations for when to apply"
+        "npx vitest run spiral_ui/frontend/HealthWidget.test.tsx exits 0 with all tests passing",
+        "Test asserts fetch('/api/health') is called at least twice within a 10-second simulated timer",
+        "Test asserts that when fetch rejects, the component retries and does not unmount or throw"
       ],
       "technicalNotes": [
-        "File to edit: lib/learning_extractor.py (add extract_pattern_evolution(results_tsv, learned_patterns_jsonl) function returning list of EvolutionMetric)",
-        "File to edit: lib/cli_subcommands.sh (add explain-learning subcommand that reads .spiral/pattern_evolution.jsonl and formats output)",
-        "Test command: uv run pytest tests/test_learning_extractor.py::test_pattern_evolution_analysis -v"
+        "File to edit: spiral_ui/frontend/HealthWidget.test.tsx (test_polls_health, test_backoff_on_error — add tests)",
+        "Use vi.useFakeTimers() to advance time and assert fetch call count",
+        "Mock fetch with vi.fn().mockRejectedValueOnce(new Error('Network')) for the error scenario",
+        "Test command: npx vitest run spiral_ui/frontend/HealthWidget.test.tsx"
       ],
-      "dependencies": [],
+      "dependencies": [
+        "US-1366"
+      ],
       "estimatedComplexity": "small",
       "passes": false,
-      "_source": "ai-example",
+      "_source": "test-story",
       "model": "haiku"
     },
     {
-      "id": "US-1413",
-      "title": "Phase V: Auto-Extract Verifiable Assertions from Story Acceptance Criteria",
-      "priority": "medium",
-      "description": "Create a Python module that parses acceptance criteria text to extract verifiable assertions (test cases), supporting automatic test generation for stories without explicit verification contracts.",
+      "id": "US-1416",
+      "title": "Test html/pages/06-configuration.html: anchor IDs and category groupings",
+      "priority": "high",
+      "description": "Write a pytest test that parses html/pages/06-configuration.html with BeautifulSoup and asserts that every SPIRAL_* variable extracted from spiral.config.sh has a corresponding anchor with id='config-<VARNAME>', and that major category headings are present.",
       "acceptanceCriteria": [
-        "lib/assertion_extractor.py parses AC text with regex patterns to identify assertions: 'assert X', 'must have Y', 'should return Z', 'contains [item]'",
-        "Returns list of [assertion_type, subject, expected_value, confidence_score] structured for Phase V verification engine to validate",
-        "Stories without explicit testFiles or testMarker get auto-generated pytest assertions written to .spiral/auto_assertions/<story-id>.py"
+        "uv run pytest tests/test_html_config_page.py -v exits 0",
+        "Test asserts at least 10 anchor elements with id matching 'config-SPIRAL_*' exist in the HTML",
+        "Test asserts at least 5 category heading elements (h2 or h3) are present in the page"
       ],
       "technicalNotes": [
-        "File to edit: lib/assertion_extractor.py (new file, create extract_assertions(ac_text: str) -> List[Assertion] with typed Assertion namedtuple)",
-        "File to edit: lib/phases/phase_v.sh (integrate assertion_extractor call for stories where verification.testFiles is null)",
-        "Test command: uv run pytest tests/test_assertion_extractor.py::test_extract_assertions_from_ac_text -v"
+        "File to edit: tests/test_html_config_page.py (test_anchor_ids_present, test_category_headings — create new file)",
+        "Parse with: from bs4 import BeautifulSoup; open('html/pages/06-configuration.html')",
+        "Extract SPIRAL_* var names from spiral.config.sh via grep for baseline comparison",
+        "Test command: uv run pytest tests/test_html_config_page.py -v"
       ],
-      "dependencies": [],
+      "dependencies": [
+        "US-1349"
+      ],
       "estimatedComplexity": "small",
       "passes": false,
-      "_source": "ai-example",
+      "_source": "test-story",
       "model": "haiku"
     }
   ]
