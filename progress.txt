@@ -559,3 +559,54 @@ Completed: [Integration Test] Phase R Research Cache Hit/Miss Validation via Moc
 
 ## Iteration 2 - Mon, May 18, 2026 11:57:48 PM
 Completed: spiral-ui: PhaseStatsCard React Component - Per-Phase Success Rate Grid (ID: US-1430) in 9m
+
+## Iteration [28] - Story: US-1431 lib: Federation Story Namespace Validator - Detect Cross-SubProject Collisions
+
+### What was implemented
+
+Completed federation namespace collision detection system for federated sub-projects:
+
+1. **lib/spiral/federation_validator.py (~165 lines)**
+   - `extract_namespace_prefix()`: Extract namespace prefix from story IDs (e.g., "US" from "US-100")
+   - `build_story_id_map()`: Build map of story_id -> {project_name: namespace_prefix}
+   - `detect_collisions()`: Detect when same story_id appears in multiple projects (direct collision)
+   - `suggest_namespace_renames()`: Generate auto-fix suggestions for collisions
+   - `ValidationResult` dataclass with: is_valid, namespace_map, collisions, suggestions
+   - `validate_federation_namespaces()`: Main validation entry point
+
+2. **lib/spiral/cli/federation_check.py (updated)**
+   - Fixed sys.path setup to properly import from lib.spiral
+   - CLI handler outputs formatted summary table with ✓ symbols
+   - Shows project names, story counts, collision details, and auto-fix suggestions
+
+3. **tests/test_federation_validator.py (verified)**
+   - All 21 comprehensive unit tests passing (100%)
+   - Tests cover: prefix extraction, story mapping, collision detection, multi-collision handling, suggestion generation
+   - Integration tests verify full validation flow
+
+### Patterns discovered
+
+- Collision detection flags ANY story_id appearing in multiple projects (regardless of prefix consistency)
+- Suggestions use uppercase project names as fallback prefixes when needed
+- The namespace_map structure mirrors each story's (project -> prefix) mapping
+- CLI integration uses proper sys.path setup for Python module discovery
+
+### Gotchas
+
+- federation_check.py needs sys.path setup to import from lib.spiral (unlike direct lib/ modules)
+- Collision detection must handle both prefix-mismatch and direct-duplicate scenarios
+- Suggestions for same-prefix duplicates should suggest project-specific prefixes
+
+### Acceptance criteria met
+
+- [x] AC1: validate_federation_namespaces(prd_dict) -> ValidationResult with collisions list
+- [x] AC2: Detects collision when same story_id appears in multiple projects
+- [x] AC3: CLI outputs summary table with ✓ symbols, sub-project names, story counts, collision count, auto-fix suggestions
+- [x] All 21 tests passing (100%)
+- [x] MyPy strict mode passes
+- [x] Ruff lint passes
+- [x] CLI command works: python lib/spiral/cli/federation_check.py prd.json
+- [x] Story marked as passes: true in prd.json
+
+## Iteration 1 - Mon, May 19, 2026 12:43:22 AM
+Completed: lib: Federation Story Namespace Validator - Detect Cross-SubProject Collisions (ID: US-1431) in ~15m
