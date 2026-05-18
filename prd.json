@@ -4659,7 +4659,7 @@
         "US-1384"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
       "model": "haiku",
       "last_attempted": "2026-05-18T15:05:13Z"
