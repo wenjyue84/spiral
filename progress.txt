@@ -1,3 +1,43 @@
+## Iteration N+7 - Sun, May 18, 2026 - Story US-1348 Completed
+Completed: Fill html/pages/05-cli-reference.html with filterable CLI tables (ID: US-1348) in ~20m
+
+### What was implemented
+- Created comprehensive CLI reference page with two simple-datatables tables
+  - Table 1: 43 spiral.sh flags with flag name, default value, and description
+  - Table 2: 67 main.py subcommands with subcommand name and description
+  - All data extracted from SKILL.md CLI Flags Reference and main.py Subcommands sections
+
+- Implemented interactive features:
+  - Click any row to reveal/hide copy-to-clipboard example command
+  - Copy button on example rows copies full command to clipboard
+  - "Copied!" feedback for 2 seconds after copy
+  - Live search box via simple-datatables v9 CDN
+  - Column sorting on both tables
+
+- Integrated with existing SPIRAL documentation system:
+  - Uses custom.css for theme consistency (dark mode support)
+  - Follows existing page structure (sidebar, header, content layout)
+  - Matches typography and color scheme
+
+### Key Patterns Discovered
+- simple-datatables v9 initialization: new DataTable('#tableId', { perPage: 10, layout: ... })
+- Click-to-reveal pattern: toggle class 'visible' on hidden example rows
+- Copy-to-clipboard using navigator.clipboard.writeText() with button feedback
+
+### Acceptance Criteria Met
+- [x] Two simple-datatables tables with working search box and column sort
+- [x] Every flag from SKILL.md CLI Flags Reference appears (43 flags, exceeds 35 minimum)
+- [x] Every main.py subcommand from SKILL.md appears (67 subcommands)
+- [x] Clicking a row reveals copy-to-clipboard example command using that flag/subcommand
+- [x] Total flags >= 35 (43 flags)
+
+### Testing
+- HTML structure verified: 2 tables, simple-datatables v9 loaded, copy functionality present
+- All 43 CLI flags extracted and visible
+- All 67 main.py subcommands extracted and visible
+- Example commands for each entry crafted from SKILL.md reference
+- No TypeScript or HTML validation errors
+
 ## Iteration N+5 - Sun, May 18, 2026 - Story US-1388 Completed
 Completed: Tests for HealthWidget polling, error handling, and sparkline rendering (ID: US-1388) in ~3m
 
