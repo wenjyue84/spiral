@@ -4831,6 +4831,53 @@
         "diagnosisBlock": "## Current State\n\nI have reviewed the codebase and understand the foundation:\n- `error_classifier.py` (US-1428) classifies errors into 8 categories: timeout, oom, syntax, import, assertion, network, auth, unknown\n- `error_hints.py` provides `FailureHintMapper` that maps failure types to recovery hints\n- `decompose_story.py` already supports `--enable-hints` flag\n- `results.tsv` contains historical story attempt data\n\n## Problem Identified\n\nStory US-1432 requires injecting error recovery hints from failure history into Ralph's decomposition prompts. The system should:\n1. Look up past failures for a story in results.tsv\n2. Classify those failures using error_classifier\n3. Map them to recovery hints\n4. Inject them into the Claude prompt as LEARNED_RECOVERY_HINTS environment variable\n\n## Planned Changes\n\n1. **Create lib/error_hints.json** - JSON file with structured recovery hints indexed by error category\n2. **Create lib/error_hints_loader.py** - Function `load_hints_for_story(story_title: str) -> List[str]` that:\n   - Reads results.tsv for past failures of the story\n   - Classifies each failure using error_classifier\n   - Maps to recovery hints\n   - Returns formatted hint list\n3. **Modify lib/impl/decompose.sh** - Pass LEARNED_RECOVERY_HINTS env var to decompose_story.py\n4. **Modify lib/workers/decompose_story.py** - Load LEARNED_RECOVERY_HINTS and inject into Claude context\n5. **Create tests/test_ralph_hint_injection.py** - Test the hint loading and injection mechanism\n\n<plan>\n{\n  \"files_to_create\": [\n    \"lib/error_hints.json\",\n    \"lib/error_hints_loader.py\",\n    \"tests/test_ralph_hint_injection.py\"\n  ],\n  \"files_to_modify\": [\n    \"lib/impl/decompose.sh\",\n    \"lib/workers/decompose_story.py\"\n  ],\n  \"functions_to_add\": [\n    \"load_hints_for_story\",\n    \"load_error_hints_json\",\n    \"classify_story_failures\"\n  ],\n  \"estimated_loc\": 280\n}\n</plan>\n\nNow let me proceed with the implementation. First, I'll create the error_hints.json file:\nNow I'll create lib/error_hints_loader.py:\nNow I'll modify lib/impl/decompose.sh to pass LEARNED_RECOVERY_HINTS:\nLet me modify lib/impl/decompose.sh to load and pass recovery hints:\nNow let me modify lib/workers/decompose_story.py to accept and use learned hints:\nLet me modify lib/workers/decompose_story.py to add learned hints support:\nNow let me modify the part that builds the hint text and includes it in the prompt:\nNow let me create tests/test_ralph_hint_injection.py:\nLet me fix the class name typo:\nLet me run the tests to verify the implementation:\nLet me run the tests without rtk:\nLet me run all the tests in the test file:\nI need to fix the story matching logic in error_hints_loader.py. The issue is that the story_title parameter should be matched as a story ID, not as a substring of the title:\nLet me simplify the classify_error function to focus on the pattern matching:\nLet me run the tests again:\nLet me run all the tests:\nPerfect! All tests pass. Now let me run the specific test mentioned in the story's technical notes:\nLet me run quality checks on the code:\nLet me fix the mypy error in error_hints_loader.py:\nLet me run mypy again:\nNow let me run ruff checks:\nLet me run ruff with --fix to auto-fix these issues:\nLet me run ruff format to ensure proper formatting:\nLet me run shellcheck on the modified decompose.sh:\nLet me verify tests still pass after formatting:\nLet me run final quality checks:\nLet me test the error_hints_loader.py manually to verify it works:\nLet me check what stories with failures are in results.tsv and test with one:\nLet me test with a story that has actual failures:\nPerfect! The implementation is working correctly. Now let me commit all changes:\nNow let me mark the story as complete in prd.json:\nNow let me update progress.txt with the implementation summary:"
       },
       "_passedCommit": "3aaf87da6fed9f87719e0917baa1184cf2db8e79"
+    },
+    {
+      "id": "US-1433",
+      "title": "Create MockClaudeAPI class in tests/fixtures/mock_claude_api.py",
+      "priority": "high",
+      "description": "Implement the MockClaudeAPI class that intercepts Claude CLI subprocess calls and returns injected responses or failures. The class must support configurable response sequences and failure modes so downstream tests can exercise retry and error-handling paths without hitting the real API.",
+      "acceptanceCriteria": [
+        "MockClaudeAPI.intercept(responses=[...]) patches subprocess so no real CLI call is made: `uv run pytest tests/test_mock_claude_api.py::test_intercept_no_real_call -v` passes",
+        "MockClaudeAPI.inject_failure(error='timeout') causes the patched call to raise the specified error: `uv run pytest tests/test_mock_claude_api.py::test_inject_failure -v` passes",
+        "MockClaudeAPI can be instantiated with no arguments and records all intercepted calls in .call_log: `uv run pytest tests/test_mock_claude_api.py::test_call_log -v` passes"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/fixtures/mock_claude_api.py (create — MockClaudeAPI class)",
+        "File to edit: tests/fixtures/__init__.py (create or append — export MockClaudeAPI)",
+        "Use unittest.mock.patch('subprocess.run') or patch('subprocess.Popen') depending on how spiral.sh invokes the CLI",
+        "Test command: uv run pytest tests/test_mock_claude_api.py -v"
+      ],
+      "dependencies": [
+        "US-1365"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "haiku",
+      "last_attempted": "2026-05-18T16:39:25Z"
+    },
+    {
+      "id": "US-1434",
+      "title": "Phase V: Output test evidence.json per story with verification metadata",
+      "priority": "high",
+      "description": "After Phase V verification completes for each story, write .spiral/evidence/<story-id>.json containing test file paths, matched test markers, pass/fail status, and execution duration. Aggregate stats to .spiral/phase_v_summary.json for Dashboard rendering.",
+      "acceptanceCriteria": [
+        ".spiral/evidence/<story-id>.json written after each story verification with schema: {testFile: string, testMarker: string, passed: bool, duration_ms: int, timestamp: ISO8601}",
+        ".spiral/phase_v_summary.json computed after iteration contains: total_stories, pass_count, fail_count, pass_rate_percent, slowest_tests: [{story_id, duration_ms}]",
+        "Phase G reads phase_v_summary.json to embed test coverage badge and verification status in generated API docs"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_v_evidence.py (write_evidence_json and aggregate_phase_v_summary functions)",
+        "File to edit: spiral.sh (invoke phase_v_evidence.write_evidence_json in Phase V loop after verification_result)",
+        "File to edit: lib/phase_g.sh (read phase_v_summary.json and inject verification_badge into API doc template)",
+        "Test command: uv run pytest tests/test_phase_v_evidence.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     }
   ]
 }
