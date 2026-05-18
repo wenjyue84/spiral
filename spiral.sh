@@ -141,6 +141,7 @@ FLAKY_REPORT_MODE=0                          # 1 = print flaky test quarantine r
 SHOW_FLAKY_TESTS_MODE=0                      # 1 = print flaky tests from test synthesis history and exit (--show-flaky-tests)
 CALIBRATION_REPORT_MODE=0                    # 1 = print calibration report and exit (--calibration-report)
 SHOW_PATTERNS_MODE=0                         # 1 = display learned retry patterns and exit (--show-patterns)
+FEDERATION_VALIDATE_MODE=0                   # 1 = validate federation story ID namespaces and exit (--federation-validate)
 QUERY_MODE=0                                 # 1 = run story query and exit (--query)
 QUERY_SUBCOMMAND=""                          # subcommand for --query (e.g. "stories")
 QUERY_STATUS=""                              # --status filter for query
@@ -398,6 +399,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --show-patterns)
       SHOW_PATTERNS_MODE=1
+      shift
+      ;;
+    --federation-validate)
+      FEDERATION_VALIDATE_MODE=1
       shift
       ;;
     --query)
@@ -816,6 +821,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --show-flaky-tests         Print tests failing <50% across last 5 iterations (excluded from Phase T) and exit"
       echo "  --calibration-report       Print actual vs estimated complexity calibration data and exit"
       echo "  --show-patterns            Display learned retry patterns (0-retry vs 3+ retry stories) and exit"
+      echo "  --federation-validate      Validate federated sub-project story ID namespace consistency and exit"
       echo "  --graph                    Render PRD dependency graph to SVG and exit"
       echo "    --output FILE              Output file path (default: spiral-deps.svg)"
       echo "  --export-results           Export results.tsv as CSV or JSON analytics export and exit"

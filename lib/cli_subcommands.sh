@@ -149,11 +149,10 @@ if [[ "$SHOW_PATTERNS_MODE" -eq 1 ]]; then
   exit 0
 fi
 
-# ── --validate-federated: validate story ID namespacing and exit ──────────────
-VALIDATE_FEDERATED_MODE="${VALIDATE_FEDERATED_MODE:-0}"
-VALIDATE_FEDERATED_REPOS="${VALIDATE_FEDERATED_REPOS:-}"
-if [[ "$VALIDATE_FEDERATED_MODE" -eq 1 ]]; then
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral/federated_namespace_validator.py" "$PRD_FILE" "$VALIDATE_FEDERATED_REPOS"
+# ── --federation-validate: validate story ID namespacing and exit ──────────────
+FEDERATION_VALIDATE_MODE="${FEDERATION_VALIDATE_MODE:-0}"
+if [[ "$FEDERATION_VALIDATE_MODE" -eq 1 ]]; then
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral/cli/federation_check.py" "$PRD_FILE"
   exit $?
 fi
 
