@@ -1181,3 +1181,23 @@ This story involves creating a static HTML documentation page, not modifying a F
 *   Ensure generated anchor IDs are unique and correctly formatted for deep-linking.
 *   The script should robustly locate the source `SKILL.md` file using `os.path.expanduser`.
 
+
+
+## Iteration N - Story: Fill html/pages/08-glossary.html — define every SPIRAL term in one place (US-1351)
+
+### What was implemented
+- Replaced placeholder in html/pages/08-glossary.html with full A-Z glossary
+- 17 terms: Capacity Limit, Constitution, Cost Ceiling, Decompose, DLQ, Episodic Memory, Focus, Gate, Iteration, Model Routing, Phase, PRD, Ralph, Story, Validate Cmd, Worker, Worktree
+- A-Z index strip at top with letter anchor links (12 active letters)
+- Each term has id="term-<kebab-name>" for deep-linking
+- Every term has at least one See also cross-link to another term or HTML page
+- Styled consistently with 06-configuration.html (surface cards, accent left-border)
+
+### Patterns discovered
+- Other HTML pages use var(--surface), var(--border), var(--accent), var(--accent-soft), var(--text), var(--text-muted) CSS variables
+- Term blocks use scroll-margin-top: 100px for sticky header offset
+- renderShell({ page: 'glossary' }) is the standard DOMContentLoaded call
+
+### Gotchas
+- Previous attempt (haiku) failed — reason not recorded. Sonnet attempt succeeded cleanly.
+- Term count exactly 17 satisfies ">=17" criteria

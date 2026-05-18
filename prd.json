@@ -3482,8 +3482,9 @@
         "docs",
         "html"
       ],
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-05-18T02:09:02Z"
     },
     {
       "id": "US-1352",

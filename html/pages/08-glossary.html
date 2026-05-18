@@ -7,6 +7,69 @@
   <link rel="stylesheet" href="../assets/css/custom.css">
   <script src="../data.js"></script>
   <script src="../assets/js/nav.js"></script>
+  <style>
+    .az-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin: 0 0 2rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .az-strip a {
+      display: inline-block;
+      width: 1.8rem;
+      height: 1.8rem;
+      line-height: 1.8rem;
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      border-radius: 3px;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .az-strip a:hover { background: var(--accent-soft); }
+    .az-strip a.disabled { color: var(--text-muted); pointer-events: none; }
+    .glossary-section { margin: 2rem 0; scroll-margin-top: 100px; }
+    .glossary-section-letter {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent-soft);
+      padding-bottom: 0.25rem;
+      margin-bottom: 1rem;
+    }
+    .term-block {
+      margin: 1.25rem 0;
+      padding: 1rem 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 4px 4px 0;
+      scroll-margin-top: 100px;
+    }
+    .term-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 0.5rem;
+    }
+    .term-def {
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.6;
+      margin: 0 0 0.5rem;
+    }
+    .term-seealso {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .term-seealso a { color: var(--accent); text-decoration: none; }
+    .term-seealso a:hover { text-decoration: underline; }
+  </style>
 </head>
 <body>
 <div class="app">
@@ -20,9 +83,186 @@
       <button id="themeToggle" class="theme-toggle">Dark mode</button>
     </header>
     <div class="page-content">
-      <h2>Glossary</h2>
-      <p>Glossary documentation coming soon.</p>
-    </div>
+
+      <!-- A–Z index strip -->
+      <nav class="az-strip" aria-label="Jump to letter">
+        <a href="#letter-C">C</a>
+        <a href="#letter-D">D</a>
+        <a href="#letter-E">E</a>
+        <a href="#letter-F">F</a>
+        <a href="#letter-G">G</a>
+        <a href="#letter-I">I</a>
+        <a href="#letter-M">M</a>
+        <a href="#letter-P">P</a>
+        <a href="#letter-R">R</a>
+        <a href="#letter-S">S</a>
+        <a href="#letter-V">V</a>
+        <a href="#letter-W">W</a>
+      </nav>
+
+      <!-- C -->
+      <section id="letter-C" class="glossary-section">
+        <div class="glossary-section-letter">C</div>
+
+        <div id="term-capacity-limit" class="term-block">
+          <div class="term-title">Capacity Limit</div>
+          <div class="term-def">The maximum number of pending (unimplemented) stories SPIRAL keeps in <code>prd.json</code> at any time, controlled by <code>SPIRAL_MAX_PENDING</code>. When the limit is reached, Phase M skips merging new candidates until existing stories are completed.</div>
+          <div class="term-seealso">See also: <a href="#term-prd">PRD</a>, <a href="06-configuration.html#config-SPIRAL_MAX_PENDING">SPIRAL_MAX_PENDING</a></div>
+        </div>
+
+        <div id="term-constitution" class="term-block">
+          <div class="term-title">Constitution</div>
+          <div class="term-def">A Markdown file (<code>constitution.md</code>) that defines non-negotiable quality standards every story must satisfy before it is merged into the backlog. Phase S validates each candidate against the constitution and rejects stories that violate its rules.</div>
+          <div class="term-seealso">See also: <a href="#term-story">Story</a>, <a href="04-phase-deep-dive.html">Phase S — Story Validate</a></div>
+        </div>
+
+        <div id="term-cost-ceiling" class="term-block">
+          <div class="term-title">Cost Ceiling</div>
+          <div class="term-def">An optional per-session or per-story API spending limit (<code>SPIRAL_COST_CEILING</code>) that halts SPIRAL when cumulative cost exceeds the threshold. Protects against runaway API spend during unattended runs.</div>
+          <div class="term-seealso">See also: <a href="#term-model-routing">Model Routing</a>, <a href="06-configuration.html#config-SPIRAL_COST_CEILING">SPIRAL_COST_CEILING</a></div>
+        </div>
+      </section>
+
+      <!-- D -->
+      <section id="letter-D" class="glossary-section">
+        <div class="glossary-section-letter">D</div>
+
+        <div id="term-decompose" class="term-block">
+          <div class="term-title">Decompose</div>
+          <div class="term-def">The process in Phase I where an oversized story is automatically split into two or more smaller sub-stories so that each fits within a single Ralph worker context window. The parent story is marked <code>_decomposed: true</code> and the children carry a <code>_decomposedFrom</code> reference.</div>
+          <div class="term-seealso">See also: <a href="#term-story">Story</a>, <a href="#term-ralph">Ralph</a>, <a href="04-phase-deep-dive.html">Phase I — Implement</a></div>
+        </div>
+
+        <div id="term-dlq" class="term-block">
+          <div class="term-title">DLQ (Dead-Letter Queue)</div>
+          <div class="term-def">Stories that have exhausted all retry attempts (default 3) without passing are moved to the Dead-Letter Queue and skipped for the remainder of the run. They are preserved in <code>prd.json</code> with <code>passes: false</code> so they can be investigated and re-queued manually.</div>
+          <div class="term-seealso">See also: <a href="#term-story">Story</a>, <a href="#term-iteration">Iteration</a>, <a href="06-configuration.html">Configuration</a></div>
+        </div>
+      </section>
+
+      <!-- E -->
+      <section id="letter-E" class="glossary-section">
+        <div class="glossary-section-letter">E</div>
+
+        <div id="term-episodic-memory" class="term-block">
+          <div class="term-title">Episodic Memory</div>
+          <div class="term-def">An optional learning layer (<code>SPIRAL_EPISODIC_MEMORY=true</code>) that appends per-story outcome records to <code>.spiral/episodic_memory.jsonl</code> after each iteration. Phase E queries these records to surface implementation patterns that worked for similar stories, surfacing them as <code>enrichment.past_patterns</code> hints to Ralph.</div>
+          <div class="term-seealso">See also: <a href="#term-ralph">Ralph</a>, <a href="#term-iteration">Iteration</a>, <a href="06-configuration.html#config-SPIRAL_EPISODIC_MEMORY">SPIRAL_EPISODIC_MEMORY</a></div>
+        </div>
+      </section>
+
+      <!-- F -->
+      <section id="letter-F" class="glossary-section">
+        <div class="glossary-section-letter">F</div>
+
+        <div id="term-focus" class="term-block">
+          <div class="term-title">Focus</div>
+          <div class="term-def">A per-session theme set in Phase 0-B (e.g., "improve dashboard UX") that biases story selection and implementation toward a particular area. The focus string is injected into Ralph's task prompt so workers prioritize approaches aligned with the current theme.</div>
+          <div class="term-seealso">See also: <a href="#term-iteration">Iteration</a>, <a href="#term-ralph">Ralph</a>, <a href="02-quick-start.html">Quick Start</a></div>
+        </div>
+      </section>
+
+      <!-- G -->
+      <section id="letter-G" class="glossary-section">
+        <div class="glossary-section-letter">G</div>
+
+        <div id="term-gate" class="term-block">
+          <div class="term-title">Gate</div>
+          <div class="term-def">A checkpoint in the SPIRAL loop (Phase G) where a human can review pending stories before implementation begins. Gates can be set to <code>interactive</code> (pause and prompt), <code>proceed</code> (auto-approve), or <code>skip</code> (bypass entirely) via the <code>--gate</code> CLI flag.</div>
+          <div class="term-seealso">See also: <a href="#term-phase">Phase</a>, <a href="05-cli-reference.html">CLI Reference</a></div>
+        </div>
+      </section>
+
+      <!-- I -->
+      <section id="letter-I" class="glossary-section">
+        <div class="glossary-section-letter">I</div>
+
+        <div id="term-iteration" class="term-block">
+          <div class="term-title">Iteration</div>
+          <div class="term-def">One complete pass through the SPIRAL phase loop — from Phase A (AI Suggest) through Phase L (Learning). Each iteration selects, validates, enriches, and implements one or more stories, then runs quality gates before looping back. The number of iterations is the first positional argument to <code>spiral.sh</code>.</div>
+          <div class="term-seealso">See also: <a href="#term-phase">Phase</a>, <a href="#term-story">Story</a>, <a href="03-architecture.html">Architecture</a></div>
+        </div>
+      </section>
+
+      <!-- M -->
+      <section id="letter-M" class="glossary-section">
+        <div class="glossary-section-letter">M</div>
+
+        <div id="term-model-routing" class="term-block">
+          <div class="term-title">Model Routing</div>
+          <div class="term-def">The strategy SPIRAL uses to select which Claude model tier (haiku → sonnet → opus) a story is implemented with, controlled by <code>SPIRAL_MODEL_ROUTING</code>. In <code>auto</code> mode the cheapest capable model is tried first and escalated on retry; <code>SPIRAL_HISTORY_ROUTING=true</code> additionally consults historical pass rates to pick the optimal tier.</div>
+          <div class="term-seealso">See also: <a href="#term-ralph">Ralph</a>, <a href="#term-cost-ceiling">Cost Ceiling</a>, <a href="06-configuration.html#config-SPIRAL_MODEL_ROUTING">SPIRAL_MODEL_ROUTING</a></div>
+        </div>
+      </section>
+
+      <!-- P -->
+      <section id="letter-P" class="glossary-section">
+        <div class="glossary-section-letter">P</div>
+
+        <div id="term-phase" class="term-block">
+          <div class="term-title">Phase</div>
+          <div class="term-def">One discrete stage in the SPIRAL loop, labelled 0 through L (e.g., Phase A: AI Suggest, Phase I: Implement). Phases execute in a fixed order each iteration; some pairs run in parallel (Phase R and Phase T). Phase logic lives in <code>spiral.sh</code> with stubs in <code>lib/phases/</code>.</div>
+          <div class="term-seealso">See also: <a href="#term-iteration">Iteration</a>, <a href="03-architecture.html">Architecture</a>, <a href="04-phase-deep-dive.html">Phase Deep-Dive</a></div>
+        </div>
+
+        <div id="term-prd" class="term-block">
+          <div class="term-title">PRD (Product Requirements Document)</div>
+          <div class="term-def">The <code>prd.json</code> file that is SPIRAL's source of truth for the product backlog. Each entry is a user story with acceptance criteria, priority, and status. Phases A, R, T, and M write to the PRD; Phase I reads from it to select work.</div>
+          <div class="term-seealso">See also: <a href="#term-story">Story</a>, <a href="#term-capacity-limit">Capacity Limit</a>, <a href="01-introduction.html">Introduction</a></div>
+        </div>
+      </section>
+
+      <!-- R -->
+      <section id="letter-R" class="glossary-section">
+        <div class="glossary-section-letter">R</div>
+
+        <div id="term-ralph" class="term-block">
+          <div class="term-title">Ralph</div>
+          <div class="term-def">The autonomous implementation agent that executes a single story inside SPIRAL. Ralph is invoked by <code>ralph/ralph.sh</code>, which spawns a Claude CLI process with a carefully constructed prompt (<code>ralph/CLAUDE.md</code>). Each Ralph invocation handles exactly one story: plan, implement, quality-check, commit, and exit.</div>
+          <div class="term-seealso">See also: <a href="#term-worker">Worker</a>, <a href="#term-worktree">Worktree</a>, <a href="03-architecture.html">Architecture</a></div>
+        </div>
+      </section>
+
+      <!-- S -->
+      <section id="letter-S" class="glossary-section">
+        <div class="glossary-section-letter">S</div>
+
+        <div id="term-story" class="term-block">
+          <div class="term-title">Story</div>
+          <div class="term-def">A single unit of work in <code>prd.json</code>, identified by a <code>US-NNN</code> or <code>UT-NNN</code> ID. A story carries a title, description, acceptance criteria, <code>filesTouch</code> hints, and a <code>passes</code> flag that Ralph sets to <code>true</code> on successful completion. Stories are atomic and must have no hidden co-dependencies.</div>
+          <div class="term-seealso">See also: <a href="#term-prd">PRD</a>, <a href="#term-decompose">Decompose</a>, <a href="#term-constitution">Constitution</a></div>
+        </div>
+      </section>
+
+      <!-- V -->
+      <section id="letter-V" class="glossary-section">
+        <div class="glossary-section-letter">V</div>
+
+        <div id="term-validate-cmd" class="term-block">
+          <div class="term-title">Validate Cmd</div>
+          <div class="term-def">The shell command configured in <code>SPIRAL_VALIDATE_CMD</code> (e.g., <code>uv run pytest tests/</code>) that Phase V runs after each implementation to verify the full test suite still passes. Stories without a dedicated <code>verification</code> field fall through to this command as a catch-all gate.</div>
+          <div class="term-seealso">See also: <a href="#term-phase">Phase</a>, <a href="06-configuration.html#config-SPIRAL_VALIDATE_CMD">SPIRAL_VALIDATE_CMD</a>, <a href="04-phase-deep-dive.html">Phase V — Validate</a></div>
+        </div>
+      </section>
+
+      <!-- W -->
+      <section id="letter-W" class="glossary-section">
+        <div class="glossary-section-letter">W</div>
+
+        <div id="term-worker" class="term-block">
+          <div class="term-title">Worker</div>
+          <div class="term-def">A parallel Ralph instance managed by <code>lib/run_parallel_ralph.sh</code>. Each worker runs in its own git worktree and processes one story slice simultaneously with other workers. The number of active workers is capped by <code>SPIRAL_RALPH_WORKERS</code> (default 1) to stay within memory budgets.</div>
+          <div class="term-seealso">See also: <a href="#term-ralph">Ralph</a>, <a href="#term-worktree">Worktree</a>, <a href="06-configuration.html#config-SPIRAL_RALPH_WORKERS">SPIRAL_RALPH_WORKERS</a></div>
+        </div>
+
+        <div id="term-worktree" class="term-block">
+          <div class="term-title">Worktree</div>
+          <div class="term-def">An isolated git working directory created by <code>git worktree add</code> under <code>.spiral-workers/worker-N/</code> for each parallel Ralph worker. Worktrees share the same object store as the main repo but have independent working trees, preventing workers from clobbering each other's changes.</div>
+          <div class="term-seealso">See also: <a href="#term-worker">Worker</a>, <a href="#term-ralph">Ralph</a>, <a href="03-architecture.html">Architecture</a></div>
+        </div>
+      </section>
+
+    </div><!-- .page-content -->
   </main>
 </div>
 <script>
