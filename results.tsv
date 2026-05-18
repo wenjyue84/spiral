@@ -231,3 +231,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T10:46:51Z	15	3	US-1405	[Integration Test] MockClaudeAPI fixture: intercept, inject, and failure paths	keep	446	haiku	0	757495cfeac32523cc6fbdd0189d42a4a0629adf	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T10:53:17Z	15	4	US-1408	[Security Test] HealthWidget /api/health: no sensitive data in response payload	keep	360	haiku	0	0a218ab77b49e2c05520664e3e3cb9871c2af6fa	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T11:12:54Z	16	1	US-1409	[Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365	reject	501	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-18T11:15:55Z	16	2	US-1409	[Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365	keep	144	sonnet	1	d51a231c7b4f1e437fe7ea46902dd661ec0e8053	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
