@@ -1,0 +1,207 @@
+"""test_costs_api.py — Tests for /api/costs/breakdown endpoint and parse_costs_from_results_tsv.
+
+Tests:
+- parse_costs_from_results_tsv with valid TSV data
+- parse_costs_from_results_tsv with empty results.tsv
+- parse_costs_from_results_tsv with missing file
+- /api/costs/breakdown endpoint via FastAPI TestClient
+"""
+
+from __future__ import annotations
+
+import tempfile
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from lib.dashboard.api import app
+from lib.dashboard.routes.costs import parse_costs_from_results_tsv
+
+
+class TestParseCostsFromResultsTsv:
+    """Unit tests for parse_costs_from_results_tsv function."""
+
+    def test_parse_costs_breakdown(self) -> None:
+        """Test parsing a valid results.tsv with multiple stories and phases."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
+            # Write header
+            f.write(
+                "timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\t"
+                "status\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\t"
+                "cache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\t"
+                "wall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\n"
+            )
+            # Write 3 stories with 5 total rows (different iterations)
+            f.write(
+                "2026-05-18T10:00:00Z\t1\t1\tUS-001\tTest Story 1\tpass\t100\t"
+                "haiku\t0\tabc123\trun1\tfalse\t1000\t500\t100\t0\t0\t0\t0\t\n"
+            )
+            f.write(
+                "2026-05-18T10:01:00Z\t1\t2\tUS-002\tTest Story 2\tpass\t150\t"
+                "sonnet\t0\tabc123\trun1\tfalse\t10000\t5000\t0\t0\t0\t0\t0\t\n"
+            )
+            f.write(
+                "2026-05-18T10:02:00Z\t2\t1\tUS-003\tTest Story 3\tpass\t200\t"
+                "opus\t1\tabc123\trun1\tfalse\t50000\t20000\t0\t0\t0\t0\t0\t\n"
+            )
+            f.write(
+                "2026-05-18T10:03:00Z\t2\t2\tUS-004\tTest Story 4\tpass\t120\t"
+                "haiku\t0\tabc123\trun1\tfalse\t2000\t1000\t200\t0\t0\t0\t0\t\n"
+            )
+            f.write(
+                "2026-05-18T10:04:00Z\t3\t1\tUS-005\tTest Story 5\tpass\t180\t"
+                "sonnet\t0\tabc123\trun1\tfalse\t15000\t8000\t0\t0\t0\t0\t0\t\n"
+            )
+            tsv_path = f.name
+
+        try:
+            result = parse_costs_from_results_tsv(tsv_path)
+
+            # Verify structure
+            assert "phases" in result
+            assert "total_tokens" in result
+            assert "total_cost_usd" in result
+            assert "spend_rate_per_story" in result
+            assert "iteration_count" in result
+
+            # Verify values
+            assert isinstance(result["phases"], dict)
+            assert result["total_tokens"] > 0  # Sum of all cache tokens
+            assert result["total_cost_usd"] > 0  # Calculated from tokens
+            assert result["spend_rate_per_story"] > 0  # Cost per story
+            assert result["iteration_count"] == 3  # 3 unique spiral_iter values (1, 2, 3)
+
+            # Verify token calculation (sum of cache_read + cache_creation + review)
+            # Story 1: 1000 + 500 + 100 = 1600 (haiku)
+            # Story 2: 10000 + 5000 + 0 = 15000 (sonnet)
+            # Story 3: 50000 + 20000 + 0 = 70000 (opus)
+            # Story 4: 2000 + 1000 + 200 = 3200 (haiku)
+            # Story 5: 15000 + 8000 + 0 = 23000 (sonnet)
+            # Total: 112800 tokens
+            assert result["total_tokens"] == 112800
+
+            # Verify spend_rate_per_story
+            expected_rate = result["total_cost_usd"] / 5
+            assert abs(result["spend_rate_per_story"] - expected_rate) < 0.0001
+
+        finally:
+            Path(tsv_path).unlink()
+
+    def test_empty_results_tsv(self) -> None:
+        """Test handling of empty results.tsv (no data rows)."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
+            # Write header only
+            f.write(
+                "timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\t"
+                "status\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\t"
+                "cache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\t"
+                "wall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\n"
+            )
+            tsv_path = f.name
+
+        try:
+            result = parse_costs_from_results_tsv(tsv_path)
+
+            assert result["total_tokens"] == 0
+            assert result["total_cost_usd"] == 0.0
+            assert result["spend_rate_per_story"] == 0.0
+            assert result["iteration_count"] == 0
+            assert result["phases"] == {}
+
+        finally:
+            Path(tsv_path).unlink()
+
+    def test_missing_results_tsv(self) -> None:
+        """Test handling of missing results.tsv file."""
+        result = parse_costs_from_results_tsv("/nonexistent/path/results.tsv")
+
+        # Should return empty/zero values without raising
+        assert result["total_tokens"] == 0
+        assert result["total_cost_usd"] == 0.0
+        assert result["spend_rate_per_story"] == 0.0
+        assert result["iteration_count"] == 0
+        assert result["phases"] == {}
+
+    def test_results_tsv_missing_columns(self) -> None:
+        """Test handling of TSV missing required columns."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
+            # Write header without cache columns
+            f.write("timestamp\tstory_id\tstory_title\tstatus\tduration_sec\n")
+            f.write("2026-05-18T10:00:00Z\tUS-001\tTest\tpass\t100\n")
+            tsv_path = f.name
+
+        try:
+            result = parse_costs_from_results_tsv(tsv_path)
+
+            # Should handle gracefully and return defaults
+            assert result["total_tokens"] == 0
+            assert result["total_cost_usd"] == 0.0
+
+        finally:
+            Path(tsv_path).unlink()
+
+    def test_malformed_token_values(self) -> None:
+        """Test handling of non-numeric token values."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
+            f.write(
+                "timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\t"
+                "status\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\t"
+                "cache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\t"
+                "wall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\n"
+            )
+            # Row with non-numeric token values
+            f.write(
+                "2026-05-18T10:00:00Z\t1\t1\tUS-001\tTest\tpass\t100\t"
+                "haiku\t0\tabc123\trun1\tfalse\tNOT_A_NUMBER\t5000\t100\t0\t0\t0\t0\t\n"
+            )
+            tsv_path = f.name
+
+        try:
+            result = parse_costs_from_results_tsv(tsv_path)
+
+            # Should handle gracefully, treating invalid values as 0
+            assert result["total_tokens"] == 5100  # Only valid values: 5000 + 100
+            assert result["iteration_count"] == 1
+
+        finally:
+            Path(tsv_path).unlink()
+
+
+class TestCostsBreakdownEndpoint:
+    """Integration tests for /api/costs/breakdown endpoint."""
+
+    def test_endpoint_structure(self) -> None:
+        """Test that endpoint returns correct JSON structure."""
+        client = TestClient(app)
+        response = client.get("/api/costs/breakdown")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify required keys
+        assert "phases" in data
+        assert "total_tokens" in data
+        assert "total_cost_usd" in data
+        assert "spend_rate_per_story" in data
+        assert "iteration_count" in data
+
+        # Verify types
+        assert isinstance(data["phases"], dict)
+        assert isinstance(data["total_tokens"], int)
+        assert isinstance(data["total_cost_usd"], (int, float))
+        assert isinstance(data["spend_rate_per_story"], (int, float))
+        assert isinstance(data["iteration_count"], int)
+
+    def test_endpoint_response_consistency(self) -> None:
+        """Test that endpoint returns consistent data types."""
+        client = TestClient(app)
+        response = client.get("/api/costs/breakdown")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify numeric values are non-negative
+        assert data["total_tokens"] >= 0
+        assert data["total_cost_usd"] >= 0.0
+        assert data["spend_rate_per_story"] >= 0.0
+        assert data["iteration_count"] >= 0

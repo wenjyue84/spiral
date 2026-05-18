@@ -8,6 +8,7 @@ Exposes:
 - GET /api/dashboard/research-sources — Research source credibility tracking endpoint
 - GET /api/dashboard/overview — Unified cross-project metrics endpoint
 - GET /api/dashboard/phase-cost-breakdown — Token/cost per phase from results.tsv (US-641)
+- GET /api/costs/breakdown — Total costs and burn rate from results.tsv (US-1384)
 - GET /api/dashboard/worker-phase-swimlane — Worker phase status for swimlane chart (US-750)
 - GET /api/dashboard/throughput — Stories completed per hour (US-1254)
 - GET /api/config — Read runtime config from .spiral/ui-config.json (US-1214)
@@ -37,6 +38,7 @@ from ..research_source_scorer import extract_sources
 from ..spiral.dashboard.aggregator import aggregate_overview
 from .alerts_broadcaster import get_alerts_manager
 from .cost_broadcaster import get_manager
+from .routes.costs import parse_costs_from_results_tsv
 from .routes.tests import parse_test_results, stream_rerun
 from .story_broadcaster import get_story_updates_manager
 from .throughput import aggregate as aggregate_throughput
@@ -351,6 +353,23 @@ async def cost_history() -> dict[str, Any]:
             }
         )
     return {"history": result}
+
+
+@app.get("/api/costs/breakdown")
+async def costs_breakdown() -> dict[str, Any]:
+    """Cost breakdown endpoint parsing results.tsv (US-1384).
+
+    Returns total tokens, estimated USD costs, spend rate per story,
+    and iteration count for cost transparency and budget estimation.
+
+    Returns JSON with keys:
+    - phases: dict keyed by phase letter (currently empty as results.tsv lacks phase data)
+    - total_tokens: sum of cache_read_tokens + cache_creation_tokens + review_tokens
+    - total_cost_usd: total estimated USD cost
+    - spend_rate_per_story: average cost per story
+    - iteration_count: number of unique spiral_iter values
+    """
+    return parse_costs_from_results_tsv("results.tsv")
 
 
 @app.get("/api/dashboard/error-breakdown")
