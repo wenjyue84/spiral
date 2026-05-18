@@ -8,10 +8,12 @@ and auto-fix suggestions.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
-from lib.spiral.federation_validator import validate_federation_namespaces
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+from spiral.federation_validator import validate_federation_namespaces
 
 
 def format_summary_table(result, prd_file: Path) -> str:
@@ -31,7 +33,7 @@ def format_summary_table(result, prd_file: Path) -> str:
 
     # Summary line
     if result.is_valid:
-        lines.append(f"  ✓ Valid   | No collisions detected")
+        lines.append("  ✓ Valid   | No collisions detected")
     else:
         lines.append(f"  ✗ Invalid | {len(result.collisions)} collision(s) found")
 

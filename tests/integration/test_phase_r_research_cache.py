@@ -84,24 +84,18 @@ class TestPhaseRCacheHitMiss:
         """
         # Query 1: Cache miss → API call
         key1 = "research-Feature X"
-        result1 = phase_r_cache.get_or_fetch(
-            key1, mock_api, query="web research", story_title="Feature X"
-        )
+        result1 = phase_r_cache.get_or_fetch(key1, mock_api, query="web research", story_title="Feature X")
         assert mock_api.call_count == 1
 
         # Query 2: Different title → Cache miss → API call
         key2 = "research-Feature Y"
-        result2 = phase_r_cache.get_or_fetch(
-            key2, mock_api, query="web research", story_title="Feature Y"
-        )
+        result2 = phase_r_cache.get_or_fetch(key2, mock_api, query="web research", story_title="Feature Y")
         assert mock_api.call_count == 2
         assert result2 != result1  # Different results
 
         # Query 3: Same title as Query 1 but different research_query → Cache hit
         # (same key = same cache entry, so this is a cache hit)
-        result3 = phase_r_cache.get_or_fetch(
-            key1, mock_api, query="blog research", story_title="Feature X"
-        )
+        result3 = phase_r_cache.get_or_fetch(key1, mock_api, query="blog research", story_title="Feature X")
         assert mock_api.call_count == 2  # Still 2, no additional call
         assert result3 == result1  # Returns cached result from Query 1
 

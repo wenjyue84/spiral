@@ -180,13 +180,13 @@ print(classify_error(stderr).value)
 
   # Map new category names to legacy names expected by select_retry_strategy()
   case "${result:-}" in
-    timeout)   echo "timeout" ;;
-    oom)       echo "oom" ;;
-    syntax)    echo "syntax_error" ;;
-    import)    echo "missing_dependency" ;;
+    timeout) echo "timeout" ;;
+    oom) echo "oom" ;;
+    syntax) echo "syntax_error" ;;
+    import) echo "missing_dependency" ;;
     assertion) echo "test_assertion" ;;
     network | auth | unknown | "") echo "other" ;;
-    *)         echo "${result:-other}" ;;
+    *) echo "${result:-other}" ;;
   esac
 }
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from lib.spiral.federation_validator import (
     ValidationResult,
     build_story_id_map,

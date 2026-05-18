@@ -197,9 +197,7 @@ def test_breakdown_no_secret_fields(tmp_path: Path) -> None:
     secret_fields = {"token", "key", "password", "secret"}
     leaked_fields = response_keys & secret_fields
 
-    assert not leaked_fields, (
-        f"Response must not contain secret fields. Leaked fields: {leaked_fields}"
-    )
+    assert not leaked_fields, f"Response must not contain secret fields. Leaked fields: {leaked_fields}"
 
     # Verify all returned keys are safe
     safe_keys = {
@@ -211,9 +209,7 @@ def test_breakdown_no_secret_fields(tmp_path: Path) -> None:
         "iteration_count",
         "_missing",
     }
-    assert response_keys.issubset(safe_keys), (
-        f"Response contains unexpected keys: {response_keys - safe_keys}"
-    )
+    assert response_keys.issubset(safe_keys), f"Response contains unexpected keys: {response_keys - safe_keys}"
 
 
 def test_breakdown_path_traversal() -> None:
@@ -227,9 +223,7 @@ def test_breakdown_path_traversal() -> None:
 
     # Test 1: Classic path traversal attempt
     response = client.get("/api/costs/breakdown?file=../../etc/passwd")
-    assert response.status_code == 400, (
-        f"Path traversal should return 400, got {response.status_code}"
-    )
+    assert response.status_code == 400, f"Path traversal should return 400, got {response.status_code}"
     error_detail = response.json().get("detail", "")
     assert error_detail, "Error response must include detail message"
 
@@ -240,15 +234,11 @@ def test_breakdown_path_traversal() -> None:
 
     # Test 3: Absolute path traversal
     response = client.get("/api/costs/breakdown?file=/etc/passwd")
-    assert response.status_code == 400, (
-        f"Absolute path should return 400, got {response.status_code}"
-    )
+    assert response.status_code == 400, f"Absolute path should return 400, got {response.status_code}"
 
     # Test 4: Multiple traversal segments
     response = client.get("/api/costs/breakdown?file=../../../../../../../etc/passwd")
-    assert response.status_code == 400, (
-        f"Deep path traversal should return 400, got {response.status_code}"
-    )
+    assert response.status_code == 400, f"Deep path traversal should return 400, got {response.status_code}"
 
 
 def test_breakdown_response_shape(tmp_path: Path) -> None:

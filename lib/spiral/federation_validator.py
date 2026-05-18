@@ -75,9 +75,7 @@ def detect_collisions(
 ) -> list[dict[str, Any]]:
     """Detect namespace collisions in the namespace map.
 
-    A collision occurs when:
-    - The same story_id appears in multiple projects
-    - The namespace prefixes differ across projects
+    A collision occurs when the same story_id appears in multiple projects.
 
     Args:
         namespace_map: Map from build_story_id_map
@@ -87,7 +85,8 @@ def detect_collisions(
         {
             "story_id": "US-100",
             "projects": {"main": "US", "payments": "PAYMENTS"},
-            "conflict": True
+            "conflict": True,
+            "prefixes": ["US", "PAYMENTS"]
         }
     """
     collisions: list[dict[str, Any]] = []
@@ -96,17 +95,16 @@ def detect_collisions(
         if len(projects) <= 1:
             continue
 
-        # Check if prefixes are consistent
-        prefixes = set(projects.values())
-        if len(prefixes) > 1:
-            collisions.append(
-                {
-                    "story_id": story_id,
-                    "projects": dict(projects),
-                    "conflict": True,
-                    "prefixes": list(prefixes),
-                }
-            )
+        # Any story_id appearing in multiple projects is a collision
+        prefixes = sorted(set(projects.values()))
+        collisions.append(
+            {
+                "story_id": story_id,
+                "projects": dict(projects),
+                "conflict": True,
+                "prefixes": prefixes,
+            }
+        )
 
     return collisions
 
@@ -128,22 +126,35 @@ def suggest_namespace_renames(
     for collision in collisions:
         story_id = collision["story_id"]
         projects = collision["projects"]
-        prefixes = collision.get("prefixes", [])
 
-        if len(prefixes) < 2:
+        # Get the main project's prefix to extract numeric part
+        main_prefix = projects.get("main")
+        if not main_prefix or "-" not in story_id:
             continue
 
-        # Suggest keeping the main project's prefix, renaming others
-        main_prefix = projects.get("main", list(prefixes)[0])
+        # Extract numeric part from story_id using main prefix
+        if story_id.startswith(main_prefix + "-"):
+            base_id_part = story_id[len(main_prefix) + 1 :]
+        else:
+            continue
 
+        # For each non-main project, suggest renaming
         for project, current_prefix in projects.items():
-            if project == "main" or current_prefix == main_prefix:
+            if project == "main":
                 continue
-            base_id_part = story_id[len(current_prefix) + 1 :]  # Skip prefix + dash
-            new_id = f"{main_prefix}-{base_id_part}"
-            suggestions.append(
-                f"Rename {story_id} to {new_id} in {project} project"
-            )
+
+            # If prefix differs from main, suggest using the main prefix
+            # Otherwise, suggest using a project-specific prefix
+            if current_prefix == main_prefix:
+                # Same prefix in different projects: suggest project-specific prefix
+                # Use uppercase project name as fallback prefix
+                new_prefix = project.upper()
+                new_id = f"{new_prefix}-{base_id_part}"
+            else:
+                # Different prefix: use the current prefix
+                new_id = f"{current_prefix}-{base_id_part}"
+
+            suggestions.append(f"Rename {story_id} to {new_id} in {project} project")
 
     return suggestions
 
