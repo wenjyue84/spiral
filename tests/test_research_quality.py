@@ -455,7 +455,7 @@ class TestFilteringByQuality:
 
     def test_empty_results(self) -> None:
         """Empty results don't cause errors."""
-        results = {"stories": []}
+        results: dict[str, Any] = {"stories": []}
         filtered = filter_research_results_by_quality(results, min_score=40)
         assert filtered["stories"] == []
         assert filtered["_skipped_count"] == 0
