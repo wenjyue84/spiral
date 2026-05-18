@@ -4665,7 +4665,8 @@
       "last_attempted": "2026-05-18T15:05:13Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe `/api/costs/breakdown` endpoint is already implemented in `lib/dashboard/api.py` (line 359), and `parse_costs_from_results_tsv()` is in `lib/dashboard/routes/costs.py`. However, the test file `tests/test_costs_api.py` exists but doesn't have tests with the exact names required by the story acceptance criteria:\n\n- ✅ `test_response_shape_with_synthetic_data` (exists but wrong name)\n- ✅ `test_per_phase_totals_sum` (exists but wrong name)\n- ✅ `test_missing_results_tsv_returns_404` (exists but wrong name, expects 404 not 200)\n\n## Problem Identified\n\nI need to add three specific test functions with the exact required names that test the acceptance criteria correctly.\n\n## Planned Changes\n\n1. Rename/create `test_breakdown_response_shape` - verify response has phases, burnRate, remainingBudget keys\n2. Rename/create `test_breakdown_per_phase_data` - verify each phase entry has cost_usd, token_count \n3. Rename/create `test_breakdown_missing_tsv` - verify returns 200 with empty phases (NOT 404)\n4. Keep existing tests marked with `@pytest.mark.us_1384` to satisfy criterion 4\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_costs_api.py\"],\n  \"functions_to_add\": [\"test_breakdown_response_shape\", \"test_breakdown_per_phase_data\", \"test_breakdown_missing_tsv\"],\n  \"estimated_loc\": 80\n}\n</plan>\n\nNow let me implement the required tests:\nPerfect! All acceptance criteria pass:\n- ✅ AC1: `test_breakdown_response_shape` PASSED\n- ✅ AC2: `test_breakdown_per_phase_data` PASSED\n- ✅ AC3: `test_breakdown_missing_tsv` PASSED\n- ✅ AC4: `pytest tests/ -k us_1384` → 14 tests PASSED\n\nNow let me run quality checks:\n## Summary"
-      }
+      },
+      "_passedCommit": "0aebe71e0e9365a02e7dcc4463d256e22a71db45"
     }
   ]
 }
