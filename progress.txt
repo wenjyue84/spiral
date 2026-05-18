@@ -1915,3 +1915,21 @@ Completed: Create MockClaudeAPI class with response injection and failure simula
 
 ## Iteration 6 - Mon, May 18, 2026  7:29:24 PM
 Completed: Test HealthWidget: polling /api/health and graceful error backoff (ID: US-1415) in 2m
+
+## Iteration - Mon, May 18, 2026 - Story US-1417 Completed
+Completed: [Security Test] SPIRAL loop via MockClaudeAPI: no credential leakage in logs or state (ID: US-1417)
+
+### What was implemented
+- Added TestCredentialSecurity class to tests/test_spiral_integration.py with 2 tests:
+  - test_no_credential_leakage_in_spiral_state_security: uses tmp_path for isolated .spiral/ dir, injects fake key via env var, verifies no key value in state files written during mock loop
+  - test_no_credential_in_stdout_security: uses MockClaudeAPI context manager, verifies captured stdout has no api_key/password/secret patterns
+
+### Patterns discovered
+- Existing .spiral/ has legitimate ANTHROPIC_API_KEY references in story descriptions — use tmp_path isolation rather than scanning real .spiral/
+- Use re.search(r"sk-ant-[A-Za-z0-9_-]{20,}", content) to detect real-looking key patterns vs just the variable name
+- MockClaudeAPI._failures.pop("I", None) allows removing injected failures mid-test for two-phase tests
+
+### Gotchas
+- F841 ruff error: don't assign `result: Any` in a try block where the variable is unused (just call subprocess.run without assignment)
+- F401 ruff error: remove unused imports (io, tempfile were added speculatively)
+- ruff format needed after edit — always run before commit

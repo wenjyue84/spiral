@@ -7203,3 +7203,21 @@
 {"ts": "2026-05-18T11:04:26.974340+00:00", "type": "route_story_assigned", "story_id": "US-1417", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-05-18T11:04:26.974705+00:00", "type": "route_story_assigned", "story_id": "US-1418", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-05-18T11:04:26.975017+00:00", "type": "route_story_assigned", "story_id": "US-1419", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-05-18T11:35:09.793986+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1691\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"timestamp": "2026-05-18T11:38:50.701068+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "spiral-ui: Add live Worker Activity widget to Dashboard with per-worker metrics", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-05-18T11:38:50.701684+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "Phase I: Gracefully reduce story scope when token count exceeds budget", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"timestamp": "2026-05-18T11:38:50.702013+00:00", "event_type": "story_validation_rejected", "story_id": "", "story_title": "spiral-ui: Auto-detect system dark mode and persist user theme preference", "rejection_reason": "too_simple: only 1 measurable ACs -- specify test commands, file paths, or numeric thresholds", "source": "ai-example"}
+{"ts": "2026-05-18T11:40:50.741198+00:00", "type": "route_story_assigned", "story_id": "US-1402", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.741575+00:00", "type": "route_story_assigned", "story_id": "US-1403", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.741904+00:00", "type": "route_story_assigned", "story_id": "US-1404", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.742219+00:00", "type": "route_story_assigned", "story_id": "US-1406", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.742534+00:00", "type": "route_story_assigned", "story_id": "US-1407", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.742846+00:00", "type": "route_story_assigned", "story_id": "US-1411", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.743157+00:00", "type": "route_story_assigned", "story_id": "US-1412", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.743474+00:00", "type": "route_story_assigned", "story_id": "US-1413", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.743820+00:00", "type": "route_story_assigned", "story_id": "US-1417", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.744131+00:00", "type": "route_story_assigned", "story_id": "US-1418", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.744443+00:00", "type": "route_story_assigned", "story_id": "US-1419", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.744753+00:00", "type": "route_story_assigned", "story_id": "US-1420", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.745063+00:00", "type": "route_story_assigned", "story_id": "US-1421", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-05-18T11:40:50.745374+00:00", "type": "route_story_assigned", "story_id": "US-1422", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
