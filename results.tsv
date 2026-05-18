@@ -257,3 +257,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T14:58:20Z	24	2	US-1425	lib/impl/worker_monitor.sh: Heartbeat monitoring with auto-restart on stall	keep	446	haiku	0	4048edcd217a7a2c539e5506a5eb74d30360ed6b	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-18T15:13:43Z	25	1	US-1426	[Test] /api/costs/breakdown: response shape, per-phase data, and error handling	keep	489	haiku	0	0aebe71e0e9365a02e7dcc4463d256e22a71db45	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-18T15:29:53Z	26	1	US-1427	[Security Test] /api/costs/breakdown: response exposes no raw API keys or tokens	keep	486	haiku	0	c2906b84a08bbb3cc90cf3d602d023040dd7e5e9	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-18T15:36:16Z	26	2	US-1428	Phase I Error Classifier - Extract and Categorize Failure Patterns from results.tsv	keep	358	sonnet	0	f7a3ed3b77f2cb4c00a1137048b2a096785d5438	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
