@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from fastapi.testclient import TestClient
 
@@ -61,14 +62,14 @@ class TestParseCostsFromResultsTsv:
             assert "phases" in result
             assert "total_tokens" in result
             assert "total_cost_usd" in result
-            assert "spend_rate_per_story" in result
+            assert "burnRate" in result
             assert "iteration_count" in result
 
             # Verify values
             assert isinstance(result["phases"], dict)
             assert result["total_tokens"] > 0  # Sum of all cache tokens
             assert result["total_cost_usd"] > 0  # Calculated from tokens
-            assert result["spend_rate_per_story"] > 0  # Cost per story
+            assert result["burnRate"] > 0  # Cost per story
             assert result["iteration_count"] == 3  # 3 unique spiral_iter values (1, 2, 3)
 
             # Verify token calculation (sum of cache_read + cache_creation + review)
@@ -80,9 +81,9 @@ class TestParseCostsFromResultsTsv:
             # Total: 112800 tokens
             assert result["total_tokens"] == 112800
 
-            # Verify spend_rate_per_story
+            # Verify burnRate
             expected_rate = result["total_cost_usd"] / 5
-            assert abs(result["spend_rate_per_story"] - expected_rate) < 0.0001
+            assert abs(result["burnRate"] - expected_rate) < 0.0001
 
         finally:
             Path(tsv_path).unlink()
@@ -104,7 +105,7 @@ class TestParseCostsFromResultsTsv:
 
             assert result["total_tokens"] == 0
             assert result["total_cost_usd"] == 0.0
-            assert result["spend_rate_per_story"] == 0.0
+            assert result["burnRate"] == 0.0
             assert result["iteration_count"] == 0
             assert result["phases"] == {}
 
@@ -115,12 +116,13 @@ class TestParseCostsFromResultsTsv:
         """Test handling of missing results.tsv file."""
         result = parse_costs_from_results_tsv("/nonexistent/path/results.tsv")
 
-        # Should return empty/zero values without raising
+        # Should return empty/zero values with _missing flag
         assert result["total_tokens"] == 0
         assert result["total_cost_usd"] == 0.0
-        assert result["spend_rate_per_story"] == 0.0
+        assert result["burnRate"] == 0.0
         assert result["iteration_count"] == 0
         assert result["phases"] == {}
+        assert result["_missing"] is True
 
     def test_results_tsv_missing_columns(self) -> None:
         """Test handling of TSV missing required columns."""
@@ -175,21 +177,28 @@ class TestCostsBreakdownEndpoint:
         client = TestClient(app)
         response = client.get("/api/costs/breakdown")
 
+        # May return 404 if results.tsv is missing
+        if response.status_code == 404:
+            assert "detail" in response.json()
+            return
+
         assert response.status_code == 200
         data = response.json()
 
-        # Verify required keys
+        # Verify required keys including burnRate and remainingBudget
         assert "phases" in data
         assert "total_tokens" in data
         assert "total_cost_usd" in data
-        assert "spend_rate_per_story" in data
+        assert "burnRate" in data
+        assert "remainingBudget" in data
         assert "iteration_count" in data
 
         # Verify types
         assert isinstance(data["phases"], dict)
         assert isinstance(data["total_tokens"], int)
         assert isinstance(data["total_cost_usd"], (int, float))
-        assert isinstance(data["spend_rate_per_story"], (int, float))
+        assert isinstance(data["burnRate"], (int, float))
+        assert isinstance(data["remainingBudget"], (int, float))
         assert isinstance(data["iteration_count"], int)
 
     def test_endpoint_response_consistency(self) -> None:
@@ -197,11 +206,114 @@ class TestCostsBreakdownEndpoint:
         client = TestClient(app)
         response = client.get("/api/costs/breakdown")
 
+        # May return 404 if results.tsv is missing
+        if response.status_code == 404:
+            return
+
         assert response.status_code == 200
         data = response.json()
 
         # Verify numeric values are non-negative
         assert data["total_tokens"] >= 0
         assert data["total_cost_usd"] >= 0.0
-        assert data["spend_rate_per_story"] >= 0.0
+        assert data["burnRate"] >= 0.0
+        assert data["remainingBudget"] >= 0.0
         assert data["iteration_count"] >= 0
+
+    def test_response_shape_with_synthetic_data(self, tmp_path: Path) -> None:
+        """Test response shape with synthetic results.tsv (acceptance criterion 2).
+
+        Verifies response contains keys: phases (dict), burnRate (number), remainingBudget (number).
+        """
+        # Create synthetic results.tsv
+        tsv_file = tmp_path / "results.tsv"
+        tsv_file.write_text(
+            "timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\t"
+            "status\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\t"
+            "cache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\t"
+            "wall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\n"
+            "2026-05-18T10:00:00Z\t1\t1\tUS-001\tTest Story 1\tpass\t100\t"
+            "haiku\t0\tabc123\trun1\tfalse\t1000\t500\t100\t0\t0\t0\t0\t\n"
+            "2026-05-18T10:01:00Z\t1\t2\tUS-002\tTest Story 2\tpass\t150\t"
+            "sonnet\t0\tabc123\trun1\tfalse\t10000\t5000\t0\t0\t0\t0\t0\t\n",
+            encoding="utf-8",
+        )
+
+        result = parse_costs_from_results_tsv(str(tsv_file))
+
+        # Verify required response keys per acceptance criterion 2
+        assert "phases" in result, "Response must include 'phases' key"
+        assert "burnRate" in result, "Response must include 'burnRate' key"
+        assert "remainingBudget" in result, "Response must include 'remainingBudget' key"
+
+        # Verify types
+        assert isinstance(result["phases"], dict)
+        assert isinstance(result["burnRate"], (int, float))
+        assert isinstance(result["remainingBudget"], (int, float))
+
+        # Verify phases is non-empty when data exists
+        assert len(result["phases"]) > 0, "phases should contain model breakdowns"
+
+    def test_per_phase_totals_sum(self, tmp_path: Path) -> None:
+        """Test that per-phase costs sum correctly (acceptance criterion 3).
+
+        Verifies per-phase USD totals in response sum to within 0.001 of total_cost_usd.
+        """
+        # Create synthetic results.tsv with known costs
+        tsv_file = tmp_path / "results.tsv"
+        tsv_file.write_text(
+            "timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\t"
+            "status\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\t"
+            "cache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\t"
+            "wall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\n"
+            "2026-05-18T10:00:00Z\t1\t1\tUS-001\tTest Story 1\tpass\t100\t"
+            "haiku\t0\tabc123\trun1\tfalse\t1000\t500\t100\t0\t0\t0\t0\t\n"
+            "2026-05-18T10:01:00Z\t1\t2\tUS-002\tTest Story 2\tpass\t150\t"
+            "sonnet\t0\tabc123\trun1\tfalse\t10000\t5000\t0\t0\t0\t0\t0\t\n"
+            "2026-05-18T10:02:00Z\t2\t1\tUS-003\tTest Story 3\tpass\t200\t"
+            "opus\t1\tabc123\trun1\tfalse\t50000\t20000\t0\t0\t0\t0\t0\t\n",
+            encoding="utf-8",
+        )
+
+        result = parse_costs_from_results_tsv(str(tsv_file))
+
+        # Sum per-phase costs
+        phase_sum = sum(phase["cost_usd"] for phase in result["phases"].values())
+
+        # Assert sum matches total_cost_usd within 0.001 USD (acceptance criterion 3)
+        assert abs(phase_sum - result["total_cost_usd"]) < 0.001, (
+            f"Per-phase costs ({phase_sum}) must sum to total_cost_usd "
+            f"({result['total_cost_usd']}) within 0.001"
+        )
+
+    def test_missing_results_tsv_returns_404(self, monkeypatch: Any) -> None:
+        """Test that missing results.tsv causes 404 response (acceptance criterion 4).
+
+        Verifies endpoint returns 404 with JSON error message when file is missing.
+        """
+        # Monkeypatch parse_costs_from_results_tsv to return _missing=True
+        def mock_parse(path: str) -> dict[str, Any]:
+            """Return missing marker for testing."""
+            return {
+                "phases": {},
+                "total_tokens": 0,
+                "total_cost_usd": 0.0,
+                "burnRate": 0.0,
+                "remainingBudget": 200.0,
+                "iteration_count": 0,
+                "_missing": True,
+            }
+
+        monkeypatch.setattr(
+            "lib.dashboard.api.parse_costs_from_results_tsv",
+            mock_parse,
+        )
+
+        client = TestClient(app)
+        response = client.get("/api/costs/breakdown")
+
+        # Assert 404 status (acceptance criterion 4)
+        assert response.status_code == 404, "Missing results.tsv should return 404"
+        data = response.json()
+        assert "detail" in data, "Error response should include detail message"
+        assert "results.tsv" in data["detail"], "Error message should reference missing file"

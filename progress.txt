@@ -973,3 +973,6 @@ Story: Tests for HealthWidget polling, error handling, and sparkline rendering (
 - When a story fails with DIAGNOSIS_BLOCK_MISSING, the implementation itself may be correct — check test status before re-implementing
 - HealthWidget tests use vi.useFakeTimers() + vi.advanceTimersByTime() for polling/backoff verification
 - The spiral_ui/frontend path in story notes is wrong; actual path is spiral-ui/src/components/
+## Iteration 4 - Mon, May 18, 2026  9:15:22 AM
+Completed: Tests for HealthWidget polling, error handling, and sparkline rendering (ID: US-1388) in 2m
+

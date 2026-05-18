@@ -21,13 +21,15 @@ def parse_costs_from_results_tsv(results_path: str) -> dict[str, Any]:
 
     Returns:
         dict with keys:
-        - phases: dict keyed by phase letter (empty dict if no phase data available)
+        - phases: dict with per-model cost breakdown {model: {cost_usd, token_count}}
         - total_tokens: sum of cache_read_tokens + cache_creation_tokens + review_tokens
         - total_cost_usd: total estimated USD cost
-        - spend_rate_per_story: average cost per story
+        - burnRate: average cost per story
+        - remainingBudget: budget (200 USD) minus total spent
         - iteration_count: number of unique spiral_iter values
+        - _missing: true if results.tsv is missing (signals endpoint to return 404)
 
-        Returns empty/zero values if results.tsv is missing or empty.
+        Returns empty/zero values with _missing=true if results.tsv is missing or empty.
     """
     file_path = Path(results_path)
 
@@ -36,8 +38,10 @@ def parse_costs_from_results_tsv(results_path: str) -> dict[str, Any]:
         "phases": {},
         "total_tokens": 0,
         "total_cost_usd": 0.0,
-        "spend_rate_per_story": 0.0,
+        "burnRate": 0.0,
+        "remainingBudget": 200.0,
         "iteration_count": 0,
+        "_missing": True,
     }
 
     if not file_path.exists():
@@ -69,6 +73,7 @@ def parse_costs_from_results_tsv(results_path: str) -> dict[str, Any]:
         total_cost = 0.0
         iterations_set: set[str] = set()
         story_count = 0
+        phases: dict[str, dict[str, float | int]] = {}  # Per-model cost breakdown
 
         for line in lines[1:]:
             line = line.strip()
@@ -106,7 +111,14 @@ def parse_costs_from_results_tsv(results_path: str) -> dict[str, Any]:
             # Extract model base name (e.g., "sonnet-4-6" -> "sonnet")
             model_base = model.split("-")[0]
             rate = _PHASE_COST_RATE.get(model_base, _PHASE_COST_RATE["haiku"])
-            total_cost += tokens * rate
+            cost = tokens * rate
+            total_cost += cost
+
+            # Track per-model costs
+            if model_base not in phases:
+                phases[model_base] = {"cost_usd": 0.0, "token_count": 0}
+            phases[model_base]["cost_usd"] = round(phases[model_base]["cost_usd"] + cost, 6)
+            phases[model_base]["token_count"] = phases[model_base]["token_count"] + tokens
 
             # Track iterations
             try:
@@ -118,18 +130,21 @@ def parse_costs_from_results_tsv(results_path: str) -> dict[str, Any]:
 
         # Compute metrics
         iteration_count = len(iterations_set)
-        spend_rate_per_story = total_cost / max(story_count, 1)
+        burn_rate = total_cost / max(story_count, 1)
+        remaining_budget = 200.0 - total_cost  # Default budget: $200 USD
 
         return {
-            "phases": {},  # No per-phase breakdown available in results.tsv
+            "phases": phases,  # Per-model cost breakdown
             "total_tokens": total_tokens,
             "total_cost_usd": round(total_cost, 6),
-            "spend_rate_per_story": round(spend_rate_per_story, 6),
+            "burnRate": round(burn_rate, 6),
+            "remainingBudget": round(remaining_budget, 6),
             "iteration_count": iteration_count,
+            "_missing": False,
         }
 
     except (OSError, IOError):
         return default_response
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         # Catch any unexpected parsing errors and return defaults
         return default_response

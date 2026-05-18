@@ -359,17 +359,26 @@ async def cost_history() -> dict[str, Any]:
 async def costs_breakdown() -> dict[str, Any]:
     """Cost breakdown endpoint parsing results.tsv (US-1384).
 
-    Returns total tokens, estimated USD costs, spend rate per story,
-    and iteration count for cost transparency and budget estimation.
+    Returns total tokens, estimated USD costs, burn rate per story,
+    remaining budget, and iteration count for cost transparency and budget estimation.
 
     Returns JSON with keys:
-    - phases: dict keyed by phase letter (currently empty as results.tsv lacks phase data)
+    - phases: dict with per-model cost breakdown {model: {cost_usd, token_count}}
     - total_tokens: sum of cache_read_tokens + cache_creation_tokens + review_tokens
     - total_cost_usd: total estimated USD cost
-    - spend_rate_per_story: average cost per story
+    - burnRate: average cost per story
+    - remainingBudget: budget (200 USD) minus total spent
     - iteration_count: number of unique spiral_iter values
+
+    Returns 404 if results.tsv is missing.
     """
-    return parse_costs_from_results_tsv("results.tsv")
+    result = parse_costs_from_results_tsv("results.tsv")
+    if result.pop("_missing", False):
+        raise HTTPException(
+            status_code=404,
+            detail="results.tsv not found. No cost data available yet.",
+        )
+    return result
 
 
 @app.get("/api/dashboard/error-breakdown")
