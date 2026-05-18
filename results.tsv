@@ -239,3 +239,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T11:48:47Z	17	1	US-1417	[Security Test] SPIRAL loop via MockClaudeAPI: no credential leakage in logs or state	keep	355	sonnet	0	e97af2802ee95373a18838963eef290b9f0779c6	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T11:52:34Z	17	2	US-1418	[Security Test] html/pages/06-configuration.html: no hardcoded secrets or credentials	keep	203	haiku	0	291c6ddbba7eeaee7a2cba61b8a902c0ce737a55	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T11:58:11Z	17	3	US-1420	Security test: HealthWidget does not expose auth tokens in error responses	keep	223	sonnet	0	aaa0bd65c41ccbe948a8aed52cb930b2a11140f2	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T12:40:56Z	19	1	US-1423	[Integration Test] gen_html_data.py KPI extraction and data.js output (US-1353)	keep	197	sonnet	1	a904986f0cc2c70837aa3e37d392c95e11c05b2f	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
