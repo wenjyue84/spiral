@@ -173,6 +173,8 @@ COST_ANALYSIS_MODE=0                         # 1 = run cost-analysis subcommand 
 COST_ANALYSIS_DETAILED=0                     # 1 = show per-story breakdown (--detailed)
 COST_ANALYSIS_JSON=0                         # 1 = output as JSON (--json)
 COST_ANALYSIS_COMPARE_ITERATION=""           # iteration to compare with (--compare-iteration N)
+ANALYZE_PHASES_MODE=0                        # 1 = run analyze-phases subcommand and exit
+ANALYZE_PHASES_JSON=0                        # 1 = output as newline-delimited JSON (--json)
 DRY_RUN_PLANNER_MODE=0                       # 1 = preview execution plan and exit (dry-run)
 DRY_RUN_PLANNER_ITERATIONS=""                # number of iterations to plan
 DRY_RUN_PLANNER_OUTPUT="ascii"               # output format: ascii|json (default: ascii)
@@ -548,6 +550,20 @@ while [[ $# -gt 0 ]]; do
         esac
       done
       ;;
+    analyze-phases)
+      ANALYZE_PHASES_MODE=1
+      shift
+      # Parse optional analyze-phases flags
+      while [[ $# -gt 0 ]] && [[ "$1" == --json ]]; do
+        case $1 in
+          --json)
+            ANALYZE_PHASES_JSON=1
+            shift
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
     dry-run)
       DRY_RUN_PLANNER_MODE=1
       if [[ -z "${2:-}" ]]; then
@@ -757,6 +773,8 @@ while [[ $# -gt 0 ]]; do
       echo "    --detailed                 Show per-story breakdown (top 20 by cost)"
       echo "    --json                     Output as JSON"
       echo "    --compare-iteration N      Compare current iteration to iteration N with delta"
+      echo "  analyze-phases             Identify per-phase execution bottlenecks and optimization targets"
+      echo "    --json                     Output as newline-delimited JSON (default: ASCII table)"
       echo "  dry-run N                  Preview execution plan for N iterations without API calls"
       echo "    --output json              Output as JSON instead of ASCII tree (default: ASCII tree)"
       echo "  export-progress            Bundle PRD, results, and metrics as a shareable snapshot"

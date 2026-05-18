@@ -48,9 +48,7 @@ class TestConfigPageSecurity:
             # Check for credential identifiers
             credential_patterns = r"(api[\s.]*key|password|secret)"
             matches = re.findall(credential_patterns, script_content, re.IGNORECASE)
-            assert (
-                len(matches) == 0
-            ), f"Found credential identifiers in script block: {matches}"
+            assert len(matches) == 0, f"Found credential identifiers in script block: {matches}"
 
     def test_no_placeholder_violations(self) -> None:
         """Verify all variable examples use proper placeholder strings."""
@@ -106,6 +104,4 @@ class TestConfigPageSecurity:
 
             # Verify it doesn't look like a real credential
             if re.match(r"[a-f0-9]{20,}", default_clean):
-                raise AssertionError(
-                    f"Default value looks like hex token: {default_text}"
-                )
+                raise AssertionError(f"Default value looks like hex token: {default_text}")

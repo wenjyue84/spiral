@@ -1,200 +1,256 @@
 #!/usr/bin/env python3
-"""Phase bottleneck analyzer for results.jsonl — compute per-phase metrics and recommendations."""
+"""
+Phase Bottleneck Analyzer — identifies performance bottlenecks in SPIRAL phase execution.
 
-from __future__ import annotations
+Reads results.jsonl (per-phase timing data across iterations), computes statistics,
+and provides actionable optimization recommendations.
+"""
 
+import argparse
 import json
-import statistics
 from pathlib import Path
-from typing import Any
+from statistics import mean, stdev
+from typing import Any, Dict, List
+
+PHASE_RECOMMENDATIONS = {
+    "A": {
+        "threshold": 20,
+        "message": "Phase A (AI Suggest) exceeded 20% of loop time. Consider: caching story candidates, parallelizing suggestion logic.",
+    },
+    "R": {
+        "threshold": 40,
+        "message": "Phase R (Research) exceeded 40% of loop time (typical bottleneck). Optimization: enable research cache, limit web searches per story, batch API calls.",
+    },
+    "T": {
+        "threshold": 25,
+        "message": "Phase T (Test Synth) exceeded 25% of loop time. Consider: reduce test synthesis scope, parallelize test generation.",
+    },
+    "S": {
+        "threshold": 10,
+        "message": "Phase S (Story Validate) exceeded 10% of loop time. Review: constitution checks, goal alignment, dedup logic.",
+    },
+    "E": {
+        "threshold": 15,
+        "message": "Phase E (Enrichment) exceeded 15% of loop time. Consider: caching enrichment results, limiting context build per story.",
+    },
+    "M": {
+        "threshold": 5,
+        "message": "Phase M (Merge) exceeded 5% of loop time. Review: merge logic, prd.json patch operations.",
+    },
+    "I": {
+        "threshold": 35,
+        "message": "Phase I (Implementation) exceeded 35% of loop time. Optimization: increase parallel workers, reduce per-story retry attempts, optimize decompose logic.",
+    },
+    "V": {
+        "threshold": 20,
+        "message": "Phase V (Validate) exceeded 20% of loop time. Consider: reduce validation scope, parallelize test execution, cache test results.",
+    },
+}
 
 
 class PhaseBottleneckAnalyzer:
-    """Analyze phase execution bottlenecks from results.jsonl."""
+    """Analyzes phase execution times and identifies optimization opportunities."""
 
-    def __init__(self) -> None:
-        """Initialize the analyzer."""
-        self.phase_data: dict[str, dict[str, Any]] = {}
-        self.total_loop_time: float = 0.0
-
-    def analyze(self, results_file: Path | str) -> dict[str, Any]:
-        """Analyze results.jsonl and compute per-phase metrics.
+    def analyze(self, results_file: Path) -> Dict[str, Any]:
+        """
+        Analyze results.jsonl and compute per-phase statistics.
 
         Args:
-            results_file: Path to results.jsonl file
+            results_file: Path to results.jsonl (JSONL format)
 
         Returns:
-            Dict with 'phases' list containing per-phase metrics
+            Dict with: iteration_count, phases (sorted by total_time_sec DESC),
+            total_time_sec, and per-phase: mean_duration_sec, stdev_duration_sec,
+            total_time_sec, percent_of_total, bottleneck_rank, recommendation
         """
         results_file = Path(results_file)
 
         if not results_file.exists():
-            return {"phases": []}
+            return {
+                "phases": [],
+                "total_time_sec": 0.0,
+                "iteration_count": 0,
+            }
 
-        # Read and parse JSONL
-        entries: list[dict[str, Any]] = []
+        # Parse JSONL
+        phase_data: Dict[str, List[float]] = {}
+        iterations = set()
+
         try:
-            with open(results_file, encoding="utf-8") as f:
+            with open(results_file, "r", encoding="utf-8") as f:
                 for line in f:
-                    if not line.strip():
+                    line = line.strip()
+                    if not line:
                         continue
-                    try:
-                        entries.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
-        except Exception:
-            return {"phases": []}
+                    obj = json.loads(line)
+                    phase = obj.get("phase")
+                    duration = obj.get("duration_sec")
+                    iteration = obj.get("iteration")
 
-        # Group by phase name, extract duration_ms
-        phase_durations: dict[str, list[float]] = {}
-        for entry in entries:
-            phase = (entry.get("phase") or "UNKNOWN").upper()
-            # Duration can be in ms (duration_ms) or seconds (duration_sec)
-            duration_ms = entry.get("duration_ms", 0)
-            if duration_ms == 0:
-                # Try duration_sec if duration_ms not present
-                duration_sec = entry.get("duration_sec", 0)
-                duration_ms = (duration_sec or 0) * 1000
+                    if phase and duration is not None:
+                        if phase not in phase_data:
+                            phase_data[phase] = []
+                        phase_data[phase].append(duration)
+                        if iteration is not None:
+                            iterations.add(iteration)
+        except (json.JSONDecodeError, IOError):
+            return {
+                "phases": [],
+                "total_time_sec": 0.0,
+                "iteration_count": 0,
+            }
 
-            if duration_ms > 0:
-                if phase not in phase_durations:
-                    phase_durations[phase] = []
-                phase_durations[phase].append(duration_ms / 1000.0)  # Convert to seconds
+        if not phase_data:
+            return {
+                "phases": [],
+                "total_time_sec": 0.0,
+                "iteration_count": len(iterations),
+            }
 
-        # Compute total loop time
-        self.total_loop_time = sum(d for durations in phase_durations.values() for d in durations)
+        # Compute statistics
+        total_time: float = 0.0
+        phases_list: List[Dict[str, Any]] = []
 
-        # Compute statistics per phase
-        phases: list[dict[str, Any]] = []
-        for phase in sorted(phase_durations.keys()):
-            durations = phase_durations[phase]
-            if not durations:
-                continue
+        for phase_name in sorted(phase_data.keys()):
+            durations = phase_data[phase_name]
+            total = sum(durations)
+            total_time += total
 
-            total_time = sum(durations)
-            iteration_count = len(durations)
-            mean_duration = statistics.mean(durations)
-            stddev = statistics.stdev(durations) if len(durations) > 1 else 0.0
-            percent_of_total = (total_time / self.total_loop_time * 100) if self.total_loop_time > 0 else 0.0
+            phase_info: Dict[str, Any] = {
+                "phase_name": phase_name,
+                "mean_duration_sec": mean(durations),
+                "stdev_duration_sec": stdev(durations) if len(durations) > 1 else 0.0,
+                "total_time_sec": total,
+                "sample_count": len(durations),
+            }
+            phases_list.append(phase_info)
 
-            recommendation = self._generate_recommendation(phase, total_time, mean_duration, percent_of_total)
+        # Add percentages and recommendations
+        for phase_info in phases_list:
+            total_time_sec: float = float(phase_info["total_time_sec"])
+            percent: float = (total_time_sec / total_time * 100) if total_time > 0 else 0.0
+            phase_info["percent_of_total"] = percent
 
-            phases.append({
-                "phase_name": f"Phase {phase}",
-                "mean_duration_sec": round(mean_duration, 2),
-                "stddev_sec": round(stddev, 2),
-                "total_time_sec": round(total_time, 2),
-                "iteration_count": iteration_count,
-                "percent_of_total": round(percent_of_total, 1),
-                "bottleneck_rank": 0,  # Will be set later
-                "recommendation": recommendation,
-            })
+            rec_config: Dict[str, Any] = PHASE_RECOMMENDATIONS.get(phase_info["phase_name"], {})
+            threshold: int = rec_config.get("threshold", 100)
+            if percent > threshold:
+                phase_info["recommendation"] = rec_config.get("message", "")
+            else:
+                phase_info["recommendation"] = ""
 
-        # Sort by total_time DESC and assign bottleneck ranks
-        phases.sort(key=lambda x: x["total_time_sec"], reverse=True)
-        for idx, phase in enumerate(phases, 1):
-            phase["bottleneck_rank"] = idx
+        # Sort by total_time_sec descending
+        phases_list.sort(key=lambda p: float(p["total_time_sec"]), reverse=True)
 
-        return {"phases": phases}
+        # Add bottleneck ranks
+        for rank, phase_info in enumerate(phases_list, start=1):
+            phase_info["bottleneck_rank"] = rank
 
-    def to_ascii_table(self, analysis: dict[str, Any]) -> str:
-        """Format analysis results as ASCII table with formatting.
+        return {
+            "phases": phases_list,
+            "total_time_sec": total_time,
+            "iteration_count": len(iterations),
+        }
+
+    def format_table(self, report: Dict[str, Any]) -> str:
+        """
+        Format analysis report as a human-readable ASCII table.
 
         Args:
-            analysis: Result from analyze() method
+            report: Dict returned from analyze()
 
         Returns:
-            Human-readable ASCII table string
+            Formatted string with table and recommendations
         """
-        phases = analysis.get("phases", [])
-        if not phases:
-            return "[spiral] No phase data found in results.jsonl"
-
-        # Build table
-        lines: list[str] = []
+        lines = []
         lines.append("")
-        lines.append("  Phase Bottleneck Analysis")
-        lines.append("  " + "=" * 80)
+        lines.append("=" * 80)
+        lines.append("PHASE BOTTLENECK ANALYSIS")
+        lines.append("=" * 80)
+
+        if not report.get("phases"):
+            lines.append("No phase data available.")
+            lines.append("")
+            return "\n".join(lines)
+
         lines.append("")
+        lines.append("PHASE | MEAN (s) | STDEV (s) | TOTAL (s) | % TOTAL | RANK | RECOMMENDATION")
+        lines.append("-" * 80)
 
-        # Header
-        header = "  Phase      Mean (s)  Stddev (s)  Total (s)  Count  % Loop  Rank"
-        lines.append(header)
-        lines.append("  " + "-" * 76)
-
-        # Rows
-        for phase in phases:
-            rank = phase["bottleneck_rank"]
+        for phase in report["phases"]:
             phase_name = phase["phase_name"]
             mean_dur = phase["mean_duration_sec"]
-            stddev = phase["stddev_sec"]
-            total = phase["total_time_sec"]
-            count = phase["iteration_count"]
+            stdev_dur = phase["stdev_duration_sec"]
+            total_dur = phase["total_time_sec"]
             percent = phase["percent_of_total"]
+            rank = phase["bottleneck_rank"]
+            rec = phase.get("recommendation", "")
 
-            # Highlight top 3 bottlenecks with bold markers
-            rank_str = str(rank)
-            if rank <= 3:
-                rank_str = f"[{rank}]"
+            # Highlight top bottleneck
+            prefix = ">>> " if rank == 1 else "    "
 
-            line = f"  {phase_name:<10} {mean_dur:>8.2f}  {stddev:>10.2f}  {total:>9.2f}  {count:>5}  {percent:>5.1f}%  {rank_str:>4}"
+            rec_short = rec[:40] if rec else "(no recommendation)"
+            line = (
+                f"{prefix}{phase_name:5} | {mean_dur:8.2f} | {stdev_dur:9.2f} | "
+                f"{total_dur:9.2f} | {percent:6.1f}% | {rank:4} | {rec_short}"
+            )
             lines.append(line)
 
-        lines.append("  " + "-" * 76)
         lines.append("")
+        lines.append("RECOMMENDATIONS:")
+        lines.append("-" * 80)
+        for phase in report["phases"]:
+            if phase.get("recommendation"):
+                lines.append(f"{phase['phase_name']}: {phase['recommendation']}")
 
-        # Recommendations for top 3 bottlenecks
-        lines.append("  Top 3 Bottlenecks & Recommendations:")
-        lines.append("  " + "-" * 76)
-        for phase in phases[:3]:
-            phase_name = phase["phase_name"]
-            percent = phase["percent_of_total"]
-            recommendation = phase["recommendation"]
-            lines.append(f"  {phase_name:<15} {percent:>5.1f}% — {recommendation}")
+        lines.append("")
+        lines.append(f"Total loop time: {report['total_time_sec']:.2f}s across {report['iteration_count']} iterations")
+        lines.append("=" * 80)
         lines.append("")
 
         return "\n".join(lines)
 
-    def to_json_lines(self, analysis: dict[str, Any]) -> str:
-        """Format analysis results as newline-delimited JSON.
+    def format_json(self, report: Dict[str, Any]) -> str:
+        """
+        Format analysis report as newline-delimited JSON.
 
         Args:
-            analysis: Result from analyze() method
+            report: Dict returned from analyze()
 
         Returns:
-            JSONL string (one JSON object per line)
+            Newline-delimited JSON (one object per line)
         """
-        lines: list[str] = []
-        for phase in analysis.get("phases", []):
+        lines = []
+        for phase in report.get("phases", []):
             lines.append(json.dumps(phase))
         return "\n".join(lines)
 
-    def _generate_recommendation(
-        self,
-        phase: str,
-        total_time: float,
-        mean_duration: float,
-        percent_of_total: float,
-    ) -> str:
-        """Generate optimization recommendation based on phase metrics.
 
-        Args:
-            phase: Phase name
-            total_time: Total time spent in phase (seconds)
-            mean_duration: Average duration per execution (seconds)
-            percent_of_total: Percentage of total loop time
+def main() -> None:
+    """CLI entry point."""
+    parser = argparse.ArgumentParser(description="Analyze SPIRAL phase execution bottlenecks.")
+    parser.add_argument(
+        "--results",
+        type=Path,
+        default=Path(".spiral/results.jsonl"),
+        help="Path to results.jsonl (default: .spiral/results.jsonl)",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output as newline-delimited JSON instead of table",
+    )
 
-        Returns:
-            Actionable recommendation text
-        """
-        # Check most specific conditions first
-        if mean_duration > 300:
-            return "reduce scope: stories are spending excessive time in this phase"
-        elif total_time > 1800:
-            return "optimize: phase takes too long in aggregate"
-        elif percent_of_total > 50:
-            return "parallelize: this phase dominates iteration time"
-        elif percent_of_total > 30:
-            return "increase workers: phase accounts for significant overhead"
-        else:
-            return "monitor: phase is within normal parameters"
+    args = parser.parse_args()
+    analyzer = PhaseBottleneckAnalyzer()
+    report = analyzer.analyze(args.results)
+
+    if args.json:
+        output = analyzer.format_json(report)
+    else:
+        output = analyzer.format_table(report)
+
+    print(output)
+
+
+if __name__ == "__main__":
+    main()

@@ -370,6 +370,17 @@ if [[ "$COST_ANALYSIS_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── analyze-phases: identify execution bottlenecks per phase ────────────────────
+ANALYZE_PHASES_MODE="${ANALYZE_PHASES_MODE:-0}"
+ANALYZE_PHASES_JSON="${ANALYZE_PHASES_JSON:-0}"
+if [[ "$ANALYZE_PHASES_MODE" -eq 1 ]]; then
+  _RESULTS_FILE="${REPO_ROOT}/results.jsonl"
+  _AP_ARGS=("--results" "$_RESULTS_FILE")
+  [[ "$ANALYZE_PHASES_JSON" -eq 1 ]] && _AP_ARGS+=("--json")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/phase_bottleneck_analyzer.py" "${_AP_ARGS[@]}"
+  exit $?
+fi
+
 # ── dry-run: preview execution plan without API calls ─────────────────────
 DRY_RUN_PLANNER_MODE="${DRY_RUN_PLANNER_MODE:-0}"
 DRY_RUN_PLANNER_ITERATIONS="${DRY_RUN_PLANNER_ITERATIONS:-}"
