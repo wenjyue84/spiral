@@ -1399,3 +1399,87 @@ Completed: Security tests for spiral dry-run — no API calls, no secret leakage
 - Confirmed subprocess invocation doesn't leak secrets in stdout or stderr
 - Confirmed exit code is 0 (no API calls, no failures) when API key is unavailable
 
+## Iteration 1 - Mon, May 18, 2026  5:30:31 PM
+Completed: [Security Test] spiral dry-run makes zero API calls and leaks no secrets in output (ID: US-1396) in 3m
+
+
+## Pre-analysis for US-1397 (Gemini 2.5 Pro)
+This is a pure Python scripting task for the Spiral repository, not a Frappe/ERPNext user story. The implementation should be self-contained within the Spiral codebase.
+
+**Project:** Spiral
+**Story:** US-1397 - Create `lib/learning_extractor.py`
+
+**Technical Brief:**
+
+1.  **Files to Create/Modify:**
+    *   **Create `lib/learning_extractor.py`:** This new file will contain the primary data processing logic.
+    *   **Create `templates/learning.md`:** A simple template with section headers: `### Successful Patterns`, `### Failure Recovery`, `### Scope Reduction Tips`.
+    *   **Create `tests/test_learning_extractor.py`:** Unit tests for the new script.
+
+2.  **Frappe DocTypes/Hooks:**
+    *   None. This task is unrelated to the Frappe framework.
+
+3.  **Implementation Approach:**
+    *   Implement the function `extract_patterns(results_tsv_path, learning_md_path, ...)` in `lib/learning_extractor.py`.
+    *   Use Python's `csv` module with `delimiter='\t'` to parse the `results.tsv` file.
+    *   First, read `learning.md` to gather all existing `story_id`s into a `set` for efficient deduplication. A regex like `r"story_id: (US-\d+)"` can extract them.
+    *   If `learning.md` does not exist, create it by copying `templates/learning.md`.
+    *   Iterate through TSV rows, filtering for entries where `retry_count` is `'0'`.
+    *   For each matching row, if its `story_id` is not in the deduplication set, format the required fields (`story_id`, `error_type`, etc.) into a Markdown list item and append it under the "Successful Patterns" section of `learning.md`.
+
+4.  **Edge Cases & Gotchas:**
+    *   **File Handling:** The script must handle `FileNotFoundError` if `results.tsv` is missing.
+    *   **Data Integrity:** Be robust against malformed rows or missing columns in the TSV file.
+    *   **Idempotency:** The deduplication logic is critical to ensure running the script multiple times doesn't create duplicate entries.
+    *   **Testing:** Use mock files (`io.StringIO`) and `pathlib` in tests to simulate `results.tsv` and `learning.md` to avoid actual file I/O during test runs.
+
+
+## Iteration N+9 - Sun, May 18, 2026 - Story US-1397 Completed
+Completed: Create lib/learning_extractor.py: parse results.tsv and append to learning.md (ID: US-1397) in ~10m
+
+### What was implemented
+- Created `lib/learning_extractor.py` with:
+  - `extract_patterns(results_tsv_path, learning_md_path, min_confidence=0.7)` function that filters results.tsv for retry_num==0 (first-try successes)
+  - `_ensure_learning_md()` helper to create learning.md from template if absent
+  - `_get_existing_story_ids()` helper to extract existing story IDs for deduplication
+  - Deduplicates by story_id and appends new patterns to the "successful_patterns" section
+  - Extracts story_id, model_used, and story_title metadata from results.tsv
+
+- Created `templates/learning.md` with three sections:
+  - `## Successful Patterns` — stores first-try successes
+  - `## Failure Recovery` — for future failure patterns
+  - `## Scope Reduction Tips` — for future tips
+
+- Created `tests/test_learning_extractor.py` with 8 comprehensive tests:
+  - `test_extract_successful_patterns`: verifies filtering for retry_num==0
+  - `test_deduplication`: ensures duplicate story_ids are skipped
+  - `test_learning_md_sections`: validates three sections exist
+  - `test_missing_results_tsv`: handles missing input file gracefully
+  - `test_create_from_template`: creates learning.md from template
+  - `test_preserve_existing`: preserves existing learning.md
+  - `test_extract_story_ids`: extracts story IDs using regex
+  - `test_missing_file`: handles missing learning.md
+
+### Key Patterns Discovered
+- csv.DictReader with delimiter="\t" for TSV parsing (matches pattern in lib/analyze_results.py)
+- Regex pattern r"story_id: (US-\d+)" for extracting story IDs from markdown
+- pathlib.Path for robust file operations across Windows/Unix
+- Deduplication via set() for O(1) membership checks
+
+### Gotchas
+- results.tsv column is "retry_num" (not "retry_count" as mentioned in original acceptance criteria)
+- learning.md must be created even if results.tsv doesn't exist (test_missing_results_tsv requirement)
+- Template file is loaded from templates/learning.md if it exists, otherwise generated inline
+- Pre-existing mypy errors in other lib files (reachability_verifier.py, phase_profiler.py, etc.) are unrelated to this implementation
+
+### Acceptance Criteria Met
+- [x] extract_patterns() filters results.tsv rows where retry_num==0 and appends entries with deduplicated story_id
+- [x] learning.md initialized with three sections: successful_patterns, failure_recovery, scope_reduction_tips
+- [x] uv run pytest tests/test_learning_extractor.py -v passes with 8/8 tests passing
+
+### Code Quality
+- mypy --strict: ✓ passed (0 errors)
+- ruff check: ✓ passed (0 errors)
+- ruff format: ✓ 2 files unchanged (already formatted)
+- All 8 unit tests passing, 100% success rate
+

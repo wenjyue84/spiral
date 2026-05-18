@@ -221,3 +221,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T02:12:03Z	3	9	US-1351	Fill html/pages/08-glossary.html — define every SPIRAL term in one place	keep	159	sonnet	1	0fc8cd52a756df6eb0ce5047b6a305750ac53ab0	6a0a60b94188	false	0	0	0	0	0	0	0		0	0	0	0	unknown
 2026-05-18T02:18:13Z	3	10	US-1352	Fill html/pages/09-troubleshooting.html — known issues, exit codes, recovery	keep	333	haiku	0	5929d6cd43d657eb8ad4d0f755d35dcbb8fdc274	6a0a60b94188	false	0	0	0	0	0	0	0		0	0	0	0	unknown
 2026-05-18T08:30:25Z	12	1	US-1395	[Security Test] /api/costs/breakdown response leaks no secrets and has correct shape	reject	378	sonnet	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T09:30:30Z	13	1	US-1396	[Security Test] spiral dry-run makes zero API calls and leaks no secrets in output	keep	204	haiku	0	5549137a5f0cc7dfc0aa259c796feb2c6277fcbe	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
