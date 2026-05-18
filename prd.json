@@ -4021,8 +4021,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-18T12:13:39Z"
+      "model": "haiku"
     },
     {
       "id": "US-1403",
@@ -4489,6 +4488,31 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1423",
+      "title": "[Integration Test] gen_html_data.py KPI extraction and data.js output (US-1353)",
+      "priority": "high",
+      "description": "Write integration tests for lib/gen_html_data.py introduced in US-1353. Verify that it reads prd.json correctly, extracts KPI counts (phases, CLI flags, config vars, passed stories), and writes valid JS to html/data.js. A similar file may exist at tests/test_gen_html_data.py or tests/test_integration_us1353.py — extend rather than replace.",
+      "acceptanceCriteria": [
+        "gen_html_data.py produces html/data.js containing all four KPI keys: `uv run pytest tests/test_gen_html_data.py::test_kpi_keys_present -v`",
+        "gen_html_data.py raises a clear error when prd.json is missing or malformed: `uv run pytest tests/test_gen_html_data.py::test_missing_prd_raises -v`",
+        "Full test file passes: `uv run pytest tests/test_gen_html_data.py -v`"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_gen_html_data.py (create or extend)",
+        "File to edit: lib/gen_html_data.py (reference only — do not modify implementation)",
+        "Test command: uv run pytest tests/test_gen_html_data.py -v",
+        "Use tmp_path pytest fixture to write a minimal prd.json and assert data.js is generated with expected keys (totalPhases, totalCLIFlags, totalConfigVars, totalStoriesPassed)",
+        "For error-path test: pass a non-existent prd path and assert FileNotFoundError or SystemExit is raised"
+      ],
+      "dependencies": [
+        "US-1353"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
       "model": "haiku"
     }
   ]
