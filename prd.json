@@ -3368,8 +3368,9 @@
         "docs",
         "html"
       ],
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-05-18T01:40:23Z"
     },
     {
       "id": "US-1349",
@@ -3847,7 +3848,8 @@
       "last_attempted": "2026-05-18T01:31:50Z",
       "_phaseI": {
         "diagnosisBlock": "### Current State\n- SPIRAL is organized with CLI commands parsed in spiral.sh (lines 200+)\n- Subcommand handlers in lib/cli_subcommands.sh check mode flags (MIGRATE_MODE, GRAPH_MODE, etc.)\n- Tests follow pytest pattern in tests/test_*.py\n- prd.json contains userStories with properties like id, title, estimatedComplexity\n\n### Problem Identified\nNeed to create a `spiral dry-run N` command that previews execution plans for N iterations without making API calls. This supports developer experience (focus area 4) by letting users estimate token costs and see phase breakdown before running.\n\n### Planned Changes\n1. **Create lib/dry_run_planner.py** (~150 lines):\n   - `ExecutionPlan` dataclass with phases, estimated_tokens, worker_plan fields\n   - `plan_execution(prd_dict, num_iterations)` to simulate N iterations by counting stories per phase\n   - `format_ascii_tree()` to output human-readable phase tree with counts and tokens\n   - `format_json_plan()` to output structured JSON\n\n2. **Update spiral.sh** (~20 lines):\n   - Add dry-run case in command parsing (around line 628)\n   - Parse iterations count and --output flag\n\n3. **Update lib/cli_subcommands.sh** (~10 lines):\n   - Add DRY_RUN_PLANNER_MODE handler to invoke dry_run_planner.py\n\n4. **Create tests/test_dry_run_planner.py** (~80 lines):\n   - test_dry_run_plan_structure: verify all phases present, tokens > 0\n   - test_format_ascii_tree: verify human-readable output\n   - test_format_json_plan: verify JSON structure\n\n<plan>\n{\n  \"files_to_create\": [\"lib/dry_run_planner.py\", \"tests/test_dry_run_planner.py\"],\n  \"files_to_modify\": [\"spiral.sh\", \"lib/cli_subcommands.sh\"],\n  \"functions_to_add\": [\"plan_execution\", \"format_ascii_tree\", \"format_json_plan\"],\n  \"estimated_loc\": 260\n}\n</plan>\n\nNow executing the implementation:\nNow let me commit the changes:\nPerfect! **Story US-1391 is now complete.** Here's a summary of what was implemented:\n\n## Implementation Summary"
-      }
+      },
+      "_passedCommit": "7a29c30c6b862cd419f09080040324af234f2563"
     }
   ]
 }

@@ -5,8 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CLI Reference — SPIRAL</title>
   <link rel="stylesheet" href="../assets/css/custom.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-datatables@9.0.0/dist/style.css">
   <script src="../data.js"></script>
   <script src="../assets/js/nav.js"></script>
+  <style>
+    .cli-table-wrapper { margin: 2rem 0; }
+    .cli-table { width: 100%; border-collapse: collapse; }
+    .cli-table tbody tr { cursor: pointer; transition: background-color 0.15s; }
+    .cli-table tbody tr:hover { background-color: var(--accent-soft); }
+    .cli-table td { padding: 0.7rem; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+    .cli-table th { padding: 0.7rem; background-color: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .example-row { display: none; }
+    .example-row.visible { display: table-row; }
+    .example-row td { padding: 1rem; background-color: var(--bg); border: 1px solid var(--border); }
+    .example-content { display: flex; gap: 1rem; align-items: center; }
+    .example-code { font-family: "Menlo", "Monaco", "Courier New", monospace; font-size: 0.85rem; background: var(--surface); padding: 0.5rem 0.75rem; border-radius: 3px; border: 1px solid var(--border); flex: 1; word-break: break-all; }
+    .copy-btn { background: var(--accent); color: white; border: none; padding: 0.35rem 0.65rem; border-radius: 3px; cursor: pointer; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+    .copy-btn:hover { opacity: 0.9; }
+    .copy-btn.copied { background: var(--good); }
+    .section-title { font-size: 1.05rem; margin: 1.5rem 0 0.75rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); }
+    .datatable-bottom { margin-top: 1rem; }
+  </style>
 </head>
 <body>
 <div class="app">
@@ -20,14 +39,248 @@
       <button id="themeToggle" class="theme-toggle">Dark mode</button>
     </header>
     <div class="page-content">
-      <h2>CLI Reference</h2>
-      <p>Command-line interface documentation coming soon.</p>
+      <h2>spiral.sh Flags</h2>
+      <p>All flags for the <code>spiral.sh</code> orchestrator. Click a row to see an example command.</p>
+      <div class="cli-table-wrapper">
+        <table id="flagsTable" class="cli-table">
+          <thead>
+            <tr>
+              <th>Flag</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody id="flagsBody">
+          </tbody>
+        </table>
+      </div>
+
+      <h2>main.py Subcommands</h2>
+      <p>All available subcommands for <code>uv run python main.py</code>. Click a row to see an example invocation.</p>
+      <div class="cli-table-wrapper">
+        <table id="subcommandsTable" class="cli-table">
+          <thead>
+            <tr>
+              <th>Subcommand</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody id="subcommandsBody">
+          </tbody>
+        </table>
+      </div>
     </div>
   </main>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/simple-datatables@9.0.0/dist/umd.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   renderShell({ page: 'cli-reference' });
+
+  // CLI flags data
+  const flags = [
+    { flag: 'max_iters (positional)', default: '20', description: 'Total iterations to run', example: 'bash spiral.sh 20' },
+    { flag: '--gate proceed|skip|quit', default: 'interactive', description: 'Auto-answer Phase G gate', example: 'bash spiral.sh 20 --gate proceed' },
+    { flag: '--ralph-iters N', default: '120', description: 'Max inner Ralph iterations per Phase I', example: 'bash spiral.sh 20 --ralph-iters 150' },
+    { flag: '--ralph-workers N', default: '1', description: 'Parallel workers (>1 uses git worktrees)', example: 'bash spiral.sh 20 --ralph-workers 2' },
+    { flag: '--skip-research', default: 'off', description: 'Skip Phase R entirely', example: 'bash spiral.sh 20 --skip-research' },
+    { flag: '--capacity-limit N', default: '50', description: 'Skip Phase R when pending stories > N', example: 'bash spiral.sh 20 --capacity-limit 30' },
+    { flag: '--model haiku|sonnet|opus', default: 'auto', description: 'Override model routing for all workers', example: 'bash spiral.sh 20 --model sonnet' },
+    { flag: '--focus TEXT', default: 'none', description: 'Scope Phase R to a theme (injected as hard constraint)', example: 'bash spiral.sh 20 --focus "database optimization"' },
+    { flag: '--focus-tags TAG,TAG', default: 'none', description: 'Only implement stories with matching tags', example: 'bash spiral.sh 20 --focus-tags security,perf' },
+    { flag: '--time-limit N', default: '0', description: 'Stop after N minutes (wall clock)', example: 'bash spiral.sh 20 --time-limit 480' },
+    { flag: '--until HH:MM', default: 'none', description: 'Stop at specific time (e.g. `--until 23:00`)', example: 'bash spiral.sh 20 --until 23:00' },
+    { flag: '--continuous', default: 'off', description: 'Never stop — loop back to Phase A after all stories pass', example: 'bash spiral.sh 20 --continuous' },
+    { flag: '--monitor / --no-monitor', default: 'on', description: 'Open terminal per worker (parallel mode only)', example: 'bash spiral.sh 20 --ralph-workers 2 --no-monitor' },
+    { flag: '--prd PATH', default: 'prd.json', description: 'Override PRD file path', example: 'bash spiral.sh 20 --prd ./custom-prd.json' },
+    { flag: '--config PATH', default: 'spiral.config.sh', description: 'Override config file', example: 'bash spiral.sh 20 --config ./custom.config.sh' },
+    { flag: '--skip-conflict-preflight', default: 'off', description: 'Bypass pre-flight cross-story conflict detection (parallel mode)', example: 'bash spiral.sh 20 --skip-conflict-preflight' },
+    { flag: '--allow-unsafe-stories', default: 'off', description: 'Warn but do NOT block stories with prompt injection patterns', example: 'bash spiral.sh 20 --allow-unsafe-stories' },
+    { flag: '--allow-exec-writes', default: 'off', description: 'Allow LLM to write executable files outside src/ and tests/', example: 'bash spiral.sh 20 --allow-exec-writes' },
+    { flag: '--no-cascade-skip', default: 'off', description: 'Disable dependency cascade skip', example: 'bash spiral.sh 20 --no-cascade-skip' },
+    { flag: '--dry-run', default: 'off', description: 'Run control flow without API calls (test loop logic)', example: 'bash spiral.sh 20 --dry-run' },
+    { flag: '--reset', default: 'off', description: 'Delete checkpoint and start fresh', example: 'bash spiral.sh 20 --reset' },
+    { flag: '--replay STORY_ID', default: 'none', description: 'Re-run a single story in isolation (Phases I+V)', example: 'bash spiral.sh --replay US-123' },
+    { flag: '--rollback STORY_ID', default: 'none', description: 'Revert a story\'s commit and reset its `passes` flag', example: 'bash spiral.sh --rollback US-456' },
+    { flag: '--status', default: 'off', description: 'Print current run state and exit', example: 'bash spiral.sh --status' },
+    { flag: '--version', default: 'off', description: 'Print SPIRAL version (from git tag)', example: 'bash spiral.sh --version' },
+    { flag: '--doctor', default: 'off', description: 'Check all dependencies and exit', example: 'bash spiral.sh --doctor' },
+    { flag: '--migrate', default: 'off', description: 'Upgrade prd.json schema and exit', example: 'bash spiral.sh --migrate' },
+    { flag: '--archive-done', default: 'off', description: 'Move completed stories to prd-archive.json and exit', example: 'bash spiral.sh --archive-done' },
+    { flag: '--changelog', default: 'off', description: 'Generate CHANGELOG.md via git-cliff and exit', example: 'bash spiral.sh --changelog' },
+    { flag: '--stale-report', default: 'off', description: 'Print stories inactive beyond `SPIRAL_STALE_DAYS`', example: 'bash spiral.sh --stale-report' },
+    { flag: '--from-phase PHASE', default: 'I', description: 'Used with `--replay`: start from this phase (I or V); reuses existing worktree', example: 'bash spiral.sh --replay US-123 --from-phase V' },
+    { flag: '--hint TEXT', default: 'none', description: 'Used with `--replay`: inject extra context into Phase I system prompt', example: 'bash spiral.sh --replay US-123 --hint "focus on error handling"' },
+    { flag: '--undo STORY_ID', default: 'none', description: 'Replay undo log in reverse, restoring worktree to pre-attempt state', example: 'bash spiral.sh --undo US-789' },
+    { flag: '--benchmark STORY_ID', default: 'none', description: 'Benchmark a story across multiple models and compare results', example: 'bash spiral.sh --benchmark US-123 --models haiku,sonnet,opus' },
+    { flag: '--models M1,M2,...', default: 'none', description: 'Used with `--benchmark`: comma-separated model names to compare', example: 'bash spiral.sh --benchmark US-123 --models haiku,sonnet' },
+    { flag: '--list-plugins', default: 'off', description: 'List all loaded plugins and their hooks, then exit', example: 'bash spiral.sh --list-plugins' },
+    { flag: '--show-docs', default: 'off', description: 'List generated API documentation with story ID mappings and exit', example: 'bash spiral.sh --show-docs' },
+    { flag: '--flaky-tests report', default: 'off', description: 'Print quarantined flaky test registry and exit', example: 'bash spiral.sh --flaky-tests report' },
+    { flag: '--calibration-report', default: 'off', description: 'Print actual vs estimated complexity calibration data and exit', example: 'bash spiral.sh --calibration-report' },
+    { flag: '--log-level DEBUG|INFO|WARN|ERROR', default: 'INFO', description: 'Output verbosity', example: 'bash spiral.sh 20 --log-level DEBUG' },
+    { flag: 'search QUERY', default: '—', description: 'Subcommand: search story backlog by natural language', example: 'bash spiral.sh search "authentication module"' },
+    { flag: 'compact-prd', default: '—', description: 'Subcommand: strip transient runtime fields from prd.json', example: 'bash spiral.sh compact-prd' },
+    { flag: 'status', default: '—', description: 'Subcommand: print color-coded progress table and exit', example: 'bash spiral.sh status' }
+  ];
+
+  // Main.py subcommands data
+  const subcommands = [
+    { subcommand: 'status', description: 'PRD completion summary', example: 'uv run python main.py status' },
+    { subcommand: 'estimate', description: 'Pre-flight API cost projection for pending stories', example: 'uv run python main.py estimate' },
+    { subcommand: 'graph', description: 'Generate Mermaid dependency graph from prd.json', example: 'uv run python main.py graph' },
+    { subcommand: 'monitor --port 5299', description: 'Unified monitoring snapshot (used by progress cron)', example: 'uv run python main.py monitor --port 5299' },
+    { subcommand: 'diagnose', description: 'Print causal failure chain for a run', example: 'uv run python main.py diagnose' },
+    { subcommand: 'complexity-trend', description: 'Analyze story retry & duration patterns across iterations', example: 'uv run python main.py complexity-trend' },
+    { subcommand: 'show-blockers', description: 'Analyze story dependency graph and critical paths', example: 'uv run python main.py show-blockers' },
+    { subcommand: 'replay', description: 'Re-run a failed phase with DEBUG=1 and full state capture', example: 'uv run python main.py replay' },
+    { subcommand: 'phase-timing-report', description: 'Phase timing report with SLA breach analysis', example: 'uv run python main.py phase-timing-report' },
+    { subcommand: 'analyze-failures', description: 'Categorize retry failure root causes and recommend tuning', example: 'uv run python main.py analyze-failures' },
+    { subcommand: 'validate-commits', description: 'Detect orphan stories and squash-commit patterns', example: 'uv run python main.py validate-commits' },
+    { subcommand: 'validate-federated', description: 'Validate federated prd.json structure', example: 'uv run python main.py validate-federated' },
+    { subcommand: 'analyze-batch-potential', description: 'Show Phase S batch grouping potential: API call reduction %', example: 'uv run python main.py analyze-batch-potential' },
+    { subcommand: 'config export-env', description: 'Export spiral.config.sh SPIRAL_* variables as a .env file', example: 'uv run python main.py config export-env' },
+    { subcommand: 'worktree audit', description: 'Audit all spiral worker worktrees for health anomalies', example: 'uv run python main.py worktree audit' },
+    { subcommand: 'memory list', description: 'Show 20 most recent episodic records with pass/fail outcomes', example: 'uv run python main.py memory list' },
+    { subcommand: 'dlq promote', description: 'Mark stories as permanently failed after exhausting retries', example: 'uv run python main.py dlq promote' },
+    { subcommand: 'dlq list', description: 'Show all permanently failed stories with failure reason', example: 'uv run python main.py dlq list' },
+    { subcommand: 'dlq replay', description: 'Retry a permanently failed story after human review', example: 'uv run python main.py dlq replay' },
+    { subcommand: 'search QUERY', description: 'Search story backlog by natural language query', example: 'uv run python main.py search "authentication"' },
+    { subcommand: 'compact-prd', description: 'Strip transient runtime fields from prd.json', example: 'uv run python main.py compact-prd' },
+    { subcommand: 'import-github OWNER/REPO', description: 'Import GitHub issues as stories into prd.json', example: 'uv run python main.py import-github anthropics/claude-code' },
+    { subcommand: 'import-jira URL', description: 'Import Jira issues as stories into prd.json', example: 'uv run python main.py import-jira https://jira.example.com' },
+    { subcommand: 'import-csv FILE', description: 'Import stories from a CSV file', example: 'uv run python main.py import-csv stories.csv' },
+    { subcommand: 'export-report', description: 'Export run results as a formatted report', example: 'uv run python main.py export-report' },
+    { subcommand: 'namespace-check', description: 'Check for naming conflicts across story IDs and file paths', example: 'uv run python main.py namespace-check' },
+    { subcommand: 'validate-results-tsv', description: 'Validate results.tsv structure and data integrity', example: 'uv run python main.py validate-results-tsv' },
+    { subcommand: 'phase-audit', description: 'Compare phase timing across iterations with SLA breach detection', example: 'uv run python main.py phase-audit' },
+    { subcommand: 'detect-anomalies', description: 'Detect cost/duration anomalies in results.tsv via z-score analysis', example: 'uv run python main.py detect-anomalies' },
+    { subcommand: 'federated-merge-prd', description: 'Merge multiple prd.json files from federated projects', example: 'uv run python main.py federated-merge-prd' },
+    { subcommand: 'analyze-routing', description: 'Analyze model routing metrics and effectiveness', example: 'uv run python main.py analyze-routing' },
+    { subcommand: 'extract-failed-stories', description: 'Extract failed stories from results.tsv for triage', example: 'uv run python main.py extract-failed-stories' },
+    { subcommand: 'init', description: 'Run the interactive setup wizard', example: 'uv run python main.py init' },
+    { subcommand: 'run', description: 'Execute spiral.sh (forwards all flags)', example: 'uv run python main.py run 20 --gate proceed' },
+    { subcommand: 'show-logs', description: 'Show recent log entries', example: 'uv run python main.py show-logs' },
+    { subcommand: 'federation-health', description: 'Federation health check across sub-projects', example: 'uv run python main.py federation-health' },
+    { subcommand: 'federated-status', description: 'Aggregate story status across sub-projects', example: 'uv run python main.py federated-status' },
+    { subcommand: 'validate-federated-order', description: 'Report merge order for federated PRD', example: 'uv run python main.py validate-federated-order' },
+    { subcommand: 'check-federated-deps', description: 'Detect cycles & orphans in multi-repo dependencies', example: 'uv run python main.py check-federated-deps' },
+    { subcommand: 'list-federation', description: 'Display sub-project configuration', example: 'uv run python main.py list-federation' },
+    { subcommand: 'archive create', description: 'Archive completed stories to prd-archive.json', example: 'uv run python main.py archive create' },
+    { subcommand: 'archive restore', description: 'Restore archived stories back to prd.json', example: 'uv run python main.py archive restore' },
+    { subcommand: 'archive manifest', description: 'Show archive manifest with metadata', example: 'uv run python main.py archive manifest' },
+    { subcommand: 'lint-prd', description: 'Lint prd.json for quality and consistency issues', example: 'uv run python main.py lint-prd' },
+    { subcommand: 'predict-complexity', description: 'Predict story complexity from description/criteria', example: 'uv run python main.py predict-complexity' },
+    { subcommand: 'cost-forecast', description: 'Forecast remaining budget and timeline', example: 'uv run python main.py cost-forecast' },
+    { subcommand: 'forecast-ceiling', description: 'Forecast cost ceiling breach timing', example: 'uv run python main.py forecast-ceiling' },
+    { subcommand: 'trace-dependencies', description: 'Resolve and visualize dependency chain for a story', example: 'uv run python main.py trace-dependencies US-123' },
+    { subcommand: 'show-story-lineage', description: 'Show decomposition lineage tree for a story', example: 'uv run python main.py show-story-lineage US-456' },
+    { subcommand: 'show-merge-order', description: 'Show pending stories in topologically sorted merge order', example: 'uv run python main.py show-merge-order' },
+    { subcommand: 'validate-governance', description: 'Enforce per-project quotas & ID patterns', example: 'uv run python main.py validate-governance' },
+    { subcommand: 'validate-phase-outputs', description: 'Validate .spiral/ phase output files against schemas', example: 'uv run python main.py validate-phase-outputs' },
+    { subcommand: 'validate-scc-cycles', description: 'Detect circular dependencies using Tarjan\'s SCC algorithm', example: 'uv run python main.py validate-scc-cycles' },
+    { subcommand: 'categorize-failures', description: 'Categorize failure root causes with recommendations', example: 'uv run python main.py categorize-failures' },
+    { subcommand: 'show-slowest-stories', description: 'Identify bottleneck stories by total duration from results.tsv', example: 'uv run python main.py show-slowest-stories' },
+    { subcommand: 'show-ac-results STORY_ID', description: 'Display per-AC verification results for a story', example: 'uv run python main.py show-ac-results US-789' },
+    { subcommand: 'show-dead-features', description: 'List all detected dead features across stories', example: 'uv run python main.py show-dead-features' },
+    { subcommand: 'show-perf-baseline', description: 'Display per-phase performance baseline statistics', example: 'uv run python main.py show-perf-baseline' },
+    { subcommand: 'explain-retry', description: 'Analyze retry sequence and suggest decomposition for a story', example: 'uv run python main.py explain-retry US-101' },
+    { subcommand: 'list-orphan-commits', description: 'List commits lacking US-/UT- story ID tags', example: 'uv run python main.py list-orphan-commits' },
+    { subcommand: 'predict-model-escalation', description: 'Predict next-attempt model escalation for a story', example: 'uv run python main.py predict-model-escalation US-202' },
+    { subcommand: 'preflight-check', description: 'Validate SPIRAL runtime dependencies and configuration', example: 'uv run python main.py preflight-check' },
+    { subcommand: 'debug-worker-state', description: 'Dump live worker state and diagnostics as JSON', example: 'uv run python main.py debug-worker-state' },
+    { subcommand: 'timing-report', description: 'Cross-phase timing analyzer with bottleneck detection', example: 'uv run python main.py timing-report' },
+    { subcommand: 'score-stories-for-validation', description: 'Score each story 0-100 for validation confidence', example: 'uv run python main.py score-stories-for-validation' },
+    { subcommand: 'federation-health-check', description: 'Validate federated PRD: sub-project refs, circular deps, ID namespaces', example: 'uv run python main.py federation-health-check' },
+    { subcommand: 'federation-conflict-check', description: 'Detect file conflicts across sub-projects with resolution hints', example: 'uv run python main.py federation-conflict-check' },
+    { subcommand: 'federation-check-cycles', description: 'Detect circular dependencies with cycle paths', example: 'uv run python main.py federation-check-cycles' },
+    { subcommand: 'federation-impact-analyze', description: 'Transitive dependency blast radius report for a sub-project', example: 'uv run python main.py federation-impact-analyze' },
+    { subcommand: 'federation-audit', description: 'Query federation audit trail (filter by sub-project, action)', example: 'uv run python main.py federation-audit' },
+    { subcommand: 'validate-federated-schema', description: 'Cross-project duplicate ID and namespace validation', example: 'uv run python main.py validate-federated-schema' },
+    { subcommand: 'federated-cost-report', description: 'Per-sub-project cost breakdown by phase', example: 'uv run python main.py federated-cost-report' },
+    { subcommand: 'deploy-docs', description: 'Deploy CHANGELOG and pdoc outputs to gh-pages branch', example: 'uv run python main.py deploy-docs' }
+  ];
+
+  // Populate flags table
+  const flagsBody = document.getElementById('flagsBody');
+  flags.forEach((flag, idx) => {
+    const row = document.createElement('tr');
+    row.dataset.index = idx;
+    row.innerHTML = `
+      <td><code>${flag.flag}</code></td>
+      <td><code>${flag.default}</code></td>
+      <td>${flag.description}</td>
+    `;
+    row.addEventListener('click', () => toggleExample('flag', idx));
+    flagsBody.appendChild(row);
+
+    const exampleRow = document.createElement('tr');
+    exampleRow.className = 'example-row';
+    exampleRow.dataset.index = idx;
+    exampleRow.innerHTML = `
+      <td colspan="3">
+        <div class="example-content">
+          <div class="example-code">${flag.example}</div>
+          <button class="copy-btn" data-example="${flag.example}">Copy</button>
+        </div>
+      </td>
+    `;
+    exampleRow.querySelector('.copy-btn').addEventListener('click', copyToClipboard);
+    flagsBody.appendChild(exampleRow);
+  });
+
+  // Populate subcommands table
+  const subcommandsBody = document.getElementById('subcommandsBody');
+  subcommands.forEach((cmd, idx) => {
+    const row = document.createElement('tr');
+    row.dataset.index = idx;
+    row.innerHTML = `
+      <td><code>${cmd.subcommand}</code></td>
+      <td>${cmd.description}</td>
+    `;
+    row.addEventListener('click', () => toggleExample('subcommand', idx));
+    subcommandsBody.appendChild(row);
+
+    const exampleRow = document.createElement('tr');
+    exampleRow.className = 'example-row';
+    exampleRow.dataset.index = idx;
+    exampleRow.innerHTML = `
+      <td colspan="2">
+        <div class="example-content">
+          <div class="example-code">${cmd.example}</div>
+          <button class="copy-btn" data-example="${cmd.example}">Copy</button>
+        </div>
+      </td>
+    `;
+    exampleRow.querySelector('.copy-btn').addEventListener('click', copyToClipboard);
+    subcommandsBody.appendChild(exampleRow);
+  });
+
+  // Initialize simple-datatables
+  const flagsTable = new simpleDatatables.DataTable('#flagsTable', { perPage: 10, layout: { top: '', bottom: 'pli' } });
+  const subcommandsTable = new simpleDatatables.DataTable('#subcommandsTable', { perPage: 10, layout: { top: '', bottom: 'pli' } });
+
+  function toggleExample(type, idx) {
+    const tbody = type === 'flag' ? flagsBody : subcommandsBody;
+    const rows = tbody.querySelectorAll(`tr[data-index="${idx}"]`);
+    if (rows.length > 1) {
+      const exampleRow = rows[1];
+      exampleRow.classList.toggle('visible');
+    }
+  }
+
+  function copyToClipboard(e) {
+    e.stopPropagation();
+    const example = e.target.dataset.example;
+    navigator.clipboard.writeText(example).then(() => {
+      e.target.textContent = 'Copied!';
+      e.target.classList.add('copied');
+      setTimeout(() => {
+        e.target.textContent = 'Copy';
+        e.target.classList.remove('copied');
+      }, 2000);
+    });
+  }
 });
 </script>
 </body>

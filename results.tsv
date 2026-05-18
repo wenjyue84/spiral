@@ -216,3 +216,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T01:11:58Z	1	3	US-1388	Tests for HealthWidget polling, error handling, and sparkline rendering	reject	341	haiku	1		6a0a60b94188	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T01:15:22Z	1	4	US-1388	Tests for HealthWidget polling, error handling, and sparkline rendering	keep	177	sonnet	1	f13ea80ddd5892cba8fcb9a6f9f05430426110c2	6a0a60b94188	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T01:31:48Z	2	1	US-1389	Tests for /api/costs/breakdown endpoint — parsing, response shape, and error cases	keep	284	haiku	0	c10c3ec4b0c173c75408ba0254e018c0488683c3	6a0a60b94188	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-18T01:40:20Z	2	2	US-1391	CLI: Add `spiral dry-run N` command to preview execution plan without API calls	keep	488	haiku	0	7a29c30c6b862cd419f09080040324af234f2563	6a0a60b94188	false	0	0	0	0	0	0	0		0	0	0	0				

@@ -1071,3 +1071,36 @@ Here is the technical brief for implementing user story US-1391.
 *   **Argument Parsing:** The shell script must robustly handle the iteration count and the optional `--output` flag.
 *   **Token Estimation:** The estimation is a core part of the task but does not need to be exact. Focus on creating a reasonable, non-zero approximation.
 
+## Iteration 2 - Mon, May 18, 2026  9:40:20 AM
+Completed: CLI: Add `spiral dry-run N` command to preview execution plan without API calls (ID: US-1391) in 8m
+
+
+## Pre-analysis for US-1348 (Gemini 2.5 Pro)
+This technical brief is for implementing a static HTML feature, not a Frappe/Python one. The user story requires parsing markdown from `SKILL.md` and rendering it in an interactive HTML page.
+
+**Technical Brief: US-1348 - CLI Reference Page**
+
+1.  **Python Files to Modify / Create:**
+    *   **New File:** `scripts/generate_cli_data.py`. A new Python script is needed to parse the markdown tables from `SKILL.md`.
+    *   This script will read `SKILL.md`, extract the "CLI Flags Reference" and "main.py Subcommands" sections, and convert them into a structured format (JSON or a JS object).
+    *   The output should be written to `html/data.js` to be consumed by the frontend.
+
+2.  **Frappe DocTypes / Hooks:**
+    *   None. This is a pure frontend task involving static HTML, CSS, and JavaScript. No Frappe or backend components are involved.
+
+3.  **Recommended Implementation Approach:**
+    *   **Data Parsing (Python):** In `scripts/generate_cli_data.py`, use a markdown library or regex to parse the two tables from `SKILL.md`. Export the data into `html/data.js` as two JavaScript arrays (e.g., `window.cliFlagsData` and `window.subcommandsData`).
+    *   **HTML Structure:** In `html/pages/05-cli-reference.html`, add two `<table>` elements. Include the simple-datatables v9 CSS and JS from a CDN.
+    *   **JavaScript Logic (in `05-cli-reference.html`):**
+        1.  Load the data from `html/data.js`.
+        2.  Write a function to dynamically populate the table bodies (`<tbody>`) from the data arrays.
+        3.  Initialize `simpleDatatables.DataTable` on both tables after the DOM is loaded.
+        4.  Add a `data-example` attribute to each `<tr>` containing the example command string.
+        5.  Implement a click event listener on the rows to read the `data-example` attribute and use `navigator.clipboard.writeText()` to copy it.
+
+4.  **Edge Cases & Gotchas:**
+    *   **Data Generation:** This plan assumes a build step will execute the Python parser. If the process is manual, document the step in `README.md`.
+    *   **Markdown Parsing:** The parser must be robust enough to handle minor formatting variations in the `SKILL.md` source tables.
+    *   **UI Feedback:** The copy-to-clipboard action should provide clear visual feedback to the user (e.g., a "Copied!" tooltip or text flash).
+    *   **Table Initialization:** Ensure the simple-datatables script is initialized only after the tables have been populated with data.
+
