@@ -307,6 +307,15 @@
           "type": "number",
           "description": "Confidence score from story validation (0.0-1.0)"
         },
+        "_dlq": {
+          "type": "boolean",
+          "description": "Marks story as permanently failed (moved to Dead Letter Queue after exhausting retries)"
+        },
+        "_dlqMetadata": {
+          "type": "object",
+          "description": "DLQ metadata: timestamp, retryCount, reason — written by `main.py dlq promote`",
+          "additionalProperties": true
+        },
         "verification": {
           "type": "object",
           "description": "Per-story verification contract. When present, Phase V uses this instead of the filesTouch heuristic.",
