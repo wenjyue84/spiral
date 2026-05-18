@@ -1,3 +1,46 @@
+## Iteration N+1 - Sun, May 18, 2026 - Story US-1340 Completed
+Completed: spiral-ui: Add TestsTab component with Phase V pass/fail timeline (ID: US-1340) in ~10m
+
+### What was implemented
+- Created `spiral-ui/src/types/phase.ts` with PhaseVResult interface
+  - Fields: id, story_id, test_file, duration_s, passed, timestamp
+
+- Created `spiral-ui/src/hooks/usePhaseVResults.ts` with custom hook
+  - Uses useState/useEffect for data fetching (no TanStack Query dependency)
+  - Fetches from /api/phase-v-results endpoint
+  - Includes auto-refresh at 5000ms interval
+  - Handles loading, error, and data states
+
+- Rewrote `spiral-ui/src/components/TestsTab.tsx` to display Phase V results
+  - Summary bar: total tests, pass rate (%), average duration (s)
+  - Timeline table with: status badge (✓ Passed / ✗ Failed), story_id, test_file, duration_s, timestamp
+  - Chronological ordering (newest first)
+  - Loading, error, and empty states with appropriate messages
+  - Pass badges styled with emerald-100/green, fail badges with red-100
+
+- Created `spiral-ui/src/components/TestsTab.test.tsx` with comprehensive Vitest tests
+  - 7 unit tests covering: summary metrics, table columns, badge styling, chronological order, empty state, error handling, loading state
+  - All tests passing (7/7 ✓)
+  - Uses vi.fn() to mock fetch API
+
+### Key Patterns Discovered
+- usePhaseVResults hook follows same pattern as useTestResults (useState/useEffect, no TanStack Query)
+- Test mocking uses mockImplementationOnce with async function for proper promise resolution
+- Component state management: loading → data/error → rendered
+- Badge styling uses Tailwind classes directly (no shadcn/ui Badge component available in project)
+
+### Acceptance Criteria Met
+- [x] TestsTab renders pass/fail badge, story_id, test_file, duration_s for each /api/phase-v-results record
+- [x] Summary bar displays total tests, pass rate %, average duration_s
+- [x] npm run test -- --reporter=verbose spiral-ui/src/components/TestsTab.test.tsx exits 0 (7/7 tests pass)
+
+### Testing
+- All 7 unit tests passing (100%)
+- Component renders correctly with various data scenarios
+- Badge styling verified for pass/fail states
+- Summary metrics calculation accurate
+- Error and loading states properly handled
+
 ## Iteration N - Sun, May 18, 2026 - Story US-1370 Completed
 Completed: CLI: spiral graph --output svg for federated PRD dependency visualization (ID: US-1370) in ~5m
 
