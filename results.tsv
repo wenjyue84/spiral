@@ -252,3 +252,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T14:10:48Z	22	2	US-1419	Integration test: Phase S merges federated stories with namespace validation	keep	444	haiku	0	5ea5cb09b9528f5dcb60b3cea34eb0b537494fa0	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T14:21:37Z	23	1	US-1421	CLI: Show story blockers and dependents with `spiral inspect-story <id>`	reject	302	haiku	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T14:26:02Z	23	2	US-1421	CLI: Show story blockers and dependents with `spiral inspect-story <id>`	keep	144	sonnet	1	537b72320644ffa1b7574fc25caf438019e7542a	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T14:32:44Z	23	3	US-1422	Phase S: Detect and warn on incomplete acceptance criteria before story merge	keep	379	haiku	0	021c54b229c0c782d2ffe6bcdacac16f794f14ca	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				

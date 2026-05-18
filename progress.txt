@@ -168,3 +168,34 @@ before any changes were made. Files were already in place from git history. This
 - Marked story as passes: true
 ## Iteration 2 - Mon, May 18, 2026 10:26:02 PM
 Completed: CLI: Show story blockers and dependents with `spiral inspect-story <id>` (ID: US-1421) in 2m
+## Iteration 3 - Mon, May 18, 2026 10:32:44 PM
+Completed: Phase S: Detect and warn on incomplete acceptance criteria before story merge (ID: US-1422) in 6m
+
+
+## Pre-analysis for US-1424 (Gemini 2.5 Pro)
+**Objective:** Implement a full-text search (FTS5) capability over historical SPIRAL run data stored in `results.tsv`.
+
+**Core Implementation:**
+
+*   **File to Create: `lib/history_search.py`**
+    *   This file will contain the primary `HistoryIndex` class.
+    *   Use the standard `sqlite3` Python library to create and manage an FTS5 virtual table.
+    *   The database should be stored at `.spiral/results_index.db`.
+    *   Implement the `build()` method to read `results.tsv` (likely with pandas), create the FTS table, and populate it.
+    *   Implement the `query(text, filters)` method to execute `MATCH` queries against the index, applying additional `WHERE` clauses for structured filters like `status`, `model`, and `date`.
+    *   Include logic to check the modification time (`mtime`) of `results.tsv` to automatically trigger an index rebuild when the file changes.
+
+*   **File to Modify: `lib/cli_subcommands.sh`**
+    *   Add a new `search-history` subcommand handler.
+    *   This shell logic will parse the command-line arguments and pass them to the `lib/history_search.py` script for processing.
+
+*   **File to Create: `tests/test_history_search.py`**
+    *   Add unit tests to validate FTS5 queries, filter logic, and the auto-update mechanism.
+
+**Gotchas & Considerations:**
+
+*   **FTS5 Availability:** Ensure the Python environment's `sqlite3` is compiled with FTS5 support.
+*   **Query Parsing:** The CLI and Python script must robustly parse combined queries (e.g., `'text_query filter_key>value'`).
+*   **Performance:** Indexing a large `results.tsv` might be slow; the `build()` process should be efficient.
+*   **Schema Drift:** Be mindful of potential changes to the columns in `results.tsv` in the future.
+
