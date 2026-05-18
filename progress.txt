@@ -424,3 +424,38 @@ This user story is for a **React/TypeScript** implementation within the `spiral-
 *   Prevent division-by-zero errors in summary calculations if no test data is available.
 *   Ensure the timeline is sorted chronologically if the API doesn't guarantee order.
 
+
+## Pre-analysis for US-1384 (Gemini 2.5 Pro)
+Here is the technical brief for the development agent:
+
+**Subject: Technical Brief for US-1384: API Endpoint for Cost Breakdown**
+
+This brief outlines the implementation for creating a `/api/costs/breakdown` endpoint in the `spiral-ui` Python backend.
+
+**1. Python Files to Modify/Create:**
+
+*   **Create:** `spiral-ui-backend/routes/costs.py` - This new file will contain the parsing logic and the API endpoint definition.
+*   **Create:** `tests/test_costs_api.py` - A new test file to validate the functionality.
+*   **Modify:** `spiral-ui-backend/app.py` - To import and register the new `costs` API router.
+
+**2. Frappe DocTypes / Hooks Involved:**
+
+*   This story does not involve Frappe. It targets a standalone Python web application (likely FastAPI or Flask).
+*   The primary component is a new REST API endpoint: `GET /api/costs/breakdown`.
+
+**3. Recommended Implementation Approach:**
+
+1.  In `spiral-ui-backend/routes/costs.py`, define a new router/blueprint.
+2.  Create a core function `parse_costs_from_results_tsv(path)` that reads the `results.tsv` file using Python's `csv` module (with `delimiter='\t'`).
+3.  This function should iterate through the TSV, summing up token and USD costs for each unique phase, and return a dictionary.
+4.  Define the `GET /api/costs/breakdown` route. It will call the parsing function and structure the response to include `phases`, `total_tokens`, `total_cost_usd`, and other required metrics as per the acceptance criteria.
+5.  In `spiral-ui-backend/app.py`, import the newly created router and register it with the main application instance.
+6.  In `tests/test_costs_api.py`, add specific unit tests for `parse_costs_from_results_tsv` using a mock TSV string, and another test to verify the endpoint's JSON response.
+
+**4. Edge Cases & Gotchas to Watch For:**
+
+*   **File Handling:** The implementation must be resilient. If `results.tsv` is missing, empty, or corrupted, the endpoint should not crash but return a valid default state (e.g., empty lists/zero values), as specified in the acceptance criteria.
+*   **Data Integrity:** Ensure robust type conversion for numeric data (costs, tokens) read from the TSV to prevent errors during calculations.
+*   **Zero Division:** When calculating the `spend_rate_per_story`, protect against a `ZeroDivisionError` in case the story count is zero.
+*   **Path Resolution:** The path to `results.tsv` must be correctly resolved relative to the application's runtime location.
+

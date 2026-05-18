@@ -3307,7 +3307,10 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe project already has a Tests tab in the ProjectDashboard, but it uses test history data. US-1340 requires updating it to fetch from `/api/phase-v-results` and render Phase V test results with a different structure.\n\n## Problem Identified\nNeed to implement a new TestsTab component that:\n1. Fetches Phase V test results from `/api/phase-v-results` endpoint\n2. Renders a pass/fail badge, story_id, test_file, and duration_s per test\n3. Shows a summary bar with total tests, pass rate %, and average duration_s\n4. Includes proper TypeScript types and a usePhaseVResults hook\n\n## Planned Changes\n1. **Create `spiral-ui/src/types/phase.ts`** — PhaseVResult interface for API response\n2. **Create `spiral-ui/src/hooks/usePhaseVResults.ts`** — usePhaseVResults hook using TanStack Query (useQuery)\n3. **Update `spiral-ui/src/components/TestsTab.tsx`** — Rewrite to fetch phase V results and render timeline + summary\n4. **Create `spiral-ui/src/components/TestsTab.test.tsx`** — Unit tests with MSW mock for /api/phase-v-results\n\n<plan>\n{\n  \"files_to_create\": [\n    \"spiral-ui/src/types/phase.ts\",\n    \"spiral-ui/src/hooks/usePhaseVResults.ts\",\n    \"spiral-ui/src/components/TestsTab.test.tsx\"\n  ],\n  \"files_to_modify\": [\n    \"spiral-ui/src/components/TestsTab.tsx\"\n  ],\n  \"functions_to_add\": [\n    \"usePhaseVResults\",\n    \"TestsTab\"\n  ],\n  \"estimated_loc\": 200\n}\n</plan>\n\nNow let me implement the solution:\n## Summary"
+      }
     },
     {
       "id": "US-1341",
