@@ -1028,3 +1028,46 @@ Completed: Tests for /api/costs/breakdown endpoint — parsing, response shape, 
 - MyPy --strict: ✓ passed on lib/dashboard/routes/costs.py
 - No TypeScript, lint, or shell errors
 - All quality gates clear
+## Iteration 1 - Mon, May 18, 2026  9:31:48 AM
+Completed: Tests for /api/costs/breakdown endpoint — parsing, response shape, and error cases (ID: US-1389) in 4m
+
+
+## Pre-analysis for US-1391 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-1391.
+
+**Subject:** Technical Brief: US-1391 `spiral dry-run` Command
+
+**1. Python & Shell Files to Modify/Create:**
+
+*   **Create:** `lib/dry_run_planner.py`
+    *   This new file will house the core logic for simulating an execution plan. It is responsible for loading `prd.json`, calculating estimates, and formatting the output.
+*   **Create:** `tests/test_dry_run_planner.py`
+    *   A new Pytest file to unit test the planning and estimation logic in `dry_run_planner.py`, ensuring the output structure is correct.
+*   **Modify:** `lib/cli_subcommands.sh`
+    *   This shell script needs to be updated to add the new `dry-run` subcommand, parse its arguments, and invoke the new Python planner script.
+
+**2. Frappe DocTypes / Hooks:**
+
+*   Not applicable. This story is for the `spiral` CLI tool, a Python/shell application. No Frappe components are involved.
+
+**3. Recommended Implementation Approach:**
+
+1.  **In `lib/dry_run_planner.py`:**
+    *   Implement `plan_execution(prd_dict, num_iterations)` to loop through planning phases for `N` iterations without making API calls.
+    *   Use heuristics to estimate token counts for each phase based on the content of `prd.json`.
+    *   Create two output functions: `format_ascii_tree` to generate a human-readable tree and `format_json_plan` for JSON output.
+2.  **In `lib/cli_subcommands.sh`:**
+    *   Add a `dry-run)` case to the main command router.
+    *   Parse the second argument for the number of iterations (`$2`) and check for an optional `--output json` flag.
+    *   Execute the `dry_run_planner.py` script using `uv run`, passing the arguments.
+3.  **In `tests/test_dry_run_planner.py`:**
+    *   Create a fixture with a sample `prd.json`.
+    *   Write `test_dry_run_plan_structure` to call the planner and assert the output has the correct keys (`phases`, `total_estimated_cost`) and valid, ordered data.
+
+**4. Edge Cases & Gotchas:**
+
+*   **No API Calls:** The script must not make any network requests. If reusing existing functions, ensure they are called in a way that avoids I/O, or mock them.
+*   **Exit Code:** The `spiral.sh dry-run` command must exit with code 0 on successful completion.
+*   **Argument Parsing:** The shell script must robustly handle the iteration count and the optional `--output` flag.
+*   **Token Estimation:** The estimation is a core part of the task but does not need to be exact. Focus on creating a reasonable, non-zero approximation.
+

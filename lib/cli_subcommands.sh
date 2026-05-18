@@ -370,6 +370,21 @@ if [[ "$COST_ANALYSIS_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── dry-run: preview execution plan without API calls ─────────────────────
+DRY_RUN_PLANNER_MODE="${DRY_RUN_PLANNER_MODE:-0}"
+DRY_RUN_PLANNER_ITERATIONS="${DRY_RUN_PLANNER_ITERATIONS:-}"
+DRY_RUN_PLANNER_OUTPUT="${DRY_RUN_PLANNER_OUTPUT:-ascii}"
+if [[ "$DRY_RUN_PLANNER_MODE" -eq 1 ]]; then
+  if [[ -z "$DRY_RUN_PLANNER_ITERATIONS" ]]; then
+    echo "[spiral] ERROR: dry-run requires iteration count" >&2
+    exit 1
+  fi
+  _DRP_ARGS=("$DRY_RUN_PLANNER_ITERATIONS")
+  [[ "$DRY_RUN_PLANNER_OUTPUT" == "json" ]] && _DRP_ARGS+=("--output" "json")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/dry_run_planner.py" "${_DRP_ARGS[@]}"
+  exit $?
+fi
+
 # ── snapshot_list_handler: format and display snapshot list output ────────────────────
 snapshot_list_handler() {
   local out_dir="$1"

@@ -173,6 +173,9 @@ COST_ANALYSIS_MODE=0                         # 1 = run cost-analysis subcommand 
 COST_ANALYSIS_DETAILED=0                     # 1 = show per-story breakdown (--detailed)
 COST_ANALYSIS_JSON=0                         # 1 = output as JSON (--json)
 COST_ANALYSIS_COMPARE_ITERATION=""           # iteration to compare with (--compare-iteration N)
+DRY_RUN_PLANNER_MODE=0                       # 1 = preview execution plan and exit (dry-run)
+DRY_RUN_PLANNER_ITERATIONS=""                # number of iterations to plan
+DRY_RUN_PLANNER_OUTPUT="ascii"               # output format: ascii|json (default: ascii)
 EXPORT_PROGRESS_MODE=0                       # 1 = export PRD+results snapshot and exit (export-progress)
 EXPORT_PROGRESS_FORMAT="json"                # json|zip output format
 EXPORT_PROGRESS_OUTPUT=""                    # output file path (default: timestamped)
@@ -545,6 +548,25 @@ while [[ $# -gt 0 ]]; do
         esac
       done
       ;;
+    dry-run)
+      DRY_RUN_PLANNER_MODE=1
+      if [[ -z "${2:-}" ]]; then
+        echo "[spiral] ERROR: Usage: spiral dry-run <num_iterations> [--output json]" >&2
+        exit "$ERR_BAD_USAGE"
+      fi
+      DRY_RUN_PLANNER_ITERATIONS="$2"
+      shift 2
+      # Parse optional --output flag
+      while [[ $# -gt 0 ]] && [[ "$1" == --output ]]; do
+        case $1 in
+          --output)
+            DRY_RUN_PLANNER_OUTPUT="${2:-ascii}"
+            shift 2
+            ;;
+          *) break ;;
+        esac
+      done
+      ;;
     export-progress)
       EXPORT_PROGRESS_MODE=1
       shift
@@ -735,6 +757,8 @@ while [[ $# -gt 0 ]]; do
       echo "    --detailed                 Show per-story breakdown (top 20 by cost)"
       echo "    --json                     Output as JSON"
       echo "    --compare-iteration N      Compare current iteration to iteration N with delta"
+      echo "  dry-run N                  Preview execution plan for N iterations without API calls"
+      echo "    --output json              Output as JSON instead of ASCII tree (default: ASCII tree)"
       echo "  export-progress            Bundle PRD, results, and metrics as a shareable snapshot"
       echo "    --format json|zip          Output format (default: json)"
       echo "    --output PATH              Output file path (default: spiral-export-<timestamp>.<ext>)"
