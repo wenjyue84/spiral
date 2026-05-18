@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from learned_lessons import query_lessons
 from llm_models import DecompositionResult, validate_llm_json
+from parse_story_hints import build_hint_context, extract_complexity_band
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
 
@@ -266,6 +267,7 @@ def main() -> int:
     parser.add_argument("--learning-path", default="", help="Path to learning.md for complexity-band hints")
     parser.add_argument("--model", default="sonnet", help="Claude model (default: sonnet)")
     parser.add_argument("--max-substories", type=int, default=4, help="Max sub-stories (default: 4)")
+    parser.add_argument("--enable-hints", action="store_true", help="Parse @spiral:hint-* markers from description")
     parser.add_argument("--dry-run", action="store_true", help="Print prompt without modifying prd.json")
     args = parser.parse_args()
 
@@ -324,6 +326,15 @@ def main() -> int:
     else:
         lp_text = ""
 
+    # Extract complexity band hint from description
+    hint_text = ""
+    if args.enable_hints:
+        description = parent.get("description", "")
+        hint_band = extract_complexity_band(description)
+        if hint_band:
+            hint_text = build_hint_context(hint_band)
+            print(f"[decompose] Using @spiral:hint-complexity-band:{hint_band}")
+
     # Build prompt
     parent_ac_string = "\n".join(f"    - {ac}" for ac in parent.get("acceptanceCriteria", []))
     prompt = DECOMPOSE_PROMPT.format(
@@ -333,7 +344,7 @@ def main() -> int:
         parent_ac=parent_ac_string,
         failure_context=failure_context,
         max_sub=args.max_substories,
-        learned_patterns=lp_text,
+        learned_patterns=lp_text + hint_text,
     )
     prompt += build_lessons_section(args.lessons, parent)
 

@@ -342,6 +342,14 @@ injected into the decomposition prompt as a `<learned_patterns>` XML block. Thes
 failure types: syntax, logic, scope, timeout. Ralph workers receive these hints inline — no extra
 action required.
 
+## Story Complexity Hints
+
+Stories may include `@spiral:hint-complexity-band:small|medium|large` in their description.
+Phase I decomposition uses this hint to calibrate sub-story scope:
+- `small` → prefer 2 sub-stories, 1-2 files each
+- `medium` → prefer 3 sub-stories, 2-3 files each
+- `large` → 4 sub-stories, minimize cross-dependencies
+
 ## Remember
 
 - You are ONE iteration in an autonomous loop

@@ -124,7 +124,8 @@ decompose_story() {
     --prd "$prd_file" \
     --model "$model" \
     --progress "$progress_file" \
-    --learning-path "$learning_path"
+    --learning-path "$learning_path" \
+    --enable-hints
 }
 
 # validate_plan <plan_json> <story_id> [files_to_touch]
