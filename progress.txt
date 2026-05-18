@@ -1751,3 +1751,6 @@ This task involves creating integration tests for the `MockClaudeAPI` class to e
 *   The tests must not perform any real file system or network operations. Rely entirely on mocking.
 *   Verify that the `mock_api_repo` fixture can be exercised independently as specified in the acceptance criteria.
 
+## Iteration 3 - Mon, May 18, 2026  6:46:51 PM
+Completed: [Integration Test] MockClaudeAPI fixture: intercept, inject, and failure paths (ID: US-1405) in 7m
+
