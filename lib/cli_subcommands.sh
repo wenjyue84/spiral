@@ -650,3 +650,25 @@ if [[ "$EXPORT_RESULTS_MODE" -eq 1 ]]; then
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/results_exporter.py" "${_EXPORT_ARGS[@]}"
   exit $?
 fi
+
+# ── --benchmark: benchmark a story across multiple models and record baselines ──
+BENCHMARK_MODE="${BENCHMARK_MODE:-0}"
+if [[ "$BENCHMARK_MODE" -eq 1 ]]; then
+  if [[ -z "$BENCHMARK_STORY_ID" ]]; then
+    echo "[spiral] ERROR: Usage: spiral benchmark-model <story-id> [--models haiku,sonnet,opus]" >&2
+    exit 1
+  fi
+  _BENCHMARK_ARGS=("run" "$BENCHMARK_STORY_ID" "--prd" "$PRD_FILE")
+  [[ -n "$BENCHMARK_MODELS" ]] && _BENCHMARK_ARGS+=("--models" "$BENCHMARK_MODELS")
+  _BENCHMARK_ARGS+=("--project-root" "$REPO_ROOT")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/benchmark_runner.py" "${_BENCHMARK_ARGS[@]}"
+  exit $?
+fi
+
+# ── --benchmark-list: show previously benchmarked stories ─────────────────────
+BENCHMARK_LIST_MODE="${BENCHMARK_LIST_MODE:-0}"
+if [[ "$BENCHMARK_LIST_MODE" -eq 1 ]]; then
+  _BENCHMARK_LIST_ARGS=("list" "--prd" "$PRD_FILE" "--project-root" "$REPO_ROOT")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/benchmark_runner.py" "${_BENCHMARK_LIST_ARGS[@]}"
+  exit $?
+fi

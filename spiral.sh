@@ -127,6 +127,8 @@ ROLLBACK_STORY_ID=""                         # "" = normal mode; "US-XXX" = roll
 UNDO_STORY_ID=""                             # "" = normal mode; "US-XXX" = replay undo log for that story (--undo)
 BENCHMARK_STORY_ID=""                        # "" = normal mode; "US-XXX" = benchmark that story (--benchmark)
 BENCHMARK_MODELS=""                          # comma-separated model names for --models (e.g., "claude-opus-4-6,claude-sonnet-4-6")
+BENCHMARK_MODE=0                             # 1 = run benchmark and exit (--benchmark)
+BENCHMARK_LIST_MODE=0                        # 1 = list benchmarks and exit (--benchmark-list)
 RESET_CHECKPOINT=0                           # 1 = remove _checkpoint.json and start fresh (--reset)
 CLEAR_RESEARCH_CACHE=0                       # 1 = flush .spiral/research-cache/ and exit (--clear-research-cache, US-1292)
 MIGRATE_MODE=0                               # 1 = run prd.json schema migration and exit (--migrate)
@@ -328,11 +330,16 @@ while [[ $# -gt 0 ]]; do
       ;;
     --benchmark)
       BENCHMARK_STORY_ID="$2"
+      BENCHMARK_MODE=1
       shift 2
       ;;
     --models)
       BENCHMARK_MODELS="$2"
       shift 2
+      ;;
+    --benchmark-list)
+      BENCHMARK_LIST_MODE=1
+      shift
       ;;
     --reset)
       RESET_CHECKPOINT=1
