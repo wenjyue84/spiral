@@ -6,8 +6,11 @@ learning.md. This is the data-extraction half of the Phase L learning loop.
 """
 
 import csv
+import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 def _ensure_learning_md(learning_md_path: Path) -> None:
@@ -157,6 +160,133 @@ def extract_patterns(
     learning_md_path.write_text(updated_content, encoding="utf-8")
 
     return len(new_patterns)
+
+
+@dataclass
+class EvolutionMetric:
+    """Temporal evolution metric for a learned pattern type."""
+
+    pattern_type: str
+    first_iteration: int
+    last_iteration: int
+    frequency: int
+    model_affinity_rank: list[tuple[str, int]]  # [(model, count), ...]
+
+
+def extract_pattern_evolution(
+    results_tsv_path: Path,
+    learned_patterns_jsonl_path: Path,
+    output_jsonl_path: Path,
+) -> int:
+    """Extract temporal evolution metrics for learned patterns.
+
+    Reads results.tsv and learned_patterns.jsonl to compute pattern evolution:
+    - first_iteration: when pattern first appeared
+    - last_iteration: when pattern last appeared
+    - frequency: total occurrences
+    - model_affinity_rank: models that used pattern, sorted by frequency
+
+    Args:
+        results_tsv_path: Path to results.tsv
+        learned_patterns_jsonl_path: Path to learned_patterns.jsonl (one JSON per line)
+        output_jsonl_path: Path to write pattern_evolution.jsonl
+
+    Returns:
+        Number of patterns analyzed
+    """
+    if not results_tsv_path.exists():
+        return 0
+
+    # Parse results.tsv to build iteration map
+    iteration_data: dict[str, list[dict[str, str]]] = {}
+    try:
+        with open(results_tsv_path, encoding="utf-8") as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            if reader.fieldnames is None:
+                return 0
+
+            for row in reader:
+                iteration_str = (row.get("spiral_iter") or "").strip()
+                if not iteration_str:
+                    continue
+
+                iteration_data.setdefault(iteration_str, []).append(row)
+    except (OSError, KeyError):
+        return 0
+
+    # Parse learned_patterns.jsonl (one JSON object per line)
+    pattern_usage: dict[str, dict[str, Any]] = {}
+    try:
+        if learned_patterns_jsonl_path.exists():
+            with open(learned_patterns_jsonl_path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                        pattern_type = obj.get("pattern_type", "unknown")
+                        iteration = obj.get("iteration", 0)
+                        model = obj.get("model", "unknown")
+
+                        if pattern_type not in pattern_usage:
+                            pattern_usage[pattern_type] = {
+                                "iterations": [],
+                                "models": {},
+                            }
+
+                        pattern_usage[pattern_type]["iterations"].append(iteration)
+                        pattern_usage[pattern_type]["models"][model] = (
+                            pattern_usage[pattern_type]["models"].get(model, 0) + 1
+                        )
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+    except OSError:
+        pass
+
+    # Compute evolution metrics
+    metrics = []
+    for pattern_type, data in pattern_usage.items():
+        iterations = data.get("iterations", [])
+        models = data.get("models", {})
+
+        if not iterations:
+            continue
+
+        first_iter = min(iterations)
+        last_iter = max(iterations)
+        frequency = len(iterations)
+
+        # Rank models by frequency
+        model_affinity = sorted(
+            models.items(),
+            key=lambda x: x[1],
+            reverse=True,
+        )
+
+        metric = EvolutionMetric(
+            pattern_type=pattern_type,
+            first_iteration=first_iter,
+            last_iteration=last_iter,
+            frequency=frequency,
+            model_affinity_rank=model_affinity,
+        )
+        metrics.append(metric)
+
+    # Write metrics to output JSONL
+    output_jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_jsonl_path, "w", encoding="utf-8") as f:
+        for metric in metrics:
+            obj = {
+                "pattern_type": metric.pattern_type,
+                "first_iteration": metric.first_iteration,
+                "last_iteration": metric.last_iteration,
+                "frequency": metric.frequency,
+                "model_affinity_rank": metric.model_affinity_rank,
+            }
+            f.write(json.dumps(obj) + "\n")
+
+    return len(metrics)
 
 
 if __name__ == "__main__":

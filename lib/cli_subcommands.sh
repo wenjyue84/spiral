@@ -672,3 +672,18 @@ if [[ "$BENCHMARK_LIST_MODE" -eq 1 ]]; then
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/benchmark_runner.py" "${_BENCHMARK_LIST_ARGS[@]}"
   exit $?
 fi
+
+# ── explain-learning: show temporal evolution of learned patterns ──────────────
+EXPLAIN_LEARNING_MODE="${EXPLAIN_LEARNING_MODE:-0}"
+EXPLAIN_LEARNING_PATTERN_TYPE="${EXPLAIN_LEARNING_PATTERN_TYPE:-}"
+if [[ "$EXPLAIN_LEARNING_MODE" -eq 1 ]]; then
+  _PATTERN_EVOLUTION_FILE="$REPO_ROOT/.spiral/pattern_evolution.jsonl"
+  if [[ ! -f "$_PATTERN_EVOLUTION_FILE" ]]; then
+    echo "[spiral] ERROR: pattern_evolution.jsonl not found. Run SPIRAL first to generate pattern evolution data." >&2
+    exit 1
+  fi
+  _EL_ARGS=("$_PATTERN_EVOLUTION_FILE")
+  [[ -n "$EXPLAIN_LEARNING_PATTERN_TYPE" ]] && _EL_ARGS+=("--pattern-type" "$EXPLAIN_LEARNING_PATTERN_TYPE")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cli_explain_learning.py" "${_EL_ARGS[@]}"
+  exit $?
+fi
