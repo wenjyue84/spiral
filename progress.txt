@@ -952,3 +952,84 @@ Completed: Phase V: Output test evidence.json per story with verification metada
 ## Iteration 5 - Tue, May 19, 2026  1:16:18 AM
 Completed: Phase V: Output test evidence.json per story with verification metadata (ID: US-1434) in 3m
 
+
+## Pre-analysis for US-1436 (Gemini 2.5 Pro)
+This is not a Frappe project. The story describes a change to the `spiral` Python CLI tool.
+
+**Technical Brief: US-1436 `spiral rename-story`**
+
+This brief outlines the implementation for a CLI command to safely rename story IDs.
+
+*   **Primary Files to Create/Modify:**
+    *   `lib/story_renamer.py`: (New) Will contain the core `rename_story` function.
+    *   `tests/test_story_renamer.py`: (New) Unit tests for the renamer logic.
+    *   `lib/cli_subcommands.sh`: (Modify) Add a new `rename-story` command branch to integrate the Python script into the main CLI.
+
+*   **Frappe/DocTypes:**
+    *   None. This user story is unrelated to Frappe.
+
+*   **Implementation Approach:**
+    1.  In `lib/cli_subcommands.sh`, add a case for `rename-story` that calls the Python script.
+    2.  The Python script (`lib/story_renamer.py`) should define a `rename_story` function that accepts `old_id` and `new_id`.
+    3.  **`prd.json`:** Load the file, verify `new_id` doesn't already exist, then iterate through all stories to update the target story's `id` and any `dependencies` that reference `old_id`.
+    4.  **`results.tsv`:** Read the file, rewrite rows where the story ID column matches `old_id` to use `new_id`.
+    5.  Use atomic writes (e.g., `os.replace`) for both files to prevent data corruption.
+    6.  Log the rename event to `spiral_events.jsonl` for audit purposes.
+
+*   **Edge Cases & Gotchas:**
+    *   The command MUST abort if `new_id` already exists to prevent ID collision.
+    *   The command should fail gracefully if `old_id` is not found.
+    *   Ensure file operations are atomic to prevent partial writes.
+    *   Confirm that all references in `dependencies` across the entire `prd.json` are updated, not just the renamed story itself.
+
+
+## Iteration [26] - Story: US-1436 CLI: spiral rename-story with history and reference preservation
+
+### What was implemented
+
+Completed the `spiral rename-story <old-id> <new-id>` CLI command with full support for atomic writes and dependency preservation:
+
+1. **lib/story_renamer.py (150 lines)**
+   - `validate_rename()`: Checks old_id exists, new_id doesn't exist, validates PRD file
+   - `update_dependencies()`: Updates all dependency references in-place
+   - `update_results_tsv()`: Rewrites results.tsv with atomic write pattern
+   - `rename_story()`: Main function coordinating all updates across prd.json + results.tsv
+   - CLI main() entry point with argument parsing
+   - Full type hints (passes mypy --strict)
+
+2. **tests/test_story_renamer.py (230 lines)**
+   - 14 comprehensive unit tests covering:
+     - Validation: success, collision detection, missing files, missing old_id
+     - Dependency updates: single/multiple refs, no matches
+     - results.tsv updates: replacement, missing file, no story_id column
+     - Integration: history preservation, collision abort, atomic write safety
+   - All tests passing (14/14)
+
+3. **lib/cli_subcommands.sh (wired rename-story handler)**
+   - Parses RENAME_STORY_MODE, RENAME_STORY_OLD_ID, RENAME_STORY_NEW_ID, RENAME_STORY_YES vars
+   - Includes confirmation prompt (unless --yes flag set) with user-friendly messaging
+   - Calls lib/story_renamer.py with PRD and results.tsv paths
+   - shellcheck and syntax validation passed
+
+### Patterns discovered
+
+- Atomic writes for JSON use tempfile.mkstemp() + os.replace() pattern from spiral_io module
+- results.tsv parsing requires explicit column index lookup in header row
+- Dependency references are stored as simple list of IDs, making updates straightforward
+- Shell subcommands follow pattern: set variables from environment, validate inputs, call Python script
+
+### Gotchas
+
+- TSV parsing must handle variable column count (some rows have more/fewer fields)
+- mypy strict mode requires explicit type hints for all function signatures
+- shfmt reports errors on pre-existing code in the file (line 699 existing issue)
+- Confirmation prompt needs input validation with bash regex match operator
+
+### Acceptance criteria met
+
+- [x] AC1: `spiral rename-story US-001 US-999` updates story ID and all blocker/dependency references
+- [x] AC2: results.tsv rows with old_id rewritten to new_id; row count unchanged
+- [x] AC3: Command aborts with error if new_id already exists in prd.json
+- [x] AC4: uv run pytest tests/test_story_renamer.py -v passes with 0 failures (14/14)
+- [x] MyPy strict type checking passes
+- [x] Story marked as passes: true in prd.json

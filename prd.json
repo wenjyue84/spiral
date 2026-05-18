@@ -4856,7 +4856,7 @@
       "_source": "test-story",
       "model": "haiku",
       "last_attempted": "2026-05-18T17:07:42Z",
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
+      "_failureReason": "dependency US-1365 was skipped",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n`tests/fixtures/mock_claude_api.py` already contains a fully implemented `MockClaudeAPI` class (181 lines) with all required methods: `__init__()`, `inject_response()`, `inject_failure()`, `get_response()`, `get_failure()`, `call_log` property, context manager support (`__enter__`/`__exit__`), and `intercept()` method with `stop()`.\n\n`tests/fixtures/__init__.py` already exports `MockClaudeAPI`.\n\n`tests/test_mock_claude_api.py` already has all 3 acceptance criteria test functions.\n\n## Problem Identified\nThe story is marked `passes: false` even though the implementation already exists and all 3 required tests pass. The previous attempt failed due to a missing diagnosis block. No code changes are needed — only `prd.json` needs to be updated to mark `passes: true`.\n\n## Planned Changes\n- Update `prd.json`: set `passes: true` for story US-1433\n- Append learnings to `progress.txt`\n- Commit the change\nStory US-1433 is complete. All 3 acceptance criteria tests pass:\n\n- `test_intercept_no_real_call` — PASSED\n- `test_inject_failure` — PASSED  \n- `test_call_log` — PASSED\n\nThe `MockClaudeAPI` class was already fully implemented in a prior iteration. This attempt failed only due to a missing diagnosis block gate; no code changes were needed. Marked `passes: true` and committed."
       },
@@ -4865,7 +4865,8 @@
         "tokensAfterMasking": 637,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "_skipped": true
     },
     {
       "id": "US-1434",
@@ -4928,6 +4929,73 @@
         "diagnosisBlock": "## Current State\n\nThe configuration reference page `html/pages/06-configuration.html` was created in US-1349 and contains 70+ SPIRAL_* environment variables, each with a corresponding HTML `<tr id=\"config-SPIRAL_*\">` anchor for deep-linking.\n\nBeautifulSoup4 is already installed and available for use.\n\n## Problem Identified\n\nStory US-1435 requires creating a test to validate that:\n1. The configuration HTML file exists and has content\n2. All environment variables have proper anchor elements (IDs)\n3. At minimum, the representative anchor `config-SPIRAL_VALIDATE_CMD` is present\n\n## Planned Changes\n\n- **Create tests/test_config_page.py**: New test module with BeautifulSoup-based parsing to verify HTML structure and anchor presence\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_config_page.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_config_page_exists\", \"test_config_page_contains_representative_anchors\"],\n  \"estimated_loc\": 45\n}\n</plan>\n\nNow I'll create the test file:\nNow let's run the test to verify it passes:\nNow let's run quality checks to ensure the code passes all gates:\nExcellent! All tests pass. Let me verify the file content after formatting:\nLet me resolve the merge conflict and update the prd.json to mark US-1435 as passing:\nLet me run a final verification to ensure all quality checks pass:\nPerfect! Story US-1435 is now complete.\n\n## Summary"
       },
       "_passedCommit": "38ba66336c945ead4f3e8a8c6c08643228e47e4c"
+    },
+    {
+      "id": "US-1436",
+      "title": "CLI: spiral rename-story with history and reference preservation",
+      "priority": "high",
+      "description": "Implement a `spiral rename-story <old-id> <new-id>` CLI command that safely renames a story ID across prd.json, results.tsv, and blocker references. The rename must preserve all execution telemetry and append an audit entry so history is never lost.",
+      "acceptanceCriteria": [
+        "Running `spiral rename-story US-001 US-999` updates the story id in prd.json and rewrites every blocker/dependency reference to match",
+        "results.tsv rows with old_id are rewritten to new_id; row count is unchanged after rename",
+        "Command aborts with non-zero exit and an error message if new_id already exists in prd.json",
+        "uv run pytest tests/test_story_renamer.py -v passes with 0 failures"
+      ],
+      "technicalNotes": [
+        "File to create: lib/story_renamer.py (rename_story(old_id, new_id, prd_path, results_path) -> None)",
+        "File to edit: lib/cli_subcommands.sh (add 'rename-story' branch with --yes flag to skip confirmation prompt)",
+        "Test command: uv run pytest tests/test_story_renamer.py::test_rename_preserves_history -v",
+        "Test command: uv run pytest tests/test_story_renamer.py::test_rename_aborts_on_collision -v",
+        "Use atomic write (write to .tmp then os.replace) when patching prd.json to avoid partial corruption"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "last_attempted": "2026-05-18T17:21:25Z"
+    },
+    {
+      "id": "US-1437",
+      "title": "Phase T: Extract Test Failure Patterns for Episodic Learning Integration",
+      "priority": "medium",
+      "description": "Analyze Phase T test failures to identify common error patterns (assertion types, frameworks, stack traces). Feed extracted patterns into Phase L learning system for use in future story decomposition and error recovery hints. Support pytest, vitest, and playwright assertion patterns.",
+      "acceptanceCriteria": [
+        "Extract failure patterns from test output: assertion types, error messages, file paths involved",
+        "Append patterns to learning.md with frequency counts and most-recent iteration",
+        "Verify phase_l_learning_extractor.py consumes test patterns in hint_recommender.py for retry prompts"
+      ],
+      "technicalNotes": [
+        "File to create: lib/test_failure_extractor.py with parse_test_output(output) function",
+        "Wire into spiral.sh Phase T after test execution, call learning_extractor.py with --test-patterns flag",
+        "Test command: uv run pytest tests/test_failure_extractor.py -v (test pytest/vitest/playwright pattern parsing)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1438",
+      "title": "CLI: spiral research-replay <story-id> to Compare Current vs Historical Synthesis",
+      "priority": "medium",
+      "description": "Replay a story's original research queries from results.tsv against current Gemini API to compare synthesis quality changes. Detect when research sources have been indexed/ranked differently, identify synthesis degradation, and suggest re-research triggers. Useful for validating research cache effectiveness.",
+      "acceptanceCriteria": [
+        "Load original research queries and sources from results.tsv for specified story",
+        "Re-run Gemini search with original queries, compare result ranking and summary synthesis",
+        "Report quality delta: source ranking changes, summary divergence, and flag for re-research if delta > 15%"
+      ],
+      "technicalNotes": [
+        "File to create: lib/research_replay.py with replay_research(story_id, results_tsv_path) function",
+        "Integrate into lib/cli_subcommands.sh under 'spiral research-replay <story-id>' command",
+        "Test command: uv run pytest tests/test_research_replay.py::test_delta_detection -v (mock Gemini responses)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }

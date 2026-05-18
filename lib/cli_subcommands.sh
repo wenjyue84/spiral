@@ -703,6 +703,34 @@ if [[ "$SEARCH_HISTORY_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── rename-story: safely rename story ID across prd.json, results.tsv, and deps ──
+RENAME_STORY_MODE="${RENAME_STORY_MODE:-0}"
+RENAME_STORY_OLD_ID="${RENAME_STORY_OLD_ID:-}"
+RENAME_STORY_NEW_ID="${RENAME_STORY_NEW_ID:-}"
+RENAME_STORY_YES="${RENAME_STORY_YES:-0}"
+if [[ "$RENAME_STORY_MODE" -eq 1 ]]; then
+  if [[ -z "$RENAME_STORY_OLD_ID" ]] || [[ -z "$RENAME_STORY_NEW_ID" ]]; then
+    echo "[spiral] ERROR: Usage: spiral rename-story <old-id> <new-id> [--yes]" >&2
+    exit 1
+  fi
+
+  # Confirmation prompt unless --yes flag is set
+  if [[ "$RENAME_STORY_YES" -ne 1 ]]; then
+    echo "[spiral] Renaming story $RENAME_STORY_OLD_ID → $RENAME_STORY_NEW_ID"
+    echo "[spiral] This will update prd.json, results.tsv, and all dependency references."
+    read -p "[spiral] Continue? (y/n) " -r
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo "[spiral] Cancelled."
+      exit 0
+    fi
+  fi
+
+  _RESULTS_TSV="${RESULTS_TSV:-$REPO_ROOT/results.tsv}"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_renamer.py" "$RENAME_STORY_OLD_ID" "$RENAME_STORY_NEW_ID" \
+    --prd "$PRD_FILE" --results "$_RESULTS_TSV"
+  exit $?
+fi
+
 # ── explain-learning: show temporal evolution of learned patterns ──────────────
 EXPLAIN_LEARNING_MODE="${EXPLAIN_LEARNING_MODE:-0}"
 EXPLAIN_LEARNING_PATTERN_TYPE="${EXPLAIN_LEARNING_PATTERN_TYPE:-}"
