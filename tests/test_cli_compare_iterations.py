@@ -31,9 +31,7 @@ def sample_results_tsv() -> Path:
 2026-05-18T02:20:00Z	10	1	US-103	Feature D	pass	9	haiku	0	def456	run2	false	200	800	0	0	0	0	0
 2026-05-18T02:30:00Z	10	1	US-104	Feature E	reject	20	sonnet	0	def456	run2	false	0	0	0	0	0	0	0
 """
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".tsv", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
         f.write(content)
         temp_path = Path(f.name)
     yield temp_path

@@ -1197,3 +1197,32 @@ Completed: Integration test: Phase R research cache invalidation when story titl
 ## Iteration 2 - Tue, May 19, 2026  2:57:53 AM
 Completed: CLI: Add `spiral compare-iterations <iter-a> <iter-b>` for delta analysis between runs (ID: US-1442) in 10m
 
+
+## Pre-analysis for US-1443 (Gemini 2.5 Pro)
+This is a technical brief for implementing `US-1443`, which involves testing a Python-based mocking fixture. Note: This story does not pertain to the Frappe framework or the `lhdn_payroll_integration` app; it is for the `spiral` project.
+
+**Project:** Spiral (Python/Pytest)
+**Goal:** Create integration tests for the `MockClaudeAPI` fixture to ensure it correctly intercepts `subprocess` calls and injects predefined responses or failures.
+
+**1. Files to Modify:**
+*   **Create:** `tests/test_mock_claude_api.py`
+*   **Import From:** `tests/fixtures/mock_claude_api.py` (contains the `MockClaudeAPI` class)
+*   **Use Fixture From:** `tests/conftest.py` (for the `mock_api_repo` pytest fixture)
+
+**2. Key Frappe Components:**
+*   None. This is a standard Python project using the `pytest` framework. No Frappe DocTypes or hooks are involved.
+
+**3. Recommended Implementation Approach:**
+*   In the new file `tests/test_mock_claude_api.py`, import `MockClaudeAPI` and the `pytest` library.
+*   Create a "happy path" test function that accepts the `mock_api_repo` fixture.
+*   Inside, instantiate `MockClaudeAPI` and use its `intercept()` method as a context manager to inject a successful string response.
+*   Trigger the code path that executes the `claude` subprocess and assert that the output matches the injected response.
+*   Create a separate "failure path" test.
+*   Use `intercept()` again, but configure it to simulate a failure (e.g., `expect_failure=True`).
+*   Wrap the subprocess-triggering call in `pytest.raises()` to assert that the expected exception (e.g., `subprocess.CalledProcessError`) is correctly raised.
+
+**4. Edge Cases & Gotchas:**
+*   The test must run entirely offline; the `MockClaudeAPI` fixture is intended to prevent any real network calls.
+*   The `mock_api_repo` fixture is critical and likely prepares a temporary file system or git repo context that the tested code requires to run.
+*   Ensure the tests trigger the *exact* `subprocess` call that `MockClaudeAPI` is designed to patch.
+*   The tests should exercise the `MockClaudeAPI` class directly as a Python object, not by invoking external scripts like `spiral.sh`.

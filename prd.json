@@ -5124,6 +5124,53 @@
         "diagnosisBlock": "## Current State\n- SPIRAL tracks story attempts in results.tsv (tab-separated) with columns: timestamp, spiral_iter, story_id, status, duration_sec, model, tokens, cost, etc.\n- CLI subcommands are dispatched through lib/cli_subcommands.sh, which sources additional bash logic or calls Python modules\n- No compare-iterations command exists yet\n\n## Problem Identified\nThe user needs a CLI command to analyze progress between iterations: which stories became new, which recovered from failure, which still fail, and token/cost changes.\n\n## Planned Changes\n1. **Create lib/cli_compare_iterations.py** — Load results per iteration, compute deltas, format output\n2. **Update lib/cli_subcommands.sh** — Add handler for --compare-iterations flag that parses args and delegates to Python\n3. **Create tests/test_cli_compare_iterations.py** — Unit tests for all functions\n\n<plan>\n{\n  \"files_to_create\": [\n    \"lib/cli_compare_iterations.py\",\n    \"tests/test_cli_compare_iterations.py\"\n  ],\n  \"files_to_modify\": [\n    \"lib/cli_subcommands.sh\"\n  ],\n  \"functions_to_add\": [\n    \"load_iteration_data\",\n    \"compute_story_deltas\",\n    \"calculate_token_delta\",\n    \"format_delta_report\",\n    \"main\"\n  ],\n  \"estimated_loc\": 280\n}\n</plan>\n\nNow I'll read the current cli_subcommands.sh to understand the pattern, then implement:\nNow I'll create the implementation. First, the Python module:\nNow update cli_subcommands.sh to add the compare-iterations handler:\nNow I need to add argument parsing in spiral.sh. Let me find the right location:\nNow create the test file:\nNow let's run the tests to verify the implementation:\nI need to fix the test data expectations - I miscalculated the token counts. Let me fix the tests:\nPerfect! All tests pass. Now let's test the CLI integration:\nLet me check if my code specifically has any issues:\nNow let's verify the implementation one more time and commit:\nPerfect! Let me verify the implementation one final time:\n## Summary"
       },
       "_passedCommit": "7dd31387aede3434ce925e707cdd98e98ec1b2c8"
+    },
+    {
+      "id": "US-1443",
+      "title": "[Integration Test] Verify MockClaudeAPI fixture intercepts subprocess and injects responses",
+      "priority": "high",
+      "description": "Write integration tests confirming that MockClaudeAPI correctly intercepts Claude CLI subprocess calls and returns injected responses or simulated failures. Tests must cover the happy path (injected response returned) and at least one error path (failure injection). All tests run offline without external services.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_mock_claude_api.py -v exits 0 with happy-path interception test passing",
+        "uv run pytest tests/test_mock_claude_api.py -v exits 0 with failure-injection test passing",
+        "uv run pytest tests/ -k 'mock_claude' --collect-only shows at least 2 collected test items",
+        "uv run pytest tests/test_mock_claude_api.py -v completes without any network I/O (no external API calls)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_mock_claude_api.py (create — exercise MockClaudeAPI.intercept() and failure injection paths)",
+        "File to edit: tests/conftest.py (confirm mock_api_repo fixture is importable and yields a valid tmp repo path)",
+        "Test command: uv run pytest tests/test_mock_claude_api.py -v",
+        "MockClaudeAPI lives at tests/fixtures/mock_claude_api.py — import and exercise directly without invoking spiral.sh"
+      ],
+      "dependencies": [
+        "US-1365"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "test-story",
+      "model": "haiku",
+      "last_attempted": "2026-05-18T19:06:43Z"
+    },
+    {
+      "id": "US-1444",
+      "title": "Phase S: Constitution Validation Engine with Antipattern Detection and Rejection Logging",
+      "priority": "medium",
+      "description": "Extend Phase S to parse constitution.md rules and antiPatterns, then reject stories that violate them before merge. Log all rejections to .spiral/_rejected_stories.json with violation reason for audit and learning loop integration.",
+      "acceptanceCriteria": [
+        "Phase S parses constitution.md and calls lib/constitution_validator.py:validate_story(story, rules) for each candidate",
+        "Detects antiPatterns (e.g. 'avoid hardcoded credentials', 'no SQL injection risk') and rejects matching stories with reason",
+        "Writes rejected stories to .spiral/_rejected_stories.json as {story_id, rule_violated, reason, phase, timestamp} for CLI inspection"
+      ],
+      "technicalNotes": [
+        "File to create: lib/constitution_validator.py (functions: parse_constitution_rules, validate_story, match_antipattern)",
+        "File to edit: lib/phases/phase_s.sh (call validate_story in loop before merge_stories.py)",
+        "Test command: uv run pytest lib/tests/test_constitution_validator.py::test_detects_antipatterns -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }
