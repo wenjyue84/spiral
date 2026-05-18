@@ -1959,3 +1959,6 @@ Completed: Security test: HealthWidget does not expose auth tokens in error resp
 - [x] 401 response renders safe error message
 - [x] 403 response with no token content in DOM
 - [x] Exponential back-off fires on error without leaking response body
+## Iteration 3 - Mon, May 18, 2026  7:58:12 PM
+Completed: Security test: HealthWidget does not expose auth tokens in error responses (ID: US-1420) in 3m
+

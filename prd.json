@@ -4256,6 +4256,27 @@
       "model": "haiku"
     },
     {
+      "id": "US-1413",
+      "title": "Phase V: Auto-Extract Verifiable Assertions from Story Acceptance Criteria",
+      "priority": "medium",
+      "description": "Create a Python module that parses acceptance criteria text to extract verifiable assertions (test cases), supporting automatic test generation for stories without explicit verification contracts.",
+      "acceptanceCriteria": [
+        "lib/assertion_extractor.py parses AC text with regex patterns to identify assertions: 'assert X', 'must have Y', 'should return Z', 'contains [item]'",
+        "Returns list of [assertion_type, subject, expected_value, confidence_score] structured for Phase V verification engine to validate",
+        "Stories without explicit testFiles or testMarker get auto-generated pytest assertions written to .spiral/auto_assertions/<story-id>.py"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/assertion_extractor.py (new file, create extract_assertions(ac_text: str) -> List[Assertion] with typed Assertion namedtuple)",
+        "File to edit: lib/phases/phase_v.sh (integrate assertion_extractor call for stories where verification.testFiles is null)",
+        "Test command: uv run pytest tests/test_assertion_extractor.py::test_extract_assertions_from_ac_text -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
       "id": "US-1414",
       "title": "Create MockClaudeAPI class with response injection and failure simulation",
       "priority": "high",
@@ -4352,11 +4373,8 @@
       "passes": true,
       "_source": "test-story",
       "model": "sonnet",
-      "last_attempted": "2026-05-18T11:40:56Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`tests/test_spiral_integration.py` exists with retry escalation and timeout tests (from US-1371), but has no security/credential-leak tests.\n\n## Problem Identified\nUS-1417 requires security tests verifying that running the SPIRAL integration loop via MockClaudeAPI does not leak `ANTHROPIC_API_KEY` or other credentials into `.spiral/` state files or stdout.\n\n## Planned Changes\n- Add security-tagged tests to `tests/test_spiral_integration.py`:\n  1. `test_no_credential_leakage_in_spiral_state_security` — verify no real key string in `.spiral/` files after mock loop\n  2. `test_no_credential_in_stdout_security` — verify captured stdout has no api_key/password/secret strings during retry escalation\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"tests/test_spiral_integration.py\"],\n  \"functions_to_add\": [\"test_no_credential_leakage_in_spiral_state_security\", \"test_no_credential_in_stdout_security\"],\n  \"estimated_loc\": 80\n}\n</plan>\nNow I'll add the security tests to the file:\nThe test fails because the existing `.spiral/candidate_us.json` legitimately contains `ANTHROPIC_API_KEY` as a story variable name in descriptions. I need to use a temp isolated `.spiral/` directory:\nBoth security tests pass. Now let me verify the other acceptance criteria and run type/lint checks:\nAll checks pass. Now mark the story complete and commit:\nUS-1417 is complete. Here's what was implemented:\n\n**Added `TestCredentialSecurity` class** to `tests/test_spiral_integration.py` with 2 security tests:\n\n1. **`test_no_credential_leakage_in_spiral_state_security`** — Injects a fake `ANTHROPIC_API_KEY` env var value, runs a mock haiku→sonnet retry loop, has the mock write a representative state file to an isolated `tmp_path/.spiral/` dir, then asserts neither the fake key value nor any real-looking `sk-ant-...` pattern appears in those state files.\n\n2. **`test_no_credential_in_stdout_security`** — Uses `MockClaudeAPI` context manager to run a mock loop, captures stdout/stderr, and asserts no `api_key/password/secret` patterns appear in the captured output.\n\n**Key design decision:** Used `tmp_path` for an isolated `.spiral/` directory rather than scanning the real `.spiral/` — which legitimately contains `ANTHROPIC_API_KEY` as a variable name in story descriptions (not actual credential values)."
-      },
-      "_passedCommit": "e97af2802ee95373a18838963eef290b9f0779c6"
+      "_skipped": true,
+      "_failureReason": "dependency US-1371 was skipped"
     },
     {
       "id": "US-1418",
@@ -4380,12 +4398,28 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "haiku",
-      "last_attempted": "2026-05-18T11:48:50Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe configuration HTML file exists at `html/pages/06-configuration.html` and contains no obvious hardcoded secrets or credentials. The file contains:\n- Configuration variable examples with placeholder values (default values, descriptions)\n- One inline `<script>` block with only DOM manipulation logic (no credentials)\n- No API keys, passwords, or secret patterns visible\n\n## Problem Identified\n\nI need to create a security test that programmatically verifies the configuration HTML contains:\n1. No API key patterns (sk-ant- or 40-character hex strings)\n2. No credential identifiers in script blocks (api.key, password, secret)\n3. Test must pass with pytest\n\n## Planned Changes\n\n1. **Create** `tests/test_config_page_security.py`:\n   - Read the HTML file content\n   - Assert no API key patterns using regex\n   - Assert no credential identifiers in script blocks\n   - Verify the file exists and is valid HTML\n\n<plan>\n{\n  \"files_to_create\": [\"tests/test_config_page_security.py\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [\"test_no_api_key_patterns\", \"test_no_credential_identifiers_in_scripts\", \"test_file_exists\"],\n  \"estimated_loc\": 60\n}\n</plan>\n\nNow I'll implement the security test:\nNow let me run the security test to verify all acceptance criteria pass:\nNow let me verify the shell-based acceptance criteria pass as well:\nExcellent! Let me verify code quality with pre-commit hooks:\nLet me check if there are issues specifically in our test file:\nLet me fix the mypy type errors by adding proper type annotations:\nPerfect! All tests pass. Let me commit the changes:\nNow let me update prd.json to mark the story as complete:\n## Summary"
-      },
-      "_passedCommit": "291c6ddbba7eeaee7a2cba61b8a902c0ce737a55"
+      "model": "haiku"
+    },
+    {
+      "id": "US-1419",
+      "title": "Integration test: Phase S merges federated stories with namespace validation",
+      "priority": "medium",
+      "description": "End-to-end test for Phase S processing stories from main prd.json and federated sub-projects, validating namespace preservation and duplicate detection across boundaries.",
+      "acceptanceCriteria": [
+        "Test creates main prd.json with 5 stories and sub/payments/prd.json with 3 stories (1 duplicate with main), Phase S merge reduces to 7 unique stories (not 8)",
+        "Duplicate detection flags 'gateway/US-3' (sub-project) as similar to 'US-25' (main) with score >= 0.75 and logs merge recommendation",
+        "Namespaced story IDs preserved in merged prd.json (e.g., 'gateway/US-101' remains unchanged after merge, not renamed to 'US-NNN')"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_phase_s_integration_federated.py with pytest fixtures creating multi-prd test data in temp directory",
+        "Import lib.phase_s_duplicate_detector, lib.merge_stories; verify output story count, namespace format, and merge recommendations",
+        "Test command: uv run pytest tests/test_phase_s_integration_federated.py::test_federated_story_merge_with_namespace -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-1420",
@@ -4408,11 +4442,53 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "sonnet",
-      "last_attempted": "2026-05-18T11:52:36Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe HealthWidget component is at `spiral-ui/src/components/HealthWidget.tsx`. Existing tests at `spiral-ui/src/components/HealthWidget.test.tsx` already have 11 passing tests. The story asks for security tests at `spiral_ui/frontend/HealthWidget.security.test.tsx` (incorrect path per story) — the correct location is `spiral-ui/src/components/HealthWidget.security.test.tsx`.\n\n## Problem Identified\nNeed security-specific tests verifying that 401/403 error responses don't leak sensitive auth token data in the rendered DOM, and that exponential back-off doesn't expose response bodies.\n\n## Planned Changes\n- Create `spiral-ui/src/components/HealthWidget.security.test.tsx` with 3 security tests:\n  1. 401 response → renders safe generic error, no token in DOM\n  2. 403 response → renders safe error, no token content in DOM\n  3. Exponential back-off on error → no response body leakage\n\n<plan>\n{\n  \"files_to_create\": [\"spiral-ui/src/components/HealthWidget.security.test.tsx\"],\n  \"files_to_modify\": [],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 80\n}\n</plan>\nAll 3 tests pass. Now update `prd.json` and document learnings:\nUS-1420 complete. 3 security tests pass:\n\n1. **401 test** — verifies `Health check failed with status 401` is shown; no `Bearer`/`sk-` patterns in DOM\n2. **403 test** — verifies `Health check failed with status 403` is shown; response body with fake token never rendered\n3. **Back-off test** — verifies retries fire at 1s/2s intervals with no sensitive data leaking into the DOM\n\nThe key insight: `HealthWidget` already handles this correctly — it only renders `String(err)` (the Error message) on failure, which captures just the status code, never the response body content."
-      }
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1421",
+      "title": "CLI: Show story blockers and dependents with `spiral inspect-story <id>`",
+      "priority": "medium",
+      "description": "CLI command to display a story's metadata, acceptance criteria, blockers, dependents, and estimated complexity. Helps developers understand story relationships and impact before implementation.",
+      "acceptanceCriteria": [
+        "Command `spiral inspect-story US-1234` displays story title, description, full AC list, and _source field",
+        "Output includes blockers and dependents parsed from prd.json (stories this story blocks or depends on)",
+        "Shows estimated complexity band (small/medium/large) based on AC word count and typical token estimate"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli_subcommands.sh (add inspect-story handler, ~30 lines)",
+        "File to create: lib/story_inspector.py (dependency lookup and AC formatting, ~90 lines; use json.load() to parse prd.json)",
+        "File to create: tests/test_story_inspector.py (pytest with story fixtures, ~50 lines)",
+        "Test command: uv run pytest tests/test_story_inspector.py -v",
+        "Integration: wire inspect-story into cli_subcommands.sh main case statement"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1422",
+      "title": "Phase S: Detect and warn on incomplete acceptance criteria before story merge",
+      "priority": "medium",
+      "description": "Phase S validator that scans each story's acceptance criteria for completeness issues: empty AC lists, single-word ACs, or ACs lacking technical specifics (filenames, function names, test assertions). Logs warnings but does not block merge.",
+      "acceptanceCriteria": [
+        "Validator detects: empty AC list, ACs with <5 words, ACs without specific technical reference (filename/function/test marker)",
+        "Adds _validation field to prd.json story entries with list of warnings and risk level (low/medium/high)",
+        "Phase S logs summary to spiral_events.jsonl: 'N stories scanned, M with incomplete ACs (risk: high=X, medium=Y)'"
+      ],
+      "technicalNotes": [
+        "File to create: lib/ac_validator.py (AC analysis with score_acceptance_criteria() function, ~100 lines)",
+        "File to edit: lib/phases/phase_s.sh (call ac_validator before merge, ~15 lines)",
+        "File to create: tests/test_ac_validator.py (pytest with story and AC fixtures, ~50 lines)",
+        "Test command: uv run pytest tests/test_ac_validator.py::test_empty_acs -v",
+        "Integration: in phase_s.sh before merge_stories(), call: python lib/ac_validator.py <prd_json> and merge results"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }
