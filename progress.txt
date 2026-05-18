@@ -1785,3 +1785,52 @@ This story requires creating a `pytest` fixture to mock `subprocess` calls to th
 *   **Stateful Mocks:** If a test makes multiple calls, the mock must be stateful enough to return different responses for each invocation. A simple list of responses to `pop()` from works well.
 *   **Fixture Teardown:** Ensure the patch is always removed after the test, which `monkeypatch` and `patch` context managers handle automatically.
 
+## Iteration 1 - Mon, May 18, 2026  7:12:54 PM
+FAILED diagnosis-block gate: [Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365 (ID: US-1409) — no diagnosis block found — attempt 1/3
+
+
+## Pre-analysis for US-1409 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-1409.
+
+**Subject: Technical Brief: US-1409 - MockClaudeAPI Fixture**
+
+This story requires creating a `pytest` fixture to mock `subprocess` calls to the Claude CLI, enabling network-free integration testing.
+
+**1. Python Files to Modify:**
+*   `tests/fixtures/mock_claude_api.py` (Create new): Will contain the core `MockClaudeAPI` class.
+*   `tests/conftest.py`: To be updated with the new `mock_api_repo` pytest fixture.
+*   `tests/test_mock_claude_api.py` (Create new): A dedicated test file to validate the mock's functionality.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This task is unrelated to the Frappe framework; it is a pure Python/Pytest task for the Spiral codebase.
+
+**3. Recommended Implementation Approach:**
+*   **`MockClaudeAPI` Class:** In `tests/fixtures/mock_claude_api.py`, create a class that uses `unittest.mock.patch` to target `subprocess.run` within the appropriate module where it's called (e.g., `spiral.agents.claude`).
+*   The mock should inspect command arguments to identify CLI calls and return a mocked `subprocess.CompletedProcess` object from an internal queue or dictionary of responses.
+*   **`mock_api_repo` Fixture:** In `tests/conftest.py`, define a fixture that instantiates `MockClaudeAPI` and yields it, allowing tests to configure injected responses. Use `pytest.monkeypatch` for safer patching.
+*   **Testing:** Create tests in `tests/test_mock_claude_api.py` that use the fixture, one for a successful response and another that injects a failure (non-zero `returncode` and `stderr`).
+
+**4. Edge Cases & Gotchas:**
+*   **Patch Target:** The `patch` target must be precise (e.g., `spiral.module.subprocess.run`, not just `subprocess.run`).
+*   **Response Object:** The mock must return a `subprocess.CompletedProcess` instance. Ensure `stdout` and `stderr` are bytes-encoded, as `subprocess` uses bytes by default.
+*   **Stateful Mocks:** If a test makes multiple calls, the mock must be stateful enough to return different responses for each invocation. A simple list of responses to `pop()` from works well.
+*   **Fixture Teardown:** Ensure the patch is always removed after the test, which `monkeypatch` and `patch` context managers handle automatically.
+
+
+## Iteration 5 - Mon, May 18, 2026  7:20:00 PM
+Completed: [Integration Test] MockClaudeAPI fixture and conftest wiring for US-1365 (ID: US-1409)
+
+### What was implemented
+- No code changes needed — all acceptance criteria were already satisfied by US-1405 implementation
+- tests/fixtures/mock_claude_api.py: MockClaudeAPI class with subprocess interception
+- tests/conftest.py: mock_api_repo fixture using _MockClaudeAPI context manager
+- tests/test_mock_claude_api.py: Full test suite including @pytest.mark.us_1365 and failure injection tests
+- tests/test_conftest.py: Tests validating mock_api_repo fixture
+
+### Patterns discovered
+- When a story's acceptance criteria are already satisfied by prior work, simply verify and mark passes: true
+- The diagnosis block gate is strict — always output it before any file edits even if no edits needed
+
+### Gotchas
+- Previous attempt failed only due to missing diagnosis block (not code issues)
+- All 4 acceptance criteria confirmed passing: test_mock_claude_api.py (12 tests), test_conftest.py (4 tests), -k us_1365 (1 passed), failure injection tests present

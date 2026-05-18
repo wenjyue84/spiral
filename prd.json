@@ -4144,9 +4144,7 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "_skipped": true,
-      "_failureReason": "dependency US-1365 was skipped",
-      "last_attempted": "2026-05-18T11:04:32Z"
+      "last_attempted": "2026-05-18T11:12:56Z"
     },
     {
       "id": "US-1410",
