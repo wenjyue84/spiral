@@ -282,8 +282,7 @@ class TestCostsBreakdownEndpoint:
 
         # Assert sum matches total_cost_usd within 0.001 USD (acceptance criterion 3)
         assert abs(phase_sum - result["total_cost_usd"]) < 0.001, (
-            f"Per-phase costs ({phase_sum}) must sum to total_cost_usd "
-            f"({result['total_cost_usd']}) within 0.001"
+            f"Per-phase costs ({phase_sum}) must sum to total_cost_usd ({result['total_cost_usd']}) within 0.001"
         )
 
     def test_missing_results_tsv_returns_404(self, monkeypatch: Any) -> None:
@@ -291,6 +290,7 @@ class TestCostsBreakdownEndpoint:
 
         Verifies endpoint returns 404 with JSON error message when file is missing.
         """
+
         # Monkeypatch parse_costs_from_results_tsv to return _missing=True
         def mock_parse(path: str) -> dict[str, Any]:
             """Return missing marker for testing."""
