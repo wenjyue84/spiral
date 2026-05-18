@@ -1,4 +1,49 @@
-## Iteration Current - Sun, May 18, 2026 - Story US-1404 Completed
+## Iteration Current - Sun, May 18, 2026 - Story US-1411 Completed
+Completed: CLI: Add spiral benchmark-model Command to Establish Per-Model Cost Baselines (ID: US-1411)
+
+### What was implemented
+- lib/benchmark_runner.py: New module (270 lines) with benchmark orchestration
+  - run_benchmark_story(story_id, models=['haiku','sonnet','opus']) - runs story per model
+  - _run_story_with_model() - invokes ralph worker with specific model via subprocess
+  - Token estimation: output = duration * 20 tokens/sec, input = output * 3
+  - Cost calculation: tokens / 1_000_000 * model_rate (haiku $0.80, sonnet $3.00, opus $15.00 per million)
+  - _save_baseline() - appends results to .spiral/model_baselines.json
+  - list_benchmarks() - displays benchmarks with cost summaries
+  - CSV output: model, tokens_used, input_tokens, output_tokens, cost_usd, duration_sec, exit_code
+
+- tests/test_benchmark_runner.py: 13 comprehensive tests (100% pass rate)
+  - Token estimation from duration
+  - Cost calculation for all models (haiku, sonnet, opus, unknown)
+  - Story lookup in prd.json
+  - Baseline persistence and append behavior
+  - Multi-model benchmark execution with mocking
+
+- lib/cli_subcommands.sh: Added handlers
+  - BENCHMARK_MODE for 'spiral benchmark-model <story-id>'
+  - BENCHMARK_LIST_MODE for 'spiral benchmark-model --list'
+
+- spiral.sh: Added argument parsing
+  - --benchmark <story-id> → sets BENCHMARK_MODE=1
+  - --models <list> → sets BENCHMARK_MODELS
+  - --benchmark-list → sets BENCHMARK_LIST_MODE=1
+
+### Key Patterns Discovered
+- Token estimation reused from results_exporter.py (20 tokens/sec, 3x input ratio)
+- CLI subcommand pattern: bash handler → Python module dispatch
+- JSON storage in .spiral/model_baselines.json with append-history pattern
+
+### Testing Results
+- All 13 tests passing
+- mypy --strict: Success (no type errors)
+- Pre-commit hooks: Passed
+
+### Acceptance Criteria Met
+- [x] Command outputs CSV with all required columns
+- [x] Results persisted in .spiral/model_baselines.json
+- [x] --list support for viewing benchmarks
+- [x] Multiple model support (haiku, sonnet, opus)
+
+## Iteration Previous - Sun, May 18, 2026 - Story US-1404 Completed
 Completed: CLI: spiral export-results Command for CSV/JSON Analytics Export (ID: US-1404)
 
 ### What was implemented
