@@ -745,3 +745,16 @@ if [[ "$EXPLAIN_LEARNING_MODE" -eq 1 ]]; then
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cli_explain_learning.py" "${_EL_ARGS[@]}"
   exit $?
 fi
+
+# ── research-replay: replay historical research to compare synthesis quality ──────
+RESEARCH_REPLAY_MODE="${RESEARCH_REPLAY_MODE:-0}"
+RESEARCH_REPLAY_STORY_ID="${RESEARCH_REPLAY_STORY_ID:-}"
+if [[ "$RESEARCH_REPLAY_MODE" -eq 1 ]]; then
+  if [[ -z "$RESEARCH_REPLAY_STORY_ID" ]]; then
+    echo "[spiral] ERROR: Usage: spiral research-replay <story-id>" >&2
+    exit 1
+  fi
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_replay.py" "$RESEARCH_REPLAY_STORY_ID" \
+    --cache-dir "$REPO_ROOT/.spiral"
+  exit $?
+fi
