@@ -4042,8 +4042,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-05-18T12:40:58Z"
     },
     {
       "id": "US-1404",
@@ -4500,7 +4501,8 @@
         "tokensAfterMasking": 18,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "_passedCommit": "a904986f0cc2c70837aa3e37d392c95e11c05b2f"
     }
   ]
 }
