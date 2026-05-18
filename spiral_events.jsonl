@@ -7060,3 +7060,4 @@
 {"ts": "2026-05-18T00:12:59.126193+00:00", "type": "route_story_assigned", "story_id": "US-1383", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-05-18T00:12:59.126589+00:00", "type": "route_story_assigned", "story_id": "US-1384", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-05-18T00:12:59.126960+00:00", "type": "route_story_assigned", "story_id": "US-1385", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-05-18T00:35:15.444809+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1474\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
