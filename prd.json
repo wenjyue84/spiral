@@ -4551,7 +4551,10 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-05-18T14:26:04Z"
+      "last_attempted": "2026-05-18T14:26:04Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nI'm about to implement US-1422, which adds AC (acceptance criteria) validation to Phase S. Phase S currently validates stories against constitution and goals, but doesn't check AC completeness. The validator will detect empty ACs, short ACs (<5 words), and ACs lacking technical references (filenames/functions/test markers), then add a `_validation` field with warnings and risk levels.\n\n## Problem Identified\nStories with vague or incomplete acceptance criteria cause implementation delays and quality issues. Phase S needs to detect and warn about incomplete ACs (empty lists, <5 words, no technical specifics) before stories merge into prd.json.\n\n## Planned Changes\n- **lib/ac_validator.py** — AC analysis module with scoring, reference detection, and risk calculation (~100 lines)\n- **tests/test_ac_validator.py** — Comprehensive pytest tests covering all AC validation patterns (~50 lines)\n- **lib/phases/phase_s_story_validate.sh** — Call ac_validator before validate_stories.py, log summary to spiral_events.jsonl (~15 lines)\n\n<plan>\n{\n  \"files_to_create\": [\"lib/ac_validator.py\", \"tests/test_ac_validator.py\"],\n  \"files_to_modify\": [\"lib/phases/phase_s_story_validate.sh\"],\n  \"functions_to_add\": [\"score_acceptance_criteria\", \"validate_story_acs\", \"check_empty_acs\", \"check_ac_word_count\", \"detect_technical_references\", \"calculate_risk_level\"],\n  \"estimated_loc\": 150\n}\n</plan>\n\nNow let me create the AC validator module:\nNow let me update Phase S to integrate the AC validator. First, let me check the full file structure:\nNow let me run the tests to verify the implementation:\nNow let me commit the implementation:\nPerfect! Story US-1422 is now complete. Here's a summary of what was implemented:\n\n## Implementation Summary"
+      }
     },
     {
       "id": "US-1423",
