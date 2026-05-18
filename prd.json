@@ -4144,7 +4144,16 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-05-18T11:12:56Z"
+      "last_attempted": "2026-05-18T11:12:56Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nAll required code is already in place:\n- `tests/fixtures/mock_claude_api.py` — `MockClaudeAPI` class with subprocess interception, response injection, failure injection\n- `tests/conftest.py` — `mock_api_repo` fixture wired using `_MockClaudeAPI`\n- `tests/test_mock_claude_api.py` — Full test suite including `@pytest.mark.us_1365` test and failure injection tests\n- `tests/test_conftest.py` — Tests validating the `mock_api_repo` fixture\n\n## Problem Identified\nUS-1409 acceptance criteria were already satisfied by prior implementations (US-1405). Previous attempt failed only due to missing diagnosis block — no actual code changes are needed.\n\n## Planned Changes\n- No file edits needed — all 4 acceptance criteria already pass\n- Mark `passes: true` for US-1409 in `prd.json`\n- Append to `progress.txt`\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\", \"progress.txt\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 10\n}\n</plan>\nUS-1409 is complete. All 4 acceptance criteria were already satisfied by the prior US-1405 implementation:\n\n1. `tests/test_mock_claude_api.py` — 12 tests pass including `test_intercept_success` and `test_inject_failure`\n2. `tests/test_conftest.py` — 4 tests pass confirming `mock_api_repo` fixture is importable\n3. `pytest -k us_1365` — 1 test passes without network calls\n4. Failure injection tests (`test_inject_failure`, `test_inject_failure_returncode_exits_nonzero`) present\n\nStory marked `passes: true` and committed."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 501,
+        "tokensAfterMasking": 500,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1410",
