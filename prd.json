@@ -3484,7 +3484,16 @@
       ],
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-05-18T02:09:02Z"
+      "last_attempted": "2026-05-18T02:09:02Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe `html/pages/08-glossary.html` file contains only a placeholder. The previous attempt failed (model used: haiku, not recorded why).\n\n## Problem Identified\nNeed to fill the page with 17+ SPIRAL terms, an A-Z index strip, anchored term IDs, and \"See also\" cross-links.\n\n## Planned Changes\n- Edit `html/pages/08-glossary.html`: replace placeholder with full glossary content styled consistently with other pages (06-configuration.html pattern for TOC/layout).\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"html/pages/08-glossary.html\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 250\n}\n</plan>\nNow verify the acceptance criteria:\nAll 4 acceptance criteria pass: 12 letter anchors in A-Z strip, 17 terms with `id=\"term-*\"`, every term has See also cross-links, term count = 17. Now mark as passed and commit.\nDone. US-1351 is complete:\n\n- **17 terms** defined: Capacity Limit, Constitution, Cost Ceiling, Decompose, DLQ, Episodic Memory, Focus, Gate, Iteration, Model Routing, Phase, PRD, Ralph, Story, Validate Cmd, Worker, Worktree\n- **A-Z index strip** with 12 active letter links at the top\n- Every term has `id=\"term-<kebab-name>\"` for deep-linking from other pages\n- Every term has at least one See also cross-link to another term or page\n- `passes: true` set in prd.json, committed."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 18,
+        "tokensAfterMasking": 18,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1352",
