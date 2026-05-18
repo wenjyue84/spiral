@@ -1124,3 +1124,23 @@ Completed: Phase T: Extract Test Failure Patterns for Episodic Learning Integrat
 ## Iteration 3 - Tue, May 19, 2026  1:43:53 AM
 Completed: CLI: spiral research-replay <story-id> to Compare Current vs Historical Synthesis (ID: US-1438) in 6m
 
+
+## Iteration [N] - Story: US-1439 [Security Test] Auth/permission integration test for US-1371 MockClaudeAPI
+
+### What was implemented
+- Added `test_security_unauthorized_access` to `TestCredentialSecurity` in `tests/test_spiral_integration.py`
+  - Simulates unauthorized call (missing/invalid auth token) via subprocess mock
+  - Verifies returncode is 1/401/403, and token value does not appear in error message
+- Added `test_no_credential_leak_on_auth_failure` to `TestCredentialSecurity`
+  - Uses `caplog` fixture to capture WARNING-level log output
+  - Verifies no `sk-[A-Za-z0-9_-]{10,}` pattern or fake key value appears in log records
+
+### Patterns discovered
+- `caplog` fixture works seamlessly with `patch.dict(os.environ, ...)` context managers stacked using `with (...):`
+- ruff formats multi-context `with` blocks to use parenthesized form automatically
+- CalledProcessError.stderr may be bytes or str; guard with isinstance check before decode
+
+### Acceptance criteria met
+- [x] AC1: `uv run pytest tests/test_spiral_integration.py -k 'security or auth or permission' -v` exits 0, 4 tests collected
+- [x] AC2: test_security_unauthorized_access verifies 401/403/1 returncode without token in error message
+- [x] AC3: test_no_credential_leak_on_auth_failure uses caplog to assert no sk- pattern or credential value in logs

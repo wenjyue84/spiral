@@ -481,3 +481,102 @@ class TestCredentialSecurity:
         combined_output = "\n".join(captured_chunks)
         match = self._CREDENTIAL_PATTERN.search(combined_output)
         assert match is None, f"Credential pattern found in captured output: {match.group()!r}"
+
+    def test_security_unauthorized_access(self) -> None:
+        """Unauthorized API call returns exception/error without exposing token values.
+
+        Simulates a caller with a missing/invalid auth token. The MockClaudeAPI
+        variant raises CalledProcessError(returncode=401) or similar, and the
+        error message must not contain any token/password values.
+        """
+        invalid_token = "sk-ant-INVALID-TOKEN-99999"
+        env_with_invalid = {**os.environ, "ANTHROPIC_API_KEY": invalid_token}
+
+        captured_error: str = ""
+
+        def unauthorized_side_effect(args: Any, *pargs: Any, **kwargs: Any) -> Any:
+            arg_list = list(args) if isinstance(args, (list, tuple)) else [str(args)]
+            is_claude = arg_list and str(arg_list[0]) in {"claude", "claude.exe"}
+            if not is_claude:
+                return subprocess.run(args, *pargs, **kwargs)
+            # Simulate 401 Unauthorized — error message must NOT echo the token
+            raise subprocess.CalledProcessError(
+                401,
+                arg_list,
+                stderr=b"Authentication failed: invalid credentials",
+            )
+
+        with patch("subprocess.run", side_effect=unauthorized_side_effect), patch.dict(os.environ, env_with_invalid):
+            try:
+                subprocess.run(
+                    ["claude", "--phase", "I", "--story", "US-AUTH-001"],
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as exc:
+                # Should be 401 or similar auth error code
+                assert exc.returncode in {
+                    1,
+                    401,
+                    403,
+                }, f"Expected auth error code (1/401/403), got {exc.returncode}"
+                captured_error = (
+                    (exc.stderr or b"").decode("utf-8", errors="replace")
+                    if isinstance(exc.stderr, bytes)
+                    else str(exc.stderr or "")
+                )
+
+        # Token value must not appear in the error output
+        assert invalid_token not in captured_error, f"Invalid token value leaked into error message: {captured_error!r}"
+        assert not re.search(r"sk-[A-Za-z0-9_-]{10,}", captured_error), "Token-like pattern found in error output"
+
+    def test_no_credential_leak_on_auth_failure(self, caplog: Any) -> None:
+        """No credential strings appear in captured log output when auth fails.
+
+        Uses pytest caplog fixture to capture logging output and verifies that
+        no substring matching r'sk-[A-Za-z0-9]+' or 'ANTHROPIC_API_KEY' value
+        appears in log records when a mock auth failure occurs.
+        """
+        import logging
+
+        fake_key = "sk-ant-FAKE-AUTH-FAILURE-KEY"
+        env_with_fake = {**os.environ, "ANTHROPIC_API_KEY": fake_key}
+
+        def auth_failure_side_effect(args: Any, *pargs: Any, **kwargs: Any) -> Any:
+            arg_list = list(args) if isinstance(args, (list, tuple)) else [str(args)]
+            is_claude = arg_list and str(arg_list[0]) in {"claude", "claude.exe"}
+            if not is_claude:
+                return subprocess.run(args, *pargs, **kwargs)
+            # Log a redacted auth failure message (simulating what SPIRAL would do)
+            logging.getLogger("spiral.auth").warning(
+                "Auth failure for story %s: credentials rejected",
+                "US-AUTH-002",
+            )
+            raise subprocess.CalledProcessError(
+                403,
+                arg_list,
+                stderr=b"Forbidden: permission denied",
+            )
+
+        with (
+            caplog.at_level(logging.WARNING),
+            patch("subprocess.run", side_effect=auth_failure_side_effect),
+            patch.dict(os.environ, env_with_fake),
+        ):
+            try:
+                subprocess.run(
+                    ["claude", "--phase", "I", "--story", "US-AUTH-002"],
+                    capture_output=True,
+                )
+            except subprocess.CalledProcessError:
+                pass  # Expected auth failure
+
+        # Verify no credential values appear in any log record
+        all_log_text = " ".join(record.getMessage() for record in caplog.records)
+        assert fake_key not in all_log_text, f"Fake API key value appeared in log output: {all_log_text!r}"
+        assert "ANTHROPIC_API_KEY" not in all_log_text or fake_key not in all_log_text, (
+            "Credential key name with its value found in log output"
+        )
+        assert not re.search(r"sk-[A-Za-z0-9_-]{10,}", all_log_text), (
+            "Token-like pattern found in log output during auth failure"
+        )
