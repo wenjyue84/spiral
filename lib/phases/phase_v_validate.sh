@@ -364,6 +364,46 @@ run_phase_validate() {
       _REPORT_PATH="$_FALLBACK_REPORT"
     fi
 
+    # ── Auto-Generate Assertions from AC (US-1413) ──────────────────────────────
+    # For stories without explicit testFiles/testMarker, auto-generate assertions
+    # from acceptance criteria text using assertion_extractor.py
+    if [[ "${SPIRAL_AUTO_ASSERTIONS:-true}" == "true" && "$_VALIDATE_EXIT" -eq 0 ]]; then
+      echo "  [V] Auto-Generating Assertions: extracting from acceptance criteria..."
+
+      mapfile -t _PASSED_STORIES < <(
+        "$JQ" -r '.userStories[] | select(.passes == true) | .id' "$PRD_FILE" 2>/dev/null || true
+      ) || true
+
+      for _story_id in "${_PASSED_STORIES[@]}"; do
+        # Check if story has explicit verification
+        _HAS_TEST_FILES=$("$JQ" --arg id "$_story_id" \
+          '.userStories[] | select(.id == $id) | .verification.testFiles // empty' \
+          "$PRD_FILE" 2>/dev/null || echo "")
+        _HAS_TEST_MARKER=$("$JQ" --arg id "$_story_id" \
+          '.userStories[] | select(.id == $id) | .verification.testMarker // empty' \
+          "$PRD_FILE" 2>/dev/null || echo "")
+
+        # If no explicit verification, auto-generate from AC
+        if [[ -z "$_HAS_TEST_FILES" && -z "$_HAS_TEST_MARKER" ]]; then
+          _AUTO_ASSERTIONS_DIR="$SCRATCH_DIR/auto_assertions"
+          mkdir -p "$_AUTO_ASSERTIONS_DIR"
+
+          # Call assertion_extractor to generate pytest assertions
+          _EXTRACTION_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/assertion_extractor.py" \
+            --story-id "$_story_id" \
+            --prd-file "$PRD_FILE" \
+            --output-dir "$_AUTO_ASSERTIONS_DIR" 2>&1 || echo "extraction_failed")
+
+          if [[ ! "$_EXTRACTION_RESULT" =~ "extraction_failed" ]]; then
+            _AUTO_ASSERTIONS_FILE="$_AUTO_ASSERTIONS_DIR/${_story_id}.py"
+            if [[ -f "$_AUTO_ASSERTIONS_FILE" ]]; then
+              echo "  [V] Auto-assertions generated: $_AUTO_ASSERTIONS_FILE"
+            fi
+          fi
+        fi
+      done
+    fi
+
     # ── Optional: AC Verification (US-1005) ────────────────────────────────────
     # After pytest passes, run AC verification on extracted assertions.
     # Only runs if SPIRAL_AC_VERIFY=true and pytest passed.

@@ -42,9 +42,7 @@ def tmp_repo(tmp_path: Path) -> Path:
 def test_estimate_tokens_from_duration() -> None:
     """Test token estimation from duration."""
     duration = 10.0  # 10 seconds
-    input_tokens, output_tokens = benchmark_runner._estimate_tokens_from_duration(
-        duration
-    )
+    input_tokens, output_tokens = benchmark_runner._estimate_tokens_from_duration(duration)
 
     # output = 10 * 20 = 200
     # input = 200 * 3 = 600
@@ -116,15 +114,11 @@ def test_save_baseline(tmp_repo: Path, tmp_prd: Path) -> None:
 def test_save_baseline_appends(tmp_repo: Path, tmp_prd: Path) -> None:
     """Test that saving baseline appends to existing data."""
     # Save first baseline
-    results1 = {
-        "haiku": {"model": "haiku", "tokens_used": 600, "cost_usd": 0.48}
-    }
+    results1 = {"haiku": {"model": "haiku", "tokens_used": 600, "cost_usd": 0.48}}
     benchmark_runner._save_baseline("US-999", results1, str(tmp_repo))
 
     # Save second baseline for different story
-    results2 = {
-        "sonnet": {"model": "sonnet", "tokens_used": 800, "cost_usd": 2.40}
-    }
+    results2 = {"sonnet": {"model": "sonnet", "tokens_used": 800, "cost_usd": 2.40}}
     benchmark_runner._save_baseline("US-998", results2, str(tmp_repo))
 
     # Verify both are present
@@ -152,9 +146,7 @@ def test_calculate_cost_multi_model(model: str, expected_cost: float) -> None:
     assert abs(cost - expected_cost) < 0.01
 
 
-def test_run_benchmark_story_with_mock(
-    tmp_repo: Path, tmp_prd: Path
-) -> None:
+def test_run_benchmark_story_with_mock(tmp_repo: Path, tmp_prd: Path) -> None:
     """Test benchmark story execution with mocked subprocess."""
     # Mock the subprocess.run call
     with mock.patch("benchmark_runner.subprocess.run") as mock_run:

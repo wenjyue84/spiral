@@ -7,11 +7,9 @@ Usage:
   python lib/benchmark_runner.py list [--prd prd.json]
 """
 
-import csv
 import json
 import subprocess
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -68,9 +66,7 @@ def _find_story(prd: dict[str, Any], story_id: str) -> dict[str, Any] | None:
     return None
 
 
-def _run_story_with_model(
-    story_id: str, model: str, prd_path: str, repo_root: str
-) -> tuple[bool, float, str]:
+def _run_story_with_model(story_id: str, model: str, prd_path: str, repo_root: str) -> tuple[bool, float, str]:
     """Run a story with a specific model using Ralph worker.
 
     Returns: (success: bool, duration_sec: float, exit_code_str: str)
@@ -143,9 +139,7 @@ def run_benchmark_story(
 
     for model in models:
         print(f"[benchmark] Running {story_id} with {model}...", file=sys.stderr)
-        success, duration_sec, exit_code = _run_story_with_model(
-            story_id, model, prd_path, repo_root
-        )
+        success, duration_sec, exit_code = _run_story_with_model(story_id, model, prd_path, repo_root)
 
         # Estimate tokens from duration
         input_tokens, output_tokens = _estimate_tokens_from_duration(duration_sec)
@@ -163,9 +157,7 @@ def run_benchmark_story(
         }
 
         print(
-            f"[benchmark] {model}: {duration_sec:.2f}s, "
-            f"{int(input_tokens + output_tokens)} tokens, "
-            f"${cost_usd:.4f}",
+            f"[benchmark] {model}: {duration_sec:.2f}s, {int(input_tokens + output_tokens)} tokens, ${cost_usd:.4f}",
             file=sys.stderr,
         )
 
@@ -174,9 +166,7 @@ def run_benchmark_story(
 
     # Output CSV to stdout
     print("\n=== Benchmark Results ===\n", file=sys.stderr)
-    print(
-        "model,tokens_used,input_tokens,output_tokens,cost_usd,duration_sec,exit_code"
-    )
+    print("model,tokens_used,input_tokens,output_tokens,cost_usd,duration_sec,exit_code")
     for model in models:
         if model in results:
             r = results[model]
@@ -233,10 +223,8 @@ def list_benchmarks(prd_path: str, repo_root: str) -> None:
     story_map = {s.get("id"): s.get("title", "Unknown") for s in prd.get("userStories", [])}
 
     print("\n=== Model Baselines ===\n")
-    print(
-        f"{'Story ID':<12} {'Title':<40} {'Count':<6} {'Haiku':<15} {'Sonnet':<15} {'Opus':<15}"
-    )
-    print(f"{'-'*12} {'-'*40} {'-'*6} {'-'*15} {'-'*15} {'-'*15}")
+    print(f"{'Story ID':<12} {'Title':<40} {'Count':<6} {'Haiku':<15} {'Sonnet':<15} {'Opus':<15}")
+    print(f"{'-' * 12} {'-' * 40} {'-' * 6} {'-' * 15} {'-' * 15} {'-' * 15}")
 
     for story_id, data in sorted(baselines.items()):
         title = story_map.get(story_id, "Unknown")[:40]

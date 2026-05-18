@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\assertion_extractor.py
+# hypothesis_version: 6.151.9
+
+[0.85, 0.9, 0.95, '"', '"""', '([a-z\\s]+?)\\s+\\d+', '--output-dir', '--prd-file', '--story-id', 'Assertion', 'Path to prd.json', 'UNKNOWN', 'Untitled', '\\"', '__main__', 'acceptanceCriteria', 'assert', 'confidence_score', 'contains', 'expected_value', 'have', 'id', 'import pytest', 'output', 'prd.json', 'present', 'raw_ac', 'return', 'subject', 'title', 'true', 'type', 'userStories', 'utf-8', 'w']
