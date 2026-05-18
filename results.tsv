@@ -223,3 +223,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T08:30:25Z	12	1	US-1395	[Security Test] /api/costs/breakdown response leaks no secrets and has correct shape	reject	378	sonnet	1		6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T09:30:30Z	13	1	US-1396	[Security Test] spiral dry-run makes zero API calls and leaks no secrets in output	keep	204	haiku	0	5549137a5f0cc7dfc0aa259c796feb2c6277fcbe	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
 2026-05-18T09:39:24Z	13	2	US-1397	Create lib/learning_extractor.py: parse results.tsv and append to learning.md	keep	496	haiku	0	5b6b3c0f2a2c211c6745fff3796fcc0429b8ff4a	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
+2026-05-18T09:58:10Z	14	1	US-1398	Wire Phase L into spiral.sh and update hint_recommender.py to read learning.md	keep	345	haiku	0	5c5607cf077c10b515358122ffac4e9d253c59ef	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				

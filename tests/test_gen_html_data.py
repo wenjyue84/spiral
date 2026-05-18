@@ -7,6 +7,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 from gen_html_data import generate_data_js
 
@@ -74,3 +76,36 @@ def test_data_js_fields(tmp_path: Path) -> None:
     assert stories_total == 2, f"storiesTotal should be 2, got {stories_total}"
     assert stories_passed == 1, f"storiesPassed should be 1, got {stories_passed}"
     assert len(last_updated) > 0, "lastUpdated should not be empty"
+
+
+def test_us_1353_missing_prd_json(tmp_path: Path) -> None:
+    """Test that missing prd.json raises FileNotFoundError.
+
+    Verifies that generate_data_js() raises a clear error (FileNotFoundError)
+    when prd.json does not exist.
+    """
+    # Point to a prd.json that does not exist
+    prd_path = tmp_path / "nonexistent.json"
+    output_path = tmp_path / "data.js"
+
+    # Should raise FileNotFoundError
+    with pytest.raises(FileNotFoundError):
+        generate_data_js(str(output_path), str(prd_path))
+
+
+def test_us_1353_malformed_prd_json(tmp_path: Path) -> None:
+    """Test that malformed prd.json raises JSONDecodeError.
+
+    Verifies that generate_data_js() raises a clear error (JSONDecodeError)
+    when prd.json contains invalid JSON.
+    """
+    # Create a prd.json with invalid JSON content
+    prd_path = tmp_path / "prd.json"
+    with open(prd_path, "w", encoding="utf-8") as f:
+        f.write("{invalid json content")
+
+    output_path = tmp_path / "data.js"
+
+    # Should raise JSONDecodeError
+    with pytest.raises(json.JSONDecodeError):
+        generate_data_js(str(output_path), str(prd_path))
