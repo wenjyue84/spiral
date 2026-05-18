@@ -344,3 +344,54 @@ Here is the technical brief for user story US-1426.
 *   **Malformed Data:** Wrap data type conversions (e.g., `float()`, `int()`) in `try-except` blocks to handle non-numeric or missing values in the TSV columns.
 *   **Budget/Burn Rate Logic:** The source for total budget is undefined in the story; a placeholder or environment variable may be required.
 
+
+## Iteration [27] - Story: US-1426 [Test] /api/costs/breakdown: response shape, per-phase data, and error handling
+
+### What was implemented
+
+Added three comprehensive test functions for the /api/costs/breakdown endpoint:
+
+1. **test_breakdown_response_shape**
+   - Verifies endpoint response contains required keys: phases, burnRate, remainingBudget
+   - Creates synthetic results.tsv and validates parse_costs_from_results_tsv output
+   - Confirms correct data types (dict, float, float)
+
+2. **test_breakdown_per_phase_data**
+   - Validates per-phase cost breakdown structure
+   - Verifies each phase entry has cost_usd and token_count fields
+   - Tests with multiple model types (haiku, sonnet)
+   - Confirms numeric values are correct type (float for cost, int for tokens)
+
+3. **test_breakdown_missing_tsv**
+   - Tests graceful handling of missing results.tsv file
+   - Verifies no exception is raised
+   - Confirms empty phases dict is returned
+   - Validates _missing flag for endpoint 404 logic
+
+### Patterns discovered
+
+- The endpoint implementation (lib/dashboard/api.py) already exists from US-1384
+- parse_costs_from_results_tsv() in lib/dashboard/routes/costs.py handles all parsing
+- Tests use tmp_path pytest fixture for isolated file operations
+- Per-model cost breakdown uses model base name (haiku/sonnet/opus) as key
+- Error handling uses _missing flag for clean 404 response in API layer
+
+### Gotchas
+
+- F-string linting: f-strings without placeholders must be removed (ruff F541)
+- The endpoint returns 404 when results.tsv is missing (intentional behavior)
+- Per-phase data structure uses cost_usd and token_count (not tokens_in/tokens_out/usd_cost)
+- All 14 tests marked with @pytest.mark.us_1384 pass (AC4 criterion)
+
+### Acceptance criteria met
+
+- [x] AC1: test_breakdown_response_shape verifies phases, burnRate, remainingBudget keys
+- [x] AC2: test_breakdown_per_phase_data verifies cost_usd and token_count per phase
+- [x] AC3: test_breakdown_missing_tsv verifies graceful handling (no 500 error)
+- [x] AC4: pytest tests/ -k us_1384 passes (14 tests, all green)
+- [x] MyPy strict mode passes
+- [x] Ruff lint passes
+- [x] Story marked as passes: true in prd.json
+
+## Iteration 1 - Sun, May 18, 2026 10:37:42 PM
+Completed: [Test] /api/costs/breakdown: response shape, per-phase data, and error handling (ID: US-1426) in ~10 minutes
