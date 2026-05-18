@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 from typing import Any
-
-import pytest
 
 
 def test_mock_api_repo_fixture_importable(mock_api_repo: tuple[Any, Path]) -> None:
