@@ -1541,3 +1541,34 @@ Completed: Create lib/learning_extractor.py: parse results.tsv and append to lea
 ## Iteration 1 - Mon, May 18, 2026  5:58:10 PM
 Completed: Wire Phase L into spiral.sh and update hint_recommender.py to read learning.md (ID: US-1398) in 5m
 
+
+## Iteration N+8 - Sun, May 18, 2026 - Story US-1399 Completed
+Completed: Integration tests for html/index.html dashboard data generation (ID: US-1399)
+
+### What was implemented
+- Added comprehensive integration tests to tests/test_gen_html_data.py:
+  - test_data_js_fields: validates gen_html_data.py correctly extracts KPI values from prd.json
+    - Verifies storiesTotal and storiesPassed counts match fixture data
+    - Verifies lastUpdated contains valid ISO timestamp
+  - test_us_1353_missing_prd_json: verifies FileNotFoundError when prd.json missing
+  - test_us_1353_malformed_prd_json: verifies JSONDecodeError when prd.json has invalid JSON
+
+- All 3 tests pass (100% success)
+- Tests discoverable via 'us_1353' keyword for regression verification
+
+### Key Patterns Discovered
+- gen_html_data.py exports window.SPIRAL_DATA with storiesTotal, storiesPassed, lastUpdated
+- Error handling: read_prd_json() raises FileNotFoundError (missing file) and JSONDecodeError (invalid JSON)
+- Test fixtures use tmp_path (pytest) for isolated temporary files
+
+### Acceptance Criteria Met
+- [x] uv run pytest tests/test_gen_html_data.py -v exits 0 with >= 2 passing tests (3/3 pass)
+- [x] Test asserts correct Total Stories Passed count from prd.json
+- [x] Tests assert clear errors for missing/malformed prd.json
+- [x] uv run pytest tests/ -k us_1353 -v exits 0 (2 tests discovered and pass)
+
+### Testing
+- All 3 tests passing (100%)
+- MyPy --strict: ✓ passed on test file
+- Ruff lint/format: ✓ passed
+- Pre-commit hooks: ✓ passed (mypy excluded tests, only checks lib/)
