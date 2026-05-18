@@ -273,3 +273,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-05-18T18:04:54Z	34	1	US-1439	[Security Test] Auth/permission integration test for US-1371 MockClaudeAPI	keep	237	sonnet	0	6a4b18f73ac829ed065ff7c53fcdee602d33ac20	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T18:33:43Z	38	1	US-1440	[Security Test] HealthWidget /api/health endpoint auth/permission checks	keep	472	sonnet	0	e878c01a5f2c41fd25c8e516154c57f2b7725820	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
 2026-05-18T18:47:01Z	39	1	US-1441	Integration test: Phase R research cache invalidation when story title changes	keep	300	sonnet	0	bab6584f56d2efee289d0519a6d47991d9a1a3fd	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0
+2026-05-18T18:57:53Z	39	2	US-1442	CLI: Add `spiral compare-iterations <iter-a> <iter-b>` for delta analysis between runs	keep	601	haiku	0	7dd31387aede3434ce925e707cdd98e98ec1b2c8	6a0a7dcc18b6	false	0	0	0	0	0	0	0		0	0	0	0				
