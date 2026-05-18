@@ -4748,7 +4748,8 @@
       "last_attempted": "2026-05-18T15:42:15Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nThe story US-1429 has already been implemented with:\n- **tests/fixtures/mock_gemini_api.py** - MockGeminiAPI class with call_count tracking\n- **tests/integration/test_phase_r_research_cache.py** - Complete integration test suite covering all 3 acceptance criteria\n\nAll 7 tests are passing (100% success rate).\n\n## Problem Identified\n\nThe story implementation is complete and all tests pass, but the `passes` field is still `false` in prd.json. Need to verify quality checks pass and update prd.json accordingly.\n\n## Planned Changes\n\n1. Run quality checks (mypy, ruff formatting)\n2. Update prd.json to mark `passes: true`\n3. Commit changes\n## ✅ Story US-1429 Complete"
-      }
+      },
+      "_passedCommit": "f35ad43c44c776b7e6843e6f6dcaac7656e713a4"
     },
     {
       "id": "US-1430",
@@ -4768,9 +4769,10 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-05-18T15:47:38Z"
     },
     {
       "id": "US-1431",
