@@ -3287,6 +3287,28 @@
       "model": "haiku"
     },
     {
+      "id": "US-1334",
+      "title": "CLI: Add `spiral profile-phases` command to measure and report phase execution time",
+      "priority": "low",
+      "description": "Add CLI subcommand to profile wall-clock time per phase and identify bottlenecks. Outputs sorted table: Phase | Duration | % of Total | Status. Helps product owners and developers optimize SPIRAL runtime.",
+      "acceptanceCriteria": [
+        "spiral.sh logs phase start/end timestamps to .spiral/_phase_timings.jsonl in format {phase: 'R', start_ms: <timestamp>, end_ms: <timestamp>} for each phase execution",
+        "`spiral profile-phases` reads _phase_timings.jsonl, outputs table sorted by duration descending: Phase | Duration (s) | Pct | Status; handles incomplete/missing data",
+        "Includes summary: total runtime, slowest phase, suggestion to investigate phases >30% of total time"
+      ],
+      "technicalNotes": [
+        "File to modify: spiral.sh add log_phase_timing(phase_name, start_ms, end_ms) calls before/after each phase, append to .spiral/_phase_timings.jsonl",
+        "File to create: lib/phase_profiler.py with parse_timings() and format_profile_table(timings_jsonl) functions; integrate into lib/cli_subcommands.sh",
+        "Test command: uv run pytest tests/test_phase_profiler.py::test_format_profile_table_sorted_by_duration -v && uv run pytest tests/test_phase_profiler.py::test_profile_with_incomplete_data -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku",
+      "_skipped": true,
+      "_failureReason": "Chronic timeout. Permanently skipped."
+    },
+    {
       "id": "US-1340",
       "title": "spiral-ui: Add TestsTab component with Phase V pass/fail timeline",
       "priority": "medium",
@@ -3369,11 +3391,7 @@
         "html"
       ],
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-05-18T01:40:23Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Empty `html/pages/05-cli-reference.html` exists with placeholder text\n- Need to populate it with two filterable tables for spiral.sh flags and main.py subcommands\n- Tables should have search/sort capabilities and clickable rows for copy-to-clipboard\n\n## Problem Identified\nThe HTML page needs two data-driven tables extracted from SKILL.md with interactive features (search, sort, copy example commands).\n\n## Planned Changes\n1. Update `html/pages/05-cli-reference.html` with:\n   - Two simple-datatables tables (spiral.sh flags, main.py subcommands)\n   - CDN links for simple-datatables v9\n   - JavaScript to populate tables and handle copy-to-clipboard\n   - CSS for interactive row styling\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"html/pages/05-cli-reference.html\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 280\n}\n</plan>\n\nNow let me implement the HTML file with the two tables and all the required functionality:\nNow let me verify the implementation and run quality checks:\nLet me verify the implementation by checking the file content:\nNow let me verify by running a quick check on the HTML syntax and marking the story as complete:\nPerfect! The implementation is complete. Let me now update prd.json to mark the story as passing:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1349",
@@ -3558,6 +3576,26 @@
       "model": "haiku"
     },
     {
+      "id": "US-1357",
+      "title": "Phase I: error_context.sh — extract error and code snippet on Ralph failure",
+      "priority": "medium",
+      "description": "Create lib/impl/error_context.sh that parses Ralph worker stdout to extract the failing test file, line number, error message, and ±5-line code snippet. Write the structured result to .spiral/error_context/<story_id>.md.",
+      "acceptanceCriteria": [
+        "extract_error_context() parses Ralph stdout and outputs test_file, line_num, error_text, and a ±5-line code_snippet",
+        ".spiral/error_context/<story_id>.md is created with error classification label (syntax/type/import/timeout/oom)",
+        "bash tests/test_error_context.bats exits 0 with all cases passing"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/error_context.sh (new file; define extract_error_context function)",
+        "File to edit: tests/test_error_context.bats (new bats test file with fixture stdout samples)",
+        "Test command: bash tests/test_error_context.bats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-1375",
       "title": "[Integration Test] html/ scaffold: file structure and nav.js dark-mode persist",
       "priority": "high",
@@ -3607,6 +3645,70 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku"
+    },
+    {
+      "id": "US-1377",
+      "title": "Phase A: Add story complexity auto-estimation by acceptance criteria analysis",
+      "priority": "medium",
+      "description": "Automatically classify each AI-suggested story into complexity bands (trivial/simple/medium/complex) based on acceptance criteria word count, keyword density (async, integration, auth, database, migration), and explicit dependency mentions. Store band in story._metadata.complexityBand for Phase I model routing to use when selecting Claude tier.",
+      "acceptanceCriteria": [
+        "phase_a_complexity_scorer.estimate_complexity(story_dict) analyzes story['acceptanceCriteria'] and returns {band: 'simple', score: 72, keywords: ['database', 'auth']}",
+        "Integration test validates 5 sample stories: trivial ACs (single line) → band='trivial'; complex ACs (async+database+auth) → band='complex'",
+        "Phase A handler calls estimate_complexity() and stores result in prd.json story._metadata.complexityBand before Phase S merge"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_a_complexity_scorer.py (~120 lines) with estimate_complexity(story) returning complexity band 0-100 score + keywords detected",
+        "File to edit: spiral.sh Phase A section to import and call phase_a_complexity_scorer estimate_complexity() function",
+        "Test command: uv run pytest tests/test_phase_a_complexity_scorer.py::test_complexity_estimation_bands -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "opus"
+    },
+    {
+      "id": "US-1378",
+      "title": "Phase V: Add granular verification failure reporting showing which AC and test failed",
+      "priority": "medium",
+      "description": "When a story fails verification in Phase V, parse test output to generate a detailed report showing which specific acceptance criterion failed, which test file and assertion, and captured error message. Store failure details in story._verificationFailure for Phase I to use when planning decomposition or retry strategy.",
+      "acceptanceCriteria": [
+        "phase_v_failure_reporter.extract_failure_details(story_id, pytest_json_output) returns {failedAC: 2, testFile: 'tests/test_login.py::test_password_reset', message: 'AssertionError: token not found'}",
+        "Integration test mocks pytest JSON output (FAILED tests/test_X.py::test_Y) and verifies reporter correctly maps to AC index and error message",
+        "story._verificationFailure is populated and accessible to Phase I; spiral explain <story-id> displays failure details formatted as 'AC #2 failed: ...' if present"
+      ],
+      "technicalNotes": [
+        "File to create: lib/phase_v_failure_reporter.py (~140 lines) with extract_failure_details(story_id, test_output) parsing pytest JSON or stdout",
+        "File to edit: lib/phases/phase_v.sh to call failure_reporter.extract_failure_details() when test verification fails, store result in story JSON",
+        "Test command: uv run pytest tests/test_phase_v_failure_reporter.py::test_extract_failure_from_pytest_output -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1379",
+      "title": "CLI: Add spiral cleanup --remove-stale-workers to garbage-collect zombie worker processes",
+      "priority": "low",
+      "description": "Scan .spiral-workers/ directory for orphaned git worktrees (no active worker process, last modified > 2 hours ago). Safely remove stale worktree directories using git worktree remove and clean up git state. Report number of workers cleaned and disk space freed.",
+      "acceptanceCriteria": [
+        "spiral cleanup --remove-stale-workers identifies stale workers: no active process via ps/tasklist AND last-modified timestamp > 2 hours old",
+        "For each stale worker, runs git worktree remove .spiral-workers/worker-N, confirms deletion, accumulates freed disk space estimate",
+        "Exit with summary message: 'Cleaned 3 stale workers, freed 450 MB' or 'No stale workers found. All workers active.' Exit code 0 always."
+      ],
+      "technicalNotes": [
+        "File to create: lib/worker_cleanup.sh (~100 lines) with functions: find_stale_workers(), remove_worker_worktree(), estimate_freed_space()",
+        "File to edit: lib/cli_subcommands.sh to add cleanup case statement dispatching to lib/worker_cleanup.sh",
+        "Test command: tests/bats-core/bin/bats tests/test_worker_cleanup.bats -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "last_attempted": "2026-05-18T00:48:28Z"
     },
     {
       "id": "US-1380",
@@ -3677,6 +3779,30 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1383",
+      "title": "[Regression Test] CLI: spiral trace-dependencies resolves chains and detects cycles",
+      "priority": "medium",
+      "description": "Write a regression test guarding the spiral trace-dependencies CLI command (US-1209). Tests verify linear chain resolution across federated sub-projects, circular dependency detection, and sub-project boundary markers in output.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_trace_dependencies.py::test_linear_chain_resolution -v exits 0",
+        "uv run pytest tests/test_trace_dependencies.py::test_circular_dependency_detected -v exits 0 with clear error raised",
+        "uv run pytest tests/ -k us_1209 -v exits 0 with sub-project boundary markers present in captured command output"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_trace_dependencies.py (create new — test the trace-dependencies CLI entry point)",
+        "Test command: uv run pytest tests/test_trace_dependencies.py -v",
+        "Use a temporary prd.json fixture with cross-project dependency stubs (e.g. dependency: 'PROJECT-B-US-005')",
+        "Check lib/dag_check.py for cycle detection logic to target in assertions; invoke via subprocess.run(['python', 'main.py', 'trace-dependencies', story_id])",
+        "Assert SystemExit or ValueError raised for circular deps; assert output contains '[PROJECT-B]' boundary marker"
+      ],
+      "dependencies": [
+        "US-1209"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -3821,12 +3947,29 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "haiku",
-      "last_attempted": "2026-05-18T01:26:32Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Story US-1389 requires tests for `/api/costs/breakdown` endpoint\n- The implementation in `lib/dashboard/routes/costs.py` and `lib/dashboard/api.py` is complete\n- Test file `tests/test_costs_api.py` already exists with comprehensive test coverage\n- All 10 tests pass (5 unit tests + 5 integration tests)\n- Story marked as `passes: false` in prd.json\n\n## Problem Identified\nThe tests for the `/api/costs/breakdown` endpoint are already fully implemented and passing all acceptance criteria, but the story isn't marked as complete in prd.json.\n\n## Planned Changes\n- Update prd.json to mark US-1389 with `passes: true`\n- Update progress.txt with test results\n- Run pre-commit checks\n- Commit changes with proper message\n\n<plan>\n{\n  \"files_to_create\": [],\n  \"files_to_modify\": [\"prd.json\", \"progress.txt\"],\n  \"functions_to_add\": [],\n  \"estimated_loc\": 5\n}\n</plan>\nPerfect! Story **US-1389** is complete. Here's the summary:\n\n## Story US-1389 — Completion Summary"
-      },
-      "_passedCommit": "c10c3ec4b0c173c75408ba0254e018c0488683c3"
+      "model": "haiku"
+    },
+    {
+      "id": "US-1390",
+      "title": "spiral-ui: Worker Performance Metrics Tab with Per-Worker Throughput and Error Rate Dashboard",
+      "priority": "medium",
+      "description": "Add new Workers tab to spiral-ui that displays real-time per-worker metrics: stories completed, average completion time, error rate, total tokens burned, respawn count, and heartbeat status. Data aggregated from .spiral-workers/worker-*/spiral_events.jsonl and results.tsv.",
+      "acceptanceCriteria": [
+        "GET /api/workers/metrics returns [{worker_id, stories_completed, avg_duration_sec, error_rate_pct, total_tokens, respawns, status}] aggregated from worker event logs",
+        "WorkerMetricsTab renders sortable table with sparkline for throughput over last 10 minutes, error rate color-coded (green <5%, yellow 5-10%, red >10%), respawn counter",
+        "Dashboard sidebar adds Workers link; WorkerMetricsTab auto-refreshes every 5 seconds via SSE /api/workers/metrics/stream endpoint"
+      ],
+      "technicalNotes": [
+        "File to create: spiral-ui/src/backend/worker_metrics.py — aggregate worker spiral_events.jsonl files, compute statistics, detect stale heartbeats, return metrics JSON",
+        "File to create: spiral-ui/src/components/WorkerMetricsTab.tsx — React component with sortable table, sparklines (recharts), status badges, worker detail modal",
+        "File to edit: spiral-ui/src/backend/server.py — add GET /api/workers/metrics and SSE stream route that yields metrics updates",
+        "Test command: uv run pytest tests/test_worker_metrics.py::test_metrics_aggregation -v && npm test -- WorkerMetricsTab.test.tsx"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-1391",
@@ -3847,12 +3990,28 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "ai-example",
-      "model": "haiku",
-      "last_attempted": "2026-05-18T01:31:50Z",
-      "_phaseI": {
-        "diagnosisBlock": "### Current State\n- SPIRAL is organized with CLI commands parsed in spiral.sh (lines 200+)\n- Subcommand handlers in lib/cli_subcommands.sh check mode flags (MIGRATE_MODE, GRAPH_MODE, etc.)\n- Tests follow pytest pattern in tests/test_*.py\n- prd.json contains userStories with properties like id, title, estimatedComplexity\n\n### Problem Identified\nNeed to create a `spiral dry-run N` command that previews execution plans for N iterations without making API calls. This supports developer experience (focus area 4) by letting users estimate token costs and see phase breakdown before running.\n\n### Planned Changes\n1. **Create lib/dry_run_planner.py** (~150 lines):\n   - `ExecutionPlan` dataclass with phases, estimated_tokens, worker_plan fields\n   - `plan_execution(prd_dict, num_iterations)` to simulate N iterations by counting stories per phase\n   - `format_ascii_tree()` to output human-readable phase tree with counts and tokens\n   - `format_json_plan()` to output structured JSON\n\n2. **Update spiral.sh** (~20 lines):\n   - Add dry-run case in command parsing (around line 628)\n   - Parse iterations count and --output flag\n\n3. **Update lib/cli_subcommands.sh** (~10 lines):\n   - Add DRY_RUN_PLANNER_MODE handler to invoke dry_run_planner.py\n\n4. **Create tests/test_dry_run_planner.py** (~80 lines):\n   - test_dry_run_plan_structure: verify all phases present, tokens > 0\n   - test_format_ascii_tree: verify human-readable output\n   - test_format_json_plan: verify JSON structure\n\n<plan>\n{\n  \"files_to_create\": [\"lib/dry_run_planner.py\", \"tests/test_dry_run_planner.py\"],\n  \"files_to_modify\": [\"spiral.sh\", \"lib/cli_subcommands.sh\"],\n  \"functions_to_add\": [\"plan_execution\", \"format_ascii_tree\", \"format_json_plan\"],\n  \"estimated_loc\": 260\n}\n</plan>\n\nNow executing the implementation:\nNow let me commit the changes:\nPerfect! **Story US-1391 is now complete.** Here's a summary of what was implemented:\n\n## Implementation Summary"
-      },
-      "_passedCommit": "7a29c30c6b862cd419f09080040324af234f2563"
+      "model": "haiku"
+    },
+    {
+      "id": "US-1392",
+      "title": "spiral-ui: Add global Story Search bar with live fuzzy filtering and URL state persistence",
+      "priority": "medium",
+      "description": "Add a persistent search bar in the Dashboard header that enables live fuzzy matching across story titles, acceptance criteria, and phase tags. Results update in <100ms (debounced). Search state saved in URL query param for shareability.",
+      "acceptanceCriteria": [
+        "Search input visible in Dashboard header; user types free-text query (e.g., 'health'); fuzzy matches returned on story.title + story.acceptanceCriteria + story.phase, updates in <100ms",
+        "Results limited to 20 items; matches highlighted in displayed list; dropdown or modal shows matched stories",
+        "Search state persists in URL: `?search=health` — user can share URL and back button restores previous search"
+      ],
+      "technicalNotes": [
+        "File to create: src/hooks/useStorySearch.ts — hook: useFuzzySearch(stories, query, debounce_ms=300) -> {results: [], isLoading: bool}, uses fuse.js library for fuzzy matching on title+AC+phase",
+        "File to create: src/components/StorySearchBar.tsx — input field component, onChange triggers useStorySearch hook, renders dropdown of matched stories with highlights",
+        "Test command: npm test -- src/components/StorySearchBar.test.tsx -- verify fuzzy match 'hlth' finds 'health', verify debounce batches 5 keystrokes into 1 search, verify URL query param updated"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }

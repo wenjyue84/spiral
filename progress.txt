@@ -1144,3 +1144,6 @@ This technical brief is for implementing a static HTML feature, not a Frappe/Pyt
     *   **UI Feedback:** The copy-to-clipboard action should provide clear visual feedback to the user (e.g., a "Copied!" tooltip or text flash).
     *   **Table Initialization:** Ensure the simple-datatables script is initialized only after the tables have been populated with data.
 
+## Iteration 3 - Mon, May 18, 2026  9:45:59 AM
+Completed: Fill html/pages/05-cli-reference.html — all flags and subcommands in a filterable table (ID: US-1348) in 5m
+
