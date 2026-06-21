@@ -130,7 +130,11 @@ def _semantic_dedup_pass(
     try:
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.metrics.pairwise import cosine_similarity
-    except ImportError:
+    except Exception:
+        # Optional enhancement: if sklearn/scipy can't import (e.g. NumPy/SciPy
+        # ABI mismatch raising something other than ImportError), semantic dedup
+        # must degrade to a no-op — never crash all of Phase S and lose every
+        # candidate. Downstream goal/quality checks + Phase M title-dedup remain.
         return candidates, []
 
     existing_pairs = [(s, _story_text(s)) for s in existing_stories if _story_text(s).strip()]
@@ -152,7 +156,7 @@ def _semantic_dedup_pass(
         try:
             vectorizer = TfidfVectorizer(min_df=1, stop_words="english")
             tfidf_matrix = vectorizer.fit_transform(all_texts)
-        except ValueError:
+        except Exception:
             continue
         candidate_vec = tfidf_matrix[-1]
         existing_vecs = tfidf_matrix[:-1]
