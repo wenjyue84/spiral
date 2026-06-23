@@ -84,7 +84,7 @@ fail_under = 80
 
 [dependency-groups]
 dev = [
-    "vulture>=2.15",
+    "vulture>=2.16",
     "pytest-benchmark>=5.0.0",
     "import-linter>=2.1",
     "py-spy>=0.3",
