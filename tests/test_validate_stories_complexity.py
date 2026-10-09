@@ -27,8 +27,11 @@ def _base_story(**overrides) -> dict:
     story = {
         "title": "Add a small feature",
         "priority": "medium",
-        "description": "Add a small feature to the codebase that improves usability.",
-        "acceptanceCriteria": ["Feature works correctly"],
+        "description": (
+            "Add a small feature to the codebase that improves usability by updating lib/foo.py, "
+            "explaining what changes, why it matters to users, and which files are touched in the process."
+        ),
+        "acceptanceCriteria": ["Run `pytest tests/` and verify it passes", "Output file result.json should exist"],
         "technicalNotes": ["File to edit: lib/foo.py (bar)", "Test command: uv run pytest tests/test_foo.py -v"],
         "dependencies": [],
         "estimatedComplexity": "small",
@@ -119,7 +122,13 @@ class TestQualityWarnings:
 
     def test_story_with_5_acs_is_accepted_but_warns(self, capsys):
         story = _base_story(
-            acceptanceCriteria=["AC1", "AC2", "AC3", "AC4", "AC5"],
+            acceptanceCriteria=[
+                "Run `pytest` and verify pass 1",
+                "Check out1.json exists",
+                "Verify 2 lines in log",
+                "Test cli exits 0",
+                "Assert result.py imports",
+            ],
             estimatedComplexity="small",
         )
         prd = _make_prd()
@@ -144,7 +153,14 @@ class TestQualityWarnings:
         assert "technicalNotes" in captured.out
 
     def test_story_with_4_acs_does_not_warn(self, capsys):
-        story = _base_story(acceptanceCriteria=["AC1", "AC2", "AC3", "AC4"])
+        story = _base_story(
+            acceptanceCriteria=[
+                "Run `pytest` and verify pass 1",
+                "Check out1.json exists",
+                "Verify 2 lines in log",
+                "Test cli exits 0",
+            ]
+        )
         prd = _make_prd()
         accepted, rejected = _run_validate(prd, _make_research([story]))
 

@@ -51,6 +51,7 @@ def _save_baseline(baseline: dict[str, Any]) -> None:
 
 
 @pytest.mark.us_1027
+@pytest.mark.flaky(reruns=2, reruns_delay=1)  # wall-clock thresholds are sensitive to CI load
 class TestCacheLatencySavings:
     """Benchmark suite for Phase R research cache latency."""
 

@@ -38,10 +38,15 @@ def _make_candidate(
 ) -> dict:
     return {
         "title": title,
-        "description": description,
+        "description": description
+        or (
+            "Implement this change in lib/prd/validate_stories.py so the pipeline handles the case correctly, "
+            "explaining what changes, why it matters, and which files are touched along the way."
+        ),
         "_source": source,
         "estimatedComplexity": complexity,
-        "acceptanceCriteria": acs or ["AC1"],
+        "acceptanceCriteria": acs
+        or ["Run `pytest tests/` and verify it passes", "Output file result.json should exist"],
         "technicalNotes": tech_notes or ["Note1"],
     }
 

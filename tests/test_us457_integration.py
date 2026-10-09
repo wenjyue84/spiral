@@ -9,6 +9,7 @@ Run with: uv run pytest tests/test_us457_integration.py -v
 """
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -66,6 +67,7 @@ def run_hook(hook_path: Path, file_path: str, cwd: PathOrNone = None) -> tuple[i
         text=True,
         timeout=5,
         cwd=str(cwd),
+        env={**os.environ, "SPIRAL_WORKER_ACTIVE": "1"},
     )
 
     return result.returncode, result.stdout, result.stderr
@@ -117,11 +119,11 @@ class TestProtectSpiralFilesHappyPath:
 class TestProtectSpiralFilesEdgeCases:
     """Edge-case tests: non-protected files and invalid inputs."""
 
-    def test_edge_allows_lib_file(self, hook_script: Path) -> None:
-        """Non-protected lib file should be allowed with exit 0."""
+    def test_edge_blocks_lib_file(self, hook_script: Path) -> None:
+        """lib/ is a protected prefix in the hook, so lib files are blocked (exit 2)."""
         exit_code, stdout, stderr = run_hook(hook_script, "lib/merge_stories.py")
-        assert exit_code == 0, f"Expected exit 0, got {exit_code}; stderr: {stderr}"
-        assert "BLOCKED" not in stderr
+        assert exit_code == 2, f"Expected exit 2, got {exit_code}; stderr: {stderr}"
+        assert "BLOCKED" in stderr
 
     def test_edge_allows_test_file(self, hook_script: Path) -> None:
         """Non-protected test file should be allowed with exit 0."""
@@ -129,11 +131,11 @@ class TestProtectSpiralFilesEdgeCases:
         assert exit_code == 0
         assert "BLOCKED" not in stderr
 
-    def test_edge_allows_ralph_claude_md(self, hook_script: Path) -> None:
-        """Non-protected ralph/CLAUDE.md should be allowed (not ralph.sh)."""
+    def test_edge_blocks_ralph_claude_md(self, hook_script: Path) -> None:
+        """ralph/ is a protected prefix in the hook, so ralph/CLAUDE.md is blocked too."""
         exit_code, stdout, stderr = run_hook(hook_script, "ralph/CLAUDE.md")
-        assert exit_code == 0
-        assert "BLOCKED" not in stderr
+        assert exit_code == 2
+        assert "BLOCKED" in stderr
 
     def test_edge_allows_src_file(self, hook_script: Path) -> None:
         """Non-protected src file should be allowed with exit 0."""

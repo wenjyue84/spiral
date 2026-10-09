@@ -65,8 +65,16 @@ run_parallel_injection() {
     chmod +x "$_parallel_dir/parallel"
     export PATH="$_parallel_dir:$PATH"
   else
-    # Ensure parallel is NOT in PATH by using a clean PATH without it
-    export PATH="/usr/bin:/bin"
+    # Ensure parallel is NOT in PATH. CI runners ship GNU parallel in /usr/bin, so build a
+    # PATH of symlinks to every system binary except `parallel`.
+    local _nopar_dir="${TMPDIR_PV}/nopar" _f _b
+    mkdir -p "$_nopar_dir"
+    for _f in /usr/bin/* /bin/*; do
+      _b="${_f##*/}"
+      [[ "$_b" == "parallel" ]] && continue
+      [[ -e "$_nopar_dir/$_b" ]] || ln -s "$_f" "$_nopar_dir/$_b" 2>/dev/null
+    done
+    export PATH="$_nopar_dir"
   fi
 
   if [[ "$SPIRAL_PARALLEL_TESTS" == "true" ]]; then

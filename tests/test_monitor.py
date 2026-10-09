@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import urllib.error
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -238,8 +239,10 @@ class TestDiagnose:
         scratch = tmp_path / ".spiral"
         crash_dir = scratch / "crashes"
         crash_dir.mkdir(parents=True)
-        crash_file = crash_dir / "crash_001.log"
-        crash_file.write_text("segfault", encoding="utf-8")
+        # _diagnose keys off entry timestamps in crashes/index.json (not file mtime).
+        crash_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        (crash_dir / "index.json").write_text(json.dumps([{"ts": crash_ts, "file": "crash_001.log"}]), encoding="utf-8")
+        (crash_dir / "crash_001.log").write_text("segfault", encoding="utf-8")
         with patch("monitor.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(stdout="", returncode=0)
             diags = monitor._diagnose(tmp_path, scratch)

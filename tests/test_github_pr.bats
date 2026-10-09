@@ -16,7 +16,7 @@
 
 bats_require_minimum_version 1.7.0
 RALPH_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/ralph/ralph.sh"
-SPIRAL_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/spiral.sh"
+SPIRAL_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/spiral.sh"
 BRANCH_MGMT_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/ralph/lib/branch_management.sh"
 
 setup() {
@@ -137,7 +137,15 @@ STUB
 # ── Test 2: gh not in PATH → SKIP with actionable message ────────────────────
 
 @test "gh CLI not found: emits SKIP message, exits 0" {
-  run env PATH="/usr/bin:/bin" \
+  # CI runners ship gh in /usr/bin, so build a PATH of symlinks to every system binary except gh.
+  local nogh_dir="$BATS_TEST_TMPDIR/nogh" f b
+  mkdir -p "$nogh_dir"
+  for f in /usr/bin/* /bin/*; do
+    b="${f##*/}"
+    [[ "$b" == "gh" ]] && continue
+    [[ -e "$nogh_dir/$b" ]] || ln -s "$f" "$nogh_dir/$b" 2>/dev/null
+  done
+  run env PATH="$nogh_dir" \
     SPIRAL_CREATE_PRS=true \
     bash -c "
       cd '$TEST_REPO'

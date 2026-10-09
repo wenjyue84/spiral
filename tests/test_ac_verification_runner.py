@@ -258,7 +258,7 @@ class TestACVerificationRunnerIntegration:
             {
                 "type": "file_exists",
                 "raw_ac": "output file created",
-                "command": "test -f /etc/hostname",
+                "command": "test -f /nonexistent/spiral-ac-output-file",
                 "expected": "file_exists",
                 "extracted": True,
             },

@@ -131,6 +131,7 @@ def search_codebase(symbol_name: str, repo_root: str = ".", exclude_files: Optio
     """
     if exclude_files is None:
         exclude_files = set()
+    normalized_excludes = {e.replace("\\", "/").removeprefix("./") for e in exclude_files}
 
     try:
         # Search for imports: "from ... import symbol" or "import symbol"
@@ -172,6 +173,15 @@ def search_codebase(symbol_name: str, repo_root: str = ".", exclude_files: Optio
                             continue
                         # Skip __init__.py re-exports (acceptable)
                         if "__init__.py" in line:
+                            continue
+                        # grep -r output is "<path>:<text>"; skip hits in the defining file(s)
+                        hit_path = line.split(":", 1)[0].replace("\\", "/")
+                        if hit_path.startswith("./"):
+                            hit_path = hit_path[2:]
+                        if hit_path in normalized_excludes:
+                            continue
+                        # Skip other definitions of the same name (not a usage)
+                        if re.search(rf"(def|class)\s+{re.escape(symbol_name)}", line):
                             continue
                         # If we found a reference in a different file, it's not dead
                         return True

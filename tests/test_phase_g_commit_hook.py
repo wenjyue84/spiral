@@ -203,7 +203,7 @@ class TestCommitHookInstaller:
             text=True,
         )
 
-        expected_error = "Commit message must start with US-NNN: or UT-NNN:"
+        expected_error = "Commit message must start with US-NNN:, UT-NNN:, FE-NNN:, or BE-NNN:"
         assert expected_error in result.stderr, (
             f"Error message '{expected_error}' should be in stderr. Got: {result.stderr}"
         )

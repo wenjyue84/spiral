@@ -79,6 +79,8 @@ _source_sast_fn() {
   # Create a git repo with no diff vs origin/main
   cd "$TMPDIR_SAST"
   git init -q
+  git config user.email "test@example.com"
+  git config user.name "Test"
   git checkout -b main -q 2>/dev/null || true
   echo "test" >file.txt
   git add file.txt

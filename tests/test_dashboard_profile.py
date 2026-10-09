@@ -121,6 +121,7 @@ def large_results_tsv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Genera
 
 
 @pytest.mark.us_522
+@pytest.mark.flaky(reruns=2, reruns_delay=1)  # wall-clock threshold is sensitive to CI load
 def test_us_522_profile_endpoint_performance_100_rows(tmp_path: Path) -> None:
     """Measure /profile endpoint response time with 100 rows. Baseline: ~5ms."""
     # Create results.tsv with 100 rows

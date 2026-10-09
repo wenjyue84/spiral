@@ -22,13 +22,13 @@ class TestExtractFederatedConflicts:
             {
                 "id": "US-001",
                 "passes": False,
-                "_source": "project-a",
+                "sub_project": "project-a",
                 "filesTouch": ["src/auth.py"],
             },
             {
                 "id": "US-002",
                 "passes": False,
-                "_source": "project-b",
+                "sub_project": "project-b",
                 "filesTouch": ["src/api.py"],
             },
         ]
@@ -42,13 +42,13 @@ class TestExtractFederatedConflicts:
             {
                 "id": "US-001",
                 "passes": False,
-                "_source": "project-a",
+                "sub_project": "project-a",
                 "filesTouch": ["src/core.py"],
             },
             {
                 "id": "US-002",
                 "passes": False,
-                "_source": "project-b",
+                "sub_project": "project-b",
                 "filesTouch": ["src/core.py"],
             },
         ]
@@ -67,13 +67,13 @@ class TestExtractFederatedConflicts:
             {
                 "id": "US-001",
                 "passes": False,
-                "_source": "project-a",
+                "sub_project": "project-a",
                 "filesTouch": ["src/core.py"],
             },
             {
                 "id": "US-002",
                 "passes": False,
-                "_source": "project-a",
+                "sub_project": "project-a",
                 "filesTouch": ["src/core.py"],
             },
         ]
@@ -87,13 +87,13 @@ class TestExtractFederatedConflicts:
             {
                 "id": "US-001",
                 "passes": False,
-                "_source": "project-a",
+                "sub_project": "project-a",
                 "filesTouch": ["src/core.py", "src/utils.py"],
             },
             {
                 "id": "US-002",
                 "passes": False,
-                "_source": "project-b",
+                "sub_project": "project-b",
                 "filesTouch": ["src/core.py", "src/api.py"],
             },
         ]
@@ -110,19 +110,19 @@ class TestExtractFederatedConflicts:
             {
                 "id": "US-001",
                 "passes": False,
-                "_source": "project-a",
+                "sub_project": "project-a",
                 "filesTouch": ["src/config.py"],
             },
             {
                 "id": "US-002",
                 "passes": False,
-                "_source": "project-b",
+                "sub_project": "project-b",
                 "filesTouch": ["src/config.py"],
             },
             {
                 "id": "US-003",
                 "passes": False,
-                "_source": "project-c",
+                "sub_project": "project-c",
                 "filesTouch": ["src/config.py"],
             },
         ]
@@ -139,13 +139,13 @@ class TestExtractFederatedConflicts:
             {
                 "id": "US-001",
                 "passes": False,
-                "_source": "project-a",
+                "sub_project": "project-a",
                 "filesTouch": ["src/core.py"],
             },
             {
                 "id": "US-002",
                 "passes": True,  # Completed
-                "_source": "project-b",
+                "sub_project": "project-b",
                 "filesTouch": ["src/core.py"],
             },
         ]
@@ -159,14 +159,14 @@ class TestExtractFederatedConflicts:
             {
                 "id": "US-001",
                 "passes": False,
-                "_source": "project-a",
+                "sub_project": "project-a",
                 "filesTouch": ["src/core.py"],
             },
             {
                 "id": "US-002",
                 "passes": False,
                 "_decomposed": True,
-                "_source": "project-b",
+                "sub_project": "project-b",
                 "filesTouch": ["src/core.py"],
             },
         ]
@@ -180,13 +180,13 @@ class TestExtractFederatedConflicts:
             {
                 "id": "US-001",
                 "passes": False,
-                "_source": "project-a",
+                "sub_project": "project-a",
                 "filesTouch": ["lib/shared.py"],
             },
             {
                 "id": "US-002",
                 "passes": False,
-                "_source": "project-b",
+                "sub_project": "project-b",
                 "filesTouch": ["lib/shared.py"],
             },
         ]
@@ -265,13 +265,13 @@ class TestIntegrationPhaseM:
             {
                 "id": "US-501",
                 "passes": False,
-                "_source": "core-team",
+                "sub_project": "core-team",
                 "filesTouch": ["lib/auth.ts"],
             },
             {
                 "id": "US-502",
                 "passes": False,
-                "_source": "web-team",
+                "sub_project": "web-team",
                 "filesTouch": ["lib/auth.ts"],
             },
         ]
@@ -287,13 +287,13 @@ class TestIntegrationPhaseM:
             {
                 "id": "US-501",
                 "passes": False,
-                "_source": "core-team",
+                "sub_project": "core-team",
                 "filesTouch": ["lib/auth.ts"],
             },
             {
                 "id": "US-502",
                 "passes": False,
-                "_source": "web-team",
+                "sub_project": "web-team",
                 "filesTouch": ["src/api.ts"],
             },
         ]
@@ -309,14 +309,14 @@ class TestIntegrationPhaseM:
             {
                 "id": "US-691-TEST-001",
                 "passes": False,
-                "_source": "federated-core",
+                "sub_project": "federated-core",
                 "filesTouch": ["lib/merge.py", "lib/federate.py"],
                 "technicalNotes": ["File to edit: lib/merge.py"],
             },
             {
                 "id": "US-691-TEST-002",
                 "passes": False,
-                "_source": "federated-web",
+                "sub_project": "federated-web",
                 "filesTouch": ["lib/merge.py"],  # Same file!
             },
         ]
@@ -334,13 +334,13 @@ class TestIntegrationPhaseM:
             {
                 "id": "US-691-TEST-A",
                 "passes": False,
-                "_source": "proj-a",
+                "sub_project": "proj-a",
                 "filesTouch": ["src/auth.py", "src/config.py"],
             },
             {
                 "id": "US-691-TEST-B",
                 "passes": False,
-                "_source": "proj-b",
+                "sub_project": "proj-b",
                 "filesTouch": ["src/config.py"],
             },
         ]
@@ -366,13 +366,13 @@ class TestIntegrationPhaseM:
             {
                 "id": "US-001",
                 "passes": False,
-                "_source": "sub-proj-1",
+                "sub_project": "sub-proj-1",
                 "filesTouch": ["lib/shared.py"],
             },
             {
                 "id": "US-002",
                 "passes": False,
-                "_source": "sub-proj-2",
+                "sub_project": "sub-proj-2",
                 "filesTouch": ["lib/shared.py"],
             },
         ]

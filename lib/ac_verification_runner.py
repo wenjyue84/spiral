@@ -141,7 +141,7 @@ def run_assertions(story_id: str, assertions_file: Path, timeout: int = 30) -> D
         try:
             result = subprocess.run(
                 command,
-                shell=True,
+                shell=True,  # spiral-allow-shell: AC snippets (builtins, pipes) come from the repo's own PRD
                 capture_output=True,
                 timeout=timeout,
                 text=True,

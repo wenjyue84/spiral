@@ -218,7 +218,7 @@ def _is_done(story: dict[str, Any]) -> bool:
     return bool(story.get("passes") or story.get("_decomposed") or story.get("_skipped"))
 
 
-def apply_dead_weight_detection(stories: list[dict[str, Any]], threshold: int) -> None:
+def apply_dead_weight_detection(stories: list[dict[str, Any]], threshold: int) -> int:
     """Mark stories stuck 5+ iterations as archived (US-779).
 
     Modifies stories in-place:
@@ -251,6 +251,7 @@ def apply_dead_weight_detection(stories: list[dict[str, Any]], threshold: int) -
 
     if archived_count > 0:
         print(f"[merge] Dead weight detection: {archived_count} story/stories auto-archived this iteration")
+    return archived_count
 
 
 def full_sort_key(story: dict[str, Any]) -> tuple[int, int, int]:
@@ -559,32 +560,13 @@ def main() -> int:
 
     # ── US-779: Dead weight detection — auto-archive stuck stories ─────────────
     dead_weight_threshold = int(os.environ.get("SPIRAL_DEAD_WEIGHT_THRESHOLD", "5"))
-    apply_dead_weight_detection(existing_stories, dead_weight_threshold)
+    dead_weight_changes_made = any(not _is_done(st) and not st.get("_archived") for st in existing_stories)
+    archived_this_iteration = apply_dead_weight_detection(existing_stories, dead_weight_threshold)
 
     existing_titles = [s.get("title", "") for s in existing_stories]
     existing_epics = [s.get("epicId", "") for s in existing_stories]
 
-    # ── US-779: Dead weight detection — track iterations and auto-archive stuck stories ───
-    archived_this_iteration = 0
-    dead_weight_changes_made = False
-    for story in existing_stories:
-        if not story.get("passes"):  # Only track pending stories
-            if story.get("_archived"):
-                # Already archived, keep it as-is
-                continue
-            # Increment iteration counter (first appearance = 0 → 1)
-            story["_pending_iterations"] = story.get("_pending_iterations", 0) + 1
-            pending_iters = story["_pending_iterations"]
-            dead_weight_changes_made = True
-            # Check if exceeded threshold
-            if pending_iters >= dead_weight_threshold:
-                story["_archived"] = True
-                story["_archiveReason"] = f"Stuck {pending_iters} iterations (threshold: {dead_weight_threshold})"
-                archived_this_iteration += 1
-                print(
-                    f"[merge] Auto-archive [{story['id']}] {story['title'][:60]} (pending {pending_iters} iterations)"
-                )
-
+    # apply_dead_weight_detection above is the single place that increments _pending_iterations.
     current_pending = sum(1 for s in existing_stories if not s.get("passes") and not s.get("_archived"))
     total_archived = sum(1 for s in existing_stories if s.get("_archived"))
     print(

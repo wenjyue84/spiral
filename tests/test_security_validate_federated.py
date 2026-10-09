@@ -104,7 +104,7 @@ class TestPathTraversalSecurity:
 
     def test_path_traversal_rejected(self) -> None:
         """Path-traversal in prd argument should raise ValueError."""
-        malicious_path = Path("../../etc/passwd")
+        malicious_path = Path("../../no-such-dir-spiral-test/etc/passwd")  # must not exist, whatever the cwd depth
 
         # The function should handle this gracefully
         # It should either return a safe error or raise ValueError

@@ -14,7 +14,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "spiral"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
-from phase_m import prd_merge, validate_quota
+from spiral.phase_m import prd_merge, validate_quota
 
 
 def _make_prd(stories: list[dict[str, Any]] | None = None) -> dict[str, Any]:

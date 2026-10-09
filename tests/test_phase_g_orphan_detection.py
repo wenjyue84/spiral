@@ -130,11 +130,14 @@ group = "Bug Fixes"
         log_orphan_commits(orphans)
 
         # Try to generate changelog - should not fail even with orphans
-        subprocess.run(
-            ["git-cliff", "--config", "cliff.toml", "--output", "CHANGELOG.md"],
-            capture_output=True,
-            text=True,
-        )
+        try:
+            subprocess.run(
+                ["git-cliff", "--config", "cliff.toml", "--output", "CHANGELOG.md"],
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            pass  # git-cliff not installed in this environment
 
         # Even if git-cliff fails (not installed in test env), we verify orphans don't prevent detection
         assert len(orphans) == 3, "Should detect 3 orphans"

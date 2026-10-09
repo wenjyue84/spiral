@@ -82,6 +82,14 @@ def _init_git_repo(tmp_path: Path) -> None:
         check=True,
         capture_output=True,
     )
+    # Modern git refuses `git checkout main` in a worktree while `main` is checked out in another
+    # worktree, so move the primary checkout off `main` to leave it free for the recovered worktree.
+    subprocess.run(
+        ["git", "checkout", "-b", "primary-holder"],
+        cwd=str(tmp_path),
+        check=True,
+        capture_output=True,
+    )
 
 
 class TestUS526WorktreeRecovery:

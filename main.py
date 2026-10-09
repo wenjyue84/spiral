@@ -26,6 +26,7 @@ Subcommands:
   complexity-trend        Analyze story retry & duration patterns across iterations (US-537)
   show-blockers           Analyze story dependency graph and critical paths (US-538)
   show-slowest-stories    Identify bottleneck stories by total duration (US-712)
+  show-archived           List stories auto-archived by dead weight detection (US-779)
   show-dead-features      List all detected dead features across stories (US-1006)
   show-perf-baseline      Display per-phase performance baseline statistics (US-1008)
   replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
@@ -2136,6 +2137,38 @@ def cmd_complexity_trend(args) -> None:
     run_trend(tsv_path=history, phase=phase, output_path=output, fmt=fmt)
 
 
+def cmd_show_archived(args) -> None:
+    """List stories auto-archived by Phase M dead weight detection (US-779).
+
+    Usage: spiral show-archived [--prd prd.json]
+    """
+    prd_path = Path(getattr(args, "prd_file", None) or "prd.json")
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+    if not prd_path.exists():
+        print(f"[show-archived] ERROR: PRD file not found: {prd_path}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        prd = json.loads(prd_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"[show-archived] ERROR: cannot read {prd_path}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    archived = [s for s in prd.get("userStories", []) if s.get("_archived")]
+    if not archived:
+        print("No archived stories found.")
+        return
+
+    print(f"{'ID':<12} {'Iterations':<11} {'Title':<50} Reason")
+    print("-" * 100)
+    for s in archived:
+        print(
+            f"{s.get('id', '?'):<12} {s.get('_pending_iterations', 0)!s:<11} "
+            f"{str(s.get('title', ''))[:48]:<50} {s.get('_archiveReason', '')}"
+        )
+    print(f"\nTotal archived: {len(archived)}")
+
+
 def cmd_show_blockers(args) -> None:
     """Analyze story dependency graph and critical paths (US-538).
 
@@ -3588,6 +3621,45 @@ def main():
         help="Output format: csv or json (default: csv)",
     )
 
+    # ── show-archived subcommand (US-779) ────────────────────────────────────────
+    show_archived_parser = subparsers.add_parser(
+        "show-archived",
+        help="List stories auto-archived by dead weight detection (US-779)",
+    )
+    show_archived_parser.add_argument(
+        "--prd",
+        dest="prd_file",
+        default="prd.json",
+        metavar="PATH",
+        help="Path to prd.json (default: prd.json)",
+    )
+
+    # ── validate-commits subcommand (US-554) ─────────────────────────────────────
+    validate_commits_parser = subparsers.add_parser(
+        "validate-commits",
+        help="Detect orphan stories and squash-commit patterns (US-554)",
+    )
+    validate_commits_parser.add_argument(
+        "--json",
+        dest="output_format",
+        action="store_const",
+        const="json",
+        default="text",
+        help="Emit machine-readable JSON instead of a text summary",
+    )
+    validate_commits_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="PATH",
+        help="Path to prd.json (default: prd.json)",
+    )
+    validate_commits_parser.add_argument(
+        "--repo",
+        default=".",
+        metavar="PATH",
+        help="Git repository to scan (default: .)",
+    )
+
     # ── show-blockers subcommand (US-538) ────────────────────────────────────────
     show_blockers_parser = subparsers.add_parser(
         "show-blockers",
@@ -4525,9 +4597,16 @@ def main():
     )
 
     # ── Central log insights (cross-project telemetry) ──────────────────────
-    from lib.cli.central_log_insights import register_subparser as _register_central_log
-
-    cl_parser = _register_central_log(subparsers)
+    # Tolerate a main.py that is run detached from its lib/ package (e.g. copied into a
+    # scratch repo by the worktree-audit tests): the subcommand is simply unavailable there.
+    if str(SPIRAL_HOME) not in sys.path:
+        sys.path.append(str(SPIRAL_HOME))
+    try:
+        from lib.cli.central_log_insights import register_subparser as _register_central_log
+    except ModuleNotFoundError:
+        pass
+    else:
+        _register_central_log(subparsers)
 
     args = parser.parse_args()
 
@@ -4594,6 +4673,10 @@ def main():
             sys.exit(0)
     elif args.command == "complexity-trend":
         cmd_complexity_trend(args)
+    elif args.command == "show-archived":
+        cmd_show_archived(args)
+    elif args.command == "validate-commits":
+        cmd_validate_commits(args)
     elif args.command == "show-blockers":
         cmd_show_blockers(args)
     elif args.command == "show-slowest-stories":

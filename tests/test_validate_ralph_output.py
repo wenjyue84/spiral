@@ -297,11 +297,9 @@ class TestValidateSyntax:
 class TestValidateSyntaxCli:
     """Test CLI interface for validate_syntax."""
 
-    @mock.patch("subprocess.run")
-    def test_cli_success_prints_none(self, mock_run: mock.MagicMock) -> None:
+    def test_cli_success_prints_none(self) -> None:
         """CLI should print 'null' on success (no errors)."""
-        mock_run.return_value = mock.MagicMock(returncode=0, stderr="", stdout="")
-
+        # Runs the real CLI: patching subprocess.run here would also mock the call below.
         result = subprocess.run(
             ["uv", "run", "python", "lib/impl/validate_ralph_output.py", "US-746", "src/main.ts"],
             capture_output=True,

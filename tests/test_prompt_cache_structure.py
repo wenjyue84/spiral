@@ -274,7 +274,11 @@ class TestCacheCreationTokensTracking:
         """results.tsv header must include cache_creation_tokens column."""
         from pathlib import Path
 
-        ralph_sh = (Path(__file__).parent.parent / "ralph" / "ralph.sh").read_text(encoding="utf-8")
+        # The results.tsv header printf lives in ralph/lib/story_lifecycle.sh (extracted from ralph.sh).
+        ralph_dir = Path(__file__).parent.parent / "ralph"
+        ralph_sh = "\n".join(
+            p.read_text(encoding="utf-8") for p in [ralph_dir / "ralph.sh", *sorted((ralph_dir / "lib").glob("*.sh"))]
+        )
 
         assert "cache_creation_tokens" in ralph_sh, "ralph.sh must declare cache_creation_tokens in results.tsv header"
         # Verify it's in the printf header line

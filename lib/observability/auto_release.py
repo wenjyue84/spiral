@@ -52,6 +52,10 @@ def embed_git_frontmatter_in_docs(output_dir: str) -> None:
     Args:
       output_dir: Directory containing generated HTML files
     """
+    output_path = Path(output_dir)
+    if not output_path.exists():
+        return
+
     # Get current git commit SHA
     result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -210,7 +214,10 @@ def main() -> None:
         # Bump semantic version in package.json and pyproject.toml
         from lib.phases.phase_g_version_bump import bump_versions
 
-        _ = bump_versions()
+        if Path("CHANGELOG.md").exists():
+            _ = bump_versions()
+        else:
+            print("⚠ CHANGELOG.md not found; skipping version bump")
 
         # Generate API documentation from Python modules
         generate_api_docs()

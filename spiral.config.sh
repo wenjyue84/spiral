@@ -121,6 +121,9 @@ SPIRAL_EPISODIC_MEMORY="${SPIRAL_EPISODIC_MEMORY:-false}"
 # maps (exports, imports, test neighbors, callers, boundaries). Injected into
 # Ralph's user prompt at zero LLM cost.
 SPIRAL_REPO_MAP="${SPIRAL_REPO_MAP:-true}"
+
+# Phase 0 roleplay clarification (Superpowers pattern): only runs with --gate proceed.
+SPIRAL_ROLEPLAY_CLARIFY="${SPIRAL_ROLEPLAY_CLARIFY:-false}"
 SPIRAL_REPO_MAP_MAX_LINES="${SPIRAL_REPO_MAP_MAX_LINES:-150}"
 
 # ── Phase-specific model defaults ────────────────────────────────────────────

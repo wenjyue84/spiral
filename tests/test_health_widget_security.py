@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 
 class TestHealthEndpointSecurity:
@@ -118,8 +119,7 @@ class TestHealthWidgetDOMSecurity:
         """
         # Verify by code inspection that component only renders whitelisted fields
         component_path = (
-            "C:\\Users\\Jyue\\Documents\\1-projects\\Software Projects\\Spiral\\"
-            "spiral-ui\\src\\components\\HealthWidget.tsx"
+            Path(__file__).resolve().parent.parent / "spiral-ui" / "src" / "components" / "HealthWidget.tsx"
         )
         with open(component_path, encoding="utf-8") as f:
             component_code = f.read()

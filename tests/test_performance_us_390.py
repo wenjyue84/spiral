@@ -95,6 +95,7 @@ def _save_baseline(metric_name: str, value: float) -> None:
 
 
 @pytest.mark.us_390
+@pytest.mark.flaky(reruns=2, reruns_delay=1)  # wall-clock thresholds are sensitive to CI load
 class TestUS390PerformanceBatch:
     """Performance tests for US-390 batch validation operations."""
 
