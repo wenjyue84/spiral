@@ -417,7 +417,7 @@ CONFEOF
   chmod +x "$TEST_REPO/spiral.config.sh"
 
   cd "$TEST_REPO"
-  run bash "$SPIRAL_SH" --rollback US-001
+  run bash -x "$SPIRAL_SH" --rollback US-001  # TEMP-DIAG: remove after trap error is understood
 
   assert_success
 
