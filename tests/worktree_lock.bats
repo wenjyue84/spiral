@@ -16,6 +16,8 @@ setup() {
   TEST_REPO="$(mktemp -d)"
   cd "$TEST_REPO"
   git init -q
+  git config user.name "Spiral Test"
+  git config user.email "test@spiral.local"
   git commit --allow-empty -m "init" -q
   WTREE_BASE="$TEST_REPO/.spiral-workers"
   mkdir -p "$WTREE_BASE"

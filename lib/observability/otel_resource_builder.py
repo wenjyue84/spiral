@@ -26,9 +26,10 @@ from __future__ import annotations
 import os
 import platform
 import subprocess
+from typing import TYPE_CHECKING
 
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.semconv.resource import ResourceAttributes
+if TYPE_CHECKING:  # pragma: no cover - typing only; opentelemetry is an optional dependency
+    from opentelemetry.sdk.resources import Resource
 
 
 def _get_service_version() -> str:
@@ -59,7 +60,17 @@ def _get_service_name() -> str:
     return os.environ.get("SPIRAL_OTEL_SERVICE_NAME", "spiral").strip() or "spiral"
 
 
-def build_otel_resource() -> Resource:
+def _resource_attributes() -> dict[str, str]:
+    """Plain-dict resource attributes (no opentelemetry import needed)."""
+    return {
+        "service.name": _get_service_name(),
+        "service.version": _get_service_version(),
+        "service.namespace": "autonomous-dev",
+        "host.name": platform.node(),
+    }
+
+
+def build_otel_resource() -> "Resource":
     """
     Build an OpenTelemetry Resource with SPIRAL service identity attributes.
 
@@ -73,17 +84,9 @@ def build_otel_resource() -> Resource:
     The Resource is automatically inherited by all telemetry signals
     (spans, metrics, events) when passed to TracerProvider/MeterProvider.
     """
-    service_name = _get_service_name()
-    service_version = _get_service_version()
+    from opentelemetry.sdk.resources import Resource
 
-    attributes = {
-        ResourceAttributes.SERVICE_NAME: service_name,
-        ResourceAttributes.SERVICE_VERSION: service_version,
-        ResourceAttributes.SERVICE_NAMESPACE: "autonomous-dev",
-        ResourceAttributes.HOST_NAME: platform.node(),
-    }
-
-    return Resource.create(attributes)
+    return Resource.create(_resource_attributes())
 
 
 def resource_to_dict() -> dict[str, str]:
@@ -98,11 +101,8 @@ def resource_to_dict() -> dict[str, str]:
           - service.namespace
           - host.name
     """
-    resource = build_otel_resource()
-    attrs = resource.attributes
+    attrs = _resource_attributes()
     return {
-        "service.name": str(attrs.get(ResourceAttributes.SERVICE_NAME) or "unknown"),
-        "service.version": str(attrs.get(ResourceAttributes.SERVICE_VERSION) or "unknown"),
-        "service.namespace": str(attrs.get(ResourceAttributes.SERVICE_NAMESPACE) or "unknown"),
-        "host.name": str(attrs.get(ResourceAttributes.HOST_NAME) or "unknown"),
+        key: str(attrs.get(key) or "unknown")
+        for key in ("service.name", "service.version", "service.namespace", "host.name")
     }

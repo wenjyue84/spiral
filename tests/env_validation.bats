@@ -19,11 +19,31 @@ setup() {
   fi
 
   export SCHEMA="$SPIRAL_HOME/env_schema.json"
+
+  # env_schema.json deliberately marks ANTHROPIC_API_KEY optional (Claude subscription
+  # users authenticate via the claude CLI). To exercise the validator's handling of
+  # *required* vars, derive a schema from the real one with ANTHROPIC_API_KEY required.
+  export REQ_SCHEMA="$BATS_TEST_TMPDIR/env_schema_required.json"
+  "$SPIRAL_PYTHON" - "$SCHEMA" "$REQ_SCHEMA" <<'PYEOF'
+import json, sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+for v in data["vars"]:
+    if v["name"] == "ANTHROPIC_API_KEY":
+        v["required"] = True
+        v.pop("or_env", None)
+        v["description"] = "Anthropic API key (required in test schema)"
+        v["fix_hint"] = "export ANTHROPIC_API_KEY=sk-ant-..."
+json.dump(data, open(sys.argv[2], "w", encoding="utf-8"))
+PYEOF
 }
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 run_validator() {
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/validate_env.py" --schema "$SCHEMA" "$@"
+}
+
+run_validator_required() {
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/validate_env.py" --schema "$REQ_SCHEMA" "$@"
 }
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
@@ -36,9 +56,17 @@ json.load(open(sys.argv[1], encoding="utf-8"))
 EOF
 }
 
-@test "env_schema.json contains at least one required var" {
+@test "env_schema.json declares an explicit required flag on every var and supports required vars" {
+  # The shipped schema has no hard-required vars (subscription auth), so verify
+  # every entry carries a boolean 'required' and the derived schema has >= 1 required var.
+  "$SPIRAL_PYTHON" - "$SCHEMA" <<'EOF'
+import json, sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+assert data["vars"], "no vars"
+assert all(isinstance(v.get("required"), bool) for v in data["vars"])
+EOF
   count=$(
-    "$SPIRAL_PYTHON" - "$SCHEMA" <<'EOF'
+    "$SPIRAL_PYTHON" - "$REQ_SCHEMA" <<'EOF'
 import json, sys
 data = json.load(open(sys.argv[1], encoding="utf-8"))
 print(sum(1 for v in data["vars"] if v.get("required", False)))
@@ -56,14 +84,14 @@ EOF
 
 @test "missing required var prints var name in error output" {
   unset ANTHROPIC_API_KEY
-  run run_validator
+  run run_validator_required
   assert_failure 1
   assert_output --partial "ANTHROPIC_API_KEY"
 }
 
 @test "missing required var prints description in error output" {
   unset ANTHROPIC_API_KEY
-  run run_validator
+  run run_validator_required
   assert_failure 1
   # description contains 'Anthropic API key'
   assert_output --partial "Anthropic API key"
@@ -71,7 +99,7 @@ EOF
 
 @test "missing required var prints fix hint in error output" {
   unset ANTHROPIC_API_KEY
-  run run_validator
+  run run_validator_required
   assert_failure 1
   # fix hint starts with 'export ANTHROPIC_API_KEY='
   assert_output --partial "export ANTHROPIC_API_KEY="
@@ -115,7 +143,7 @@ EOF
 
 @test "summary line shows required vars missing count" {
   unset ANTHROPIC_API_KEY
-  run run_validator
+  run run_validator_required
   assert_failure 1
   assert_output --partial "MISSING required"
 }

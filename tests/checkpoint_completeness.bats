@@ -31,7 +31,7 @@ setup() {
 
   # Source the check_checkpoint_completeness function from spiral.sh
   # Extract the function definition
-  source <(sed -n '/^check_checkpoint_completeness()/,/^}/p' spiral.sh)
+  source <(sed -n '/^check_checkpoint_completeness()/,/^}/p' lib/startup_checks.sh)
 }
 
 teardown() {
@@ -57,22 +57,22 @@ teardown() {
   assert_output --partial "phase=✗"
 }
 
-@test "check_checkpoint_completeness: missing storyId returns 1" {
+@test "check_checkpoint_completeness: missing storyId is accepted (optional, returns 0)" {
   local ckpt_file="$SPIRAL_SCRATCH_DIR/missing-storyid.json"
   $JQ -n '{phase: "I", retryCount: 0}' >"$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
-  assert_failure 1
-  assert_output --partial "storyId=✗"
+  assert_success
+  assert_output --partial "storyId=absent"
 }
 
-@test "check_checkpoint_completeness: missing retryCount returns 1" {
+@test "check_checkpoint_completeness: missing retryCount is accepted (optional, returns 0)" {
   local ckpt_file="$SPIRAL_SCRATCH_DIR/missing-retrycount.json"
   $JQ -n '{phase: "I", storyId: "US-123"}' >"$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
-  assert_failure 1
-  assert_output --partial "retryCount=✗"
+  assert_success
+  assert_output --partial "retryCount=absent"
 }
 
 @test "check_checkpoint_completeness: empty checkpoint returns 1" {

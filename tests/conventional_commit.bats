@@ -16,7 +16,7 @@ setup() {
   _resolve_jq
   # Source only the build_commit_msg function from ralph.sh
   # shellcheck source=ralph/ralph.sh
-  source <(sed -n '/^build_commit_msg()/,/^}/p' ralph/ralph.sh)
+  source <(sed -n '/^build_commit_msg()/,/^}/p' ralph/lib/git_operations.sh)
 }
 
 # ── Subject line format ────────────────────────────────────────────────────────

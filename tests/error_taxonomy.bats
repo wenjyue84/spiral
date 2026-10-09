@@ -193,7 +193,7 @@ run_spiral_exit() {
   # Extract all error codes from error_catalog.py
   local py_codes
   py_codes=$(grep -oP '^\s+"(E[0-9]{3})":' \
-    "$SPIRAL_HOME/lib/error_catalog.py" | grep -oP 'E[0-9]{3}' | sort -u)
+    "$SPIRAL_HOME/lib/core/error_catalog.py" | grep -oP 'E[0-9]{3}' | sort -u)
   # Every bash code must exist in Python catalog
   for code in $bash_codes; do
     echo "$py_codes" | grep -q "^${code}$" || {

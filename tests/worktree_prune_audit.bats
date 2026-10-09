@@ -17,6 +17,8 @@ setup() {
   TEST_REPO="$(mktemp -d)"
   cd "$TEST_REPO"
   git init -q
+  git config user.name "Spiral Test"
+  git config user.email "test@spiral.local"
   git commit --allow-empty -m "init" -q
   SCRATCH_DIR="$TEST_REPO/.spiral"
   mkdir -p "$SCRATCH_DIR"

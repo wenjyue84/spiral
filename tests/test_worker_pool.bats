@@ -63,7 +63,7 @@ setup() {
           echo "$_TASK_RC" >"$_WORKER_POOL_DIR/exit_code" 2>/dev/null || true
           touch "$_WORKER_POOL_DIR/done" 2>/dev/null || true
         done
-      ) &
+      ) 3>&- &
       POOL_WORKER_PIDS+=($!)
     done
     local _pool_end=$(date +%s%N | cut -b1-13)

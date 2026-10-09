@@ -9,7 +9,7 @@ setup() {
   TMPDIR_ROOT="$(mktemp -d)"
   export TMPDIR_ROOT
   # Use bundled jq if available
-  if [[ -f "$BATS_TEST_DIRNAME/../ralph/jq.exe" ]]; then
+  if [[ -x "$BATS_TEST_DIRNAME/../ralph/jq.exe" ]]; then
     export JQ="$BATS_TEST_DIRNAME/../ralph/jq.exe"
   else
     export JQ="jq"
@@ -87,7 +87,7 @@ _make_prd() {
       atomic_patch_prd "$wtree" \
         '(.userStories[] | select(.id == "US-CONC") | ._antiPatterns) |= . + [{"i": ($i | tonumber)}]' \
         --arg i "$i"
-    ) &
+    ) 3>&- &
     pids+=($!)
   done
 

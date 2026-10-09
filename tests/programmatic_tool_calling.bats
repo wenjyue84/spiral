@@ -8,10 +8,10 @@ setup() {
   cd "$BATS_TEST_DIRNAME/.." || exit 1
   TOOL_MANIFEST="ralph/tool_manifest.json"
   # Find jq binary
-  if [[ -f "ralph/jq.exe" ]]; then
-    JQ_BIN="ralph/jq.exe"
-  else
+  if command -v jq >/dev/null 2>&1; then
     JQ_BIN="jq"
+  else
+    JQ_BIN="ralph/jq.exe"
   fi
 }
 
@@ -131,7 +131,7 @@ setup() {
 }
 
 @test "US-339: ralph.sh has log_tool_call_from_code function" {
-  grep -q "log_tool_call_from_code()" ralph/ralph.sh
+  grep -q "log_tool_call_from_code()" ralph/lib/ralph_helpers.sh
 }
 
 @test "US-339: ralph.sh has programmatic tools initialization" {

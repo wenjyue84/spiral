@@ -16,7 +16,8 @@
 
 bats_require_minimum_version 1.7.0
 RALPH_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/ralph/ralph.sh"
-SPIRAL_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/spiral.sh"
+SPIRAL_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/spiral.sh"
+BRANCH_MGMT_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/ralph/lib/branch_management.sh"
 
 setup() {
   load test_helper/common-setup
@@ -95,7 +96,7 @@ _run_create_pr_env() {
     JQ='$JQ_BIN'
     SPIRAL_RUN_ID='test-run-001'
     SPIRAL_SCRATCH_DIR='$TEST_REPO/.spiral'
-    eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$RALPH_SH')\"
+    eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$BRANCH_MGMT_SH')\"
     log_ralph_event() { :; }
     create_github_pr '$story_id' '$story_title' '$commit_sha'
   "
@@ -120,7 +121,7 @@ STUB
       JQ='$JQ_BIN'
       SPIRAL_RUN_ID='test-run'
       SPIRAL_SCRATCH_DIR='$TEST_REPO/.spiral'
-      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$RALPH_SH')\"
+      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$BRANCH_MGMT_SH')\"
       log_ralph_event() { :; }
       # Replicate the guard from ralph.sh main loop
       if [[ \"\${SPIRAL_CREATE_PRS:-false}\" == 'true' ]]; then
@@ -144,7 +145,7 @@ STUB
       JQ='$JQ_BIN'
       SPIRAL_RUN_ID='test-run'
       SPIRAL_SCRATCH_DIR='$TEST_REPO/.spiral'
-      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$RALPH_SH')\"
+      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$BRANCH_MGMT_SH')\"
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
@@ -174,7 +175,7 @@ STUB
       JQ='$JQ_BIN'
       SPIRAL_RUN_ID='test-run'
       SPIRAL_SCRATCH_DIR='$TEST_REPO/.spiral'
-      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$RALPH_SH')\"
+      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$BRANCH_MGMT_SH')\"
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
@@ -220,7 +221,7 @@ STUB
       JQ='$JQ_BIN'
       SPIRAL_RUN_ID='test-run'
       SPIRAL_SCRATCH_DIR='$TEST_REPO/.spiral'
-      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$RALPH_SH')\"
+      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$BRANCH_MGMT_SH')\"
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
@@ -270,7 +271,7 @@ STUB
       JQ='$JQ_BIN'
       SPIRAL_RUN_ID='test-run'
       SPIRAL_SCRATCH_DIR='$TEST_REPO/.spiral'
-      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$RALPH_SH')\"
+      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$BRANCH_MGMT_SH')\"
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
@@ -314,7 +315,7 @@ STUB
       JQ='$JQ_BIN'
       SPIRAL_RUN_ID='test-run'
       SPIRAL_SCRATCH_DIR='$TEST_REPO/.spiral'
-      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$RALPH_SH')\"
+      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$BRANCH_MGMT_SH')\"
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
@@ -358,7 +359,7 @@ STUB
       JQ='$JQ_BIN'
       SPIRAL_RUN_ID='test-run'
       SPIRAL_SCRATCH_DIR='$TEST_REPO/.spiral'
-      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$RALPH_SH')\"
+      eval \"\$(sed -n '/^create_github_pr()/,/^}/p' '$BRANCH_MGMT_SH')\"
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "

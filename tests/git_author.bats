@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# tests/git_author.bats — Unit tests for the do_git_commit helper in ralph/ralph.sh
+# tests/git_author.bats — Unit tests for the do_git_commit helper in ralph/lib/git_operations.sh
 #
 # Run with: bats tests/git_author.bats
 #
@@ -22,8 +22,8 @@ setup() {
   export PROGRESS_FILE="/dev/null"
   export SPIRAL_MAX_DIFF_LINES=500
 
-  # Source only the do_git_commit function from ralph.sh
-  source <(sed -n '/^do_git_commit()/,/^}/p' ralph/ralph.sh)
+  # Source only the do_git_commit function from ralph/lib/git_operations.sh
+  source <(sed -n '/^do_git_commit()/,/^}/p' ralph/lib/git_operations.sh)
 
   # Stub out `git` so no real commits are attempted; record the full
   # argument list to GIT_CALL_ARGS for assertions.

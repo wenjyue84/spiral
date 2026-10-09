@@ -69,10 +69,10 @@ teardown() {
   $JQ -n '{
     "iteration": 1,
     "patterns": [
-      {"pattern": "Always use specific exception types", "frequency": 15},
-      {"pattern": "Add logging to failures", "frequency": 12},
-      {"pattern": "Test edge cases with empty inputs", "frequency": 8},
-      {"pattern": "Document breaking changes", "frequency": 5}
+      {"pattern": "Always use specific exception types", "frequency": 15, "pattern_tags": ["improvement"]},
+      {"pattern": "Add logging to failures", "frequency": 12, "pattern_tags": ["phase-i"]},
+      {"pattern": "Test edge cases with empty inputs", "frequency": 8, "pattern_tags": ["improvement"]},
+      {"pattern": "Document breaking changes", "frequency": 5, "pattern_tags": ["improvement"]}
     ]
   }' >"$patterns_file"
 
@@ -175,6 +175,6 @@ teardown() {
 
   build_ralph_prompts
 
-  # Verify format: "- Pattern: <text> (observed Nx)"
-  [[ "$RALPH_USER_PROMPT" == *"- Pattern: Test pattern (observed 42x)"* ]]
+  # Verify format: "- <text> (frequency: N)"
+  [[ "$RALPH_USER_PROMPT" == *"- Test pattern (frequency: 42)"* ]]
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # tests/test_config_audit.bats — ConfigChange hook audit and blocking tests
 
-HOOK_SCRIPT="/c/Users/Jyue/.claude/hooks/config_audit.sh"
+HOOK_SCRIPT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/.claude/hooks/config_audit.sh"
 
 setup() {
   TMPDIR="$(mktemp -d)"

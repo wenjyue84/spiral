@@ -7,7 +7,7 @@ setup() {
   # Patch the hook script to write to TMPDIR
   mkdir -p "$TMPDIR/.spiral"
   # Run hook from TMPDIR so relative .spiral/ path works
-  export HOOK_SCRIPT="$BATS_TEST_DIRNAME/../.claude/hooks/worktree_audit.sh"
+  export HOOK_SCRIPT="$BATS_TEST_DIRNAME/../.claude/hooks/_archive/worktree_audit.sh"
 }
 
 teardown() {

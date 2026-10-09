@@ -17,8 +17,8 @@ git -C "$REPO_ROOT" config rerere.autoupdate true 2>/dev/null || true
 # a user-provided post-merge hook already exists)
 _PM_HOOK="$REPO_ROOT/.git/hooks/post-merge"
 _PM_SRC="$SPIRAL_HOME/lib/hooks/post-merge"
-if [[ ! -f "$_PM_HOOK" && -f "$_PM_SRC" ]]; then
-  cp "$_PM_SRC" "$_PM_HOOK"
+if [[ ! -f "$_PM_HOOK" && -f "$_PM_SRC" && -d "$REPO_ROOT/.git/hooks" ]]; then
+  cp "$_PM_SRC" "$_PM_HOOK" 2>/dev/null || true
   chmod +x "$_PM_HOOK" 2>/dev/null || true
 fi
 

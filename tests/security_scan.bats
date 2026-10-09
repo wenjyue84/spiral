@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# tests/security_scan.bats — Unit tests for run_security_scan() in ralph/ralph.sh
+# tests/security_scan.bats — Unit tests for run_security_scan() in ralph/lib/quality_gates.sh
 #
 # Run with: bats tests/security_scan.bats
 #
@@ -48,7 +48,7 @@ setup() {
   export -f git
 
   # Source run_security_scan from ralph.sh
-  source <(sed -n '/^run_security_scan()/,/^}/p' ralph/ralph.sh)
+  source <(sed -n '/^run_security_scan()/,/^}/p' ralph/lib/quality_gates.sh)
 }
 
 teardown() {

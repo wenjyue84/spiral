@@ -213,8 +213,7 @@ Notes: second notes")
   local output
   output=$(mask_observations "$window" "${obs[@]}")
   # The long notes of attempt 1 should not appear verbatim
-  run ! echo "$output" | grep -q "detailed notes that should not appear in masked output"
-  assert_success
+  [[ "$output" != *"detailed notes that should not appear in masked output"* ]]
   # But the failure reason should appear in the placeholder
   echo "$output" | grep -q "UNIQUE_FAILURE_STRING_XYZ"
 }
@@ -244,7 +243,7 @@ Notes: second notes")
 {"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
 PRDJSON
   local jq_bin="jq"
-  [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
+  [[ -x "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
   # Simulate the ralph.sh _contextStats write
   local tokens_before=200 tokens_after=80 window=3
   local reduction=$(((tokens_before - tokens_after) * 100 / (tokens_before + 1)))
@@ -265,7 +264,7 @@ PRDJSON
 {"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
 PRDJSON
   local jq_bin="jq"
-  [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
+  [[ -x "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
   local tokens_before=200 tokens_after=80 window=3
   local reduction=$(((tokens_before - tokens_after) * 100 / (tokens_before + 1)))
   "$jq_bin" --argjson ctxstats \
@@ -285,7 +284,7 @@ PRDJSON
 {"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
 PRDJSON
   local jq_bin="jq"
-  [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
+  [[ -x "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
   local tokens_before=200 tokens_after=80 window=3
   local reduction=$(((tokens_before - tokens_after) * 100 / (tokens_before + 1)))
   "$jq_bin" --argjson ctxstats \
@@ -306,7 +305,7 @@ PRDJSON
 {"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
 PRDJSON
   local jq_bin="jq"
-  [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
+  [[ -x "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
   local tokens_before=100 tokens_after=60 window=5
   local reduction=$(((tokens_before - tokens_after) * 100 / (tokens_before + 1)))
   "$jq_bin" --argjson ctxstats \

@@ -39,3 +39,9 @@ generate_job_summary.generate_lint_summary.py_count  # type: ignore[attr-defined
 from lib import phase_audit  # noqa: F401
 
 phase_audit.compare_iterations.min_prev_iters  # type: ignore[attr-defined]
+
+# learning_extractor: extract_patterns(min_confidence=0.7) — public API param reserved for future
+# confidence-based filtering; currently documented as unused
+from lib import learning_extractor  # noqa: F401
+
+learning_extractor.extract_patterns.min_confidence  # type: ignore[attr-defined]

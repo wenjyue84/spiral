@@ -153,8 +153,18 @@ load_checkpoint() {
   local _ckpt_iter _ckpt_phase
   _ckpt_iter=$(echo "$_raw" | "$JQ" -r '.iter // empty' 2>/dev/null) || _ckpt_iter=""
   _ckpt_phase=$(echo "$_raw" | "$JQ" -r '.phase // empty' 2>/dev/null) || _ckpt_phase=""
-  if [[ -z "$_ckpt_iter" ]] || ! [[ "$_ckpt_iter" =~ ^[0-9]+$ ]]; then
+  if [[ -z "$_ckpt_iter" ]]; then
     echo "  [checkpoint] WARNING: Checkpoint missing 'iter' field — resetting to iteration 1" >&2
+    rm -f "$CHECKPOINT_FILE"
+    return 1
+  fi
+  if ! [[ "$_ckpt_iter" =~ ^[0-9]+$ ]]; then
+    echo "  [checkpoint] WARNING: Checkpoint has invalid iter '$_ckpt_iter' (expected non-negative integer) — resetting to iteration 1" >&2
+    rm -f "$CHECKPOINT_FILE"
+    return 1
+  fi
+  if [[ -z "$_ckpt_phase" ]]; then
+    echo "  [checkpoint] WARNING: Checkpoint has empty phase — resetting to iteration 1" >&2
     rm -f "$CHECKPOINT_FILE"
     return 1
   fi
@@ -176,6 +186,11 @@ load_checkpoint() {
   # Warn if checkpoint is older than 24 hours
   local _ckpt_ts _ckpt_age
   _ckpt_ts=$(echo "$_raw" | "$JQ" -r '.ts // 0' 2>/dev/null) || _ckpt_ts=0
+  # ts is written as ISO-8601 (write_checkpoint) but legacy checkpoints used epoch seconds
+  if [[ ! "${_ckpt_ts%.*}" =~ ^[0-9]+$ ]]; then
+    _ckpt_ts=$(date -d "$_ckpt_ts" +%s 2>/dev/null || date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$_ckpt_ts" +%s 2>/dev/null || echo "")
+    [[ "$_ckpt_ts" =~ ^[0-9]+$ ]] || _ckpt_ts=$(date +%s)
+  fi
   _ckpt_age=$(($(date +%s) - ${_ckpt_ts%.*}))
   if [[ "$_ckpt_age" -gt 86400 ]]; then
     local _age_hours=$((_ckpt_age / 3600))

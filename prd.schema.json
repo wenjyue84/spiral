@@ -316,6 +316,28 @@
           "description": "DLQ metadata: timestamp, retryCount, reason — written by `main.py dlq promote`",
           "additionalProperties": true
         },
+        "_prUrl": {
+          "type": "string",
+          "description": "URL of the GitHub PR created for this story (SPIRAL_CREATE_PRS=true; cleared by --rollback)"
+        },
+        "_passedAt": {
+          "type": "string",
+          "description": "ISO 8601 timestamp when the story was marked passing (cleared by --rollback)"
+        },
+        "_adrPath": {
+          "type": "string",
+          "description": "Path of the Architecture Decision Record generated for this story (cleared by --rollback)"
+        },
+        "_selfReviewIssues": {
+          "type": "array",
+          "description": "Issues raised by the post-implementation self-review (run_self_review); items carry severity/location/description",
+          "items": { "type": "object", "additionalProperties": true }
+        },
+        "_pending_iterations": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of merge iterations this story has stayed pending (incremented by Phase M; US-779 stuck-story detection)"
+        },
         "verification": {
           "type": "object",
           "description": "Per-story verification contract. When present, Phase V uses this instead of the filesTouch heuristic.",

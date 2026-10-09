@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # tests/diff_size_guard.bats — Unit tests for the _parse_diff_lines helper
-# and the check_diff_size gate in ralph/ralph.sh
+# and the check_diff_size gate in ralph/lib/quality_gates.sh
 #
 # Run with: bats tests/diff_size_guard.bats
 #
@@ -25,8 +25,8 @@ setup() {
 
   # Source only the relevant functions from ralph.sh by extracting and evaling
   # them. We use a grep/sed approach so we don't execute the main loop.
-  source <(sed -n '/^_parse_diff_lines()/,/^}/p' ralph/ralph.sh)
-  source <(sed -n '/^check_diff_size()/,/^}/p' ralph/ralph.sh)
+  source <(sed -n '/^_parse_diff_lines()/,/^}/p' ralph/lib/quality_gates.sh)
+  source <(sed -n '/^check_diff_size()/,/^}/p' ralph/lib/quality_gates.sh)
 }
 
 teardown() {

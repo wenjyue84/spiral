@@ -29,7 +29,7 @@ setup() {
   fi
 
   # Source the check_story_completeness function from ralph.sh
-  source <(sed -n '/^check_story_completeness()/,/^}/p' ralph/ralph.sh)
+  source <(sed -n '/^check_story_completeness()/,/^}/p' ralph/lib/story_lifecycle.sh)
 }
 
 teardown() {
@@ -69,7 +69,7 @@ teardown() {
 
   run check_story_completeness "US-101" "$prd_file"
   assert_failure 1
-  assert_output --partial "title=✗"
+  assert_output --partial "title=N"
 }
 
 @test "check_story_completeness: missing description returns 1" {
@@ -86,7 +86,7 @@ teardown() {
 
   run check_story_completeness "US-102" "$prd_file"
   assert_failure 1
-  assert_output --partial "description=✗"
+  assert_output --partial "description=N"
 }
 
 @test "check_story_completeness: missing acceptanceCriteria returns 1" {
@@ -103,7 +103,7 @@ teardown() {
 
   run check_story_completeness "US-103" "$prd_file"
   assert_failure 1
-  assert_output --partial "acceptanceCriteria=✗"
+  assert_output --partial "acceptanceCriteria=N"
 }
 
 @test "check_story_completeness: empty acceptanceCriteria array returns 1" {
@@ -121,7 +121,7 @@ teardown() {
 
   run check_story_completeness "US-104" "$prd_file"
   assert_failure 1
-  assert_output --partial "acceptanceCriteria=✗"
+  assert_output --partial "acceptanceCriteria=N"
 }
 
 @test "check_story_completeness: story with multiple acceptance criteria returns 0" {

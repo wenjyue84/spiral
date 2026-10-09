@@ -42,7 +42,7 @@ teardown() {
 # ── Helper: source only call_ollama_fallback from ralph.sh ───────────────────
 
 source_ollama_fn() {
-  eval "$(sed -n '/^call_ollama_fallback()/,/^}/p' ralph/ralph.sh)"
+  eval "$(sed -n '/^call_ollama_fallback()/,/^}/p' ralph/lib/ollama_fallback.sh)"
 }
 
 # ── Helper: run the Ollama doctor check inline ───────────────────────────────

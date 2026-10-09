@@ -20,7 +20,17 @@
 # _dir_mtime <path> — portable directory mtime in epoch seconds
 # Returns 0 on macOS (BSD stat) or Linux (GNU stat), 1 if unavailable.
 _dir_mtime() {
-  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
+  # GNU `stat -f` means "filesystem status" and prints multi-line junk with exit 0,
+  # so the BSD fallback output must be validated as a plain integer (the lock dir
+  # can also vanish between the -d check and this call when another process
+  # releases it).
+  local _m
+  _m=$(stat -c %Y "$1" 2>/dev/null) || _m=$(stat -f %m "$1" 2>/dev/null) || _m=""
+  if [[ "$_m" =~ ^-?[0-9]+$ ]]; then
+    echo "$_m"
+  else
+    date +%s # vanished/unreadable: never treat as stale
+  fi
 }
 
 # atomic_patch_prd <wtree> <jq-filter> [extra-jq-args...]

@@ -391,7 +391,7 @@ while [[ $# -gt 0 ]]; do
         shift 2
       else
         echo "[spiral] ERROR: --flaky-tests requires a subcommand (e.g. 'report')" >&2
-        exit 1
+        exit $ERR_BAD_USAGE
       fi
       ;;
     --show-flaky-tests)
@@ -1720,6 +1720,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   # ── Auto-archive completed stories (US-1132) ───────────────────────────────
   # At iteration start, if completed story count >= SPIRAL_AUTO_ARCHIVE_THRESHOLD,
   # automatically archive them to prd-archive.json and commit.
+  SPIRAL_AUTO_ARCHIVE_THRESHOLD="${SPIRAL_AUTO_ARCHIVE_THRESHOLD:-100}"
   if [[ "$SPIRAL_AUTO_ARCHIVE_THRESHOLD" -gt 0 ]]; then
     _COMPLETED_COUNT=$("$SPIRAL_PYTHON" -c "
 import json, sys

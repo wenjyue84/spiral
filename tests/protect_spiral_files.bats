@@ -18,6 +18,8 @@ bats_require_minimum_version 1.7.0
 setup() {
   load test_helper/common-setup
   HOOK_SCRIPT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)/.claude/hooks/protect-spiral-files.sh"
+  # The hook only enforces protection inside a SPIRAL worker (Ralph).
+  export SPIRAL_WORKER_ACTIVE=1
 }
 
 # ── Helper ──────────────────────────────────────────────────────────────────
@@ -78,8 +80,15 @@ _run_hook() {
 
 # ── Tests: Non-protected files (should allow with exit 0) ───────────────────
 
-@test "protect-spiral-files: allows lib/merge_stories.py" {
+@test "protect-spiral-files: blocks lib/ prefix (lib/merge_stories.py)" {
   _run_hook "lib/merge_stories.py"
+  assert_failure 2
+  assert_output --partial "BLOCKED"
+}
+
+@test "protect-spiral-files: allows protected paths when not inside a SPIRAL worker" {
+  unset SPIRAL_WORKER_ACTIVE
+  _run_hook "spiral.sh"
   assert_success
   refute_output --partial "BLOCKED"
 }
@@ -89,9 +98,10 @@ _run_hook() {
   assert_success
 }
 
-@test "protect-spiral-files: allows ralph/CLAUDE.md (not ralph.sh)" {
+@test "protect-spiral-files: blocks whole ralph/ prefix (ralph/CLAUDE.md)" {
   _run_hook "ralph/CLAUDE.md"
-  assert_success
+  assert_failure 2
+  assert_output --partial "BLOCKED"
 }
 
 @test "protect-spiral-files: allows src/main.py" {

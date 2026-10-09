@@ -60,7 +60,7 @@ teardown() {
 # ── Helper: source only run_self_review from ralph.sh ────────────────────────
 
 source_self_review_fn() {
-  eval "$(sed -n '/^run_self_review()/,/^}/p' ralph/ralph.sh)"
+  eval "$(sed -n '/^run_self_review()/,/^}/p' ralph/lib/self_review.sh)"
 }
 
 # ── Tests: default config values ─────────────────────────────────────────────
@@ -225,14 +225,14 @@ EOF
 # ── Tests: results.tsv header ────────────────────────────────────────────────
 
 @test "results.tsv header includes review_tokens column" {
-  # Extract the header printf line from ralph.sh
-  header=$(grep "printf.*review_tokens" ralph/ralph.sh | head -1)
+  # Extract the header printf line from ralph/lib/story_lifecycle.sh
+  header=$(grep "printf.*review_tokens" ralph/lib/story_lifecycle.sh | head -1)
   [[ "$header" == *"review_tokens"* ]]
 }
 
 @test "append_result printf includes review_tokens value" {
   # The printf data line should have 14 format specifiers (%s) for 14 columns
-  data_line=$(grep -A3 "local safe_title=" ralph/ralph.sh | grep "printf '%s" | head -1)
+  data_line=$(grep -A3 "local safe_title=" ralph/lib/story_lifecycle.sh | grep "printf '%s" | head -1)
   count=$(echo "$data_line" | grep -o '%s' | wc -l | tr -d ' ')
   [[ "$count" -ge 14 ]]
 }

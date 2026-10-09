@@ -45,14 +45,14 @@ teardown() {
 
 source_prewarm_fn() {
   # Source call_ollama_fallback (dependency of apply_local_fallback_policy)
-  eval "$(sed -n '/^call_ollama_fallback()/,/^}/p' ralph/ralph.sh)"
+  eval "$(sed -n '/^call_ollama_fallback()/,/^}/p' ralph/lib/ollama_fallback.sh)"
   # Source ollama_prewarm
-  eval "$(sed -n '/^ollama_prewarm()/,/^}/p' ralph/ralph.sh)"
+  eval "$(sed -n '/^ollama_prewarm()/,/^}/p' ralph/lib/ollama_fallback.sh)"
 }
 
 source_policy_fn() {
-  eval "$(sed -n '/^call_ollama_fallback()/,/^}/p' ralph/ralph.sh)"
-  eval "$(sed -n '/^apply_local_fallback_policy()/,/^}/p' ralph/ralph.sh)"
+  eval "$(sed -n '/^call_ollama_fallback()/,/^}/p' ralph/lib/ollama_fallback.sh)"
+  eval "$(sed -n '/^apply_local_fallback_policy()/,/^}/p' ralph/lib/ollama_fallback.sh)"
 }
 
 # ── Default value tests ───────────────────────────────────────────────────────

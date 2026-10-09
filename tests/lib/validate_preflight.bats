@@ -16,6 +16,12 @@ setup() {
   _resolve_jq
   export TMPDIR_PF="$(mktemp -d)"
   export SCRATCH_DIR="$TMPDIR_PF/scratch"
+  # Isolated global git identity: preflight requires user.name/user.email, which CI runners lack.
+  export GIT_CONFIG_GLOBAL="$TMPDIR_PF/gitconfig"
+  printf '[user]
+	name = Spiral Test
+	email = test@spiral.test
+' >"$GIT_CONFIG_GLOBAL"
   mkdir -p "$SCRATCH_DIR"
 
   # Create a bin/ with mock prd_schema.py (pass by default)

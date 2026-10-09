@@ -60,30 +60,30 @@ EOF
     {
       "id": "CAND-001",
       "title": "Wire validation module into spiral loop",
-      "description": "Connect the validation lib module to the spiral.sh main loop for automated checks",
+      "description": "Connect the validation lib module to the spiral.sh main loop so that automated checks run at the start of every iteration and any failure is reported in the iteration summary output",
       "priority": "high",
-      "acceptanceCriteria": ["Module sourced in spiral.sh"],
-      "technicalNotes": [],
+      "acceptanceCriteria": ["Module sourced in spiral.sh", "Run `uv run pytest tests/test_validation.py` and verify it passes"],
+      "technicalNotes": ["Touch lib/validate_stories.py and spiral.sh"],
       "dependencies": [],
       "estimatedComplexity": "small"
     },
     {
       "id": "CAND-002",
       "title": "Add recipe management for the cafe menu",
-      "description": "Build a recipe database for the cafe to track ingredients and costs",
+      "description": "Build a recipe database for the cafe so that staff can track ingredients, portion sizes and costs per menu item, with totals recalculated whenever a supplier price changes",
       "priority": "low",
-      "acceptanceCriteria": ["Recipe CRUD works"],
-      "technicalNotes": [],
+      "acceptanceCriteria": ["Recipe CRUD works via recipes.py", "Run `uv run pytest tests/test_recipes.py` and verify it passes"],
+      "technicalNotes": ["Touch lib/validate_stories.py and spiral.sh"],
       "dependencies": [],
       "estimatedComplexity": "medium"
     },
     {
       "id": "CAND-003",
       "title": "Enable Chrome DevTools MCP visual validation",
-      "description": "Integrate Chrome DevTools MCP as a visual validation tool in the spiral Phase V pipeline",
+      "description": "Integrate Chrome DevTools MCP as a visual validation tool in the spiral Phase V pipeline so that UI stories are verified with screenshots and console output captured as evidence for each run",
       "priority": "medium",
-      "acceptanceCriteria": ["DevTools MCP called in Phase V"],
-      "technicalNotes": [],
+      "acceptanceCriteria": ["DevTools MCP called in Phase V from spiral.sh", "Run `uv run pytest tests/test_devtools.py` and verify it passes"],
+      "technicalNotes": ["Touch lib/validate_stories.py and spiral.sh"],
       "dependencies": [],
       "estimatedComplexity": "medium"
     }
@@ -294,10 +294,10 @@ EOF
     {
       "id": "TEST-001",
       "title": "Fix broken hostel booking widget",
-      "description": "The hostel booking calendar widget fails on mobile browsers",
+      "description": "The hostel booking calendar widget fails on mobile browsers because the date picker overflows the viewport, so guests cannot complete a reservation from their phones at all",
       "priority": "high",
-      "acceptanceCriteria": ["Booking works on mobile"],
-      "technicalNotes": [],
+      "acceptanceCriteria": ["Booking works on mobile in widget.js", "Run `uv run pytest tests/test_booking.py` and verify it passes"],
+      "technicalNotes": ["Touch lib/validate_stories.py and spiral.sh"],
       "dependencies": [],
       "estimatedComplexity": "small"
     }
@@ -315,9 +315,13 @@ EOF
 
   assert_success
 
-  # CAND-002 (cafe) and TEST-001 (hostel booking) have no goal-keyword overlap → rejected
+  # CAND-002 (cafe, source=research) has no goal-keyword overlap → rejected.
+  # TEST-001 (hostel booking, source=test-story) is a repair task: goal alignment is
+  # skipped for test-fix/test-story sources, so it is validated and accepted.
   rejected=$(py_count_stories "$REJECTED_OUT")
-  [ "$rejected" -ge 2 ]
+  [ "$rejected" -eq 1 ]
+  [ "$(py_any_field_contains "$REJECTED_OUT" "id" "CAND-002")" = "yes" ]
+  [ "$(py_any_field_contains "$VALIDATED_OUT" "id" "TEST-001")" = "yes" ]
 }
 
 @test "run_phase_story_validate shell function produces _validated_stories.json" {

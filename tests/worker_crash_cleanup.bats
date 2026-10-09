@@ -183,7 +183,7 @@ teardown() {
 
 @test "monitor loop sleep interval is 5 seconds (crash detection bound)" {
   # Verify the sleep 5 line exists in run_parallel_ralph.sh (not sleep 10)
-  run grep -c "^  sleep 5  # US-245" lib/run_parallel_ralph.sh
+  run grep -cE "^ +sleep 5 +# US-245" lib/run_parallel_ralph.sh
   assert_success
   [ "$output" -ge 1 ]
 }

@@ -135,14 +135,14 @@ assert any(s['id'] == 'US-001' for s in prd['userStories']), 'US-001 not found �
 
 # ── Schema constraint checks (require jsonschema) ─────────────────────────────
 
-@test "title exceeding maxLength 100 is flagged (requires jsonschema)" {
+@test "title exceeding maxLength 120 is flagged (requires jsonschema)" {
   if [[ "$HAS_JSONSCHEMA" != "true" ]]; then
     skip "jsonschema not available in $SPIRAL_PYTHON"
   fi
   local prd="$TMPDIR_TEST/prd.json"
-  # Title of 101 characters
+  # Title of 121 characters (schema maxLength is 120)
   local long_title
-  long_title="$("$SPIRAL_PYTHON" -c "print('A' * 101)")"
+  long_title="$("$SPIRAL_PYTHON" -c "print('A' * 121)")"
   make_prd "$prd" "[{\"id\":\"US-020\",\"title\":\"$long_title\",\"priority\":\"low\",\"passes\":false,\"acceptanceCriteria\":[\"AC1\"],\"dependencies\":[]}]"
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" 2>&1
   assert_failure

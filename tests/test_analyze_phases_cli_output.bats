@@ -1,6 +1,12 @@
 #!/usr/bin/env bats
 
 setup() {
+  # Prefer uv; fall back to the python3 on PATH (CI puts the synced venv first on PATH).
+  if command -v uv >/dev/null 2>&1; then
+    PY_RUN=(uv run python)
+  else
+    PY_RUN=(python3)
+  fi
   export TEST_TMPDIR=$(mktemp -d)
   export RESULTS_FILE="$TEST_TMPDIR/results.jsonl"
 
@@ -24,18 +30,18 @@ EOF
 }
 
 @test "CLI: spiral analyze-phases outputs table format" {
-  run uv run python lib/phase_bottleneck_analyzer.py --results "$RESULTS_FILE"
+  run "${PY_RUN[@]}" lib/phase_bottleneck_analyzer.py --results "$RESULTS_FILE"
   [ "$status" -eq 0 ]
   [[ "$output" == *"PHASE BOTTLENECK ANALYSIS"* ]]
 }
 
 @test "CLI: spiral analyze-phases --json outputs newline-delimited JSON" {
-  run uv run python lib/phase_bottleneck_analyzer.py --results "$RESULTS_FILE" --json
+  run "${PY_RUN[@]}" lib/phase_bottleneck_analyzer.py --results "$RESULTS_FILE" --json
   [ "$status" -eq 0 ]
   [[ "$output" == *"phase_name"* ]]
 }
 
 @test "CLI: spiral analyze-phases handles missing file" {
-  run uv run python lib/phase_bottleneck_analyzer.py --results /nonexistent/file.jsonl
+  run "${PY_RUN[@]}" lib/phase_bottleneck_analyzer.py --results /nonexistent/file.jsonl
   [ "$status" -eq 0 ]
 }

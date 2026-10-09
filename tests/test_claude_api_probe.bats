@@ -42,6 +42,21 @@ source_check_claude_api() {
   eval "$(sed -n '/^check_claude_api()/,/^}/p' lib/spiral_doctor.sh)"
 }
 
+# Remove every PATH entry that provides a `claude` binary, so the "claude CLI not found"
+# branch is exercised even on developer machines that have Claude Code installed.
+_hide_claude_cli() {
+  local _d _new="" _IFS_SAVE="$IFS"
+  IFS=':'
+  for _d in $PATH; do
+    if [[ -x "$_d/claude" || -x "$_d/claude.exe" || -x "$_d/claude.cmd" ]]; then
+      continue
+    fi
+    _new="${_new:+$_new:}$_d"
+  done
+  IFS="$_IFS_SAVE"
+  export PATH="$_new"
+}
+
 # ── check_claude_api unit tests ───────────────────────────────────────────────
 
 @test "check_claude_api returns OK when curl succeeds" {
@@ -87,6 +102,7 @@ EOF
 }
 
 @test "check_claude_api returns ERROR when ANTHROPIC_API_KEY is empty" {
+  _hide_claude_cli
   source_check_claude_api
   export ANTHROPIC_API_KEY=""
 
@@ -193,6 +209,7 @@ EOF
 }
 
 @test "preflight exits 14 when ANTHROPIC_API_KEY is empty" {
+  _hide_claude_cli
   run bash -c "
     export DRY_RUN=0
     export SPIRAL_SKIP_API_CHECK=''

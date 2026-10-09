@@ -135,7 +135,7 @@ teardown() {
 }
 
 @test "spiral_assert_ids_unique returns 1 with duplicate story IDs" {
-  export SPIRAL_ASSERT_MODE="warn"
+  export SPIRAL_ASSERT_MODE="strict"
   run spiral_assert_ids_unique "$FIXTURE_DIR/prd_duplicate_ids.json"
   assert_failure
 }
@@ -158,7 +158,7 @@ teardown() {
 
 @test "spiral_assert_story_count_bounded returns 1 when count exceeds max" {
   export SPIRAL_MAX_TOTAL_STORIES=3
-  export SPIRAL_ASSERT_MODE="warn"
+  export SPIRAL_ASSERT_MODE="strict"
   run spiral_assert_story_count_bounded "$FIXTURE_DIR/prd_5stories.json"
   assert_failure
   unset SPIRAL_MAX_TOTAL_STORIES
@@ -185,7 +185,7 @@ teardown() {
 }
 
 @test "spiral_assert_passes_monotonic returns 1 when passes count decreases" {
-  export SPIRAL_ASSERT_MODE="warn"
+  export SPIRAL_ASSERT_MODE="strict"
   # Baseline: 2 passing stories
   echo "2" >"$SCRATCH_DIR/_passes_baseline"
   # prd_unique.json has only 1 passing story — regression detected
@@ -221,7 +221,7 @@ teardown() {
 }
 
 @test "spiral_assert_merge_no_story_loss returns 1 when count decreases" {
-  export SPIRAL_ASSERT_MODE="warn"
+  export SPIRAL_ASSERT_MODE="strict"
   run spiral_assert_merge_no_story_loss 10 8
   assert_failure
 }
@@ -234,13 +234,13 @@ teardown() {
 }
 
 @test "spiral_assert_iteration_progress returns 1 when zero_count reaches max" {
-  export SPIRAL_ASSERT_MODE="warn"
+  export SPIRAL_ASSERT_MODE="strict"
   run spiral_assert_iteration_progress 3 3
   assert_failure
 }
 
 @test "spiral_assert_iteration_progress returns 1 when zero_count exceeds max" {
-  export SPIRAL_ASSERT_MODE="warn"
+  export SPIRAL_ASSERT_MODE="strict"
   run spiral_assert_iteration_progress 5 3
   assert_failure
 }

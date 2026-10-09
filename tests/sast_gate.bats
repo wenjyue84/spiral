@@ -47,7 +47,7 @@ teardown() {
 _source_sast_fn() {
   # Define a minimal run_sast_gate_check that matches the function in spiral.sh
   # We source the actual function by extracting it
-  eval "$(sed -n '/^run_sast_gate_check()/,/^}/p' spiral.sh)"
+  eval "$(sed -n '/^run_sast_gate_check()/,/^}/p' $BATS_TEST_DIRNAME/../lib/spiral_helpers.sh)"
 }
 
 # ── Tests: SPIRAL_SAST_ENABLED=false ─────────────────────────────────────────

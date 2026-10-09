@@ -69,7 +69,7 @@ JSON
   export -f log_ralph_event reset_retry
 
   # Source only maybe_auto_decompose from ralph.sh
-  source <(sed -n '/^maybe_auto_decompose()/,/^}/p' ralph/ralph.sh)
+  source <(sed -n '/^maybe_auto_decompose()/,/^}/p' ralph/lib/story_lifecycle.sh)
 }
 
 teardown() {

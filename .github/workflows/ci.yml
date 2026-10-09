@@ -571,6 +571,20 @@ jobs:
             lib/worker_heartbeat.sh \
           | shellcheck-sarif > shellcheck.sarif || true
 
+      - name: Strip empty fixes from shellcheck SARIF
+        # shellcheck-sarif emits `fixes` entries with `artifactChanges: []` (and duplicates)
+        # for shellcheck results that carry fix replacements; SARIF 2.1.0 requires
+        # artifactChanges minItems:1 and fixes uniqueItems. Drop only those invalid
+        # entries so the schema validation step below stays strict.
+        run: |
+          jq '.runs |= map(.results |= map(
+                if has("fixes") then
+                  .fixes |= (map(select((.artifactChanges | length) > 0)) | unique)
+                  | if (.fixes | length) == 0 then del(.fixes) else . end
+                else . end))' \
+            shellcheck.sarif > shellcheck.sarif.tmp
+          mv shellcheck.sarif.tmp shellcheck.sarif
+
       - name: Run semgrep and output SARIF
         run: |
           uvx semgrep --config=auto --sarif --output=semgrep.sarif . || \
@@ -731,6 +745,21 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           submodules: recursive
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Install Python dependencies for bats (numpy etc.)
+        # Bats tests shell out to python3 (lib/*.py); put the synced venv first on PATH so
+        # `python`/`python3` resolve to an interpreter with the project dependencies.
+        run: |
+          # --all-packages: the root is a virtual workspace; pydantic etc. live in the lib member
+          uv sync --frozen --group dev --all-packages
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Install git-cliff (used by tests/test_phase_g_changelog.bats)
+        # PyPI ships prebuilt git-cliff binaries; install into the synced venv (already on PATH).
+        run: uv pip install git-cliff
 
       - name: Verify bats version >= 1.7.0
         run: |

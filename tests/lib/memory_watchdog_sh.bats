@@ -196,7 +196,7 @@ source_watchdog_functions() {
   assert_success
   # No leftover tmp file
   local tmp_count
-  tmp_count=$(ls "$TMPDIR_WD/scratch/_memory_pressure.json.tmp."* 2>/dev/null | wc -l || echo "0")
+  tmp_count=$(find "$TMPDIR_WD/scratch" -maxdepth 1 -name "_memory_pressure.json.tmp.*" 2>/dev/null | wc -l)
   [ "$tmp_count" -eq 0 ]
 }
 

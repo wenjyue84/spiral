@@ -61,11 +61,11 @@ EOF
 
 @test "stdin_isolation: ralph.sh contains /dev/null stdin redirect on claude invocation" {
   # Verify the fix is present in the source file
-  grep -q '< /dev/null' ralph/ralph.sh
+  grep -qE '<\s*(/dev/null|"\$_USER_PROMPT_FILE")' ralph/ralph.sh
 }
 
 @test "stdin_isolation: redirect appears on the main claude worker invocation line" {
   # The redirect must be on the line that pipes into tee + stream-formatter (main worker)
   # This ensures the fix is on the actual worker call, not somewhere unrelated
-  grep -A2 'dangerously-skip-permissions' ralph/ralph.sh | grep -q '< /dev/null'
+  grep -A2 'dangerously-skip-permissions' ralph/ralph.sh | grep -qE '<\s*(/dev/null|"\$_USER_PROMPT_FILE")'
 }

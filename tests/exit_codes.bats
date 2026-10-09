@@ -108,7 +108,9 @@ constant_value() {
 @test "max-iters path uses ERR_MAX_ITERS not bare exit 0" {
   # The final exit in spiral.sh (after while loop) must use the constant name.
   # grep for the pattern: the last exit statement should reference ERR_MAX_ITERS.
-  grep -q 'exit \$ERR_MAX_ITERS' "$SPIRAL_SH"
+  # spiral_exit E404 resolves to $ERR_MAX_ITERS via SPIRAL_ERROR_EXIT (lib/spiral_errors.sh).
+  grep -qE 'spiral_exit E404|exit \$ERR_MAX_ITERS' "$SPIRAL_SH"
+  grep -q 'SPIRAL_ERROR_EXIT\[E404\]=\$ERR_MAX_ITERS' "$(dirname "$SPIRAL_SH")/lib/spiral_errors.sh"
 }
 
 # ── Runtime: error-path exit codes ────────────────────────────────────────

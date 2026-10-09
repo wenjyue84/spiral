@@ -7,7 +7,7 @@ setup() {
   _resolve_jq
   export TMPDIR="${TMPDIR:-/tmp}"
   CHECKPOINT_FILE="$TMPDIR/checkpoint_$RANDOM.json"
-  PYTHON="${PYTHON:-python}"
+  PYTHON="${PYTHON:-$(command -v python3 || command -v python)}"
 }
 
 teardown() {

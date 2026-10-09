@@ -140,11 +140,32 @@ EOF
   chmod +x "$TEST_REPO_ROOT/lib/route_stories.py"
 
   export PATH="$TEST_REPO_ROOT/bin:$PATH"
+
+  # Preflight requires a git identity; CI runners have none and TEST_REPO_ROOT is
+  # not a git repo, so provide one via env-based git config (git >= 2.31).
+  export GIT_CONFIG_COUNT=2
+  export GIT_CONFIG_KEY_0=user.name GIT_CONFIG_VALUE_0="SPIRAL Test"
+  export GIT_CONFIG_KEY_1=user.email GIT_CONFIG_VALUE_1="spiral-test@example.com"
 }
 
 teardown_file() {
   # Clean up the temp directory after all tests
   rm -rf "$TEST_REPO_ROOT"
+}
+
+# Run spiral.sh with bats' FD 3 closed (background children such as the log tee would
+# otherwise keep bats waiting forever) and stdin from /dev/null (--gate quit / interactive
+# prompts must see EOF instead of blocking on the runner's stdin). Exit 13 (ERR_MAX_ITERS, "max iterations reached
+# with stories still pending") is the expected outcome of a 1-iteration dry-run over a
+# PRD that still has pending stories, so it is accepted alongside 0.
+_spiral() {
+  local rc=0
+  bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" "$@" 3>&- </dev/null || rc=$?
+  if [[ "$rc" -ne 0 && "$rc" -ne 13 ]]; then
+    echo "spiral.sh exited with unexpected status $rc" >&2
+    return "$rc"
+  fi
+  return 0
 }
 
 setup() {
@@ -170,7 +191,7 @@ EOF
   cd "$TEST_REPO_ROOT"
 
   # Run spiral.sh with --gate skip to skip to Phase V without implementing
-  bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+  _spiral 1 --gate skip --dry-run
 
   # Should exit 0 (not error)
   [ $? -eq 0 ]
@@ -181,7 +202,7 @@ EOF
   rm -f "$TEST_SCRATCH_DIR/_ralph_output.json"
 
   # Run with --gate skip
-  bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run 2>/dev/null || true
+  _spiral 1 --gate skip --dry-run 2>/dev/null || true
 
   # ralph should not have run, so no _ralph_output.json
   # (or it should be empty)
@@ -195,7 +216,7 @@ EOF
   cd "$TEST_REPO_ROOT"
 
   # Run spiral.sh with --gate quit to stop execution
-  bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate quit --dry-run
+  _spiral 1 --gate quit --dry-run
 
   # Should exit 0
   [ $? -eq 0 ]
@@ -207,7 +228,7 @@ EOF
   cd "$TEST_REPO_ROOT"
 
   # Run with --skip-research (should not call claude research)
-  bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --skip-research --dry-run
+  _spiral 1 --gate skip --skip-research --dry-run
 
   # Should complete without error
   [ $? -eq 0 ]
@@ -259,7 +280,7 @@ EOF
 
   # Run spiral.sh with controlled progression
   # Should go through: Phase R, T, M, Gate (skip), Check Done
-  bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+  _spiral 1 --gate skip --dry-run
 
   # Verify success
   [ $? -eq 0 ]
@@ -272,7 +293,7 @@ EOF
   export DRY_RUN=1
 
   # In dry-run mode, should succeed regardless
-  bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+  _spiral 1 --gate skip --dry-run
 
   [ $? -eq 0 ]
 }
@@ -294,7 +315,7 @@ HOOKEOF
   chmod +x "$hook"
 
   HOOK_LOG="$hook_log" SPIRAL_POST_PHASE_HOOK="$hook" \
-    bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+    _spiral 1 --gate skip --dry-run
 
   # Hook should have been called for at least one phase
   [ -f "$hook_log" ]
@@ -313,7 +334,7 @@ HOOKEOF
   chmod +x "$hook"
 
   SPIRAL_PRE_PHASE_HOOK="$hook" \
-    bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+    _spiral 1 --gate skip --dry-run
 
   [ $? -eq 0 ]
 }
@@ -333,7 +354,7 @@ HOOKEOF
   chmod +x "$hook"
 
   HOOK_LOG="$hook_log" SPIRAL_PRE_PHASE_HOOK="$hook" \
-    bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+    _spiral 1 --gate skip --dry-run
 
   [ -f "$hook_log" ]
   # At minimum Phase R and M should have been logged
@@ -350,7 +371,7 @@ HOOKEOF
 
   # spiral.sh should still succeed (non-executable hook is a warning, not fatal)
   SPIRAL_PRE_PHASE_HOOK="$hook" \
-    bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+    _spiral 1 --gate skip --dry-run
 
   [ $? -eq 0 ]
 }
@@ -367,7 +388,7 @@ HOOKEOF
   chmod +x "$hook"
 
   SPIRAL_POST_PHASE_HOOK="$hook" SPIRAL_HOOK_TIMEOUT=5 \
-    bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+    _spiral 1 --gate skip --dry-run
 
   [ $? -eq 0 ]
 }

@@ -16,9 +16,15 @@ load "bats-support/load"
 load "bats-assert/load"
 
 setup_file() {
+  # Absolute path of the repo under test (config heredoc below expands this now).
+  _SPIRAL_HOME_ABS="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   export TEST_REPO_ROOT="$(mktemp -d)"
   export TEST_SCRATCH_DIR="$TEST_REPO_ROOT/.spiral"
   mkdir -p "$TEST_SCRATCH_DIR"
+  # spiral.sh preflight requires a git identity; CI runners have none, so give the temp repo one.
+  git init -q "$TEST_REPO_ROOT"
+  git -C "$TEST_REPO_ROOT" config user.name "Spiral Test"
+  git -C "$TEST_REPO_ROOT" config user.email "test@spiral.local"
 
   # Minimal prd.json
   cat >"$TEST_REPO_ROOT/prd.json" <<'EOF'
@@ -68,21 +74,50 @@ if out_file:
         json.dump({"stories": []}, f)
 sys.exit(0)
 PYEOF
-  chmod +x "$TEST_REPO_ROOT/bin/mock_synthesize.py"
+  chmod +x "$TEST_REPO_ROOT/bin/mock_synthesize.py"
+  # SPIRAL_PYTHON wrapper: spiral.sh runs lib/research/synthesize_tests.py for Phase T via
+  # "$SPIRAL_PYTHON <script>"; route that one script to the timing mock, everything else to python3.
+  cat >"$TEST_REPO_ROOT/bin/python-wrap" <<'WRAPEOF'
+#!/bin/bash
+case "${1:-}" in
+  */synthesize_tests.py)
+    shift
+    exec python3 "$(dirname "$0")/mock_synthesize.py" "$@"
+    ;;
+  */ai_suggest.py)
+    # Phase A is not under test and would call the mock claude (polluting _mock_r_start.txt).
+    shift
+    while [ $# -gt 0 ]; do
+      if [ "$1" = "--out" ]; then echo '{"stories":[]}' >"$2"; fi
+      shift
+    done
+    exit 0
+    ;;
+esac
+exec python3 "$@"
+WRAPEOF
+  chmod +x "$TEST_REPO_ROOT/bin/python-wrap"
 
   # spiral.config.sh — point SPIRAL_PYTHON at mock synthesize
   cat >"$TEST_REPO_ROOT/spiral.config.sh" <<CFGEOF
 #!/bin/bash
-export SPIRAL_PYTHON="python3"
-export SPIRAL_HOME="${SPIRAL_HOME:-.}"
+export SPIRAL_PYTHON="$TEST_REPO_ROOT/bin/python-wrap"
+export SPIRAL_HOME="$_SPIRAL_HOME_ABS"
 export REPO_ROOT="$TEST_REPO_ROOT"
 export PRD_FILE="\$REPO_ROOT/prd.json"
 export SCRATCH_DIR="$TEST_SCRATCH_DIR"
 export CLAUDE_MODEL="haiku"
-export DRY_RUN=0
+# keep a --dry-run flag / DRY_RUN env set before the config is sourced
+export DRY_RUN="\${DRY_RUN:-0}"
 export DRY_RUN_DELAY=0
 # Override synthesize_tests path to our mock
-export SPIRAL_SYNTHESIZE_CMD="python3 $TEST_REPO_ROOT/bin/mock_synthesize.py"
+# Keep the loop deterministic: no drain-mode skipping of A/R/T, and no LLM quality-judge calls
+# (the judge would invoke the mock claude and pollute _mock_r_start.txt).
+# spiral.sh defaults SKIP_RESEARCH=1 and the config is sourced after CLI flag parsing, so the
+# config decides: research runs unless a test sets SKIP_RESEARCH_OVERRIDE=1.
+export SKIP_RESEARCH="\${SKIP_RESEARCH_OVERRIDE:-0}"
+export SPIRAL_DRAIN_THRESHOLD=0
+export SPIRAL_QUALITY_JUDGE_DISABLE=1
 CFGEOF
   chmod +x "$TEST_REPO_ROOT/spiral.config.sh"
 
@@ -194,7 +229,7 @@ setup() {
 @test "--skip-research skips R but T still runs" {
   cd "$TEST_REPO_ROOT"
 
-  SCRATCH_DIR="$TEST_SCRATCH_DIR" \
+  SCRATCH_DIR="$TEST_SCRATCH_DIR" SKIP_RESEARCH_OVERRIDE=1 \
     bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --skip-research 2>/dev/null || true
 
   # R should NOT have recorded a start time (skipped)
@@ -210,7 +245,7 @@ setup() {
 @test "Phase R and T write independent checkpoint marker files" {
   cd "$TEST_REPO_ROOT"
 
-  SCRATCH_DIR="$TEST_SCRATCH_DIR" \
+  SCRATCH_DIR="$TEST_SCRATCH_DIR" SKIP_RESEARCH_OVERRIDE=1 \
     bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --skip-research --dry-run 2>/dev/null || true
 
   # In dry-run mode, both marker files should be written immediately

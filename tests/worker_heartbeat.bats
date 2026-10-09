@@ -187,7 +187,7 @@ JSON
   export HEARTBEAT_INTERVAL=1
   worker_heartbeat_start 7 1
   sleep 2
-  [ -f "$HEARTBEAT_DIR/worker_7.heartbeat" ]
+  [ -f "$HEARTBEAT_DIR/.heartbeat" ]
   worker_heartbeat_stop 7
 }
 
@@ -196,8 +196,9 @@ JSON
   export HEARTBEAT_INTERVAL=1
   worker_heartbeat_start 8 1
   sleep 2
+  [ -f "$HEARTBEAT_DIR/.heartbeat" ]
   worker_heartbeat_stop 8
-  [ ! -f "$HEARTBEAT_DIR/worker_8.heartbeat" ]
+  [ ! -f "$HEARTBEAT_DIR/.heartbeat" ]
 }
 
 @test "worker_heartbeat_start: heartbeat file contains valid JSON fields" {
@@ -205,7 +206,7 @@ JSON
   export HEARTBEAT_INTERVAL=1
   worker_heartbeat_start 9 1
   sleep 2
-  content=$(cat "$HEARTBEAT_DIR/worker_9.heartbeat")
+  content=$(cat "$HEARTBEAT_DIR/.heartbeat")
   echo "$content" | grep -q '"pid"'
   echo "$content" | grep -q '"storyId"'
   echo "$content" | grep -q '"ts"'

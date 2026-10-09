@@ -192,8 +192,8 @@ create_orphan_commit() {
   rm "$TEST_REPO/cliff.toml"
 
   source "$TEST_REPO/lib/phases/gen_changelog.sh"
-  SPIRAL_HOME="$TEST_REPO" phase_gen_changelog
-  [ $? -ne 0 ]
+  SPIRAL_HOME="$TEST_REPO" run phase_gen_changelog
+  [ "$status" -ne 0 ]
 }
 
 @test "run_phase_g orchestration stub works" {

@@ -51,8 +51,14 @@ def find_duplicates(
     # Load existing cache
     embedding_cache = load_cache(cache_path)
 
-    # Load model once (will be cached by sentence_transformers)
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+    # Load model once (will be cached by sentence_transformers). If the model
+    # cannot be loaded (offline CI runner, download failure) fall back to the
+    # deterministic hash embedding below instead of crashing the whole phase.
+    model: Any = None
+    try:
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+    except Exception:
+        model = None
 
     # Compute or retrieve embeddings for each story
     embeddings: list[list[float]] = []
@@ -71,6 +77,8 @@ def find_duplicates(
         else:
             # Compute embedding using sentence-transformers
             try:
+                if model is None:
+                    raise RuntimeError("embedding model unavailable")
                 embedding = model.encode(text, convert_to_tensor=False).tolist()
             except Exception:
                 # Fallback to difflib.SequenceMatcher-based fake embedding

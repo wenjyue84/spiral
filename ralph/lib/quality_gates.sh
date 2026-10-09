@@ -49,11 +49,12 @@ _parse_diff_lines() {
   echo "$stat_line" | awk '
     {
       ins=0; del=0
-      if (match($0, /([0-9]+) insertion/, a)) {
-        ins = a[1]
+      # POSIX awk (mawk-safe): no 3-arg match()
+      if (match($0, /[0-9]+ insertion/)) {
+        ins = substr($0, RSTART, RLENGTH) + 0
       }
-      if (match($0, /([0-9]+) deletion/, a)) {
-        del = a[1]
+      if (match($0, /[0-9]+ deletion/)) {
+        del = substr($0, RSTART, RLENGTH) + 0
       }
       print ins + del
     }'

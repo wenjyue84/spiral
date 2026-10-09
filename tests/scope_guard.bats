@@ -95,7 +95,7 @@ EOFUNC
 
   # Source check_scope_guard from ralph.sh by extracting it
   local ralph_sh
-  ralph_sh="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)/ralph/ralph.sh"
+  ralph_sh="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)/ralph/lib/quality_gates.sh"
   # Extract the function using sed
   eval "$(sed -n '/^check_scope_guard()/,/^}/p' "$ralph_sh")"
 }

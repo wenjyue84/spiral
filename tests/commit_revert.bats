@@ -54,9 +54,18 @@ teardown() {
 }
 
 @test "create_snapshot fails gracefully if snapshot_dir is not writable" {
-  local readonly_dir="/root/impossible_spiral_test_$$"
+  local readonly_dir="$BATS_TEST_TMPDIR/readonly_spiral_test_$$"
   mkdir -p "$readonly_dir" 2>/dev/null || skip "Cannot test readonly directory on this system"
-  ! create_snapshot "$readonly_dir/snap" "$TEST_REPO_TEMP"
+  chmod 555 "$readonly_dir"
+  # Root (and Windows filesystems) ignore directory permissions; nothing to test then
+  if touch "$readonly_dir/.probe" 2>/dev/null; then
+    rm -f "$readonly_dir/.probe"
+    chmod 755 "$readonly_dir"
+    skip "Cannot test readonly directory on this system (permissions not enforced)"
+  fi
+  run create_snapshot "$readonly_dir/snap" "$TEST_REPO_TEMP"
+  chmod 755 "$readonly_dir"
+  [ "$status" -ne 0 ]
 }
 
 @test "restore_snapshot restores stash when SNAPSHOT_STASH_SHA is set" {

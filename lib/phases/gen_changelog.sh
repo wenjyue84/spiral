@@ -39,7 +39,7 @@ phase_gen_changelog() {
   echo "[phase-g] Generating CHANGELOG.md via ${cliff_bin}..."
 
   # Run git-cliff to generate CHANGELOG.md
-  "$cliff_bin" --config "$cliff_config" --output "$output_file"
+  "$cliff_bin" --config "$cliff_config" --repository "$spiral_home" --output "$output_file"
 
   if [[ ! -f "$output_file" ]]; then
     echo "[phase-g] ERROR: CHANGELOG.md was not created" >&2
@@ -116,13 +116,13 @@ _log_orphan_commits() {
 
     # Check if full commit message (subject + body) contains story ID
     local full_message
-    full_message=$(git log -1 --format="%B" "$hash" 2>/dev/null || echo "")
+    full_message=$(git -C "$spiral_home" log -1 --format="%B" "$hash" 2>/dev/null || echo "")
 
     if ! echo "$full_message" | grep -qE '(US|UT|FE|BE)-[0-9]+'; then
       echo "${hash} ${subject}" >>"$warnings_file"
       orphan_count=$((orphan_count + 1))
     fi
-  done < <(git log --oneline --no-merges 2>/dev/null || true)
+  done < <(git -C "$spiral_home" log --oneline --no-merges 2>/dev/null || true)
 
   if [[ "$orphan_count" -gt 0 ]]; then
     echo "[phase-g] WARNING: ${orphan_count} orphan commits (no story ID) logged to ${warnings_file}"
