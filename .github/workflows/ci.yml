@@ -221,10 +221,16 @@ jobs:
       - name: Validate prd.json schema
         run: uv run python lib/prd_schema.py prd.json
 
+      - name: Install Playwright browser (used by tests/e2e and tests/test_e2e_*)
+        run: uv run playwright install --with-deps chromium
+
       - name: Run tests with coverage
         env:
           HYPOTHESIS_PROFILE: ci
         run: |
+          # Without pipefail, `| tee` swallows pytest's exit code and this step shows green
+          # even when tests fail.
+          set -o pipefail
           uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short \
             --cov=lib \
             --cov-branch \
@@ -733,6 +739,10 @@ jobs:
     permissions:
       contents: read
       checks: write
+    env:
+      # CI has no claude CLI / ANTHROPIC_API_KEY; preflight would otherwise exit 14 (FATAL) in
+      # every test that sources spiral.sh. tests/test_claude_api_probe.bats resets this itself.
+      SPIRAL_SKIP_API_CHECK: "true"
 
     steps:
       - name: Harden runner

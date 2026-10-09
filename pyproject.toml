@@ -109,6 +109,9 @@ dev = [
     "playwright>=1.40.0",
     "types-PyYAML>=6.0",
     "types-requests>=2.33.0.20261006",
+    "beautifulsoup4>=4.15.0",
+    "graphviz>=0.21",
+    "pytest-rerunfailures>=16.7",
 ]
 
 [tool.importlinter]

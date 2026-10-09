@@ -24,6 +24,8 @@ dependencies = [
     "websockets>=14.0",
     "uvicorn>=0.30.0",
     "fastmcp>=2.0",
+    "duckdb>=1.5.6",
+    "psutil>=7.2.2",
 ]
 
 [project.optional-dependencies]
