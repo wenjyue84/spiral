@@ -41,16 +41,16 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed  # v2.22.0
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Initialize CodeQL (Python)
-        uses: github/codeql-action/init@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
         with:
           languages: python
           # security-and-quality suite: broader coverage including injection, path traversal,
@@ -58,10 +58,10 @@ jobs:
           queries: security-and-quality
 
       - name: Autobuild Python sources
-        uses: github/codeql-action/autobuild@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        uses: github/codeql-action/autobuild@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
 
       - name: Perform CodeQL analysis (Python)
-        uses: github/codeql-action/analyze@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
         with:
           category: codeql-python
           # Upload SARIF to GitHub Code Scanning — High-severity findings appear
@@ -71,7 +71,7 @@ jobs:
 
       - name: Upload CodeQL Python SARIF as artifact
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: codeql-python-sarif
           path: codeql-python.sarif
@@ -94,16 +94,16 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed  # v2.22.0
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Initialize CodeQL (JavaScript/TypeScript)
-        uses: github/codeql-action/init@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
         with:
           languages: javascript-typescript
           # security-and-quality suite covers XSS, prototype pollution, path traversal,
@@ -111,10 +111,10 @@ jobs:
           queries: security-and-quality
 
       - name: Autobuild JavaScript/TypeScript sources
-        uses: github/codeql-action/autobuild@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        uses: github/codeql-action/autobuild@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
 
       - name: Perform CodeQL analysis (JavaScript/TypeScript)
-        uses: github/codeql-action/analyze@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2  # v4.38.2
         with:
           category: codeql-javascript
           upload: true
@@ -122,7 +122,7 @@ jobs:
 
       - name: Upload CodeQL JavaScript SARIF as artifact
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: codeql-javascript-sarif
           path: codeql-javascript.sarif
