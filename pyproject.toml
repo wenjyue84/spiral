@@ -5,6 +5,18 @@ build-backend = "setuptools.build_meta"
 [tool.uv.workspace]
 members = ["lib", "tests"]
 
+# Security floors for transitive deps pinned too tightly by the optional llm-guard extra
+# (llm-guard 0.3.x caps cryptography / json-repair / transformers at versions with open
+# HIGH advisories; see uv-secure CI job). Overrides lift those caps; llm-guard is an
+# optional extra and its scanner is exercised via mocks in tests/test_llm_guard_scanner.py.
+[tool.uv]
+override-dependencies = [
+    "cryptography>=48.0.1",
+    "json-repair>=0.60.1",
+    "transformers>=5.10.0",
+    "regex>=2025.10.22",
+]
+
 # uv-secure vulnerability scan configuration.
 # Severity threshold: only report HIGH and above (filter LOW/MEDIUM noise).
 # GHSA-r6ph-v2qm-q3c2 (cryptography 44.0.3): acknowledged — patched at 46.0.5.
@@ -14,11 +26,16 @@ members = ["lib", "tests"]
 # Ignored pending llm-guard releasing a version compatible with cryptography 46.
 [tool.uv-secure.vulnerability_criteria]
 severity = "high"
-ignore_vulnerabilities = ["GHSA-r6ph-v2qm-q3c2"]
+# GHSA-8mgp-746c-j5xp (nltk 3.10.3, latest release): no patched version exists upstream.
+# Affects nltk model-artifact save/load helpers (TransitionParser, AveragedPerceptron,
+# PerceptronTagger) given caller-controlled paths. nltk is only a transitive dep of the
+# optional llm-guard extra and SPIRAL never imports nltk or passes it external paths.
+# Re-check when nltk > 3.10.3 is released.
+ignore_vulnerabilities = ["GHSA-r6ph-v2qm-q3c2", "GHSA-8mgp-746c-j5xp"]
 allow_unused_ignores = true
 
 [tool.coverage.run]
-source = ["spiral"]
+source = ["lib"]
 branch = true
 omit = ["tests/*", "*/__pycache__/*"]
 
