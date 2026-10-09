@@ -316,6 +316,14 @@
           "description": "DLQ metadata: timestamp, retryCount, reason — written by `main.py dlq promote`",
           "additionalProperties": true
         },
+        "_archived": {
+          "type": "boolean",
+          "description": "True when dead weight detection auto-archived this story (US-779); excluded from pending counts"
+        },
+        "_archiveReason": {
+          "type": "string",
+          "description": "Why the story was auto-archived, e.g. 'stuck for N iterations' (US-779)"
+        },
         "_prUrl": {
           "type": "string",
           "description": "URL of the GitHub PR created for this story (SPIRAL_CREATE_PRS=true; cleared by --rollback)"

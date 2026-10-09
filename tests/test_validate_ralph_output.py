@@ -8,7 +8,10 @@ before committing. Ensures tsc/ruff/cargo errors are caught and returned as Retr
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
+from pathlib import Path
 from unittest import mock
 
 from lib.impl.validate_ralph_output import (
@@ -300,11 +303,15 @@ class TestValidateSyntaxCli:
     def test_cli_success_prints_none(self) -> None:
         """CLI should print 'null' on success (no errors)."""
         # Runs the real CLI: patching subprocess.run here would also mock the call below.
+        # Hermetic: run this interpreter directly with an empty PATH so no `tsc` can be found
+        # (CI runners may ship one) and the checker is skipped, as the test intends.
+        repo_root = Path(__file__).resolve().parent.parent
         result = subprocess.run(
-            ["uv", "run", "python", "lib/impl/validate_ralph_output.py", "US-746", "src/main.ts"],
+            [sys.executable, "lib/impl/validate_ralph_output.py", "US-746", "src/main.ts"],
             capture_output=True,
             text=True,
-            cwd=".",
+            cwd=str(repo_root),
+            env={**os.environ, "PATH": ""},
         )
         assert result.returncode == 0
         output = result.stdout.strip()

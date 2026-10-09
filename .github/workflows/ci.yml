@@ -176,6 +176,8 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # A hung test once held this job for the 6h runner limit; fail fast instead.
+    timeout-minutes: 60
     strategy:
       matrix:
         # Only 3.13+ supported: pyproject.toml requires-python >= 3.13
@@ -231,7 +233,10 @@ jobs:
           # Without pipefail, `| tee` swallows pytest's exit code and this step shows green
           # even when tests fail.
           set -o pipefail
-          uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short \
+          # --timeout=300: the 'ci' Hypothesis profile (500 examples) under --cov-branch needs
+          # 60-90s for the property tests in test_partition/test_check_dag. The default 60s
+          # (thread method) os._exit()s the whole xdist worker, which then hangs the run.
+          uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short --timeout=300 \
             --cov=lib \
             --cov-branch \
             --cov-report=xml:coverage.xml \
@@ -245,7 +250,7 @@ jobs:
         # Reproduce locally: uv run pytest --randomly-seed=last
         if: failure()
         run: |
-          uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short \
+          uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short --timeout=300 \
             --cov=lib \
             --cov-branch \
             --cov-report=xml:coverage.xml \
