@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Initialize CodeQL (Python)
-        uses: github/codeql-action/init@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        uses: github/codeql-action/init@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
         with:
           languages: python
           # security-and-quality suite: broader coverage including injection, path traversal,
@@ -58,10 +58,10 @@ jobs:
           queries: security-and-quality
 
       - name: Autobuild Python sources
-        uses: github/codeql-action/autobuild@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        uses: github/codeql-action/autobuild@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
 
       - name: Perform CodeQL analysis (Python)
-        uses: github/codeql-action/analyze@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        uses: github/codeql-action/analyze@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
         with:
           category: codeql-python
           # Upload SARIF to GitHub Code Scanning — High-severity findings appear
@@ -103,7 +103,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Initialize CodeQL (JavaScript/TypeScript)
-        uses: github/codeql-action/init@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        uses: github/codeql-action/init@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
         with:
           languages: javascript-typescript
           # security-and-quality suite covers XSS, prototype pollution, path traversal,
@@ -111,10 +111,10 @@ jobs:
           queries: security-and-quality
 
       - name: Autobuild JavaScript/TypeScript sources
-        uses: github/codeql-action/autobuild@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        uses: github/codeql-action/autobuild@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
 
       - name: Perform CodeQL analysis (JavaScript/TypeScript)
-        uses: github/codeql-action/analyze@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        uses: github/codeql-action/analyze@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
         with:
           category: codeql-javascript
           upload: true
