@@ -91,6 +91,7 @@ dev = [
     "pdoc>=14.0",
     "playwright>=1.40.0",
     "types-PyYAML>=6.0",
+    "types-requests>=2.33.0.20261006",
 ]
 
 [tool.importlinter]
@@ -146,3 +147,10 @@ modules = [
     "lib.import_github",
     "lib.import_jira",
 ]
+
+# Platform-split lock helpers: fcntl is POSIX-only and msvcrt.locking is Windows-only,
+# so mypy reports attr-defined (and unused type: ignore) on whichever platform it runs.
+[[tool.mypy.overrides]]
+module = ["core.locked_append_tsv", "lib.core.locked_append_tsv", "core.spiral_io", "lib.core.spiral_io"]
+disable_error_code = ["attr-defined"]
+warn_unused_ignores = false

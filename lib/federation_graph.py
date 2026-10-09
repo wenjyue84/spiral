@@ -258,7 +258,6 @@ def render_graphviz(prd_path: str, dag: dict[str, list[str]], output_file: str) 
     graph.render(output_base, cleanup=True)
 
     # Ensure output file exists at the requested path
-    svg_path = Path(output_base + ".svg")
     if not output_file.endswith(".svg"):
         output_file = output_file + ".svg"
     if output_base + ".svg" != output_file:

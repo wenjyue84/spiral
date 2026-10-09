@@ -729,7 +729,6 @@ def main() -> int:
         compatibility.validate_dag()
         batches = compatibility.suggest_batches()
         if batches:
-            batch_strs = [f"[{','.join(b)}]" for b in batches]
             print(f"[merge] Compatibility matrix: {len(batches)} independent batch(es) suggested")
             for i, batch in enumerate(batches):
                 print(f"[merge]   Batch {i + 1}: {len(batch)} story/stories")

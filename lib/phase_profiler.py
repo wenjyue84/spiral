@@ -11,9 +11,10 @@ Reads .spiral/_phase_timings.jsonl (JSON Lines format) and produces:
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 
-def parse_timings(jsonl_path: str) -> list[dict]:
+def parse_timings(jsonl_path: str) -> list[dict[str, Any]]:
     """
     Parse .spiral/_phase_timings.jsonl and return list of timing records.
 
@@ -47,7 +48,7 @@ def parse_timings(jsonl_path: str) -> list[dict]:
     return records
 
 
-def format_profile_table(records: list[dict]) -> str:
+def format_profile_table(records: list[dict[str, Any]]) -> str:
     """
     Format phase timing records into a human-readable ASCII table.
 
@@ -123,7 +124,7 @@ def format_profile_table(records: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def main():
+def main() -> None:
     """CLI entry point: read jsonl_path and print formatted table."""
     if len(sys.argv) < 2:
         print("Usage: phase_profiler.py <path_to_phase_timings.jsonl>")

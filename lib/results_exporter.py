@@ -11,7 +11,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 # Model pricing per million input tokens
 PRICING = {
@@ -61,7 +61,7 @@ def _get_phase_from_spiral_iter(spiral_iter: int | str, ralph_iter: int | str) -
     # This is a simplification; could enhance with .spiral/_checkpoint.json
     phases = ["A", "R", "T", "S", "E", "M", "X", "G", "I", "V", "C"]
     try:
-        s_iter = int(spiral_iter) if spiral_iter else 0
+        _s_iter = int(spiral_iter) if spiral_iter else 0
         r_iter = int(ralph_iter) if ralph_iter else 0
         # Use ralph_iter as phase index (simplified; actual implementation would read checkpoint)
         idx = r_iter % len(phases)
@@ -72,7 +72,7 @@ def _get_phase_from_spiral_iter(spiral_iter: int | str, ralph_iter: int | str) -
 
 def parse_results_tsv(results_path: Path) -> list[dict[str, Any]]:
     """Parse results.tsv and compute derived fields."""
-    rows = []
+    rows: list[dict[str, Any]] = []
 
     if not results_path.exists():
         return rows
@@ -171,11 +171,12 @@ def export_csv(
         # Return as string
         import io
 
-        f = io.StringIO()
+        sio = io.StringIO()
+        f: IO[str] = sio
         writer = csv.DictWriter(f, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL, extrasaction="ignore")
         for row in rows:
             writer.writerow(row)
-        return f.getvalue()
+        return sio.getvalue()
     else:
         # Write to file-like object or path
         if isinstance(output, (str, Path)):
@@ -208,7 +209,8 @@ def export_json(
     if output is None:
         import io
 
-        f = io.StringIO()
+        sio = io.StringIO()
+        f: IO[str] = sio
     elif isinstance(output, (str, Path)):
         f = open(output, "w", encoding="utf-8")
     else:
@@ -238,7 +240,7 @@ def export_json(
         f.write(json.dumps(row_with_phase_times, ensure_ascii=False) + "\n")
 
     if output is None:
-        result = f.getvalue()
+        result = sio.getvalue()
         f.close()
         return result
     elif isinstance(output, (str, Path)):
@@ -248,7 +250,10 @@ def export_json(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry point: export-results [--format csv|json] [--since ISO8601] [--status pass|fail|timeout] [--output PATH]"""
+    """CLI entry point.
+
+    export-results [--format csv|json] [--since ISO8601] [--status pass|fail|timeout] [--output PATH]
+    """
     args = argv if argv is not None else sys.argv[1:]
 
     fmt = "csv"

@@ -101,9 +101,7 @@ def load_iteration_data(results_path: Path, iteration: int) -> IterationData:
     return IterationData(iteration, stories, total_tokens, total_cost)
 
 
-def compute_story_deltas(
-    iter_a: IterationData, iter_b: IterationData
-) -> dict[str, Any]:
+def compute_story_deltas(iter_a: IterationData, iter_b: IterationData) -> dict[str, Any]:
     """Compute story status changes between two iterations.
 
     Args:
@@ -175,9 +173,7 @@ def calculate_token_delta(iter_a: IterationData, iter_b: IterationData) -> dict[
     }
 
 
-def format_delta_report(
-    iter_a: int, iter_b: int, deltas: dict[str, Any], token_info: dict[str, Any]
-) -> str:
+def format_delta_report(iter_a: int, iter_b: int, deltas: dict[str, Any], token_info: dict[str, Any]) -> str:
     """Format plain text delta report.
 
     Args:
@@ -266,9 +262,7 @@ def format_detailed_report(
             model = story_info.get("model", "?")
             duration = story_info.get("duration", "0")
             tokens = story_info.get("tokens", 0)
-            lines.append(
-                f"  {story_id}: {status.upper()} ({duration}s, {model}, {tokens:,} tokens)"
-            )
+            lines.append(f"  {story_id}: {status.upper()} ({duration}s, {model}, {tokens:,} tokens)")
         lines.append("")
 
     # Recovered stories
@@ -354,9 +348,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Compare story status between two iterations")
     parser.add_argument("iter_a", type=int, help="Earlier iteration number")
     parser.add_argument("iter_b", type=int, help="Later iteration number")
-    parser.add_argument(
-        "--results", type=Path, default=Path("results.tsv"), help="Path to results.tsv"
-    )
+    parser.add_argument("--results", type=Path, default=Path("results.tsv"), help="Path to results.tsv")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument("--detailed", action="store_true", help="Include per-story details")
 
@@ -383,11 +375,7 @@ def main() -> int:
     if args.json:
         print(format_json_report(args.iter_a, args.iter_b, deltas, token_info))
     elif args.detailed:
-        print(
-            format_detailed_report(
-                args.iter_a, args.iter_b, iter_a_data, iter_b_data, deltas, token_info
-            )
-        )
+        print(format_detailed_report(args.iter_a, args.iter_b, iter_a_data, iter_b_data, deltas, token_info))
     else:
         print(format_delta_report(args.iter_a, args.iter_b, deltas, token_info))
 

@@ -131,7 +131,8 @@ def analyze_trace(trace_file: str) -> None:
     for phase in sorted(computed.keys()):
         stats = computed[phase]
         print(
-            f"{phase:<10} {stats['count']:>8} {stats['median_duration_ms']:>12.0f}ms {stats['p95_latency_ms']:>12.0f}ms "
+            f"{phase:<10} {stats['count']:>8} {stats['median_duration_ms']:>12.0f}ms "
+            f"{stats['p95_latency_ms']:>12.0f}ms "
             f"{stats['total_tokens']:>14} ${stats['total_cost_usd']:>9.4f} {stats['escalation_rate']:>9.2%}"
         )
         if stats["median_duration_ms"] > slowest_dur:

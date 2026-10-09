@@ -73,7 +73,8 @@ def _run_story_with_model(story_id: str, model: str, prd_path: str, repo_root: s
     """
     # Create a temporary Ralph invocation with the specific model
     # We use the claude CLI to run a story implementation attempt
-    env = {
+    # NOTE: not currently passed to subprocess.run below (possible latent bug).
+    _env = {
         "SPIRAL_MODEL": model,
         "SPIRAL_STORY": story_id,
         "SPIRAL_HOME": str(Path(__file__).parent.parent),

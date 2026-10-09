@@ -111,7 +111,7 @@ def calculate_ucb1_score(
     # Exploration term (boost uncertainty)
     explore = math.sqrt(2.0 * math.log(total_attempts) / attempts) if total_attempts > 0 and attempts > 0 else 0.0
 
-    return exploit + explore
+    return float(exploit + explore)
 
 
 def select_best_model(tag: str, groups: dict[tuple[str, str], dict[str, Any]]) -> str | None:

@@ -15,23 +15,38 @@ from typing import Any, Dict, List
 PHASE_RECOMMENDATIONS = {
     "A": {
         "threshold": 20,
-        "message": "Phase A (AI Suggest) exceeded 20% of loop time. Consider: caching story candidates, parallelizing suggestion logic.",
+        "message": (
+            "Phase A (AI Suggest) exceeded 20% of loop time. Consider: caching story candidates, "
+            "parallelizing suggestion logic."
+        ),
     },
     "R": {
         "threshold": 40,
-        "message": "Phase R (Research) exceeded 40% of loop time (typical bottleneck). Optimization: enable research cache, limit web searches per story, batch API calls.",
+        "message": (
+            "Phase R (Research) exceeded 40% of loop time (typical bottleneck). Optimization: "
+            "enable research cache, limit web searches per story, batch API calls."
+        ),
     },
     "T": {
         "threshold": 25,
-        "message": "Phase T (Test Synth) exceeded 25% of loop time. Consider: reduce test synthesis scope, parallelize test generation.",
+        "message": (
+            "Phase T (Test Synth) exceeded 25% of loop time. Consider: reduce test synthesis "
+            "scope, parallelize test generation."
+        ),
     },
     "S": {
         "threshold": 10,
-        "message": "Phase S (Story Validate) exceeded 10% of loop time. Review: constitution checks, goal alignment, dedup logic.",
+        "message": (
+            "Phase S (Story Validate) exceeded 10% of loop time. Review: constitution checks, goal "
+            "alignment, dedup logic."
+        ),
     },
     "E": {
         "threshold": 15,
-        "message": "Phase E (Enrichment) exceeded 15% of loop time. Consider: caching enrichment results, limiting context build per story.",
+        "message": (
+            "Phase E (Enrichment) exceeded 15% of loop time. Consider: caching enrichment results, "
+            "limiting context build per story."
+        ),
     },
     "M": {
         "threshold": 5,
@@ -39,11 +54,17 @@ PHASE_RECOMMENDATIONS = {
     },
     "I": {
         "threshold": 35,
-        "message": "Phase I (Implementation) exceeded 35% of loop time. Optimization: increase parallel workers, reduce per-story retry attempts, optimize decompose logic.",
+        "message": (
+            "Phase I (Implementation) exceeded 35% of loop time. Optimization: increase parallel "
+            "workers, reduce per-story retry attempts, optimize decompose logic."
+        ),
     },
     "V": {
         "threshold": 20,
-        "message": "Phase V (Validate) exceeded 20% of loop time. Consider: reduce validation scope, parallelize test execution, cache test results.",
+        "message": (
+            "Phase V (Validate) exceeded 20% of loop time. Consider: reduce validation scope, "
+            "parallelize test execution, cache test results."
+        ),
     },
 }
 

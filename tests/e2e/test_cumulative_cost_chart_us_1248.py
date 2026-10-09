@@ -450,7 +450,8 @@ class TestCumulativeCostChart:
                             f"Cost decreased from iter {trend[i - 1]['iter']} to {iter_num}: {prev_cost} -> {cost}"
                         )
                         assert passed >= prev_passed, (
-                            f"Passed decreased from iter {trend[i - 1]['iter']} to {iter_num}: {prev_passed} -> {passed}"
+                            f"Passed decreased from iter {trend[i - 1]['iter']} to {iter_num}: "
+                            f"{prev_passed} -> {passed}"
                         )
 
                 logger.info(f"✓ All cumulative values are monotonically non-decreasing across {len(trend)} iterations")

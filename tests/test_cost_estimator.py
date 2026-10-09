@@ -440,7 +440,6 @@ def test_budget_with_parallelization(tmp_path: Path) -> None:
     # Calculate totals
     subtotal = sum(s["total_cost"] for s in breakdown)
     contingency = subtotal * 0.20
-    grand_total_single_iter = subtotal + contingency
 
     # Test parallelization math with different worker counts
     test_cases = [

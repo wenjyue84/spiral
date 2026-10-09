@@ -159,7 +159,8 @@ def main(argv: list[str]) -> None:
     """Entry point when called from cli_subcommands.sh."""
     if len(argv) < 3:
         print(
-            "Usage: story_query.py <prd.json> <results.tsv> [--status S] [--complexity C] [--project P] [--by-project] [--format table|json|csv]",
+            "Usage: story_query.py <prd.json> <results.tsv> [--status S] [--complexity C] [--project P] "
+            "[--by-project] [--format table|json|csv]",
             file=sys.stderr,
         )
         sys.exit(1)

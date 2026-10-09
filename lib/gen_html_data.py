@@ -10,15 +10,17 @@ Exports window.SPIRAL_DATA = {
 
 import json
 from datetime import datetime, timezone
+from typing import Any
 
 
-def read_prd_json(prd_path: str) -> dict:
+def read_prd_json(prd_path: str) -> dict[str, Any]:
     """Read and parse prd.json."""
     with open(prd_path, encoding="utf-8") as f:
-        return json.load(f)
+        data: dict[str, Any] = json.load(f)
+        return data
 
 
-def count_stories(data: dict) -> tuple[int, int]:
+def count_stories(data: dict[str, Any]) -> tuple[int, int]:
     """Count total stories and stories with passes=true.
 
     Returns:

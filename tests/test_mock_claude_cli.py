@@ -47,18 +47,18 @@ class TestCannedResponsesFile:
 class TestMockClaudeCliFixture:
     """Tests for the mock_claude_cli fixture behaviour."""
 
-    def test_claude_calls_intercepted(self, mock_claude_cli: MagicMock) -> None:
+    def test_claude_calls_intercepted(self, mock_claude_cli: MagicMock) -> None:  # noqa: F811  (pytest fixture injection)
         """subprocess.run calls to 'claude' are intercepted and return canned response."""
         result = subprocess.run(["claude", "--story", "test story"], capture_output=True)
         assert result.returncode == 0
         assert mock_claude_cli.called
 
-    def test_claude_stdout_is_bytes(self, mock_claude_cli: MagicMock) -> None:
+    def test_claude_stdout_is_bytes(self, mock_claude_cli: MagicMock) -> None:  # noqa: F811  (pytest fixture injection)
         """Intercepted claude calls return stdout as bytes."""
         result = subprocess.run(["claude", "implement"], capture_output=True)
         assert isinstance(result.stdout, bytes)
 
-    def test_mock_is_magic_mock(self, mock_claude_cli: MagicMock) -> None:
+    def test_mock_is_magic_mock(self, mock_claude_cli: MagicMock) -> None:  # noqa: F811  (pytest fixture injection)
         """The fixture yields a MagicMock instance."""
         assert isinstance(mock_claude_cli, MagicMock)
 

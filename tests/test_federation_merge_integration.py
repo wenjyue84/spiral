@@ -137,7 +137,8 @@ def test_collision_detection_same_namespace() -> None:
         result = load_with_includes(main_prd_path)
         stories = result.get("userStories", [])
 
-        # Should have 3 stories: main (US-1) + sub_project_a (sub_project_a:US-100) + sub_project_b (sub_project_b:US-100)
+        # Should have 3 stories: main (US-1) + sub_project_a (sub_project_a:US-100)
+        # + sub_project_b (sub_project_b:US-100)
         assert len(stories) == 3, f"Expected 3 stories, got {len(stories)}"
 
         story_ids = {s["id"] for s in stories}

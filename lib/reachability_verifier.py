@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 
 def get_new_python_files(story_branch: str = "HEAD") -> list[str]:
@@ -49,7 +50,7 @@ def find_calls(entry_point_file: str, module_name: str) -> list[str]:
     return calls
 
 
-def verify_reachability(story_title: str) -> dict:
+def verify_reachability(story_title: str) -> dict[str, Any]:
     """Check if new Python modules are reachable from entry points."""
     # Only check Phase stories
     if not story_title.startswith("Phase"):

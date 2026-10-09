@@ -49,7 +49,7 @@ def parse_results_tsv(
         List of dicts with keys: story_id, model, duration_sec, tokens, cost_usd,
                                   spiral_iter, retry_num, status
     """
-    rows = []
+    rows: List[Dict[str, Any]] = []
 
     if not results_path.exists():
         return rows

@@ -25,7 +25,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -1221,7 +1221,7 @@ async def tests_coverage() -> dict[str, Any]:
     try:
         with open(coverage_json_path, "r", encoding="utf-8") as f:
             coverage_data = json.load(f)
-        return generate_coverage_matrix(coverage_data)
+        return cast(dict[str, Any], generate_coverage_matrix(coverage_data))
     except (json.JSONDecodeError, IOError) as e:
         logger.warning(f"Failed to parse coverage.json: {e}")
         return {

@@ -155,7 +155,8 @@ class TestCompletedStoriesDedup:
 
             # Assert suggestion doesn't match >85% to any completed story
             assert max_similarity < threshold, (
-                f'Suggestion "{title}" has {max_similarity:.2%} similarity to a completed story (threshold: {threshold:.0%})'
+                f'Suggestion "{title}" has {max_similarity:.2%} similarity to a completed story '
+                f"(threshold: {threshold:.0%})"
             )
 
     def test_completed_stories_excluded_from_dedup(self) -> None:

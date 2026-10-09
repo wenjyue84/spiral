@@ -13,10 +13,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from spiral.federation_validator import validate_federation_namespaces
+from spiral.federation_validator import ValidationResult, validate_federation_namespaces
 
 
-def format_summary_table(result, prd_file: Path) -> str:
+def format_summary_table(result: ValidationResult, prd_file: Path) -> str:
     """Format validation result as a summary table.
 
     Args:

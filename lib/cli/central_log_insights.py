@@ -85,7 +85,8 @@ def cmd_summary(args: argparse.Namespace) -> None:
     print(f"  Runs:      {data['total_runs']}")
     print(f"  Projects:  {data['projects']}")
     print(
-        f"  Stories:   {data['total_attempted']} attempted, {data['total_passed']} passed, {data['total_failed']} failed"
+        f"  Stories:   {data['total_attempted']} attempted, {data['total_passed']} passed, "
+        f"{data['total_failed']} failed"
     )
     if data["total_attempted"] > 0:
         rate = data["total_passed"] / data["total_attempted"] * 100
