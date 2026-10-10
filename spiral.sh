@@ -1508,7 +1508,10 @@ _reap_zombies() {
   while wait -n 2>/dev/null; do :; done
   true
 }
-trap _reap_zombies SIGCHLD
+# NOTE: the SIGCHLD trap is installed after the libraries and one-shot modes (--rollback, --undo, ...)
+# have been sourced/run (see below). A SIGCHLD delivered while bash is still parsing a sourced file's
+# multi-line $(...) (e.g. when the memory watchdog child exits) aborts the parse with
+# "unexpected EOF while looking for matching ')'" -- seen on Linux CI in the rollback bats tests.
 
 # ── Memory watchdog — background monitor (graduated pressure or kill-only) ────
 if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/dev/null; then
@@ -1575,6 +1578,10 @@ source "$SPIRAL_HOME/lib/modes/mode_ops.sh"
 
 # -- Startup initialization (sourced from lib/spiral_startup.sh) --
 source "$SPIRAL_HOME/lib/spiral_startup.sh"
+
+# Now that every library is parsed and the one-shot modes have had their chance to exit,
+# start reaping zombie workers as they exit (US-076).
+trap _reap_zombies SIGCHLD
 
 # ── Phase 0: CLARIFY — one-time interactive session before the loop ──────────
 # Skipped when --gate proceed|skip is passed, or when resuming from checkpoint.
