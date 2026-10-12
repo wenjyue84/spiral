@@ -27,12 +27,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Lint shell scripts
         uses: ./.github/actions/lint-shell
@@ -57,12 +57,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Set up uv with cache
         uses: ./.github/actions/setup-uv
@@ -101,12 +101,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Set up uv with cache
         uses: ./.github/actions/setup-uv
@@ -134,12 +134,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Set up uv with cache
         uses: ./.github/actions/setup-uv
@@ -158,12 +158,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Set up uv with cache
         uses: ./.github/actions/setup-uv
@@ -188,15 +188,15 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -204,7 +204,7 @@ jobs:
         uses: ./.github/actions/setup-uv
 
       - name: Restore Hypothesis database
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: .hypothesis
           key: ${{ runner.os }}-hypothesis-${{ hashFiles('**/pyproject.toml') }}
@@ -293,7 +293,7 @@ jobs:
       - name: Upload HTML coverage report
         # Skip upload on fork PRs to prevent secrets exposure
         if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: coverage-report-py${{ matrix.python-version }}
           path: coverage_html/
@@ -301,7 +301,7 @@ jobs:
 
       - name: Upload coverage XML
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: coverage-report-xml-py${{ matrix.python-version }}
           path: coverage.xml
@@ -315,12 +315,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Set up uv with cache
         uses: ./.github/actions/setup-uv
@@ -412,7 +412,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: benchmark-results
           path: .benchmarks/
@@ -427,12 +427,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Set up uv with cache
         uses: ./.github/actions/setup-uv
@@ -531,7 +531,7 @@ jobs:
 
       - name: Upload mutmut HTML report
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: mutmut-report-html
           path: html/
@@ -546,19 +546,19 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Set up uv with cache
         uses: ./.github/actions/setup-uv
 
       - name: Cache shellcheck-sarif cargo binary
         id: cache-shellcheck-sarif
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.cargo/bin/shellcheck-sarif
           key: ${{ runner.os }}-shellcheck-sarif-v1
@@ -610,21 +610,21 @@ jobs:
 
       - name: Upload shellcheck SARIF to GitHub Code Scanning
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d  # v4.38.3
         with:
           sarif_file: shellcheck.sarif
           category: shellcheck
 
       - name: Upload semgrep SARIF to GitHub Code Scanning
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d  # v4.38.3
         with:
           sarif_file: semgrep.sarif
           category: semgrep
 
       - name: Upload SARIF reports as artifacts
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: sarif-reports
           path: |
@@ -640,12 +640,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Set up uv with cache
         uses: ./.github/actions/setup-uv
@@ -730,7 +730,7 @@ jobs:
 
       - name: Upload audit results as artifacts
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: dep-audit-results
           path: |
@@ -752,12 +752,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
         with:
           submodules: recursive
 
@@ -798,14 +798,14 @@ jobs:
 
       - name: Upload bats JUnit results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: bats-junit-results
           path: test-reports/*.xml
 
       - name: Publish bats test results
         if: always()
-        uses: dorny/test-reporter@d61b558e8df85cb60d09ca3e5b09653b4477cea7  # v1
+        uses: dorny/test-reporter@3d49bf4e0715e7fe48375099bd6b1058d42e673c  # v1
         with:
           name: Bats Tests
           path: test-reports/*.xml
@@ -820,12 +820,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Check all actions are pinned to full commit SHA
         run: |
@@ -851,12 +851,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Install actionlint
         run: go install github.com/rhysd/actionlint/cmd/actionlint@latest
@@ -875,12 +875,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
 
       - name: Set up uv with cache
         uses: ./.github/actions/setup-uv
@@ -912,7 +912,7 @@ jobs:
 
       - name: Upload SBOM artifact
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: sbom-cyclonedx
           path: sbom.json
@@ -929,12 +929,12 @@ jobs:
     steps:
       - name: Harden runner
         # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25  # v2.22.1
         with:
           egress-policy: audit
           # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v4
         with:
           fetch-depth: 0
 
@@ -968,7 +968,7 @@ jobs:
 
       - name: Post or update PR comment
         if: steps.prd-changed.outputs.changed == 'true'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
         with:
           script: |
             const marker = '<!-- spiral-prd-status -->';
